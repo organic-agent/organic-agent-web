@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* — Color · surfaces (light) — */
+  --color-paper: #ffffff;
+  --color-paper-deep: #ffffff;
+  --color-ink: #1a1a1a;
+  --color-ink-2: #525252;
+  --color-ink-3: #8a8a8a;
+  --color-line: #eaeaea;
+  --color-line-strong: #d4d4d4;
+
+  /* — Color · on dark surfaces — */
+  --color-on-ink: #fafafa;
+  --color-on-ink-2: #a3a3a3;
+  --color-on-ink-line: #333333;
+
+  /* — Color · accent (the one rose) — */
+  --color-accent: #d4636b;
+  --color-accent-deep: #b84850;
+  --color-accent-press: #9f3e46;
+  --color-accent-soft: #f7e3e5;
+
+  /* — Color · app-layer semantics — */
+  --color-select: #5c9e72;
+  --color-select-soft: #edf6f0;
+  --color-hold: #d49b52;
+  --color-hold-soft: #fbf3e6;
+  --color-danger: #c94e4e;
+  --color-info: #5e89a8;
+
+  /* — Type · families — */
+  --font-display-en: var(--font-cormorant), serif;
+  --font-display-ko: var(--font-noto-serif-kr), serif;
+  --font-sans:
+    "Pretendard Variable", "Pretendard", system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* — Type · line height — */
+  --leading-tight: 1.1;
+  --leading-snug: 1.28;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.75;
+
+  /* — Radius — */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* — Shadow (neutral) — */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 28px -6px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 60px -12px rgba(0, 0, 0, 0.12);
+
+  /* — Motion — */
+  --duration-fast: 150ms;
+  --duration-base: 280ms;
+  --duration-slow: 600ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* — Layout — */
+  --container-wrap: 1080px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ─── Base resets ─── */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-paper);
+    color: var(--color-ink-2);
+    line-height: var(--leading-normal);
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+  }
+
+  img,
+  svg {
+    display: block;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 4px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ─── Scroll-reveal (state-driven, kept as utility) ─── */
+@layer utilities {
+  .reveal-base {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.65s cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 0.65s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .reveal-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .reveal-delay-1 {
+    transition-delay: 0.06s;
+  }
+  .reveal-delay-2 {
+    transition-delay: 0.12s;
+  }
+  .reveal-delay-3 {
+    transition-delay: 0.18s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-base {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ─── Q&A accordion transition ─── */
+@layer utilities {
+  .qna-answer-base {
+    max-height: 0;
+    overflow: hidden;
+    transition:
+      max-height 280ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      padding 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .qna-answer-open {
+    max-height: 200px;
+  }
 }
