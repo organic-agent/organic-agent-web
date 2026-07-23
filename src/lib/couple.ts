@@ -14,3 +14,4 @@ export * from "./couple/photoNotes";
 export * from "./couple/photoViewHistory";
 export * from "./couple/collaboration";
 export * from "./couple/compareTags";
+export * from "./couple/autoGoodTags";

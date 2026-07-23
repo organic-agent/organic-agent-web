@@ -168,8 +168,13 @@ export default function CompareResultCategoryPage() {
                 return (
                   <Link
                     key={photo.id}
-                    href={`/gallery/${folder?.key ?? ""}`}
+                    href={
+                      folder
+                        ? `/gallery/${encodeURIComponent(folder.key)}/photos/${photo.id}`
+                        : "/gallery"
+                    }
                     className="group block rounded-lg border border-line overflow-hidden bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
+                    aria-label={`사진 ${photo.id} 상세 보기`}
                   >
                     <div className="relative aspect-[3/4] overflow-hidden bg-paper-deep">
                       <img

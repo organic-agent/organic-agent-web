@@ -10,26 +10,33 @@
 
 ### 사진작가
 
+#### 스튜디오 · 갤러리 관리
 - 스튜디오 및 첫 갤러리 생성 온보딩
 - 갤러리 생성, 수정, 삭제 및 상태 필터링
-- 갤러리별 사진, 최종 선택본, 셀렉 현황 확인
 - 사진 업로드 및 부부 초대 흐름 시연
 - 마감일과 선택 진행 상태 확인
 
+#### 셀렉 현황 · 보정 작업
+- 셀렉 분포와 폴더별 진행 현황, 신랑·신부 참여 상태 대시보드
+- 부부 최종 선택본 확인 및 미확인 사진 모아보기
+- 사진별 보정 작업 상태(미확인·작업 중·보정 완료)와 추천컷 관리
+- 사진 정보 패널(촬영·파일 정보, 부부 셀렉 결과, 보정 요청)
+- 오분류 사진을 다른 폴더로 이동
+
 ### 부부
 
+#### 카테고리 갤러리 · 셀렉
 - 장면과 인물 조합으로 분류된 카테고리 갤러리 탐색
 - 사진을 `후보`, `고민중`, `제외`로 분류
+- 2장 나란히 비교 셀렉
 - 선택 앨범 구성 및 작가 전달 흐름
-- 분류별 미리보기와 폴더별 진행 현황 확인
 - 사진별 메모, 보정 요청 및 조회 기록 관리
 
-### 협업 셀렉
-
-- 원하는 사진을 협업 폴더에 추가
-- 협업 폴더 생성, 수정 및 삭제
-- 사진별 반응과 댓글 확인
-- 공유 및 투표 링크 생성 흐름 시연
+#### 협업 셀렉
+- 원하는 사진을 협업 폴더에 추가, 폴더 생성·수정·삭제
+- 가족·지인 공유 및 투표 링크 생성 흐름 시연
+- 사진별 이모지 반응과 댓글 확인
+- 반응 종합 평가·비교 우위·내 셀렉 연동으로 의견을 바로 선택에 반영
 
 ## 기술 스택
 
@@ -79,13 +86,22 @@ npm run dev
 | `/onboarding/studio` | 사진작가 스튜디오 생성 |
 | `/onboarding/gallery` | 첫 샘플 갤러리 생성 온보딩 |
 | `/galleries` | 사진작가 갤러리 목록 |
-| `/galleries/[galleryId]` | 사진작가 갤러리 상세 |
+| `/galleries/[galleryId]` | 갤러리 상세 · 사진 폴더 |
+| `/galleries/[galleryId]/folders/[folderKey]` | 폴더별 사진 그리드 · 다른 폴더로 이동 |
+| `/galleries/[galleryId]/folders/[folderKey]/photos/[photoId]` | 작가용 사진 상세 · 보정 작업 관리 |
+| `/galleries/[galleryId]/final-selection` | 부부 최종 선택본 |
+| `/galleries/[galleryId]/selection-status` | 셀렉 현황 대시보드 |
 | `/gallery` | 부부 카테고리 갤러리 |
 | `/gallery/[folderKey]` | 카테고리 폴더별 사진 셀렉 |
+| `/gallery/[folderKey]/photos/[photoId]` | 사진 상세 셀렉 (라이트박스) |
+| `/gallery/[folderKey]/compare` | 2장 비교 셀렉 |
 | `/gallery/compare-results` | 사진 분류 결과 |
+| `/gallery/compare-results/[category]` | 카테고리별 분류 결과 |
 | `/selected` | 최종 선택 앨범 |
 | `/collaboration` | 협업 셀렉 폴더 목록 |
 | `/collaboration/[folderId]` | 협업 셀렉 상세 |
+| `/collaboration/[folderId]/photos/[photoId]` | 협업 사진 반응 · 의견 |
+| `/collaboration/shared` | 협업 공유 링크 열람 |
 
 ## 프로젝트 구조
 
@@ -98,10 +114,12 @@ src/
 │  └─ _components/          # 랜딩 페이지 전용 컴포넌트
 ├─ components/              # 여러 라우트에서 사용하는 공용 UI
 └─ lib/
-   ├─ couple/               # 부부 도메인 목업 데이터와 저장소
-   ├─ galleries.ts          # 사진작가 갤러리 목업 저장소
-   ├─ localStore.ts         # localStorage와 React 동기화
-   └─ studio.ts             # 스튜디오 정보 목업 저장소
+   ├─ couple/                       # 부부 도메인 목업 데이터와 저장소
+   ├─ galleries.ts                  # 사진작가 갤러리 목업 저장소
+   ├─ galleryPhotos.ts              # 작가용 사진·폴더 목업 저장소
+   ├─ photographerPhotoWorkflow.ts  # 작가 보정 작업 상태 저장소
+   ├─ localStore.ts                 # localStorage와 React 동기화
+   └─ studio.ts                     # 스튜디오 정보 목업 저장소
 ```
 
 라우트 가까이에 있는 `_components`, `_hooks`, `_lib` 폴더는 해당 화면에서만 사용하는 코드입니다. 여러 화면에서 공유하는 UI와 데이터 로직은 각각 `src/components`와 `src/lib`에서 관리합니다.

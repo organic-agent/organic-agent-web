@@ -75,20 +75,28 @@ function ChevronIcon({ open }: { open: boolean }) {
 function IconFilterDropdown({
   icon,
   prefix,
-  value,
+  values,
   options,
   onChange,
+  align = "left",
 }: {
   icon: ReactNode;
   prefix: string;
-  value: string;
+  values: string[];
   options: string[];
-  onChange: (v: string) => void;
+  onChange: (values: string[]) => void;
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useClickOutside(ref, open, () => setOpen(false));
+  const displayValue =
+    values.length === 0
+      ? "전체"
+      : values.length === 1
+        ? values[0]
+        : `${values.length}개`;
 
   return (
     <div className="relative inline-block" ref={ref}>
@@ -100,17 +108,17 @@ function IconFilterDropdown({
         className="h-9 pl-3 pr-2.5 rounded-pill border border-line text-[12.5px] font-medium text-ink-2 bg-white outline-none hover:border-line-strong focus:border-ink-3 transition-colors inline-flex items-center gap-1.5"
       >
         <span className="text-ink-3">{icon}</span>
-        {prefix} {value}
+        {prefix} {displayValue}
         <ChevronIcon open={open} />
       </button>
 
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[150px] bg-white border border-line rounded-lg shadow-md py-1.5"
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%+6px)] z-20 w-[104px] bg-white border border-line rounded-lg shadow-md py-1.5`}
         >
           {options.map((opt) => {
-            const active = opt === value;
+            const active = opt === "전체" ? values.length === 0 : values.includes(opt);
             return (
               <button
                 key={opt}
@@ -118,19 +126,45 @@ function IconFilterDropdown({
                 role="option"
                 aria-selected={active}
                 onClick={() => {
-                  onChange(opt);
-                  setOpen(false);
+                  if (opt === "전체") {
+                    onChange([]);
+                    return;
+                  }
+                  onChange(
+                    active
+                      ? values.filter((value) => value !== opt)
+                      : [...values, opt],
+                  );
                 }}
-                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors ${
+                className={`w-full text-left px-2.5 py-2.5 text-[13px] transition-colors flex items-center gap-2 ${
                   active
                     ? "text-ink font-medium bg-paper-deep"
                     : "text-ink-2 hover:bg-paper-deep"
                 }`}
               >
+                <span
+                  className={`w-4 h-4 rounded border grid place-items-center text-[10px] ${
+                    active
+                      ? "bg-ink border-ink text-on-ink"
+                      : "border-line-strong text-transparent"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
                 {opt}
               </button>
             );
           })}
+          <div className="border-t border-line mt-1.5 pt-1.5 px-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="w-full h-8 rounded-md bg-ink text-on-ink text-[11px] font-medium"
+            >
+              선택 완료
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -138,33 +172,34 @@ function IconFilterDropdown({
 }
 
 type Props = {
-  sceneFilter: string;
-  personFilter: string;
-  onSceneFilterChange: (value: string) => void;
-  onPersonFilterChange: (value: string) => void;
+  sceneFilters: string[];
+  personFilters: string[];
+  onSceneFiltersChange: (values: string[]) => void;
+  onPersonFiltersChange: (values: string[]) => void;
 };
 
 export function GalleryFolderFilters({
-  sceneFilter,
-  personFilter,
-  onSceneFilterChange,
-  onPersonFilterChange,
+  sceneFilters,
+  personFilters,
+  onSceneFiltersChange,
+  onPersonFiltersChange,
 }: Props) {
   return (
     <div className="flex items-center gap-2">
       <IconFilterDropdown
         icon={<SceneIcon />}
         prefix="장면"
-        value={sceneFilter}
+        values={sceneFilters}
         options={SCENE_FILTERS}
-        onChange={onSceneFilterChange}
+        onChange={onSceneFiltersChange}
       />
       <IconFilterDropdown
         icon={<PersonIcon />}
         prefix="인물"
-        value={personFilter}
+        values={personFilters}
         options={PERSON_FILTERS}
-        onChange={onPersonFilterChange}
+        onChange={onPersonFiltersChange}
+        align="right"
       />
     </div>
   );

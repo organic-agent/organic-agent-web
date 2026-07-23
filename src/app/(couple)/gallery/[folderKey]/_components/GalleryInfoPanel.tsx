@@ -173,6 +173,7 @@ export function GalleryInfoPanel({
             <SelectedAlbumSection
               submitted={submitted}
               photo={photo}
+              currentDecision={currentDecision}
               isSelected={isSelected}
               selectedCount={selectedCount}
               selectedTarget={selectedTarget}
@@ -251,14 +252,14 @@ function DecisionSection({
     <section>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[12px] font-medium text-ink-2">셀렉 판단</p>
-        {photo && (
-          <span className="font-mono text-[11px] text-ink-3">
-            #{String(photo.id).padStart(3, "0")}
-          </span>
-        )}
+        <span className="text-[10px] text-ink-3">
+          {photo
+            ? `#${String(photo.id).padStart(3, "0")} · 다시 누르면 미정`
+            : "다시 누르면 미정"}
+        </span>
       </div>
       {photo ? (
-        <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {DECISION_OPTIONS.map((option) => {
             const active = currentDecision === option.tag;
             return (
@@ -267,28 +268,20 @@ function DecisionSection({
                 type="button"
                 onClick={() => onDecisionChange(option.tag)}
                 disabled={submitted}
-                className={`w-full min-h-14 rounded-md border px-3.5 py-3 text-left transition-all ${
-                  active ? option.activeClassName : option.className
+                title={option.description}
+                className={`h-11 rounded-md border text-[13px] font-medium flex items-center justify-center gap-1.5 transition-all ${
+                  active
+                    ? option.activeClassName
+                    : "border-line bg-white text-ink-2 hover:border-ink-3"
                 } disabled:opacity-45 disabled:pointer-events-none`}
                 aria-pressed={active}
               >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="text-[15px] font-semibold">
-                    {option.label}
-                  </span>
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      active ? "bg-current" : decisionDotClass(option.tag)
-                    }`}
-                  />
-                </span>
                 <span
-                  className={`block mt-1 text-[11px] leading-snug ${
-                    active ? "text-white/80" : "text-ink-3"
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    active ? "bg-current" : decisionDotClass(option.tag)
                   }`}
-                >
-                  {option.description}
-                </span>
+                />
+                {option.label}
               </button>
             );
           })}
@@ -305,6 +298,7 @@ function DecisionSection({
 function SelectedAlbumSection({
   submitted,
   photo,
+  currentDecision,
   isSelected,
   selectedCount,
   selectedTarget,
@@ -313,6 +307,7 @@ function SelectedAlbumSection({
 }: {
   submitted: boolean;
   photo?: Photo;
+  currentDecision?: CompareTag;
   isSelected: boolean;
   selectedCount: number;
   selectedTarget: number;
@@ -348,7 +343,11 @@ function SelectedAlbumSection({
         <span className="block mt-1 text-[11px] text-current/65">
           {isSelected
             ? "이 사진은 최종 선택 앨범에 담겨 있어요."
-            : "후보 판단과 별도로 최종 앨범에 포함해요."}
+            : currentDecision === "remove"
+              ? "담으면 후보로 변경돼요."
+              : currentDecision
+                ? "최종 선택본에 포함할 사진으로 관리해요."
+                : "담으면 후보로 분류돼요."}
         </span>
       </button>
       {selectionNotice && (

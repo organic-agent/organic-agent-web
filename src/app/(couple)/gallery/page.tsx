@@ -15,13 +15,17 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AppSidebar } from "@/components/AppSidebar";
+import { FolderCardMenu } from "@/components/gallery/FolderCardMenu";
+import { RenameFolderModal } from "@/components/gallery/RenameFolderModal";
 import {
   SCENE_FILTERS,
   PERSON_FILTERS,
   SELECT_TARGET,
   photoUrl,
+  renameGalleryFolder,
+  useGalleryFolders,
   useSelectedIds,
-  getGalleryFolders,
+  type GalleryFolder,
 } from "@/lib/couple";
 
 const SIDEBAR_ITEMS = [
@@ -110,12 +114,14 @@ function IconFilterDropdown({
   value,
   options,
   onChange,
+  align = "left",
 }: {
   icon: React.ReactNode;
   prefix: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -147,7 +153,7 @@ function IconFilterDropdown({
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[150px] bg-white border border-line rounded-lg shadow-md py-1.5"
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%+6px)] z-20 w-[104px] bg-white border border-line rounded-lg shadow-md py-1.5`}
         >
           {options.map((opt) => {
             const active = opt === value;
@@ -161,7 +167,7 @@ function IconFilterDropdown({
                   onChange(opt);
                   setOpen(false);
                 }}
-                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors ${
+                className={`w-full text-left px-2.5 py-2.5 text-[13px] transition-colors ${
                   active
                     ? "text-ink font-medium bg-paper-deep"
                     : "text-ink-2 hover:bg-paper-deep"
@@ -180,12 +186,14 @@ function IconFilterDropdown({
 export default function CoupleGalleryPage() {
   const [sceneFilter, setSceneFilter] = useState("전체");
   const [personFilter, setPersonFilter] = useState("전체");
+  const [renamingFolder, setRenamingFolder] = useState<GalleryFolder | null>(null);
 
   // 이미 선택 앨범에 담긴 사진 id 목록 (공용 저장소와 실시간으로 동기화)
   const selectedIds = useSelectedIds();
   const selectedSet = new Set(selectedIds);
 
-  const folders = getGalleryFolders().filter((f) => {
+  const galleryFolders = useGalleryFolders();
+  const folders = galleryFolders.filter((f) => {
     const sceneOk = sceneFilter === "전체" || f.scene === sceneFilter;
     const personOk = personFilter === "전체" || f.person === personFilter;
     return sceneOk && personOk;
@@ -249,6 +257,7 @@ export default function CoupleGalleryPage() {
             value={personFilter}
             options={PERSON_FILTERS}
             onChange={setPersonFilter}
+            align="right"
           />
         </div>
 
@@ -265,41 +274,63 @@ export default function CoupleGalleryPage() {
                   selectedSet.has(p.id),
                 ).length;
                 return (
-                  <Link
+                  <article
                     key={folder.key}
-                    href={`/gallery/${folder.key}`}
-                    className="group block border border-line rounded-lg overflow-hidden bg-white hover:shadow-md hover:-translate-y-1 transition-all"
+                    className="group relative border border-line rounded-lg overflow-visible bg-white hover:z-10 focus-within:z-20 hover:shadow-md hover:-translate-y-1 transition-all"
                   >
-                    {/* 커버: 폴더 첫 사진 */}
-                    <div className="relative aspect-[4/3] overflow-hidden bg-paper-deep">
-                      <img
-                        src={photoUrl(folder.photos[0].photoId, 800)}
-                        alt={`${folder.label} 폴더 커버`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <span className="absolute bottom-3 right-3 px-2 py-1 rounded-pill text-[11px] font-medium bg-black/40 text-white backdrop-blur-sm">
-                        사진 {folder.photos.length}장
-                      </span>
-                    </div>
+                    <Link
+                      href={`/gallery/${folder.key}`}
+                      className="block"
+                    >
+                      {/* 커버: 폴더 첫 사진 */}
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg bg-paper-deep">
+                        <img
+                          src={photoUrl(folder.photos[0].photoId, 800)}
+                          alt={`${folder.label} 폴더 커버`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <span className="absolute bottom-3 right-3 px-2 py-1 rounded-pill text-[11px] font-medium bg-black/40 text-white backdrop-blur-sm">
+                          사진 {folder.photos.length}장
+                        </span>
+                      </div>
+                    </Link>
 
                     {/* 정보 */}
-                    <div className="p-5">
-                      <h2 className="font-display-ko font-medium text-[16px] text-ink">
-                        {folder.label}
-                      </h2>
-                      <p className="text-[12px] text-ink-3 mt-1.5">
-                        {selectedCount > 0
-                          ? `선택 앨범에 ${selectedCount}장 담김`
-                          : "아직 담은 사진이 없어요"}
-                      </p>
+                    <div className="relative p-5">
+                      <Link href={`/gallery/${folder.key}`} className="block pr-10">
+                        <h2 className="font-display-ko font-medium text-[16px] text-ink truncate">
+                          {folder.label}
+                        </h2>
+                        <p className="text-[12px] text-ink-3 mt-1.5">
+                          {selectedCount > 0
+                            ? `선택 앨범에 ${selectedCount}장 담김`
+                            : "아직 담은 사진이 없어요"}
+                        </p>
+                      </Link>
+                      <FolderCardMenu
+                        folderName={folder.label}
+                        onRename={() => setRenamingFolder(folder)}
+                      />
                     </div>
-                  </Link>
+                  </article>
                 );
               })}
             </div>
           )}
         </div>
       </main>
+
+      {renamingFolder && (
+        <RenameFolderModal
+          key={renamingFolder.key}
+          folderName={renamingFolder.label}
+          onClose={() => setRenamingFolder(null)}
+          onSave={(name) => {
+            renameGalleryFolder(renamingFolder.key, name);
+            setRenamingFolder(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -14,12 +14,18 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AppSidebar } from "@/components/AppSidebar";
 import {
+  createFolder,
   deleteFolder,
   photoUrl,
   updateFolder,
   useFolders,
   type CollabFolder,
 } from "@/lib/couple";
+import { CreateCollaborationFolderModal } from "./_components/CreateCollaborationFolderModal";
+import { CollaborationShareModal } from "./_components/CollaborationShareModal";
+
+const SHARE_CODE = "8391";
+const SHARE_EXPIRES_IN = "7일 후 만료";
 
 const SIDEBAR = [
   {
@@ -128,6 +134,8 @@ export default function CollaborationPage() {
   const [deletingFolder, setDeletingFolder] = useState<CollabFolder | null>(null);
   const [editName, setEditName] = useState("");
   const [editMemo, setEditMemo] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   function openEdit(folder: CollabFolder) {
     setEditingFolder(folder);
@@ -150,6 +158,11 @@ export default function CollaborationPage() {
     setDeletingFolder(null);
   }
 
+  function createEmptyFolder(input: { name: string; memo: string }) {
+    createFolder({ ...input, photos: [] });
+    setCreateOpen(false);
+  }
+
   return (
     <div className="min-h-dvh bg-white flex">
       {/* ═══ 사이드바 (공용 컴포넌트) ═══ */}
@@ -166,24 +179,48 @@ export default function CollaborationPage() {
           <h1 className="font-display-ko font-medium text-[20px] text-ink leading-none">
             협업 셀렉
           </h1>
-          <Link
-            href="/gallery"
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-ink text-on-ink text-[13px] font-medium hover:-translate-y-px hover:bg-[#333] transition-all"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              disabled={folders.length === 0}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-pill border border-line bg-white text-ink-2 text-[13px] font-medium hover:border-line-strong hover:text-ink transition-colors disabled:opacity-40 disabled:pointer-events-none"
             >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            사진에서 폴더 만들기
-          </Link>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+              </svg>
+              공유
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-ink text-on-ink text-[13px] font-medium hover:-translate-y-px hover:bg-[#333] transition-all"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              협업 폴더 만들기
+            </button>
+          </div>
         </header>
 
         <div className="h-17 px-6 md:px-8 border-b border-line flex items-center">
@@ -200,12 +237,13 @@ export default function CollaborationPage() {
               <p className="text-[14px] text-ink-2 mb-1">
                 아직 만든 폴더가 없어요
               </p>
-              <Link
-                href="/gallery"
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
                 className="text-[13px] text-accent hover:text-accent-press underline underline-offset-2"
               >
-                사진에서 폴더 만들기
-              </Link>
+                협업 폴더 만들기
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -217,7 +255,16 @@ export default function CollaborationPage() {
                   <Link href={`/collaboration/${f.id}`} className="block">
                     {/* 커버: 담긴 사진 미리보기 */}
                     <div className="relative aspect-[16/10] bg-paper-deep overflow-hidden">
-                      {f.photos.length === 2 ? (
+                      {f.photos.length === 0 ? (
+                        <div className="w-full h-full grid place-items-center text-center px-4">
+                          <div>
+                            <div className="w-10 h-10 rounded-full bg-white border border-line grid place-items-center text-ink-3 mx-auto mb-2">
+                              <span className="text-lg" aria-hidden="true">＋</span>
+                            </div>
+                            <p className="text-[12px] text-ink-3">사진을 추가해보세요</p>
+                          </div>
+                        </div>
+                      ) : f.photos.length === 2 ? (
                         // 2장 = 비교: 반반 분할
                         <div className="grid grid-cols-2 h-full gap-0.5">
                           {f.photos.slice(0, 2).map((p) => (
@@ -239,14 +286,7 @@ export default function CollaborationPage() {
                         />
                       )}
 
-                      {/* 뱃지 */}
-                      {f.photos.length === 2 && (
-                        <div className="absolute top-3 left-3 flex gap-1.5">
-                          <span className="px-2.5 py-1 rounded-pill text-[11px] font-medium bg-ink text-on-ink">
-                            비교
-                          </span>
-                        </div>
-                      )}
+                      {/* 사진 장수 뱃지 */}
                       <span className="absolute bottom-3 right-3 px-2 py-1 rounded-pill text-[11px] font-medium bg-black/40 text-white backdrop-blur-sm">
                         사진 {f.photos.length}장
                       </span>
@@ -303,6 +343,22 @@ export default function CollaborationPage() {
           </Link>
         ))}
       </nav>
+
+      {createOpen && (
+        <CreateCollaborationFolderModal
+          onClose={() => setCreateOpen(false)}
+          onCreate={createEmptyFolder}
+        />
+      )}
+
+      {shareOpen && (
+        <CollaborationShareModal
+          folders={folders}
+          shareCode={SHARE_CODE}
+          expiresIn={SHARE_EXPIRES_IN}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       {editingFolder && (
         <div className="fixed inset-0 z-[150] grid place-items-center px-4">

@@ -8,23 +8,14 @@
  * 사진을 선택하면 오른쪽 패널에서 해당 사진의 의견을 바로 볼 수 있다.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppSidebar } from "@/components/AppSidebar";
-import {
-  addComment,
-  useFolders,
-  type CollabComment,
-  type CollabPhoto,
-} from "@/lib/couple";
-import { CollaborationCommentsPanel } from "./_components/CollaborationCommentsPanel";
+import { useFolders } from "@/lib/couple";
 import { CollaborationDetailHeader } from "./_components/CollaborationDetailHeader";
 import { CollaborationPhotoGrid } from "./_components/CollaborationPhotoGrid";
-import { CollaborationShareModal } from "./_components/CollaborationShareModal";
-import { CollaborationSummaryCards } from "./_components/CollaborationSummaryCards";
-import { VoteCreateModal } from "./_components/VoteCreateModal";
-import { VoteLinkNotice } from "./_components/VoteLinkNotice";
+import { CollaborationShareModal } from "../_components/CollaborationShareModal";
 
 const SIDEBAR = [
   {
@@ -51,47 +42,11 @@ const SIDEBAR = [
 const SHARE_CODE = "8391";
 const SHARE_EXPIRES_IN = "7일 후 만료";
 
-function photoReactionTotal(photo: CollabPhoto) {
-  return photo.good + photo.soso + photo.sad;
-}
-
-function photoComments(
-  comments: CollabComment[],
-  activePhotoId: number | "all",
-) {
-  if (activePhotoId === "all") return comments;
-  return comments.filter((comment) => comment.photoId === activePhotoId);
-}
-
 export default function CollaborationDetailPage() {
   const { folderId } = useParams<{ folderId: string }>();
   const folders = useFolders();
   const folder = folders.find((f) => f.id === folderId);
-  const [activePhotoId, setActivePhotoId] = useState<number | "all">("all");
-  const [draft, setDraft] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareCopyState, setShareCopyState] = useState<
-    "idle" | "copied" | "failed"
-  >("idle");
-  const [voteOpen, setVoteOpen] = useState(false);
-  const [votePhotoIds, setVotePhotoIds] = useState<number[]>([]);
-  const [voteMessage, setVoteMessage] = useState("");
-  const [voteLink, setVoteLink] = useState("");
-  const [voteCopyState, setVoteCopyState] = useState<
-    "idle" | "copied" | "failed"
-  >("idle");
-
-  useEffect(() => {
-    if (shareCopyState === "idle") return;
-    const timer = window.setTimeout(() => setShareCopyState("idle"), 1800);
-    return () => window.clearTimeout(timer);
-  }, [shareCopyState]);
-
-  useEffect(() => {
-    if (voteCopyState === "idle") return;
-    const timer = window.setTimeout(() => setVoteCopyState("idle"), 1800);
-    return () => window.clearTimeout(timer);
-  }, [voteCopyState]);
 
   if (!folder) {
     return (
@@ -111,66 +66,6 @@ export default function CollaborationDetailPage() {
     );
   }
 
-  const currentFolder = folder;
-  const comments: CollabComment[] = folder.comments;
-  const activePhoto =
-    activePhotoId === "all"
-      ? null
-      : folder.photos.find((photo) => photo.id === activePhotoId) ?? null;
-  const visibleComments = photoComments(comments, activePhotoId);
-  const totalReactions = folder.photos.reduce(
-    (sum, photo) => sum + photoReactionTotal(photo),
-    0,
-  );
-  const shareUrl = `https://www.easyselect.kr/collaboration/${folder.id}`;
-
-  function submitComment() {
-    if (!draft.trim()) return;
-    addComment(currentFolder.id, {
-      author: "나",
-      avatar: "나",
-      text: draft.trim(),
-      photoId: activePhoto?.id,
-    });
-    setDraft("");
-  }
-
-  async function copyShareLink() {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareCopyState("copied");
-    } catch {
-      setShareCopyState("failed");
-    }
-  }
-
-  async function copyVoteLink() {
-    if (!voteLink) return;
-    try {
-      await navigator.clipboard.writeText(voteLink);
-      setVoteCopyState("copied");
-    } catch {
-      setVoteCopyState("failed");
-    }
-  }
-
-  function toggleVotePhoto(photoId: number) {
-    setVotePhotoIds((current) => {
-      if (current.includes(photoId))
-        return current.filter((id) => id !== photoId);
-      if (current.length >= 2) return current;
-      return [...current, photoId];
-    });
-  }
-
-  function createVoteLink() {
-    if (votePhotoIds.length !== 2) return;
-    const nextVoteLink = `https://www.easyselect.kr/vote/${currentFolder.id}?photos=${votePhotoIds.join("-")}`;
-    setVoteLink(nextVoteLink);
-    setVoteOpen(false);
-    setVoteMessage("선택한 2장으로 투표 링크를 만들었어요.");
-  }
-
   return (
     <div className="min-h-dvh bg-white flex">
       {/* ═══ 사이드바 (공용 컴포넌트) ═══ */}
@@ -185,66 +80,24 @@ export default function CollaborationDetailPage() {
         <CollaborationDetailHeader
           folderName={folder.name}
           folderMemo={folder.memo}
-          onVoteClick={() => setVoteOpen(true)}
           onShareClick={() => setShareOpen(true)}
         />
 
-        <div className="px-6 md:px-8 py-8 space-y-6">
-          <CollaborationSummaryCards
-            photoCount={folder.photos.length}
-            commentCount={comments.length}
-            reactionCount={totalReactions}
+        <div className="px-6 md:px-8 py-8">
+          <CollaborationPhotoGrid
+            folderId={folder.id}
+            photos={folder.photos}
           />
-
-          <VoteLinkNotice
-            message={voteMessage}
-            voteLink={voteLink}
-            copyState={voteCopyState}
-            onCopy={copyVoteLink}
-            onClose={() => {
-              setVoteMessage("");
-              setVoteLink("");
-            }}
-          />
-
-          <div className="grid xl:grid-cols-[1fr_360px] gap-8 items-start">
-            <CollaborationPhotoGrid
-              photos={folder.photos}
-              comments={comments}
-              activePhotoId={activePhotoId}
-              onActivePhotoChange={setActivePhotoId}
-            />
-
-            <CollaborationCommentsPanel
-              folderName={folder.name}
-              activePhoto={activePhoto}
-              visibleComments={visibleComments}
-              draft={draft}
-              onDraftChange={setDraft}
-              onSubmit={submitComment}
-            />
-          </div>
         </div>
       </main>
 
       {shareOpen && (
         <CollaborationShareModal
-          shareUrl={shareUrl}
+          folders={folders}
+          initialSelectedFolderIds={[folder.id]}
           shareCode={SHARE_CODE}
           expiresIn={SHARE_EXPIRES_IN}
-          copyState={shareCopyState}
-          onCopy={copyShareLink}
           onClose={() => setShareOpen(false)}
-        />
-      )}
-
-      {voteOpen && (
-        <VoteCreateModal
-          photos={folder.photos}
-          selectedPhotoIds={votePhotoIds}
-          onTogglePhoto={toggleVotePhoto}
-          onCreate={createVoteLink}
-          onClose={() => setVoteOpen(false)}
         />
       )}
     </div>

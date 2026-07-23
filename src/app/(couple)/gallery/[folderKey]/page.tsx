@@ -1,47 +1,29 @@
 "use client";
 
-/**
- * 부부 — 폴더 상세 (사진 셀렉)
- * 위치: src/app/(couple)/gallery/[folderKey]/page.tsx
- *
- * 카테고리 폴더 안의 사진을 넘겨보며 후보/고민중/제외를 판단한다.
- * 우측 정보 패널에서 선택 앨범, 협업 셀렉, 메모, 보정 요청,
- * 조회 기록과 진행 요약을 함께 관리한다.
- */
-
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { AppSidebar } from "@/components/AppSidebar";
+import { PhotoGrid } from "@/components/gallery/PhotoGrid";
 import {
+  COMPARE_TAG_LABEL,
   DEMO_GALLERY_ID,
   SELECT_TARGET,
-  addPhotoToFolder,
   addToSelected,
-  createFolder,
+  clearCompareTag,
   getFolderByKey,
-  recordPhotoView,
+  markAutoGood,
   removeFromSelected,
   setCompareTag,
-  setPhotoMemo,
-  setRetouchRequest,
   useCompareTags,
-  useFolders,
-  usePhotoMemos,
-  usePhotoViewHistory,
-  useRetouchRequests,
   useSelectedIds,
   type CompareTag,
 } from "@/lib/couple";
 import { useGalleries } from "@/lib/galleries";
-import { CollaborationAddModal } from "./_components/CollaborationAddModal";
-import { GalleryInfoPanel } from "./_components/GalleryInfoPanel";
-import { PhotoFilmstrip } from "./_components/PhotoFilmstrip";
 import {
   PhotoFilterChips,
   type PhotoFilter,
 } from "./_components/PhotoFilterChips";
-import { PhotoViewer } from "./_components/PhotoViewer";
 
 const SIDEBAR_ITEMS = [
   {
@@ -65,105 +47,32 @@ const SIDEBAR_ITEMS = [
   },
 ];
 
-const SUMMARY_PANEL_STORAGE_KEY = "wes.galleryDetail.summaryPanelHeight";
-const SUMMARY_PANEL_DEFAULT_HEIGHT = 238;
-const SUMMARY_PANEL_MIN_HEIGHT = 178;
-const SUMMARY_PANEL_MAX_HEIGHT = 420;
-
-function clampSummaryPanelHeight(value: number) {
-  return Math.min(
-    SUMMARY_PANEL_MAX_HEIGHT,
-    Math.max(SUMMARY_PANEL_MIN_HEIGHT, value),
-  );
-}
-
-export default function FolderDetailPage() {
+export default function CoupleFolderGridPage() {
   const { folderKey } = useParams<{ folderKey: string }>();
-  const router = useRouter();
+  const [photoFilter, setPhotoFilter] = useState<PhotoFilter>("all");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<number[]>([]);
+  const [batchNotice, setBatchNotice] = useState("");
   const selectedIds = useSelectedIds();
   const compareTags = useCompareTags();
-  const collaborationFolders = useFolders();
-  const photoMemos = usePhotoMemos();
-  const photoViewHistory = usePhotoViewHistory();
-  const retouchRequests = useRetouchRequests();
   const galleries = useGalleries();
   const selectedSet = new Set(selectedIds);
   const submitted = Boolean(
-    galleries.find((g) => g.id === DEMO_GALLERY_ID)?.selectionSubmittedAt,
+    galleries.find((gallery) => gallery.id === DEMO_GALLERY_ID)
+      ?.selectionSubmittedAt,
   );
-  // 한글 키가 URL에서 퍼센트 인코딩되어 올 수 있으므로 복원
   let decodedKey = folderKey;
   try {
     decodedKey = decodeURIComponent(folderKey);
-  } catch {
-    /* 무시 */
-  }
+  } catch {}
   const folder = getFolderByKey(decodedKey);
-
-  const [current, setCurrent] = useState(0);
-  const [photoFilter, setPhotoFilter] = useState<PhotoFilter>("all");
-  // 우측 정보 패널 접기/펴기
-  const [infoCollapsed, setInfoCollapsed] = useState(false);
-  const [selectionNotice, setSelectionNotice] = useState("");
-  const [collaborationModalOpen, setCollaborationModalOpen] = useState(false);
-  const [collaborationNotice, setCollaborationNotice] = useState("");
-  const [collaborationModalMode, setCollaborationModalMode] = useState<
-    "select" | "create"
-  >("select");
-  const [newFolderName, setNewFolderName] = useState("");
-  const [newFolderMemo, setNewFolderMemo] = useState("");
-  const [summaryPanelHeight, setSummaryPanelHeight] = useState(() => {
-    if (typeof window === "undefined") return SUMMARY_PANEL_DEFAULT_HEIGHT;
-    const saved = window.localStorage.getItem(SUMMARY_PANEL_STORAGE_KEY);
-    const parsed = saved ? Number(saved) : NaN;
-    return Number.isFinite(parsed)
-      ? clampSummaryPanelHeight(parsed)
-      : SUMMARY_PANEL_DEFAULT_HEIGHT;
-  });
-  const summaryResizeStart = useRef<{ y: number; height: number } | null>(null);
-  const lastRecordedPhotoId = useRef<number | null>(null);
-  const total = folder?.photos.length ?? 0;
-  const visiblePhotosForHistory =
-    folder?.photos.filter((item) => {
-      const tag = compareTags[item.id];
-      if (photoFilter === "all") return true;
-      if (photoFilter === "selected") return selectedSet.has(item.id);
-      if (photoFilter === "undecided") return !tag;
-      return tag === photoFilter;
-    }) ?? [];
-  const historyPhotoIndex =
-    visiblePhotosForHistory.length > 0
-      ? Math.min(current, visiblePhotosForHistory.length - 1)
-      : 0;
-  const historyPhotoId = visiblePhotosForHistory[historyPhotoIndex]?.id;
-
-  // 키보드 ← → 로 사진 이동
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") setCurrent((c) => Math.max(0, c - 1));
-      if (e.key === "ArrowRight")
-        setCurrent((c) => Math.min(total - 1, c + 1));
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [total]);
-
-  useEffect(() => {
-    if (!historyPhotoId || lastRecordedPhotoId.current === historyPhotoId)
-      return;
-    lastRecordedPhotoId.current = historyPhotoId;
-    recordPhotoView(historyPhotoId);
-  }, [historyPhotoId]);
 
   if (!folder) {
     return (
-      <div className="min-h-dvh bg-white grid place-items-center px-6">
-        <div className="text-center">
-          <p className="text-[14px] text-ink-2 mb-3">폴더를 찾을 수 없어요</p>
-          <Link
-            href="/gallery"
-            className="text-[13px] text-accent hover:text-accent-press underline underline-offset-2"
-          >
+      <div className="min-h-dvh grid place-items-center text-center px-6">
+        <div>
+          <p className="text-sm text-ink-2 mb-3">폴더를 찾을 수 없어요.</p>
+          <Link href="/gallery" className="text-sm text-accent underline">
             갤러리로 돌아가기
           </Link>
         </div>
@@ -171,288 +80,262 @@ export default function FolderDetailPage() {
     );
   }
 
-  const allFolderPhotos = folder.photos;
-  const photos = allFolderPhotos.filter((item) => {
-    const tag = compareTags[item.id];
+  const counts = folder.photos.reduce(
+    (result, photo) => {
+      const tag = compareTags[photo.id];
+      result.all += 1;
+      if (selectedSet.has(photo.id)) result.selected += 1;
+      if (tag) result[tag] += 1;
+      else result.undecided += 1;
+      return result;
+    },
+    { all: 0, selected: 0, good: 0, hold: 0, remove: 0, undecided: 0 },
+  );
+  const photos = folder.photos.filter((photo) => {
+    const tag = compareTags[photo.id];
     if (photoFilter === "all") return true;
-    if (photoFilter === "selected") return selectedSet.has(item.id);
+    if (photoFilter === "selected") return selectedSet.has(photo.id);
     if (photoFilter === "undecided") return !tag;
     return tag === photoFilter;
   });
-  const filteredTotal = photos.length;
-  const currentIndex =
-    filteredTotal > 0 ? Math.min(current, filteredTotal - 1) : 0;
-  const photo = photos[currentIndex];
-  const currentDecision = photo ? compareTags[photo.id] : undefined;
-  const currentMemo = photo ? photoMemos[photo.id] ?? "" : "";
-  const currentRetouchRequest = photo ? retouchRequests[photo.id] ?? "" : "";
-  const currentViewHistory = photo ? photoViewHistory[photo.id] : undefined;
-  const isSelected = photo ? selectedSet.has(photo.id) : false;
-  const folderSelectedCount = allFolderPhotos.filter((p) =>
-    selectedSet.has(p.id),
-  ).length;
-  const decisionCounts = allFolderPhotos.reduce(
-    (acc, item) => {
-      const tag = compareTags[item.id];
-      if (tag === "good") acc.good += 1;
-      else if (tag === "hold") acc.hold += 1;
-      else if (tag === "remove") acc.remove += 1;
-      else acc.undecided += 1;
-      return acc;
-    },
-    { good: 0, hold: 0, remove: 0, undecided: 0 },
-  );
-  const filterCounts: Record<PhotoFilter, number> = {
-    all: total,
-    selected: folderSelectedCount,
-    good: decisionCounts.good,
-    hold: decisionCounts.hold,
-    remove: decisionCounts.remove,
-    undecided: decisionCounts.undecided,
-  };
-  const reviewedCount =
-    decisionCounts.good + decisionCounts.hold + decisionCounts.remove;
-  const folderProgressItems = [
-    {
-      label: "후보",
-      value: decisionCounts.good,
-      className: "bg-select",
-    },
-    {
-      label: "고민중",
-      value: decisionCounts.hold,
-      className: "bg-hold",
-    },
-    {
-      label: "제외",
-      value: decisionCounts.remove,
-      className: "bg-ink",
-    },
-    {
-      label: "미정",
-      value: decisionCounts.undecided,
-      className: "bg-line-strong",
-    },
-  ];
+  const selectedPhotoSet = new Set(selectedPhotoIds);
+  const allVisiblePhotosSelected =
+    photos.length > 0 && photos.every((photo) => selectedPhotoSet.has(photo.id));
 
-  function toggleSelected() {
-    if (!photo || submitted) return;
-    if (isSelected) {
-      removeFromSelected(photo.id);
-      setSelectionNotice("");
-      return;
-    }
-    const result = addToSelected([photo.id]);
-    setSelectionNotice(
-      result.rejectedCount > 0
-        ? `선택 앨범은 최대 ${SELECT_TARGET}장까지 담을 수 있어요.`
-        : "",
+  function startSelectionMode() {
+    if (submitted) return;
+    setSelectionMode(true);
+    setSelectedPhotoIds([]);
+    setBatchNotice("");
+  }
+
+  function cancelSelectionMode() {
+    setSelectionMode(false);
+    setSelectedPhotoIds([]);
+    setBatchNotice("");
+  }
+
+  function togglePhoto(photoId: number) {
+    if (submitted) return;
+    setSelectedPhotoIds((current) =>
+      current.includes(photoId)
+        ? current.filter((item) => item !== photoId)
+        : [...current, photoId],
     );
+    setBatchNotice("");
   }
 
-  function chooseFilter(nextFilter: PhotoFilter) {
-    setPhotoFilter(nextFilter);
-    setCurrent(0);
-  }
-
-  function applyDecision(tag: CompareTag) {
-    if (!photo || submitted) return;
-    setCompareTag(photo.id, tag);
-  }
-
-  function updateCurrentMemo(value: string) {
-    if (!photo || submitted) return;
-    setPhotoMemo(photo.id, value);
-  }
-
-  function updateCurrentRetouchRequest(value: string) {
-    if (!photo || submitted) return;
-    setRetouchRequest(photo.id, value);
-  }
-
-  function addCurrentPhotoToCollaborationFolder(folderId: string) {
-    if (!photo) return;
-    addPhotoToFolder(folderId, photo);
-    const targetFolder = collaborationFolders.find((item) => item.id === folderId);
-    setCollaborationNotice(
-      targetFolder
-        ? `${targetFolder.name} 폴더에 사진을 담았어요.`
-        : "협업 폴더에 사진을 담았어요.",
+  function toggleAllVisiblePhotos() {
+    if (submitted) return;
+    setSelectedPhotoIds(
+      allVisiblePhotosSelected ? [] : photos.map((photo) => photo.id),
     );
-    setCollaborationModalOpen(false);
+    setBatchNotice("");
   }
 
-  function createCollaborationFolderWithCurrentPhoto() {
-    if (!photo || !newFolderName.trim()) return;
-    const created = createFolder({
-      name: newFolderName.trim(),
-      memo: newFolderMemo.trim(),
-      photos: [photo],
+  function addSelectedPhotosToAlbum() {
+    if (submitted || selectedPhotoIds.length === 0) return;
+
+    const alreadySelectedCount = selectedPhotoIds.filter((photoId) =>
+      selectedSet.has(photoId),
+    ).length;
+    const result = addToSelected(selectedPhotoIds);
+    const addedSet = new Set(result.added);
+    const promotedIds = selectedPhotoIds.filter(
+      (photoId) =>
+        (selectedSet.has(photoId) || addedSet.has(photoId)) &&
+        (compareTags[photoId] === undefined || compareTags[photoId] === "remove"),
+    );
+    promotedIds.forEach((photoId) => {
+      setCompareTag(photoId, "good");
+      markAutoGood(photoId);
     });
-    setCollaborationModalOpen(false);
-    setCollaborationModalMode("select");
-    setNewFolderName("");
-    setNewFolderMemo("");
-    router.push(`/collaboration/${created.id}`);
-  }
+    const messages: string[] = [];
 
-  function openCollaborationModal() {
-    if (!photo) return;
-    setCollaborationNotice("");
-    setNewFolderName("");
-    setNewFolderMemo("");
-    setCollaborationModalMode(
-      collaborationFolders.length === 0 ? "create" : "select",
-    );
-    setCollaborationModalOpen(true);
-  }
-
-  function startSummaryResize(e: React.MouseEvent<HTMLButtonElement>) {
-    summaryResizeStart.current = {
-      y: e.clientY,
-      height: summaryPanelHeight,
-    };
-    let latestHeight = summaryPanelHeight;
-    document.body.style.cursor = "row-resize";
-    document.body.style.userSelect = "none";
-
-    function handleMouseMove(event: MouseEvent) {
-      const start = summaryResizeStart.current;
-      if (!start) return;
-      const nextHeight = clampSummaryPanelHeight(
-        start.height - (event.clientY - start.y),
+    if (result.added.length > 0) {
+      messages.push(`${result.added.length}장을 선택 앨범에 담았어요.`);
+    }
+    if (promotedIds.length > 0) {
+      messages.push(`미정·제외 사진 ${promotedIds.length}장은 후보로 변경했어요.`);
+    }
+    if (alreadySelectedCount > 0) {
+      messages.push(`${alreadySelectedCount}장은 이미 선택 앨범에 있어요.`);
+    }
+    if (result.rejectedCount > 0) {
+      messages.push(
+        `${result.rejectedCount}장은 최대 ${SELECT_TARGET}장 제한으로 담지 못했어요.`,
       );
-      latestHeight = nextHeight;
-      setSummaryPanelHeight(nextHeight);
     }
 
-    function handleMouseUp() {
-      const start = summaryResizeStart.current;
-      summaryResizeStart.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      if (start) {
-        window.localStorage.setItem(
-          SUMMARY_PANEL_STORAGE_KEY,
-          String(clampSummaryPanelHeight(latestHeight)),
-        );
-      }
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    }
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    setBatchNotice(messages.join(" "));
+    setSelectedPhotoIds([]);
   }
 
-  function resetSummaryPanelHeight() {
-    setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT);
-    window.localStorage.setItem(
-      SUMMARY_PANEL_STORAGE_KEY,
-      String(SUMMARY_PANEL_DEFAULT_HEIGHT),
+  function applyTagToSelectedPhotos(tag?: CompareTag) {
+    if (submitted || selectedPhotoIds.length === 0) return;
+
+    selectedPhotoIds.forEach((photoId) => {
+      if (tag === "remove") removeFromSelected(photoId);
+      if (tag) setCompareTag(photoId, tag);
+      else clearCompareTag(photoId);
+    });
+
+    const label = tag ? COMPARE_TAG_LABEL[tag] : "미정";
+    setBatchNotice(
+      tag === "remove"
+        ? `${selectedPhotoIds.length}장을 제외로 지정하고 선택 앨범에서도 제거했어요.`
+        : `${selectedPhotoIds.length}장의 선호도를 ${label}(으)로 지정했어요.`,
     );
+    setSelectedPhotoIds([]);
   }
 
   return (
-    <div className="h-dvh bg-white flex overflow-hidden">
-      {/* ═══ 좌: 공용 사이드바 ═══ */}
+    <div className="min-h-dvh bg-white flex">
       <AppSidebar
         menu={SIDEBAR_ITEMS}
         subtitle={{ title: "민준 & 서연", caption: "스튜디오 이름" }}
         user={{ initial: "서", name: "서연", role: "신부" }}
         homeHref="/gallery"
       />
-
-      {/* ═══ 가운데: 메인 셀렉 영역 ═══ */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* 최상단: 뒤로가기 + 폴더명 + 필터 줄 */}
-        <header className="h-16 shrink-0 border-b border-line flex items-center gap-4 px-6">
+      <main className="flex-1 min-w-0">
+        <header className="h-16 sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-line flex items-center gap-4 px-6 md:px-8">
           <Link
             href="/gallery"
-            className="w-9 h-9 rounded-full grid place-items-center text-ink-2 hover:bg-paper-deep transition-colors shrink-0"
-            aria-label="갤러리로"
+            aria-label="갤러리로 돌아가기"
+            className="w-9 h-9 rounded-full grid place-items-center text-ink-2 hover:bg-paper-deep"
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            ←
           </Link>
-          <h1 className="font-display-ko font-medium text-[18px] text-ink leading-none shrink-0">
-            {folder.label}
-          </h1>
-
-          <PhotoFilterChips
-            activeFilter={photoFilter}
-            counts={filterCounts}
-            onChange={chooseFilter}
-          />
+          <div className="min-w-0">
+            <h1 className="font-display-ko font-medium text-[18px] text-ink truncate">
+              {folder.label}
+            </h1>
+            <p className="text-[11px] text-ink-3">사진 {folder.photos.length}장</p>
+          </div>
+          <div className="ml-auto flex min-w-0 items-center gap-3">
+            {!selectionMode && (
+              <div className="min-w-0 overflow-x-auto">
+                <PhotoFilterChips
+                  activeFilter={photoFilter}
+                  counts={counts}
+                  onChange={setPhotoFilter}
+                />
+              </div>
+            )}
+            {!selectionMode && (
+              <button
+                type="button"
+                onClick={startSelectionMode}
+                disabled={photos.length === 0 || submitted}
+                title={
+                  submitted
+                    ? "작가에게 전달한 뒤에는 사진을 수정할 수 없어요."
+                    : undefined
+                }
+                className="h-9 shrink-0 rounded-pill border border-line px-4 text-[12px] font-medium text-ink-2 transition-colors hover:border-ink-3 disabled:pointer-events-none disabled:opacity-35"
+              >
+                여러 장 선택
+              </button>
+            )}
+          </div>
         </header>
 
-        <PhotoFilmstrip
-          photos={photos}
-          currentIndex={currentIndex}
-          onSelect={setCurrent}
-        />
+        <div className="px-6 md:px-8 py-8">
+          {selectionMode && (
+            <div className="mb-6 rounded-xl border border-line bg-paper px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="min-w-[72px] text-[13px] font-medium text-ink">
+                  {selectedPhotoIds.length}장 선택
+                </p>
+                <button
+                  type="button"
+                  onClick={toggleAllVisiblePhotos}
+                  className="h-9 rounded-pill border border-line bg-white px-3 text-[12px] text-ink-2 transition-colors hover:border-ink-3"
+                >
+                  {allVisiblePhotosSelected ? "전체 선택 해제" : "현재 목록 전체 선택"}
+                </button>
 
-        <PhotoViewer
-          photos={photos}
-          currentIndex={currentIndex}
-          onChangeIndex={setCurrent}
-          onShowAll={() => chooseFilter("all")}
-        />
-      </div>
-
-      <GalleryInfoPanel
-        collapsed={infoCollapsed}
-        onToggleCollapsed={() => setInfoCollapsed((prev) => !prev)}
-        photo={photo}
-        submitted={submitted}
-        currentDecision={currentDecision}
-        onDecisionChange={applyDecision}
-        isSelected={isSelected}
-        selectedCount={selectedIds.length}
-        selectedTarget={SELECT_TARGET}
-        onToggleSelected={toggleSelected}
-        selectionNotice={selectionNotice}
-        onOpenCollaborationModal={openCollaborationModal}
-        collaborationNotice={collaborationNotice}
-        currentMemo={currentMemo}
-        onMemoChange={updateCurrentMemo}
-        currentRetouchRequest={currentRetouchRequest}
-        onRetouchRequestChange={updateCurrentRetouchRequest}
-        currentViewHistory={currentViewHistory}
-        summaryPanelHeight={summaryPanelHeight}
-        onStartSummaryResize={startSummaryResize}
-        onResetSummaryPanelHeight={resetSummaryPanelHeight}
-        reviewedCount={reviewedCount}
-        total={total}
-        progressItems={folderProgressItems}
-        folderSelectedCount={folderSelectedCount}
-      />
-
-      {collaborationModalOpen && photo && (
-        <CollaborationAddModal
-          photo={photo}
-          folders={collaborationFolders}
-          mode={collaborationModalMode}
-          folderName={newFolderName}
-          folderMemo={newFolderMemo}
-          onClose={() => setCollaborationModalOpen(false)}
-          onModeChange={setCollaborationModalMode}
-          onFolderNameChange={setNewFolderName}
-          onFolderMemoChange={setNewFolderMemo}
-          onAddToFolder={addCurrentPhotoToCollaborationFolder}
-          onCreateFolder={createCollaborationFolderWithCurrentPhoto}
-        />
-      )}
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={addSelectedPhotosToAlbum}
+                    disabled={selectedPhotoIds.length === 0}
+                    className="h-9 rounded-pill bg-ink px-4 text-[12px] font-medium text-on-ink disabled:pointer-events-none disabled:opacity-35"
+                  >
+                    선택 앨범에 담기
+                  </button>
+                  <span className="ml-1 text-[11px] font-medium text-ink-3">
+                    선호도 지정
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => applyTagToSelectedPhotos("good")}
+                    disabled={selectedPhotoIds.length === 0}
+                    className="h-9 rounded-pill border border-select px-3 text-[12px] font-medium text-select disabled:pointer-events-none disabled:opacity-35"
+                  >
+                    후보
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyTagToSelectedPhotos("hold")}
+                    disabled={selectedPhotoIds.length === 0}
+                    className="h-9 rounded-pill border border-hold px-3 text-[12px] font-medium text-hold disabled:pointer-events-none disabled:opacity-35"
+                  >
+                    고민중
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyTagToSelectedPhotos("remove")}
+                    disabled={selectedPhotoIds.length === 0}
+                    className="h-9 rounded-pill border border-ink-3 px-3 text-[12px] font-medium text-ink disabled:pointer-events-none disabled:opacity-35"
+                  >
+                    제외
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyTagToSelectedPhotos()}
+                    disabled={selectedPhotoIds.length === 0}
+                    className="h-9 rounded-pill border border-line bg-white px-3 text-[12px] font-medium text-ink-2 disabled:pointer-events-none disabled:opacity-35"
+                  >
+                    미정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelSelectionMode}
+                    className="h-9 rounded-pill px-3 text-[12px] font-medium text-ink-3 transition-colors hover:bg-white hover:text-ink"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+              {batchNotice && (
+                <p
+                  role="status"
+                  className="mt-3 border-t border-line pt-3 text-[12px] text-ink-2"
+                >
+                  {batchNotice}
+                </p>
+              )}
+            </div>
+          )}
+          <PhotoGrid
+            photos={photos}
+            showIdBadge={false}
+            hrefForPhoto={(photo) =>
+              `/gallery/${encodeURIComponent(folder.key)}/photos/${photo.id}`
+            }
+            footerForPhoto={(photo) => (
+              <span className="font-mono text-[11px] text-ink-3">
+                #{String(photo.id).padStart(3, "0")}
+              </span>
+            )}
+            emptyMessage="현재 필터에 해당하는 사진이 없어요."
+            selectionMode={selectionMode}
+            selectedIds={selectedPhotoSet}
+            onTogglePhoto={(photo) => togglePhoto(photo.id)}
+          />
+        </div>
+      </main>
     </div>
   );
 }

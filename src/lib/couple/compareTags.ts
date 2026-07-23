@@ -7,6 +7,7 @@
 
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "@/lib/localStore";
+import { clearAutoGood } from "./autoGoodTags";
 
 export type CompareTag = "hold" | "good" | "remove";
 
@@ -31,9 +32,30 @@ export function useCompareTags(): Record<number, CompareTag> {
 
 export function setCompareTag(
   photoId: number,
+  tag: CompareTag | undefined,
+): Record<number, CompareTag> {
+  const next = { ...compareTagsStore.get() };
+  if (tag) {
+    next[photoId] = tag;
+  } else {
+    delete next[photoId];
+  }
+  compareTagsStore.set(next);
+  // 태그를 직접 바꾸면 '담기로 자동 지정된 후보' 표시는 해제한다(수동 결정으로 간주).
+  clearAutoGood(photoId);
+  return next;
+}
+
+export function clearCompareTag(
+  photoId: number,
+): Record<number, CompareTag> {
+  return setCompareTag(photoId, undefined);
+}
+
+export function toggleCompareTag(
+  photoId: number,
   tag: CompareTag,
 ): Record<number, CompareTag> {
-  const next = { ...compareTagsStore.get(), [photoId]: tag };
-  compareTagsStore.set(next);
-  return next;
+  const currentTag = compareTagsStore.get()[photoId];
+  return setCompareTag(photoId, currentTag === tag ? undefined : tag);
 }

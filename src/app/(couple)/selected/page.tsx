@@ -80,9 +80,11 @@ export default function SelectedPage() {
       }).format(new Date(gallery.selectionSubmittedAt))
     : "";
 
-  function folderHref(scene: string, person: string) {
+  function photoDetailHref(scene: string, person: string, photoId: number) {
     const folder = folders.find((f) => f.scene === scene && f.person === person);
-    return `/gallery/${folder?.key ?? `${scene}-${person}`}`;
+    return folder
+      ? `/gallery/${encodeURIComponent(folder.key)}/photos/${photoId}`
+      : "/gallery";
   }
 
   return (
@@ -122,38 +124,40 @@ export default function SelectedPage() {
           </button>
         </header>
 
-        {/* 진행 요약 */}
-        <div className="min-h-[68px] px-6 md:px-8 py-3 border-b border-line flex flex-col justify-center">
-          <div className="flex items-baseline justify-between mb-3 max-w-[560px]">
-            <div>
-              <span className="font-display-en text-[32px] font-semibold text-ink leading-none">
-                {selected.length}
-              </span>
-              <span className="text-[15px] text-ink-3"> / {TARGET}장 선택</span>
-            </div>
-            <span className="text-[13px] text-ink-2">
-              {submitted
-                ? "작가에게 전달 완료되어 수정할 수 없어요"
-                : selected.length >= TARGET
-                  ? "목표 달성! 전달할 수 있어요"
-                  : `작가에게 전달하려면 ${TARGET - selected.length}장을 더 채워야 해요`}
-            </span>
-          </div>
-          <div className="h-2 rounded-pill bg-paper-deep overflow-hidden max-w-[560px]">
-            <div
-              className="h-full rounded-pill bg-accent transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          {submittedDate && (
-            <p className="mt-2 text-[12px] text-ink-3">
-              {submittedDate} 작가에게 전달 완료
-            </p>
-          )}
-        </div>
-
         {/* 선택 사진 그리드 */}
         <div className="px-6 md:px-8 py-8">
+          {/* 진행 요약 카드 */}
+          <div className="border border-line rounded-lg p-5 mb-6">
+            <div className="flex items-baseline justify-between mb-3">
+              <div>
+                <p className="text-[12px] font-medium text-ink-2">선택 진행</p>
+                <p className="mt-1 text-[13px] text-ink-3">
+                  {submitted
+                    ? "작가에게 전달 완료되어 수정할 수 없어요."
+                    : selected.length >= TARGET
+                      ? "목표 장수에 도달했어요. 작가에게 전달할 수 있어요."
+                      : `작가에게 전달하려면 ${TARGET - selected.length}장을 더 채워야 해요.`}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="font-display-en text-[28px] font-semibold text-ink leading-none">
+                  {selected.length}
+                </span>
+                <span className="text-[13px] text-ink-3"> / {TARGET}장</span>
+              </div>
+            </div>
+            <div className="h-2 rounded-pill bg-paper-deep overflow-hidden">
+              <div
+                className="h-full rounded-pill bg-accent transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {submittedDate && (
+              <p className="mt-3 text-[12px] text-ink-3">
+                {submittedDate} 작가에게 전달 완료
+              </p>
+            )}
+          </div>
           {selected.length === 0 ? (
             <div className="text-center py-24">
               <div className="w-14 h-14 rounded-full bg-paper-deep grid place-items-center mx-auto mb-4">
@@ -181,16 +185,20 @@ export default function SelectedPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {selected.map((photo) => (
                 <div
                   key={photo.id}
                   className="group relative aspect-[3/4] rounded-md overflow-hidden bg-paper-deep ring-2 ring-inset ring-accent"
                 >
                   <Link
-                    href={folderHref(photo.scene, photo.person)}
+                    href={photoDetailHref(
+                      photo.scene,
+                      photo.person,
+                      photo.id,
+                    )}
                     className="block w-full h-full"
-                    aria-label={`${photo.scene} ${photo.person} 폴더로 이동`}
+                    aria-label={`선택 사진 ${photo.id} 상세 보기`}
                   >
                     <img
                       src={photoUrl(photo.photoId)}

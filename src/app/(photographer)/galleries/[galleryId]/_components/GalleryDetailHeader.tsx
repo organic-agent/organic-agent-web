@@ -74,8 +74,9 @@ export function GalleryDetailHeader({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {gallery && badge?.label === "셀렉 완료" && (
+        {gallery?.selectionSubmittedAt && !gallery.delivered && (
           <button
+            type="button"
             onClick={onMarkDelivered}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-pill border border-select text-[13px] font-medium text-select hover:bg-select hover:text-white transition-colors"
           >

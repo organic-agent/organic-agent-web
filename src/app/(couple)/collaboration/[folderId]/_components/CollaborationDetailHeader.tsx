@@ -3,14 +3,12 @@ import Link from "next/link";
 type Props = {
   folderName: string;
   folderMemo?: string;
-  onVoteClick: () => void;
   onShareClick: () => void;
 };
 
 export function CollaborationDetailHeader({
   folderName,
   folderMemo,
-  onVoteClick,
   onShareClick,
 }: Props) {
   return (
@@ -45,25 +43,6 @@ export function CollaborationDetailHeader({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={onVoteClick}
-          className="inline-flex items-center gap-2 h-10 px-4 rounded-pill border border-ink text-[13px] font-medium text-ink hover:bg-ink hover:text-on-ink transition-colors"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 20V10M12 20V4M6 20v-6" />
-          </svg>
-          투표 만들기
-        </button>
         <button
           type="button"
           onClick={onShareClick}

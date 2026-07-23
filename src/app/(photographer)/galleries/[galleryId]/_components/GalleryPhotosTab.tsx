@@ -17,12 +17,18 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { FolderCardMenu } from "@/components/gallery/FolderCardMenu";
+import { RenameFolderModal } from "@/components/gallery/RenameFolderModal";
 import {
-  getGalleryFolders,
   photoUrl,
+  renameGalleryFolder,
   useCompareTags,
+  useGalleryFolders,
   useSelectedIds,
   type CompareTag,
+  type GalleryFolder,
 } from "@/lib/galleryPhotos";
 import { GalleryFolderFilters } from "./GalleryFolderFilters";
 
@@ -39,15 +45,18 @@ type Props = {
 };
 
 export function GalleryPhotosTab({ total }: Props) {
-  const [sceneFilter, setSceneFilter] = useState("전체");
-  const [personFilter, setPersonFilter] = useState("전체");
+  const { galleryId } = useParams<{ galleryId: string }>();
+  const [sceneFilters, setSceneFilters] = useState<string[]>([]);
+  const [personFilters, setPersonFilters] = useState<string[]>([]);
+  const [renamingFolder, setRenamingFolder] = useState<GalleryFolder | null>(null);
   const selectedIds = useSelectedIds();
   const compareTags = useCompareTags();
   const selectedSet = new Set(selectedIds);
 
-  const folders = getGalleryFolders().filter((folder) => {
-    const sceneOk = sceneFilter === "전체" || folder.scene === sceneFilter;
-    const personOk = personFilter === "전체" || folder.person === personFilter;
+  const galleryFolders = useGalleryFolders();
+  const folders = galleryFolders.filter((folder) => {
+    const sceneOk = sceneFilters.length === 0 || sceneFilters.includes(folder.scene);
+    const personOk = personFilters.length === 0 || personFilters.includes(folder.person);
     return sceneOk && personOk;
   });
 
@@ -64,10 +73,10 @@ export function GalleryPhotosTab({ total }: Props) {
           </p>
         </div>
         <GalleryFolderFilters
-          sceneFilter={sceneFilter}
-          personFilter={personFilter}
-          onSceneFilterChange={setSceneFilter}
-          onPersonFilterChange={setPersonFilter}
+          sceneFilters={sceneFilters}
+          personFilters={personFilters}
+          onSceneFiltersChange={setSceneFilters}
+          onPersonFiltersChange={setPersonFilters}
         />
       </div>
 
@@ -102,52 +111,79 @@ export function GalleryPhotosTab({ total }: Props) {
             return (
               <article
                 key={folder.key}
-                className="border border-line rounded-lg overflow-hidden bg-white"
+                className="group border border-line rounded-lg overflow-hidden bg-white hover:-translate-y-0.5 hover:shadow-md transition-all"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-paper-deep">
-                  <img
-                    src={photoUrl(folder.photos[0].photoId, 800)}
-                    alt={`${folder.label} 폴더 커버`}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute bottom-3 right-3 px-2 py-1 rounded-pill text-[11px] font-medium bg-black/40 text-white backdrop-blur-sm">
-                    사진 {folder.photos.length}장
-                  </span>
-                </div>
-
-                <div className="p-5">
-                  <h2 className="font-display-ko font-medium text-[16px] text-ink">
-                    {folder.label}
-                  </h2>
-                  <p className="text-[12px] text-ink-3 mt-1.5">
-                    선택 앨범에 {selectedCount}장 담김
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    <div className="rounded-md bg-select-soft px-2.5 py-2">
-                      <p className="text-[11px] text-select">후보</p>
-                      <p className="text-[15px] font-semibold text-select">
-                        {goodCount}
-                      </p>
-                    </div>
-                    <div className="rounded-md bg-hold-soft px-2.5 py-2">
-                      <p className="text-[11px] text-hold">고민중</p>
-                      <p className="text-[15px] font-semibold text-hold">
-                        {holdCount}
-                      </p>
-                    </div>
-                    <div className="rounded-md bg-paper-deep px-2.5 py-2">
-                      <p className="text-[11px] text-ink-3">제외</p>
-                      <p className="text-[15px] font-semibold text-ink">
-                        {removeCount}
-                      </p>
-                    </div>
+                <Link
+                  href={`/galleries/${galleryId}/folders/${encodeURIComponent(folder.key)}`}
+                  aria-label={`${folder.label} 폴더 열기`}
+                  className="block"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden bg-paper-deep">
+                    <img
+                      src={photoUrl(folder.photos[0].photoId, 800)}
+                      alt={`${folder.label} 폴더 커버`}
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                    <span className="absolute bottom-3 right-3 px-2 py-1 rounded-pill text-[11px] font-medium bg-black/40 text-white backdrop-blur-sm">
+                      사진 {folder.photos.length}장
+                    </span>
                   </div>
+                </Link>
+
+                <div className="relative p-5">
+                  <Link
+                    href={`/galleries/${galleryId}/folders/${encodeURIComponent(folder.key)}`}
+                    className="block pr-10"
+                  >
+                    <h2 className="font-display-ko font-medium text-[16px] text-ink truncate">
+                      {folder.label}
+                    </h2>
+                    <p className="text-[12px] text-ink-3 mt-1.5">
+                      선택 앨범에 {selectedCount}장 담김
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                      <div className="rounded-md bg-select-soft px-2.5 py-2">
+                        <p className="text-[11px] text-select">후보</p>
+                        <p className="text-[15px] font-semibold text-select">
+                          {goodCount}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-hold-soft px-2.5 py-2">
+                        <p className="text-[11px] text-hold">고민중</p>
+                        <p className="text-[15px] font-semibold text-hold">
+                          {holdCount}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-paper-deep px-2.5 py-2">
+                        <p className="text-[11px] text-ink-3">제외</p>
+                        <p className="text-[15px] font-semibold text-ink">
+                          {removeCount}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                  <FolderCardMenu
+                    folderName={folder.label}
+                    onRename={() => setRenamingFolder(folder)}
+                  />
                 </div>
               </article>
             );
           })}
         </div>
+      )}
+
+      {renamingFolder && (
+        <RenameFolderModal
+          key={renamingFolder.key}
+          folderName={renamingFolder.label}
+          onClose={() => setRenamingFolder(null)}
+          onSave={(name) => {
+            renameGalleryFolder(renamingFolder.key, name);
+            setRenamingFolder(null);
+          }}
+        />
       )}
     </div>
   );
