@@ -6,18 +6,24 @@
  */
 
 import type { Metadata } from "next";
-import {
-  Cormorant_Garamond,
-  Noto_Serif_KR,
-  JetBrains_Mono,
-} from "next/font/google";
+import { Montserrat, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
+import "./tokens.css";
+import "./tokens.dark.css";
 import "./globals.css";
 
-const cormorantGaramond = Cormorant_Garamond({
+// 디자인 시스템 폰트 — 본문(Noto Sans KR) + 브랜드(Montserrat) + 감성 세리프(Noto Serif KR).
+// 셋 다 next/font 셀프 호스팅이라 외부 CDN 요청이 없다.
+const notoSansKr = Noto_Sans_KR({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-noto-sans-kr",
+  display: "swap",
+});
+
+const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
+  variable: "--font-montserrat",
   display: "swap",
 });
 
@@ -28,21 +34,14 @@ const notoSerifKr = Noto_Serif_KR({
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "Wedding Easy Select — 수천 장의 원본에서, 사랑한 컷만",
+  title: "Easy Select — 우리의 순간을, 함께 고르다",
   description:
-    "업로드 한 번이면 AI가 인물과 장면으로 분류하고, 두 사람이 나란히 비교하며 고릅니다. 셀렉부터 전달까지, 웨딩 사진의 모든 여정을 한 곳에서.",
+    "막막했던 셀렉은 함께 고르는 설렘으로, 번거로웠던 전달은 클릭 한 번으로. 업로드부터 보정 요청, 마무리까지 사진의 여정이 한 곳에서 완성돼요.",
   openGraph: {
-    title: "Wedding Easy Select — 웨딩 사진 셀렉, 다시 설계하다",
+    title: "Easy Select — 우리의 순간을, 함께 고르다",
     description:
-      "AI 자동 분류와 비교·협업 셀렉으로 선택과 전달 시간을 단축합니다.",
+      "업로드부터 전달까지, 사진 셀렉의 모든 과정을 한 곳에서.",
     type: "website",
   },
 };
@@ -55,14 +54,9 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${cormorantGaramond.variable} ${notoSerifKr.variable} ${jetbrainsMono.variable}`}
+      data-theme="light"
+      className={`${notoSansKr.variable} ${montserrat.variable} ${notoSerifKr.variable}`}
     >
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css"
-        />
-      </head>
       <body>{children}</body>
     </html>
   );

@@ -17,9 +17,8 @@
  */
 
 import { useState } from "react";
-import { upsertGallery, useGalleries } from "@/lib/galleries";
+import { upsertGallery } from "@/lib/galleries";
 import {
-  GALLERY_COVER_IDS,
   createDefaultGalleryForm,
   createGalleryFromForm,
   isGalleryFormValid,
@@ -36,7 +35,6 @@ export function NewGalleryModal({
   onClose: () => void;
   onCreated?: (galleryName: string) => void;
 }) {
-  const galleries = useGalleries();
   const [form, setForm] = useState(() => createDefaultGalleryForm());
   const canCreate = isGalleryFormValid(form);
 
@@ -51,11 +49,9 @@ export function NewGalleryModal({
 
   function createGallery() {
     if (!canCreate) return;
-    const coverId = GALLERY_COVER_IDS[galleries.length % GALLERY_COVER_IDS.length];
     const gallery = createGalleryFromForm({
       values: form,
       id: String(Date.now()),
-      coverId,
     });
     upsertGallery(gallery);
     onCreated?.(gallery.couple);

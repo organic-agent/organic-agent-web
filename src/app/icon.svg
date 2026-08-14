@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 브랜드 심볼(BrandLogo) 파비콘판 — 라이트·다크 탭 모두에서 보이도록 검정 타일 위 흰색 반전, 16px 가독성 위해 획 2.4로 굵힘 -->
+  <rect width="32" height="32" rx="7" fill="#111111"/>
+  <path d="M7 12.5V7h5.5M19.5 7H25v5.5M25 19.5V25h-5.5M12.5 25H7v-5.5" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+  <path d="M16 12l4 4-4 4-4-4z" fill="#ffffff"/>
+</svg>

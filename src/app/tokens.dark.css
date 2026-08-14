@@ -1,0 +1,32 @@
+/**
+ * Do not edit directly, this file was auto-generated.
+ */
+
+[data-theme="dark"] {
+  --bg-layer-default: #171717;
+  --bg-layer-default-hover: #262626;
+  --bg-brand-solid: #f5f5f5;
+  --bg-brand-solid-hover: #e5e5e5;
+  --bg-neutral-inverted: #f5f5f5;
+  --bg-stage: #262626;
+  --bg-overlay: rgba(0, 0, 0, 0.4);
+  --bg-disabled: #262626;
+  --bg-accent-solid: #bd528b;
+  --bg-accent-solid-hover: #e48db7;
+  --bg-accent-soft: #541a3a;
+  --fg-neutral: #f5f5f5;
+  --fg-neutral-muted: #a3a3a3;
+  --fg-neutral-subtle: #525252;
+  --fg-neutral-inverted: #171717;
+  --fg-neutral-inverted-muted: #525252;
+  --fg-stage: #ffffff;
+  --fg-positive: #22c55e;
+  --fg-warning: #fbbf24;
+  --fg-critical: #ef4444;
+  --fg-disabled: #525252;
+  --fg-accent: #f5b8d4;
+  --stroke-neutral-muted: #404040;
+  --stroke-neutral-weak: #525252;
+  --stroke-neutral-inverted: #e5e5e5;
+  --stroke-accent: #8b2f62;
+}

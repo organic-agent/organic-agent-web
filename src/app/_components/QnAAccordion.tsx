@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PlusIcon } from "@/components/icons";
 
 const QNA_DATA = [
   {
@@ -25,47 +26,30 @@ const QNA_DATA = [
   },
 ];
 
-function PlusIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={`w-6 h-6 shrink-0 transition-transform duration-base ease-out ${open ? "rotate-45" : ""}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
 export function QnAAccordion() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
-    <div className="max-w-[680px] mx-auto">
+    <div className="w-full max-w-170 mx-auto border-t border-stroke-neutral-muted">
       {QNA_DATA.map((item, i) => {
         const isOpen = openIdx === i;
         return (
-          <div
-            key={i}
-            className={`border-b border-line ${i === 0 ? "border-t" : ""}`}
-          >
+          <div key={i} className="border-b border-stroke-neutral-muted">
             <button
-              className="w-full flex items-center justify-between py-[22px] text-left font-sans text-base font-medium text-ink gap-4 hover:text-accent-deep"
+              className="w-full flex items-center justify-between py-5 gap-4 text-left type-label-large text-fg-neutral cursor-pointer hover:text-fg-neutral-muted transition-colors duration-fast"
               onClick={() => setOpenIdx(isOpen ? null : i)}
               aria-expanded={isOpen}
             >
               {item.q}
-              <PlusIcon open={isOpen} />
+              <PlusIcon
+                className={`shrink-0 transition-transform duration-base ease-out ${isOpen ? "rotate-45" : ""}`}
+              />
             </button>
 
             <div
               className={`qna-answer-base ${isOpen ? "qna-answer-open" : ""}`}
             >
-              <p className="pb-[22px] text-[15px] leading-relaxed text-ink-2">
+              <p className="pb-5 text-left type-body-large text-fg-neutral-muted">
                 {item.a}
               </p>
             </div>

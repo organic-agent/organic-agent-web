@@ -1,0 +1,112 @@
+{
+  "bg": {
+    "layer-default": {
+      "$type": "color",
+      "$value": "{white}"
+    },
+    "layer-default-hover": {
+      "$type": "color",
+      "$value": "{gray.100}"
+    },
+    "brand-solid": {
+      "$type": "color",
+      "$value": "{gray.900}"
+    },
+    "brand-solid-hover": {
+      "$type": "color",
+      "$value": "{gray.800}"
+    },
+    "neutral-inverted": {
+      "$type": "color",
+      "$value": "{gray.900}"
+    },
+    "stage": {
+      "$type": "color",
+      "$value": "{gray.800}"
+    },
+    "overlay": {
+      "$type": "color",
+      "$value": "rgba(0,0,0,0.4)"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{gray.200}"
+    },
+    "accent-solid": {
+      "$type": "color",
+      "$value": "{rose.500}"
+    },
+    "accent-solid-hover": {
+      "$type": "color",
+      "$value": "{rose.600}"
+    },
+    "accent-soft": {
+      "$type": "color",
+      "$value": "{rose.100}"
+    }
+  },
+  "fg": {
+    "neutral": {
+      "$type": "color",
+      "$value": "{gray.900}"
+    },
+    "neutral-muted": {
+      "$type": "color",
+      "$value": "{gray.600}"
+    },
+    "neutral-subtle": {
+      "$type": "color",
+      "$value": "{gray.400}"
+    },
+    "neutral-inverted": {
+      "$type": "color",
+      "$value": "{white}"
+    },
+    "neutral-inverted-muted": {
+      "$type": "color",
+      "$value": "{gray.400}"
+    },
+    "stage": {
+      "$type": "color",
+      "$value": "{white}"
+    },
+    "positive": {
+      "$type": "color",
+      "$value": "{green.600}"
+    },
+    "warning": {
+      "$type": "color",
+      "$value": "{amber.500}"
+    },
+    "critical": {
+      "$type": "color",
+      "$value": "{red.600}"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{gray.400}"
+    },
+    "accent": {
+      "$type": "color",
+      "$value": "{rose.600}"
+    }
+  },
+  "stroke": {
+    "neutral-muted": {
+      "$type": "color",
+      "$value": "{gray.200}"
+    },
+    "neutral-weak": {
+      "$type": "color",
+      "$value": "{gray.300}"
+    },
+    "neutral-inverted": {
+      "$type": "color",
+      "$value": "{gray.800}"
+    },
+    "accent": {
+      "$type": "color",
+      "$value": "{rose.400}"
+    }
+  }
+}

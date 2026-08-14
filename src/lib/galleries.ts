@@ -43,19 +43,20 @@ export type Gallery = {
 const STORAGE_KEY = "wes.galleries";
 
 // 데모용 목업 4개 — 상태 다양성을 보여주려고 일부러 각각 다른 단계로 둔다:
-//   민준 & 서연: 셀렉 진행 중 (마감 여유 있음)
+//   민준 & 서연: 셀렉 진행 중 (마감 여유 있음, 순조롭게 진행)
 //   지호 & 하은: 업로드 전 (마감 여유 있음)
-//   도윤 & 수아: 오늘 마감 (셀렉 진행 중이면서 dueDate=오늘 → 테두리 빨강)
-//   시우 & 지우: 마감 지연 (셀렉 진행 중이면서 dueDate가 지남 → 테두리 더 진한 빨강)
+//   도윤 & 수아: 마감 임박·거의 완료 (셀렉 진행 중)
+//   시우 & 지우: 마감 지연 (셀렉 진행 중인데 선택이 더딘 상황)
+// selected는 부부가 고른 장수라 target(목표 장수)을 넘지 않게 둔다.
 const SEED_GALLERIES: Gallery[] = [
   {
     id: "1",
     couple: "민준 & 서연",
     dueDate: "2026-08-30",
-    cover:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
+    // 초상권 문제로 저장소에 사진 URL을 두지 않는다 — 실커버는 깃허브 공개 후 로컬에서만 연결
+    cover: "",
     total: 842,
-    selected: 312,
+    selected: 34,
     target: 50,
     memo: "",
     invited: true,
@@ -68,8 +69,7 @@ const SEED_GALLERIES: Gallery[] = [
     id: "2",
     couple: "지호 & 하은",
     dueDate: "2026-08-20",
-    cover:
-      "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=800&q=80",
+    cover: "",
     total: 0,
     selected: 0,
     target: 50,
@@ -83,11 +83,10 @@ const SEED_GALLERIES: Gallery[] = [
   {
     id: "3",
     couple: "도윤 & 수아",
-    dueDate: "2026-07-13", // 오늘 마감
-    cover:
-      "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=800&q=80",
+    dueDate: "2026-07-13",
+    cover: "",
     total: 640,
-    selected: 280,
+    selected: 41,
     target: 50,
     memo: "",
     invited: true,
@@ -99,11 +98,10 @@ const SEED_GALLERIES: Gallery[] = [
   {
     id: "4",
     couple: "시우 & 지우",
-    dueDate: "2026-07-06", // 7일 지연
-    cover:
-      "https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800&q=80",
+    dueDate: "2026-07-06",
+    cover: "",
     total: 918,
-    selected: 455,
+    selected: 18,
     target: 50,
     memo: "",
     invited: true,
@@ -120,7 +118,7 @@ const SEED_GALLERIES: Gallery[] = [
  * "부부가 다 골랐음"이 아니기 때문이다. (보정 요청은 이 선형 단계와 별개의
  * 플래그로, 카드 배지에서만 getGalleryBadge가 덮어쓴다.)
  */
-export function computeStage(
+function computeStage(
   gallery: Pick<
     Gallery,
     "uploaded" | "invited" | "selectionSubmittedAt" | "delivered"
@@ -157,8 +155,6 @@ type OverdueGallery = Pick<
  * 마감일까지 남은/지난 일수(부호 있음). 음수면 마감 전(남은 일수 = D-day),
  * 0이면 당일 마감, 양수면 마감을 지난 일수다. 이미 끝난(셀렉 완료·전달 완료)
  * 갤러리는 마감을 따질 대상이 아니라 undefined.
- * 문구(getOverdueLabel)와 테두리 색(getDueDateBorderColor)이 같은 계산을
- * 공유하도록 이 함수 하나로 모은다.
  */
 function computeDueOffset(
   gallery: OverdueGallery,
@@ -169,24 +165,6 @@ function computeDueOffset(
   const due = new Date(gallery.dueDate);
   due.setHours(23, 59, 59, 999); // 마감일 당일까지는 여유 있음으로 침
   return Math.floor((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/**
- * 마감일 기준 카드 테두리 색. "셀렉 진행 중"이면서 마감이 지났을 때만 색을 주고
- * (오늘 마감이면 빨강, 지연될수록 점점 더 진한 빨강, 10일 이상은 최대 진하기로
- * 고정), 마감 전이거나 그 외 단계에서는 undefined(기본 테두리 유지)다.
- * D-day 문구(getOverdueLabel)와 달리 테두리 색은 지연일 때만 강조한다.
- */
-export function getDueDateBorderColor(
-  gallery: OverdueGallery,
-  now: Date = new Date(),
-): string | undefined {
-  const offset = computeDueOffset(gallery, now);
-  if (offset === undefined || offset < 0) return undefined; // 마감 전이면 색 없음
-  if (computeStage(gallery) !== "셀렉 진행 중") return undefined; // 지연 강조는 셀렉 진행 중만
-  const clampedDays = Math.min(offset, 10);
-  const lightness = 58 - clampedDays * 3; // 오늘 마감(0일): 58% → 10일 지연: 28%
-  return `hsl(0, 72%, ${lightness}%)`;
 }
 
 /**
@@ -205,16 +183,6 @@ export function getOverdueLabel(
   return `D-${-offset}`;
 }
 
-/** 배지 라벨 → 색상 클래스. 목록 카드·상세 페이지가 이 팔레트를 공유한다. */
-export function galleryBadgeClass(label: string): string {
-  if (label === "전달 완료") return "bg-ink text-on-ink";
-  if (label === "보정 요청 있음") return "bg-accent-press text-white";
-  if (label === "셀렉 완료") return "bg-select-soft text-select";
-  if (label === "셀렉 진행 중") return "bg-accent-soft text-accent-press";
-  if (label === "초대 전") return "bg-hold-soft text-hold";
-  return "bg-paper-deep text-ink-3"; // 업로드 전
-}
-
 const galleriesStore = createLocalStore<Gallery[]>(STORAGE_KEY, SEED_GALLERIES);
 
 /** 화면에서 실시간으로 반영되어야 할 때 (컴포넌트 안에서만 호출) */
@@ -224,10 +192,6 @@ export function useGalleries(): Gallery[] {
     galleriesStore.get,
     galleriesStore.getServerSnapshot,
   );
-}
-
-export function saveGalleries(list: Gallery[]) {
-  galleriesStore.set(list);
 }
 
 /** 특정 갤러리 하나만 갱신하고 저장소에 반영한다. */

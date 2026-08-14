@@ -60,28 +60,6 @@ function buildGalleryFolders(
   return folders;
 }
 
-export function getGalleryFolders(): GalleryFolder[] {
-  return buildGalleryFolders(folderOverridesStore.get(), folderLabelsStore.get());
-}
-
-export function getGalleryFolderOptions(): Pick<
-  GalleryFolder,
-  "key" | "scene" | "person" | "label"
->[] {
-  const labels = folderLabelsStore.get();
-  return SCENES.flatMap((scene) =>
-    PERSONS.map((person) => {
-      const key = `${scene}-${person}`;
-      return {
-        key,
-        scene,
-        person,
-        label: labels[key] ?? `${scene} - ${person}`,
-      };
-    }),
-  );
-}
-
 export function useGalleryFolders(): GalleryFolder[] {
   const overrides = useSyncExternalStore(
     folderOverridesStore.subscribe,
@@ -94,29 +72,4 @@ export function useGalleryFolders(): GalleryFolder[] {
     folderLabelsStore.getServerSnapshot,
   );
   return useMemo(() => buildGalleryFolders(overrides, labels), [overrides, labels]);
-}
-
-export function renameGalleryFolder(folderKey: string, name: string) {
-  const trimmedName = name.trim();
-  if (!trimmedName) return folderLabelsStore.get();
-  const next = { ...folderLabelsStore.get(), [folderKey]: trimmedName };
-  folderLabelsStore.set(next);
-  return next;
-}
-
-export function movePhotosToFolder(
-  photoIds: number[],
-  target: Pick<GalleryFolder, "scene" | "person">,
-) {
-  const current = folderOverridesStore.get();
-  const next = { ...current };
-  for (const photoId of photoIds) {
-    next[photoId] = { scene: target.scene, person: target.person };
-  }
-  folderOverridesStore.set(next);
-  return next;
-}
-
-export function getFolderByKey(key: string): GalleryFolder | undefined {
-  return getGalleryFolders().find((folder) => folder.key === key);
 }

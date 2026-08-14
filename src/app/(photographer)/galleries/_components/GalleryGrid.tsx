@@ -3,14 +3,10 @@
  * 위치: src/app/(photographer)/galleries/_components/GalleryGrid.tsx
  *
  * 갤러리 목록 영역의 빈 상태, 필터 결과 없음 상태, 카드 그리드를 렌더링한다.
- * 갤러리가 있을 때는 마지막에 새 갤러리 추가 카드를 유지한다.
- *
- * 주요 책임:
- * - 빈 상태 분기
- * - 갤러리 카드 목록 렌더링
- * - 새 갤러리 추가 카드 렌더링
+ * 갤러리가 있을 때는 마지막에 새 갤러리 추가 타일(피그마의 대시 타일)을 유지한다.
  */
 
+import { PlusIcon } from "@/components/icons";
 import type { Gallery } from "@/lib/galleries";
 import { GalleryCard } from "./GalleryCard";
 import { GalleryEmptyState } from "./GalleryEmptyState";
@@ -41,7 +37,7 @@ export function GalleryGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6">
       {filteredGalleries.map((gallery) => (
         <GalleryCard
           key={gallery.id}
@@ -52,24 +48,14 @@ export function GalleryGrid({
       ))}
 
       <button
-        onClick={onCreateClick}
-        className="border border-dashed border-line-strong rounded-lg min-h-[280px] flex flex-col items-center justify-center gap-3 text-ink-3 hover:text-ink hover:border-ink hover:bg-paper-deep/40 transition-colors"
         type="button"
+        onClick={onCreateClick}
+        className="flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-(--radius-16) border border-dashed border-stroke-neutral-muted text-fg-neutral-muted transition-colors duration-fast hover:bg-bg-layer-default-hover hover:text-fg-neutral"
       >
-        <div className="w-12 h-12 rounded-full border border-current grid place-items-center">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </div>
-        <span className="text-[13px]">새 갤러리 만들기</span>
+        <span className="grid size-14 place-items-center rounded-full border border-current">
+          <PlusIcon size={24} />
+        </span>
+        <span className="type-body-large">새 갤러리 만들기</span>
       </button>
     </div>
   );

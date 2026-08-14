@@ -6,11 +6,7 @@
  *
  * 로그인 직후 최초 1회 사용하는 스튜디오 생성 화면이다.
  * 업체명, 갤러리 주소, 유입 경로를 입력받아 목업 스튜디오 정보로 저장한다.
- *
- * 주요 책임:
- * - 스튜디오 생성 폼 상태 관리
- * - 갤러리 주소 형식 검증
- * - 스튜디오 정보 저장 후 온보딩 이동
+ * 전용 시안이 없어 배치·플로우는 유지하고 표피만 디자인 시스템 토큰·부품으로 구성.
  *
  * 참고:
  * - 실제로는 POST /api/v1/studios와 GET /studios/url-available 연결 예정이다.
@@ -20,6 +16,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
+import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/ui/TextField";
+import { BackIcon } from "@/components/icons";
 import { saveStudioInfo } from "@/lib/studio";
 
 const SOURCES = [
@@ -31,7 +30,8 @@ const SOURCES = [
   {
     key: "instagram",
     label: "인스타그램",
-    icon: "M2 2h20v20H2zM16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37zM17.5 6.5h.01",
+    // 라운드 사각 외곽 + 렌즈 + 플래시 점 (실제 로고 형태)
+    icon: "M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5zM16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37zM17.5 6.5h.01",
   },
   {
     key: "referral",
@@ -47,81 +47,72 @@ export default function StudioNewPage() {
   const [url, setUrl] = useState("");
   const [source, setSource] = useState<string | null>(null);
 
-  // 목업 URL 검증
+  // 목업 URL 검증 — 유입 경로는 선택 입력이라 제출 조건에서 제외
   const studioSlug = url.trim().toLowerCase();
   const urlValid = studioSlug.length >= 3 && /^[a-z0-9-]+$/.test(studioSlug);
-  const canSubmit = name.trim().length > 0 && urlValid && source !== null;
+  const canSubmit = name.trim().length > 0 && urlValid;
 
   function handleSubmit() {
     // 회의 후: await fetch("/api/v1/studios", {...});
     saveStudioInfo({ name: name.trim(), url: studioSlug, source });
-    console.log("스튜디오 생성(목업):", { name, url, source });
     router.push("/onboarding/gallery");
   }
 
   return (
-    <main className="min-h-dvh bg-white grid place-items-center px-6 py-12">
-      <div className="w-full max-w-[460px]">
+    <main className="min-h-dvh bg-bg-layer-default grid place-items-center px-6 py-12">
+      <div className="w-full max-w-115">
         {/* 뒤로가기 (랜딩으로) */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink transition-colors mb-6"
+          className="mb-6 inline-flex items-center gap-1 type-label-button text-fg-neutral-muted transition-colors duration-fast hover:text-fg-neutral"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
+          <BackIcon size={16} />
           홈으로
         </Link>
 
-        {/* 브랜드 + 진행 표시 */}
-        <div className="flex items-center gap-2.5 mb-8">
-          <BrandLogo size={26} className="text-ink" />
-          <b className="font-display-en font-semibold text-[16px] text-ink">
-            Wedding Easy Select
-          </b>
+        {/* 브랜드 */}
+        <div className="mb-8 flex items-center gap-2">
+          <BrandLogo size={32} className="text-fg-neutral" />
+          <b className="type-brand-wordmark text-fg-neutral">Easy Select</b>
         </div>
 
-        <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-accent mb-3">
+        <p className="mb-3 type-label-eyebrow text-fg-neutral-muted">
           Set up your studio
         </p>
-        <h1 className="font-display-ko font-medium text-[28px] leading-snug tracking-[-0.02em] text-ink mb-2">
+        <h1 className="mb-2 type-heading-large text-fg-neutral">
           스튜디오를 만들어볼까요
         </h1>
-        <p className="text-[14px] text-ink-2 mb-9">
+        <p className="mb-9 type-body-medium text-fg-neutral-muted">
           신혼부부에게 보여질 스튜디오 정보예요. 나중에 언제든 바꿀 수 있어요.
         </p>
 
         {/* 업체명 */}
         <div className="mb-6">
-          <label className="block text-[13px] font-medium text-ink mb-2">
+          <label className="mb-2 block type-label-button text-fg-neutral">
             업체명
           </label>
-          <input
-            type="text"
+          <TextField
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={setName}
             placeholder="예: 세로라 스튜디오"
-            className="w-full h-12 px-4 rounded-md border border-line text-[14px] text-ink outline-none focus:border-ink transition-colors placeholder:text-ink-3"
+            aria-label="업체명"
+            className="h-12 px-4"
           />
         </div>
 
         {/* 갤러리 URL */}
         <div className="mb-6">
-          <label className="block text-[13px] font-medium text-ink mb-2">
+          <label className="mb-2 block type-label-button text-fg-neutral">
             갤러리 주소
           </label>
-          <div className="flex items-center h-12 rounded-md border border-line focus-within:border-ink transition-colors overflow-hidden">
-            <span className="pl-4 pr-1 text-[14px] text-ink-3 font-mono select-none">
+          <div
+            className={`flex h-12 items-center overflow-hidden rounded-(--radius-8) border bg-bg-layer-default transition-colors duration-fast ${
+              url.length > 0 && !urlValid
+                ? "border-fg-critical ring-1 ring-fg-critical"
+                : "border-stroke-neutral-weak focus-within:border-fg-neutral focus-within:ring-1 focus-within:ring-fg-neutral"
+            }`}
+          >
+            <span className="select-none pl-4 pr-1 type-body-medium text-fg-neutral-muted">
               studio/
             </span>
             <input
@@ -129,12 +120,19 @@ export default function StudioNewPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value.toLowerCase())}
               placeholder="serora"
-              className="flex-1 h-full pr-4 text-[14px] text-ink outline-none font-mono placeholder:text-ink-3 min-w-0"
+              aria-label="갤러리 주소"
+              className="h-full min-w-0 flex-1 bg-transparent pr-4 type-body-medium text-fg-neutral outline-none placeholder:text-fg-neutral-muted"
             />
           </div>
           {/* 검증 메시지 */}
           <p
-            className={`text-[12px] mt-1.5 ${url.length === 0 ? "text-ink-3" : urlValid ? "text-select" : "text-accent"}`}
+            className={`mt-1.5 type-body-small ${
+              url.length === 0
+                ? "text-fg-neutral-muted"
+                : urlValid
+                  ? "text-fg-positive"
+                  : "text-fg-critical"
+            }`}
           >
             {url.length === 0
               ? "영문 소문자·숫자·하이픈만 사용할 수 있어요"
@@ -146,18 +144,23 @@ export default function StudioNewPage() {
 
         {/* 유입경로 */}
         <div className="mb-9">
-          <label className="block text-[13px] font-medium text-ink mb-2">
+          <label className="mb-2 block type-label-button text-fg-neutral">
             어떻게 알고 오셨나요?
+            <span className="ml-1 font-normal text-fg-neutral-muted">
+              (선택)
+            </span>
           </label>
           <div className="grid grid-cols-2 gap-2.5">
             {SOURCES.map((s) => (
               <button
                 key={s.key}
+                type="button"
                 onClick={() => setSource(s.key)}
-                className={`flex items-center gap-2.5 h-12 px-4 rounded-md border text-[13px] font-medium transition-all ${
+                aria-pressed={source === s.key}
+                className={`flex h-12 cursor-pointer items-center gap-2.5 rounded-(--radius-8) border px-4 type-label-button transition-colors duration-fast ${
                   source === s.key
-                    ? "border-ink bg-ink text-on-ink"
-                    : "border-line text-ink-2 hover:border-ink-3"
+                    ? "border-transparent bg-bg-brand-solid text-fg-neutral-inverted"
+                    : "border-stroke-neutral-muted text-fg-neutral-muted hover:border-stroke-neutral-weak"
                 }`}
               >
                 <svg
@@ -169,6 +172,7 @@ export default function StudioNewPage() {
                   strokeWidth="1.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <path d={s.icon} />
                 </svg>
@@ -179,14 +183,15 @@ export default function StudioNewPage() {
         </div>
 
         {/* 제출 */}
-        <button
-          onClick={handleSubmit}
+        <Button
+          size="lg"
           disabled={!canSubmit}
-          className="w-full h-12 rounded-pill bg-ink text-on-ink text-[14px] font-medium transition-all hover:-translate-y-px hover:bg-[#333] active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none"
+          onClick={handleSubmit}
+          className="w-full"
         >
           스튜디오 만들고 시작하기
-        </button>
-        <p className="text-center text-[12px] text-ink-3 mt-4">
+        </Button>
+        <p className="mt-4 text-center type-body-small text-fg-neutral-muted">
           다음 단계에서 첫 갤러리를 만들어볼 거예요
         </p>
       </div>

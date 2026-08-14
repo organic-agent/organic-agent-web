@@ -2,23 +2,15 @@
  * 작가 — 갤러리 온보딩 설정
  * 위치: src/app/(photographer)/onboarding/gallery/_lib/galleryOnboarding.ts
  *
- * 갤러리 생성 온보딩에서 사용하는 단계 정의와 목업 커버 후보를 모은다.
+ * 갤러리 생성 온보딩에서 사용하는 단계 정의를 모은다.
  * 페이지와 컴포넌트가 같은 단계 타입을 공유하도록 한다.
  *
  * 주요 책임:
  * - 온보딩 단계 타입 정의
  * - 단계별 제목/설명/선택 여부 정의
- * - 샘플 갤러리 커버 후보 제공
  */
 
 export type StepKey = "name" | "dueDate" | "target" | "concept" | "memo";
-
-export const SAMPLE_COVERS = [
-  "1519741497674-611481863552",
-  "1606216794074-735e91aa2c92",
-  "1583939003579-730e3918a45a",
-  "1591604466107-ec97de577aff",
-];
 
 export const STEPS: {
   key: StepKey;

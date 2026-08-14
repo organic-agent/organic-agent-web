@@ -6,12 +6,10 @@
  * 기존 화면들은 `@/lib/couple` 경로를 그대로 사용한다.
  */
 
-export * from "./couple/session";
 export * from "./couple/photos";
 export * from "./couple/galleryFolders";
 export * from "./couple/selectedAlbum";
 export * from "./couple/photoNotes";
-export * from "./couple/photoViewHistory";
-export * from "./couple/collaboration";
-export * from "./couple/compareTags";
-export * from "./couple/autoGoodTags";
+export * from "./couple/photoRatings";
+export * from "./couple/photoReactions";
+export * from "./couple/shareDesign";

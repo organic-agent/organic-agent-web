@@ -1,57 +1,13 @@
 @import "tailwindcss";
 
+/* 색·타이포·radius·그림자는 전부 디자인 토큰(tokens/*.json → tokens.css)이 단일 출처다.
+   여기 @theme에는 토큰 체계 밖의 전역 기반값(기본 서체·모션·컨테이너)만 남긴다. */
 @theme {
-  /* — Color · surfaces (light) — */
-  --color-paper: #ffffff;
-  --color-paper-deep: #f6f5f3;
-  --color-ink: #1a1a1a;
-  --color-ink-2: #525252;
-  --color-ink-3: #8a8a8a;
-  --color-line: #eaeaea;
-  --color-line-strong: #d4d4d4;
-
-  /* — Color · on dark surfaces — */
-  --color-on-ink: #fafafa;
-  --color-on-ink-2: #a3a3a3;
-  --color-on-ink-line: #333333;
-
-  /* — Color · accent (the one rose) — */
-  --color-accent: #d4636b;
-  --color-accent-deep: #b84850;
-  --color-accent-press: #9f3e46;
-  --color-accent-soft: #f7e3e5;
-
-  /* — Color · app-layer semantics — */
-  --color-select: #5c9e72;
-  --color-select-soft: #edf6f0;
-  --color-hold: #d49b52;
-  --color-hold-soft: #fbf3e6;
-  --color-danger: #c94e4e;
-  --color-info: #5e89a8;
-
-  /* — Type · families — */
-  --font-display-en: var(--font-cormorant), serif;
-  --font-display-ko: var(--font-noto-serif-kr), serif;
   --font-sans:
-    "Pretendard Variable", "Pretendard", system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+    var(--font-noto-sans-kr), "Noto Sans KR", system-ui, -apple-system,
+    sans-serif;
 
-  /* — Type · line height — */
-  --leading-tight: 1.1;
-  --leading-snug: 1.28;
   --leading-normal: 1.6;
-  --leading-relaxed: 1.75;
-
-  /* — Radius — */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-pill: 999px;
-
-  /* — Shadow (neutral) — */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 8px 28px -6px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 20px 60px -12px rgba(0, 0, 0, 0.12);
 
   /* — Motion — */
   --duration-fast: 150ms;
@@ -64,7 +20,147 @@
   --container-wrap: 1080px;
 }
 
+/* ─── 디자인 토큰 브리지 ───
+   tokens.css(:root) / tokens.dark.css([data-theme="dark"])의 변수를
+   Tailwind 유틸리티로 노출. 값 복사가 아닌 var() 참조 — 단일 출처는 tokens/*.json. */
+@theme inline {
+  --color-bg-layer-default: var(--bg-layer-default);
+  --color-bg-layer-default-hover: var(--bg-layer-default-hover);
+  --color-bg-brand-solid: var(--bg-brand-solid);
+  --color-bg-brand-solid-hover: var(--bg-brand-solid-hover);
+  --color-bg-neutral-inverted: var(--bg-neutral-inverted);
+  --color-bg-stage: var(--bg-stage);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-bg-disabled: var(--bg-disabled);
+  --color-bg-accent-solid: var(--bg-accent-solid);
+  --color-bg-accent-solid-hover: var(--bg-accent-solid-hover);
+  --color-bg-accent-soft: var(--bg-accent-soft);
+
+  --color-fg-neutral: var(--fg-neutral);
+  --color-fg-neutral-muted: var(--fg-neutral-muted);
+  --color-fg-neutral-subtle: var(--fg-neutral-subtle);
+  --color-fg-neutral-inverted: var(--fg-neutral-inverted);
+  --color-fg-neutral-inverted-muted: var(--fg-neutral-inverted-muted);
+  --color-fg-stage: var(--fg-stage);
+  --color-fg-positive: var(--fg-positive);
+  --color-fg-warning: var(--fg-warning);
+  --color-fg-critical: var(--fg-critical);
+  --color-fg-disabled: var(--fg-disabled);
+  --color-fg-accent: var(--fg-accent);
+
+  --color-stroke-neutral-muted: var(--stroke-neutral-muted);
+  --color-stroke-neutral-weak: var(--stroke-neutral-weak);
+  --color-stroke-neutral-inverted: var(--stroke-neutral-inverted);
+  --color-stroke-accent: var(--stroke-accent);
+
+  --font-brand: var(--font-families-montserrat), var(--font-montserrat), sans-serif;
+}
+
+/* ─── 타이포 토큰 유틸리티 ───
+   tokens.css의 확장 변수(--display-hero-font-size 등)를 스타일 하나로 조합.
+   폰트 패밀리는 토큰 이름 → next/font 변수·CDN 폰트 → 일반 폴백 순으로 해석. */
+@layer utilities {
+  .type-display-hero {
+    font-family: var(--display-hero-font-family), var(--font-noto-serif-kr), serif;
+    font-weight: var(--display-hero-font-weight);
+    font-size: var(--display-hero-font-size);
+    line-height: var(--display-hero-line-height);
+    letter-spacing: var(--display-hero-letter-spacing);
+  }
+  .type-display-section {
+    font-family: var(--display-section-font-family), var(--font-noto-serif-kr), serif;
+    font-weight: var(--display-section-font-weight);
+    font-size: var(--display-section-font-size);
+    line-height: var(--display-section-line-height);
+    letter-spacing: var(--display-section-letter-spacing);
+  }
+  .type-heading-card {
+    font-family: var(--heading-card-font-family), var(--font-noto-serif-kr), serif;
+    font-weight: var(--heading-card-font-weight);
+    font-size: var(--heading-card-font-size);
+    line-height: var(--heading-card-line-height);
+  }
+  .type-heading-large {
+    font-family: var(--heading-large-font-family), var(--font-noto-serif-kr), serif;
+    font-weight: var(--heading-large-font-weight);
+    font-size: var(--heading-large-font-size);
+    line-height: var(--heading-large-line-height);
+    letter-spacing: var(--heading-large-letter-spacing);
+  }
+  .type-heading-page {
+    font-family: var(--heading-page-font-family), var(--font-sans);
+    font-weight: var(--heading-page-font-weight);
+    font-size: var(--heading-page-font-size);
+    line-height: var(--heading-page-line-height);
+    letter-spacing: var(--heading-page-letter-spacing);
+  }
+  .type-heading-small {
+    font-family: var(--heading-small-font-family), var(--font-noto-serif-kr), serif;
+    font-weight: var(--heading-small-font-weight);
+    font-size: var(--heading-small-font-size);
+    line-height: var(--heading-small-line-height);
+    letter-spacing: var(--heading-small-letter-spacing);
+  }
+  .type-body-large {
+    font-family: var(--body-large-font-family), var(--font-sans);
+    font-weight: var(--body-large-font-weight);
+    font-size: var(--body-large-font-size);
+    line-height: var(--body-large-line-height);
+    letter-spacing: var(--body-large-letter-spacing);
+  }
+  .type-body-medium {
+    font-family: var(--body-medium-font-family), var(--font-sans);
+    font-weight: var(--body-medium-font-weight);
+    font-size: var(--body-medium-font-size);
+    line-height: var(--body-medium-line-height);
+    letter-spacing: var(--body-medium-letter-spacing);
+  }
+  .type-body-small {
+    font-family: var(--body-small-font-family), var(--font-sans);
+    font-weight: var(--body-small-font-weight);
+    font-size: var(--body-small-font-size);
+    line-height: var(--body-small-line-height);
+    letter-spacing: var(--body-small-letter-spacing);
+  }
+  .type-label-button {
+    font-family: var(--label-button-font-family), var(--font-sans);
+    font-weight: var(--label-button-font-weight);
+    font-size: var(--label-button-font-size);
+  }
+  .type-label-large {
+    font-family: var(--label-large-font-family), var(--font-sans);
+    font-weight: var(--label-large-font-weight);
+    font-size: var(--label-large-font-size);
+    line-height: var(--label-large-line-height);
+    letter-spacing: var(--label-large-letter-spacing);
+  }
+  .type-label-eyebrow {
+    font-family: var(--label-eyebrow-font-family), var(--font-montserrat), sans-serif;
+    font-weight: var(--label-eyebrow-font-weight);
+    font-size: var(--label-eyebrow-font-size);
+    line-height: var(--label-eyebrow-line-height);
+    letter-spacing: var(--label-eyebrow-letter-spacing);
+    text-transform: uppercase;
+  }
+  .type-utility-panel {
+    font-family: var(--utility-panel-font-family), var(--font-sans);
+    font-weight: var(--utility-panel-font-weight);
+    font-size: var(--utility-panel-font-size);
+    line-height: var(--utility-panel-line-height);
+    letter-spacing: var(--utility-panel-letter-spacing);
+    text-transform: uppercase;
+  }
+  .type-brand-wordmark {
+    font-family: var(--brand-wordmark-font-family), var(--font-montserrat), sans-serif;
+    font-weight: var(--brand-wordmark-font-weight);
+    font-size: var(--brand-wordmark-font-size);
+    line-height: var(--brand-wordmark-line-height);
+    letter-spacing: var(--brand-wordmark-letter-spacing);
+  }
+}
+
 /* ─── Base resets ─── */
+/* (참고) 한글 줄바꿈 정책은 body의 word-break: keep-all 하나로 전역 제어한다 */
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -73,13 +169,14 @@
 
   body {
     font-family: var(--font-sans);
-    background: var(--color-paper);
-    color: var(--color-ink-2);
+    background: var(--bg-layer-default);
+    color: var(--fg-neutral);
     line-height: var(--leading-normal);
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
+    word-break: keep-all; /* 한글 어절 단위 줄바꿈 — "…에게도."의 "도." 고아 방지 */
   }
 
   a {
@@ -103,7 +200,7 @@
   a:focus-visible,
   button:focus-visible,
   input:focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--fg-neutral);
     outline-offset: 3px;
     border-radius: 4px;
   }
