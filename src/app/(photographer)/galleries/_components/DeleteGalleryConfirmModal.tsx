@@ -33,8 +33,8 @@ export function DeleteGalleryConfirmModal({
       paddingClassName="p-7"
       onClose={onClose}
     >
-      <p className="text-[13px] text-ink-2 leading-relaxed mb-6">
-        <span className="font-medium text-ink">{gallery.couple}</span>{" "}
+      <p className="mb-6 type-body-medium text-fg-neutral-muted">
+        <span className="font-medium text-fg-neutral">{gallery.couple}</span>{" "}
         갤러리가 목록에서 삭제됩니다. 이 작업은 되돌릴 수 없어요.
       </p>
       <GalleryModalButtons

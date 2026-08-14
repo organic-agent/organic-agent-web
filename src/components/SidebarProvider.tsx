@@ -47,7 +47,7 @@ export function SidebarProvider({
   );
 }
 
-// AppSidebar 등에서 접힘 상태와 토글 함수를 가져온다.
+// 워크스페이스 사이드바·탑바에서 접힘 상태와 토글 함수를 가져온다.
 export function useSidebar(): SidebarContextValue {
   return useContext(SidebarContext);
 }

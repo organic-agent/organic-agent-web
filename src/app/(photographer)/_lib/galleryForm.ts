@@ -26,13 +26,6 @@ export type GalleryFormPatch = Pick<
   "couple" | "dueDate" | "target" | "conceptCount" | "memo"
 >;
 
-export const GALLERY_COVER_IDS = [
-  "1519225421980-715cb0215aed",
-  "1465495976277-4387d4b0b4c6",
-  "1511285560929-80b456fea0bc",
-  "1537633552985-df8429e8048b",
-];
-
 /** 오늘 기준 +days일을 <input type="date"> 값(YYYY-MM-DD)으로 반환 */
 export function addDaysAsInputValue(days: number) {
   const d = new Date();
@@ -84,11 +77,9 @@ export function toGalleryFormPatch(values: GalleryFormValues): GalleryFormPatch 
 export function createGalleryFromForm({
   values,
   id,
-  coverId,
 }: {
   values: GalleryFormValues;
   id: string;
-  coverId: string;
 }): Gallery {
   const patch = toGalleryFormPatch(values);
 
@@ -96,7 +87,8 @@ export function createGalleryFromForm({
     id,
     couple: patch.couple,
     dueDate: patch.dueDate,
-    cover: `https://images.unsplash.com/photo-${coverId}?w=800&q=80`,
+    // 초상권 문제로 저장소에 사진 URL을 두지 않는다 — 커버는 업로드 연동 후 채워진다
+    cover: "",
     total: 0,
     selected: 0,
     target: patch.target,

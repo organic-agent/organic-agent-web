@@ -2,15 +2,11 @@
  * 작가 — 갤러리 온보딩 단계 입력
  * 위치: src/app/(photographer)/onboarding/gallery/_components/OnboardingStepField.tsx
  *
- * 현재 단계에 해당하는 입력 필드 하나를 렌더링한다.
- * 갤러리 이름, 완료 예정일, 목표 선택 장수, 컨셉 개수, 메모 입력을 담당한다.
- *
- * 주요 책임:
- * - 단계별 입력 필드 렌더링
- * - 입력값과 변경 콜백 연결
- * - 단계별 보조 안내 문구 표시
+ * 현재 단계에 해당하는 입력 필드 하나를 렌더링한다 (TextField·Textarea 부품 사용).
  */
 
+import { TextField } from "@/components/ui/TextField";
+import { Textarea } from "@/components/ui/Textarea";
 import type { StepKey } from "../_lib/galleryOnboarding";
 
 type Props = {
@@ -26,6 +22,20 @@ type Props = {
   onConceptChange: (value: string) => void;
   onMemoChange: (value: string) => void;
 };
+
+function FieldLabel({ children }: { children: string }) {
+  return (
+    <label className="mb-1.5 block type-label-button text-fg-neutral">
+      {children}
+    </label>
+  );
+}
+
+function FieldHint({ children }: { children: string }) {
+  return (
+    <p className="mt-2 type-body-small text-fg-neutral-muted">{children}</p>
+  );
+}
 
 export function OnboardingStepField({
   stepKey,
@@ -43,15 +53,13 @@ export function OnboardingStepField({
   if (stepKey === "name") {
     return (
       <>
-        <label className="block text-[12px] font-medium text-ink-2 mb-1.5">
-          갤러리 이름
-        </label>
-        <input
-          type="text"
+        <FieldLabel>갤러리 이름</FieldLabel>
+        <TextField
           value={formName}
-          onChange={(e) => onNameChange(e.target.value)}
+          onChange={onNameChange}
           placeholder="예: 지민 & 하윤 웨딩"
-          className="w-full h-12 px-3.5 rounded-md border border-line text-sm text-ink outline-none focus:border-ink-3 placeholder:text-ink-3"
+          aria-label="갤러리 이름"
+          className="h-12"
         />
       </>
     );
@@ -60,18 +68,15 @@ export function OnboardingStepField({
   if (stepKey === "dueDate") {
     return (
       <>
-        <label className="block text-[12px] font-medium text-ink-2 mb-1.5">
-          완료 예정일
-        </label>
-        <input
+        <FieldLabel>완료 예정일</FieldLabel>
+        <TextField
           type="date"
           value={formDueDate}
-          onChange={(e) => onDueDateChange(e.target.value)}
-          className="w-full h-12 px-3.5 rounded-md border border-line text-sm text-ink outline-none focus:border-ink-3"
+          onChange={onDueDateChange}
+          aria-label="완료 예정일"
+          className="h-12"
         />
-        <p className="text-[11px] text-ink-3 mt-2">
-          기본값은 생성일로부터 50일 뒤입니다.
-        </p>
+        <FieldHint>기본값은 생성일로부터 50일 뒤입니다.</FieldHint>
       </>
     );
   }
@@ -79,16 +84,15 @@ export function OnboardingStepField({
   if (stepKey === "target") {
     return (
       <>
-        <label className="block text-[12px] font-medium text-ink-2 mb-1.5">
-          목표 선택 장수
-        </label>
-        <input
+        <FieldLabel>목표 선택 장수</FieldLabel>
+        <TextField
           type="number"
           min={1}
           value={formTarget}
-          onChange={(e) => onTargetChange(e.target.value)}
+          onChange={onTargetChange}
           placeholder="50"
-          className="w-full h-12 px-3.5 rounded-md border border-line text-sm text-ink outline-none focus:border-ink-3 placeholder:text-ink-3"
+          aria-label="목표 선택 장수"
+          className="h-12"
         />
       </>
     );
@@ -97,35 +101,30 @@ export function OnboardingStepField({
   if (stepKey === "concept") {
     return (
       <>
-        <label className="block text-[12px] font-medium text-ink-2 mb-1.5">
-          컨셉 개수
-        </label>
-        <input
+        <FieldLabel>컨셉 개수</FieldLabel>
+        <TextField
           type="number"
           min={1}
           value={formConcept}
-          onChange={(e) => onConceptChange(e.target.value)}
+          onChange={onConceptChange}
           placeholder="예: 4"
-          className="w-full h-12 px-3.5 rounded-md border border-line text-sm text-ink outline-none focus:border-ink-3 placeholder:text-ink-3"
+          aria-label="컨셉 개수"
+          className="h-12"
         />
-        <p className="text-[11px] text-ink-3 mt-2">
-          아직 정하지 않았다면 비워두고 넘어가도 됩니다.
-        </p>
+        <FieldHint>아직 정하지 않았다면 비워두고 넘어가도 됩니다.</FieldHint>
       </>
     );
   }
 
   return (
     <>
-      <label className="block text-[12px] font-medium text-ink-2 mb-1.5">
-        특이사항 메모
-      </label>
-      <textarea
-        rows={3}
+      <FieldLabel>특이사항 메모</FieldLabel>
+      <Textarea
         value={formMemo}
-        onChange={(e) => onMemoChange(e.target.value)}
+        onChange={onMemoChange}
         placeholder="예: 예식이 얼마 안 남아 전달을 서둘러야 해요"
-        className="w-full px-3.5 py-2.5 rounded-md border border-line text-sm text-ink outline-none focus:border-ink-3 placeholder:text-ink-3 resize-none"
+        aria-label="특이사항 메모"
+        className="h-22"
       />
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,16 +23,17 @@ export function WaitlistForm() {
 
   if (submitted) {
     return (
-      <p className="mt-3.5 text-sm text-ink flex items-center justify-center gap-2">
+      <p className="type-body-medium text-fg-neutral flex items-center justify-center gap-2">
         <svg
           width="16"
           height="16"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#D4636B"
+          stroke="currentColor"
           strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="text-fg-positive"
         >
           <path d="M5 13l4 4L19 7" />
         </svg>
@@ -41,10 +43,10 @@ export function WaitlistForm() {
   }
 
   return (
-    <>
+    <div className="flex flex-col items-center gap-3 w-full">
       <form
-        className="flex gap-2 max-w-[440px] mx-auto border border-line-strong rounded-pill p-[5px] pl-1.5 bg-paper transition-colors duration-fast ease-out focus-within:border-ink-3
-                   max-[480px]:flex-col max-[480px]:rounded-md max-[480px]:p-3"
+        className="flex items-center justify-between gap-2 w-full max-w-120 h-12 border border-stroke-neutral-muted rounded-(--pill) pl-5 pr-1 bg-bg-layer-default transition-colors duration-fast ease-out focus-within:border-stroke-neutral-weak
+                   max-[480px]:h-auto max-[480px]:flex-col max-[480px]:rounded-(--radius-12) max-[480px]:p-3"
         onSubmit={handleSubmit}
         noValidate
       >
@@ -60,25 +62,20 @@ export function WaitlistForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 bg-transparent border-none outline-none text-ink font-sans text-sm px-3 min-w-0
-                     placeholder:text-ink-3
-                     max-[480px]:px-1.5 max-[480px]:py-2.5 max-[480px]:text-center"
+          className="flex-1 min-w-0 bg-transparent border-none outline-none type-body-medium text-fg-neutral placeholder:text-fg-neutral-muted
+                     max-[480px]:w-full max-[480px]:py-2.5 max-[480px]:text-center"
         />
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center h-10 px-5 rounded-pill text-[13px] font-medium bg-ink text-on-ink whitespace-nowrap cursor-pointer border-none transition-all duration-fast ease-out hover:-translate-y-px hover:bg-[#333] hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)] active:translate-y-px
-                     max-[480px]:w-full"
-        >
+        <Button type="submit" className="max-[480px]:w-full">
           합류하기
-        </button>
+        </Button>
       </form>
 
       <p
-        className={`mt-3.5 text-xs tracking-[0.02em] ${error ? "text-accent" : "text-ink-3"}`}
+        className={`type-body-small ${error ? "text-fg-critical" : "text-fg-neutral-muted"}`}
       >
         {error ||
           "오직 출시 소식 전달에만 써요 · 다른 목적으로 사용하지 않습니다"}
       </p>
-    </>
+    </div>
   );
 }

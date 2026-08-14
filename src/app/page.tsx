@@ -1,93 +1,143 @@
 "use client";
 
-// OAuth 연동 전까지 임시로 로그인 모달을 건너뛰고 바로 이동시킴.
-// 실제 로그인을 붙일 때는 아래 주석을 해제하고 Button의 href를 onClick으로 되돌리기.
-// import { useState } from "react";
+import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { LandingNav } from "./_components/LandingNav";
 import { WaitlistForm } from "./_components/WaitlistForm";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal } from "./_components/Reveal";
+import {
+  ArrowDownIcon,
+  ArrowRightIcon,
+  UploadIcon,
+  UsersIcon,
+  CompareIcon,
+  CollabIcon,
+  CommentIcon,
+  DocIcon,
+} from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
-// import { LoginModal } from "@/components/LoginModal";
 
-/* ─── 아이콘 헬퍼 ─── */
-function Icon({ d }: { d: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d={d} />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-/* ─── 기능 카드 데이터 ─── */
+/* ─── 기능 카드 데이터 (피그마 Landing/Features 카피) ─── */
 const FEATURES = [
   {
     title: "여러 장을 한 번에 올리는 업로드",
-    desc: "이미지 파일을 여러 장 선택하거나 끌어다 놓아 한 번에 업로드합니다.",
-    icon: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12",
+    desc: "이미지 파일을 여러 장 선택하여 끌어다 놓아 한 번에 업로드합니다.",
+    Icon: UploadIcon,
   },
   {
-    title: "AI가 인물과 장면을 분류",
-    desc: "신랑·신부·사물, 야외·실내까지 자동 정리. 원하는 조합으로 필터링해서 볼 수 있습니다.",
-    icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+    title: "AI가 자동 분류",
+    desc: "비슷한 컷은 AI가 알아서 묶어줍니다. 원하는 사진을 바로 찾을 수 있습니다.",
+    Icon: UsersIcon,
   },
   {
     title: "나란히 비교, 빠르게 선택",
-    desc: "2장·4장·N장을 나란히 놓고 한눈에 비교. 키보드·스와이프·클릭 어느 것으로든 150ms 안에 다음 컷으로.",
-    icon: "M9 3H4a1 1 0 00-1 1v6a1 1 0 001 1h5a1 1 0 001-1V4a1 1 0 00-1-1zM20 3h-5a1 1 0 00-1 1v6a1 1 0 001 1h5a1 1 0 001-1V4a1 1 0 00-1-1zM12 2v20",
+    desc: "2장·4장·N장을 나란히 놓고 한눈에 비교합니다. 빠르게 다음 컷으로 넘어갑니다.",
+    Icon: CompareIcon,
   },
   {
     title: "함께 고르는 협업 셀렉",
-    desc: "가족·지인을 초대해 이모지 투표와 댓글로 의견을 모읍니다. 엇갈린 선택은 따로 모아 정리해줍니다.",
-    icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M9 7a4 4 0 100 8M16 3.13a4 4 0 010 7.75",
+    desc: "가족·지인을 초대해 좋아요와 댓글로 의견을 모읍니다.",
+    Icon: CollabIcon,
   },
   {
-    title: "사진 위에서 바로 보정 요청",
-    desc: "사진 위에 핀을 찍고 코멘트를 남기면, 작가에게 깔끔하게 정리되어 전달됩니다.",
-    icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z",
+    title: "사진을 보며 바로 보정 요청",
+    desc: "사진을 보면서 바로 보정 요청을 남기면, 작가에게 깔끔하게 정리되어 전달됩니다.",
+    Icon: CommentIcon,
   },
   {
-    title: "선택본 전달과 정산까지",
-    desc: "고른 컷만 모아 다운로드. 작가에게 바로 전달되고, 정산 리포트도 한 화면에서 확인합니다.",
-    icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8",
+    title: "선택본부터 보정본까지 한 곳에서",
+    desc: "고른 컷은 작가에게 바로 전달되고, 완성된 보정본도 같은 곳에서 받습니다.",
+    Icon: DocIcon,
+  },
+];
+
+/* ─── 대상별 카드 데이터 (피그마 Landing/Audiences 카피) ─── */
+const AUDIENCES = [
+  {
+    eyebrow: "For Clients",
+    title: (
+      <>
+        어디에서든,
+        <br />
+        함께 고릅니다.
+      </>
+    ),
+    desc: (
+      <>
+        언제든지 편한 시간에 셀렉하세요.
+        <br />
+        함께 보는 사람들의 선택이 모이고, 마음에 든 컷만 남습니다.
+      </>
+    ),
+    items: [
+      "나란히 비교하며 빠른 선택",
+      "시간·유사도 자동 정렬",
+      "선택본부터 완성본까지 한 곳에서",
+    ],
+  },
+  {
+    eyebrow: "For Studios",
+    title: (
+      <>
+        여러 갤러리를,
+        <br />
+        하나의 작업 공간에서
+      </>
+    ),
+    desc: (
+      <>
+        업로드 후 전달 업무가 줄어듭니다.
+        <br />
+        셀렉 진행 현황부터 보정 요청, 완성본 전달까지 한 화면에서 관리하세요.
+      </>
+    ),
+    items: [
+      "여러 이미지 일괄 업로드",
+      "초대 링크 · 셀렉 진행 현황",
+      "보정 요청 한눈에 정리",
+    ],
+  },
+];
+
+/* ─── 푸터 링크 데이터 (피그마 Landing/Footer) ───
+   href가 없는 항목은 준비 중 — 클릭 시 준비 중 토스트를 띄운다 (사용자 결정) */
+const FOOTER_COLUMNS: {
+  title: string;
+  links: { label: string; href?: string }[];
+}[] = [
+  {
+    title: "서비스",
+    links: [
+      { label: "기능 소개", href: "#features" },
+      { label: "자주 묻는 질문", href: "#qna" },
+      { label: "가격 안내" },
+    ],
+  },
+  {
+    title: "지원",
+    links: [
+      { label: "이용 가이드" },
+      { label: "문의하기" },
+      { label: "공지사항" },
+    ],
+  },
+  {
+    title: "회사",
+    links: [{ label: "팀 소개" }, { label: "채용" }, { label: "블로그" }],
   },
 ];
 
 export default function LandingPage() {
-  // const [loginOpen, setLoginOpen] = useState(false);
-  // const [loginIntent, setLoginIntent] = useState<"couple" | "studio">("couple");
+  // 푸터의 준비 중 링크 안내용
+  const { showComingSoon, comingSoonToast } = useComingSoonToast();
 
   return (
     <>
       {/* Skip link */}
       <a
         href="#main"
-        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-0 focus-visible:top-0 focus-visible:z-[200] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:py-3 focus-visible:px-[18px] focus-visible:rounded-br-[10px] focus-visible:text-sm"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-0 focus-visible:top-0 focus-visible:z-200 focus-visible:bg-bg-neutral-inverted focus-visible:text-fg-neutral-inverted focus-visible:py-3 focus-visible:px-4.5 focus-visible:rounded-br-[10px] focus-visible:text-sm"
       >
         본문으로 건너뛰기
       </a>
@@ -95,268 +145,173 @@ export default function LandingPage() {
       <LandingNav />
 
       <main id="main">
-        {/* ═══ HERO — 좌우 분할 ═══ */}
+        {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
         <section
-          className="pt-[120px] pb-[80px] bg-paper max-[820px]:pt-[100px] max-[820px]:pb-[60px]"
+          className="bg-bg-layer-default border-b border-stroke-neutral-muted pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14"
           aria-labelledby="hero-h"
         >
-          <div className="max-w-wrap mx-auto px-6 grid lg:grid-cols-2 items-center gap-10 lg:gap-14">
+          <div className="max-w-wrap mx-auto px-6 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start">
             {/* 좌: 텍스트 + CTA */}
-            <div>
-              <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-accent mb-5">
-                Wedding Easy Select
+            <div className="flex flex-col items-start gap-5 max-w-107.5">
+              <p className="type-label-eyebrow text-fg-neutral-muted">
+                Easy Select
               </p>
-              <h1
-                id="hero-h"
-                className="font-display-ko font-medium text-[clamp(36px,5.6vw,52px)] leading-[1.05] tracking-[-0.02em] text-ink mb-6"
-              >
+              <h1 id="hero-h" className="type-display-hero text-fg-neutral">
                 우리의 순간을,
                 <br />
                 함께 고르다.
               </h1>
-              <p className="text-[16px] leading-relaxed text-ink-2 max-w-[440px] mb-9">
-                스튜디오가 촬영한 원본을 한 곳에서 확인하고, 부부와 가족이 함께
-                마음에 드는 사진을 고르고 투표하세요. 셀렉이 이렇게 쉬웠던 적은
-                없어요.
+              <p className="type-body-large text-fg-neutral-muted">
+                막막했던 셀렉은 함께 고르는 설렘으로,
+                <br />
+                번거로웠던 전달은 클릭 한 번으로.
+                <br />
+                업로드부터 보정 요청, 마무리까지 사진의 여정이 한 곳에서
+                완성돼요.
               </p>
 
               <div className="flex items-center gap-3 flex-wrap">
-                <Button
-                  size="lg"
-                  icon={<ArrowIcon />}
-                  href="/gallery"
-                  // onClick={() => {
-                  //   setLoginIntent("couple");
-                  //   setLoginOpen(true);
-                  // }}
-                >
+                <Button size="lg" kind="ghost" href="/gallery">
                   내 갤러리 보기
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
+                  icon={<ArrowRightIcon />}
                   href="/onboarding/studio"
-                  // onClick={() => {
-                  //   setLoginIntent("studio");
-                  //   setLoginOpen(true);
-                  // }}
                 >
                   스튜디오 시작하기
                 </Button>
               </div>
 
-              {/* 웨이트리스트 스크롤 링크 — 런칭 시 이 줄만 삭제 */}
+              {/* 웨이트리스트 스크롤 링크 — 런칭 시 이 블록만 삭제 */}
               <a
                 href="#waitlist"
-                className="inline-flex items-center gap-1.5 mt-5 text-[13px] text-ink-3 hover:text-accent transition-colors"
+                className="inline-flex items-center gap-1 type-label-button text-fg-neutral-muted hover:text-fg-neutral transition-colors"
               >
                 서비스 오픈 알림 받기
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  aria-hidden="true"
-                >
-                  <path d="M12 5v14M5 12l7 7 7-7" />
-                </svg>
+                <ArrowDownIcon size={14} />
               </a>
             </div>
 
-            {/* 우: 웨딩 사진 */}
-            <div className="relative h-[380px] lg:h-[520px] max-[820px]:h-[320px]">
-              <div className="absolute inset-0 rounded-[24px] overflow-hidden shadow-2xl bg-paper-deep">
-                {/* TODO: 실제 웨딩 사진 이미지로 교체
-                     <Image src="/images/hero-wedding.jpg" alt="웨딩 사진" fill className="object-cover" /> */}
-                <div className="w-full h-full flex items-center justify-center text-ink-3">
-                  <div className="text-center">
-                    <svg
-                      className="mx-auto mb-3 text-line-strong"
-                      width="48"
-                      height="48"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <path d="M21 15l-5-5L5 21" />
-                    </svg>
-                    <p className="text-sm text-ink-3">웨딩 사진 영역</p>
-                    <p className="text-xs text-ink-3/60 mt-1">
-                      실제 이미지로 교체 예정
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* 우: 웨딩 사진 자리 (시안 400×500) — TODO: 실제 이미지로 교체
+                 <Image src="/images/hero-wedding.jpg" alt="웨딩 사진" fill className="object-cover" />
+                 플레이스홀더 회색은 실사진 교체 전 임시로 bg-disabled 값을 차용 */}
+            <div
+              aria-hidden
+              className="w-100 h-125 shrink-0 rounded-(--radius-24) bg-bg-disabled max-[900px]:w-full max-[900px]:h-80"
+            />
           </div>
         </section>
 
-        <hr className="border-0 border-t border-line" />
-
-        {/* ═══ FEATURES ═══ */}
+        {/* ═══ FEATURES (피그마 Landing/Features) ═══ */}
         <section
-          className="bg-paper-deep py-[100px] max-[640px]:py-16"
+          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
           id="features"
           aria-labelledby="feat-h"
         >
-          <div className="max-w-wrap mx-auto px-6">
-            <Reveal className="text-center max-w-[600px] mx-auto mb-14">
-              <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3 mb-4">
+          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
+            <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
+              <p className="type-label-eyebrow text-fg-neutral-muted">
                 What we do
               </p>
-              <h2
-                id="feat-h"
-                className="font-display-ko font-medium text-[clamp(26px,4vw,38px)] leading-snug tracking-[-0.01em] text-ink mb-3.5"
-              >
-                웨딩 사진 셀렉,
+              <h2 id="feat-h" className="type-display-section text-fg-neutral">
+                사진 셀렉,
                 <br />
                 이렇게 달라집니다.
               </h2>
-              <p className="text-[15px] leading-relaxed text-ink-2">
+              <p className="type-body-large text-fg-neutral-muted">
                 수천 장을 밤새 넘기고, 비슷한 컷을 비교하고, 서로 다른 취향을
-                맞추는 일. 도구가 없어서가 아니라, 웨딩에 맞는 도구가
-                없어서였습니다.
+                맞추는 일.
+                <br />
+                사진 셀렉에 맞는 도구가 없어서였습니다.
               </p>
             </Reveal>
 
-            <div className="grid grid-cols-3 gap-5 max-[820px]:grid-cols-2 max-[520px]:grid-cols-1">
-              {FEATURES.map((feat, i) => (
+            <div className="grid grid-cols-3 gap-6 w-full max-[820px]:grid-cols-2 max-[520px]:grid-cols-1">
+              {FEATURES.map(({ title, desc, Icon }, i) => (
                 <Reveal
-                  key={i}
-                  className="bg-paper border border-line rounded-lg p-8 px-7 transition-all duration-base ease-out hover:-translate-y-[3px] hover:shadow-md"
+                  key={title}
+                  className="bg-bg-layer-default border border-stroke-neutral-muted rounded-(--radius-16) p-8 flex flex-col gap-5 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
                   delay={((i % 3) + 1) as 1 | 2 | 3}
                 >
-                  <div className="w-12 h-12 rounded-md bg-ink text-on-ink grid place-items-center mb-5">
-                    <div className="w-[22px] h-[22px]">
-                      <Icon d={feat.icon} />
-                    </div>
+                  <div className="self-start rounded-(--radius-12) bg-bg-neutral-inverted p-3 text-fg-neutral-inverted">
+                    <span className="flex size-6 items-center justify-center">
+                      <Icon />
+                    </span>
                   </div>
-                  <h3 className="font-display-ko font-medium text-[19px] text-ink leading-snug tracking-[-0.01em] mb-2.5">
-                    {feat.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-ink-2">
-                    {feat.desc}
-                  </p>
+                  <div className="flex flex-col gap-2">
+                    <h3 className="type-heading-card text-fg-neutral">
+                      {title}
+                    </h3>
+                    <p className="type-body-medium text-fg-neutral-muted">
+                      {desc}
+                    </p>
+                  </div>
                 </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <hr className="border-0 border-t border-line" />
-
-        {/* ═══ AUDIENCES ═══ */}
+        {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
         <section
-          className="bg-paper py-[100px] max-[640px]:py-16"
+          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
           id="audiences"
           aria-labelledby="aud-h"
         >
-          <div className="max-w-wrap mx-auto px-6">
-            <Reveal className="text-center max-w-[600px] mx-auto mb-14">
-              <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3 mb-4">
+          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
+            <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
+              <p className="type-label-eyebrow text-fg-neutral-muted">
                 Who it&apos;s for
               </p>
-              <h2
-                id="aud-h"
-                className="font-display-ko font-medium text-[clamp(26px,4vw,38px)] leading-snug tracking-[-0.01em] text-ink mb-3.5"
-              >
-                두 사람에게도, 작가에게도.
+              <h2 id="aud-h" className="type-display-section text-fg-neutral">
+                고르는 사람에게도, 찍는 사람에게도.
               </h2>
             </Reveal>
 
-            <div className="grid grid-cols-2 gap-5 max-[720px]:grid-cols-1">
-              <Reveal
-                className="border border-line rounded-lg py-10 px-9 bg-paper-deep transition-all duration-base ease-out hover:-translate-y-[3px] hover:shadow-md"
-                delay={1}
-              >
-                <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-accent mb-[18px]">
-                  For Couples · 예비부부
-                </div>
-                <h3 className="font-display-ko font-medium text-2xl text-ink leading-snug tracking-[-0.01em] mb-3.5">
-                  각자 모바일로,
-                  <br />
-                  함께 고릅니다.
-                </h3>
-                <p className="text-[15px] leading-relaxed text-ink-2 mb-[22px]">
-                  출퇴근길에도 스와이프로 셀렉. 서로의 선택이 실시간으로 모이고,
-                  마음에 든 컷만 남습니다.
-                </p>
-                <ul className="flex flex-col gap-2.5">
-                  {[
-                    "모바일 우선 · 스와이프 셀렉",
-                    "카테고리별 갤러리 · 미분류 정리",
-                    "선택본 다운로드",
-                  ].map((text) => (
-                    <li
-                      key={text}
-                      className="flex gap-2.5 items-center text-sm text-ink-2"
-                    >
-                      <span className="w-[5px] h-[5px] rounded-full bg-accent shrink-0" />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </Reveal>
-
-              <Reveal
-                className="border border-line rounded-lg py-10 px-9 bg-paper-deep transition-all duration-base ease-out hover:-translate-y-[3px] hover:shadow-md"
-                delay={2}
-              >
-                <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-accent mb-[18px]">
-                  For Studios · 사진작가
-                </div>
-                <h3 className="font-display-ko font-medium text-2xl text-ink leading-snug tracking-[-0.01em] mb-3.5">
-                  여러 갤러리를
-                  <br />한 콘솔에서.
-                </h3>
-                <p className="text-[15px] leading-relaxed text-ink-2 mb-[22px]">
-                  업로드 후 전달 업무는 자동으로 줄어듭니다. 셀렉 현황부터
-                  정산까지 한 화면에서 관리하세요.
-                </p>
-                <ul className="flex flex-col gap-2.5">
-                  {[
-                    "여러 이미지 일괄 업로드",
-                    "초대 링크 · 셀렉 진행 현황",
-                    "보정 요청 정리 · 정산 리포트",
-                  ].map((text) => (
-                    <li
-                      key={text}
-                      className="flex gap-2.5 items-center text-sm text-ink-2"
-                    >
-                      <span className="w-[5px] h-[5px] rounded-full bg-accent shrink-0" />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </Reveal>
+            <div className="grid grid-cols-2 gap-6 w-full max-[720px]:grid-cols-1">
+              {AUDIENCES.map(({ eyebrow, title, desc, items }, i) => (
+                <Reveal
+                  key={eyebrow}
+                  className="bg-bg-layer-default border border-stroke-neutral-muted rounded-(--radius-16) p-10 flex flex-col gap-4 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
+                  delay={(i + 1) as 1 | 2}
+                >
+                  <p className="type-label-eyebrow text-fg-neutral-muted">
+                    {eyebrow}
+                  </p>
+                  <h3 className="type-heading-large text-fg-neutral">
+                    {title}
+                  </h3>
+                  <p className="type-body-medium text-fg-neutral-muted">
+                    {desc}
+                  </p>
+                  <ul className="flex flex-col gap-3">
+                    {items.map((text) => (
+                      <li
+                        key={text}
+                        className="flex items-center gap-2 type-body-medium text-fg-neutral-muted"
+                      >
+                        <span className="size-1 rounded-full bg-fg-neutral shrink-0" />
+                        {text}
+                      </li>
+                    ))}
+                  </ul>
+                </Reveal>
+              ))}
             </div>
           </div>
         </section>
 
-        <hr className="border-0 border-t border-line" />
-
-        {/* ═══ Q&A ═══ */}
+        {/* ═══ Q&A (피그마 Landing/QnA) ═══ */}
         <section
-          className="bg-paper py-[100px] max-[640px]:py-16"
+          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
           id="qna"
           aria-labelledby="qna-h"
         >
-          <div className="max-w-wrap mx-auto px-6">
-            <Reveal className="text-center max-w-[600px] mx-auto mb-14">
-              <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3 mb-4">
-                FAQ
-              </p>
-              <h2
-                id="qna-h"
-                className="font-display-ko font-medium text-[clamp(26px,4vw,38px)] leading-snug tracking-[-0.01em] text-ink mb-3.5"
-              >
+          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
+            <Reveal className="flex flex-col items-center gap-4 text-center">
+              <p className="type-label-eyebrow text-fg-neutral-muted">FAQ</p>
+              <h2 id="qna-h" className="type-display-section text-fg-neutral">
                 자주 묻는 질문
               </h2>
             </Reveal>
@@ -364,112 +319,98 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <hr className="border-0 border-t border-line" />
-
         {/* ═══ WAITLIST — 하단 섹션 (런칭 시 이 섹션 전체 삭제) ═══ */}
         <section
-          className="bg-paper-deep py-[80px] max-[640px]:py-14"
+          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
           id="waitlist"
           aria-labelledby="wl-h"
         >
-          <div className="max-w-wrap mx-auto px-6 text-center">
-            <Reveal>
-              <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-ink-3 mb-4">
+          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-8 text-center">
+            <Reveal className="flex flex-col items-center gap-4 max-w-94">
+              <p className="type-label-eyebrow text-fg-neutral-muted">
                 Waitlist
               </p>
-              <h2
-                id="wl-h"
-                className="font-display-ko font-medium text-[clamp(22px,3.5vw,32px)] leading-snug tracking-[-0.01em] text-ink mb-3.5"
-              >
+              <h2 id="wl-h" className="type-display-section text-fg-neutral">
                 가장 먼저 만나보세요
               </h2>
-              <p className="text-[15px] leading-relaxed text-ink-2 max-w-[44ch] mx-auto mb-9">
-                서비스 오픈 소식과 초대장을 가장 먼저 받으실 수 있어요.
+              <p className="type-body-large text-fg-neutral-muted">
+                서비스 오픈 소식과 초대장을 가장 먼저 받아보실 수 있어요.
               </p>
-              <WaitlistForm />
             </Reveal>
+            <WaitlistForm />
           </div>
         </section>
       </main>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className="bg-ink text-on-ink-2 pt-16 pb-10">
-        <div className="max-w-wrap mx-auto px-6">
-          <div className="grid grid-cols-[1.4fr_repeat(3,1fr)] gap-10 mb-12 max-[720px]:grid-cols-2 max-[480px]:grid-cols-1">
-            <div>
-              <div className="flex items-center gap-[10px]">
-                <BrandLogo size={28} className="shrink-0 text-white/60" />
-                <span className="flex flex-col leading-[1.15]">
-                  <b className="font-display-en font-semibold text-[17px] tracking-[0.01em] text-on-ink">
-                    Wedding Easy Select
-                  </b>
-                  <small className="font-mono text-[9px] tracking-[0.18em] uppercase text-on-ink-2">
-                    Making Your Wedding Simple
-                  </small>
-                </span>
+      {/* ═══ FOOTER (피그마 Landing/Footer) ═══ */}
+      <footer className="bg-bg-neutral-inverted pt-16 pb-10">
+        <div className="max-w-wrap mx-auto px-6 flex flex-col gap-12">
+          <div className="flex items-start justify-between gap-10 max-[720px]:flex-col">
+            {/* 브랜드 */}
+            <div className="flex flex-col gap-3 max-w-61.25">
+              <div className="flex items-center gap-2">
+                <BrandLogo
+                  size={32}
+                  className="text-fg-neutral-inverted shrink-0"
+                />
+                <b className="type-brand-wordmark text-fg-neutral-inverted">
+                  Easy Select
+                </b>
               </div>
-              <p className="mt-3.5 text-[13px] leading-relaxed text-on-ink-2 max-w-[26ch]">
-                웨딩 사진 여정에 특화된
-                <br />
-                한국어 셀렉 서비스
+              <p className="type-body-medium text-fg-neutral-inverted-muted">
+                업로드부터 전달까지, 사진 셀렉의 모든 과정을 한 곳에서.
               </p>
             </div>
-            {[
-              {
-                title: "서비스",
-                links: [
-                  { label: "기능 소개", href: "#features" },
-                  { label: "자주 묻는 질문", href: "#qna" },
-                  { label: "가격 안내", href: "#" },
-                ],
-              },
-              {
-                title: "지원",
-                links: [
-                  { label: "이용 가이드", href: "#" },
-                  { label: "문의하기", href: "#" },
-                  { label: "공지사항", href: "#" },
-                ],
-              },
-              {
-                title: "회사",
-                links: [
-                  { label: "팀 소개", href: "#" },
-                  { label: "채용", href: "#" },
-                  { label: "블로그", href: "#" },
-                ],
-              },
-            ].map((col) => (
-              <div key={col.title}>
-                <h4 className="font-mono text-[10px] tracking-[0.16em] uppercase text-on-ink-2 mb-[18px]">
-                  {col.title}
-                </h4>
-                {col.links.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    className="block text-sm text-white/60 py-[5px] transition-colors duration-fast hover:text-on-ink"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            ))}
+
+            {/* 링크 컬럼 */}
+            <div className="flex gap-12 max-[480px]:flex-col">
+              {FOOTER_COLUMNS.map((col) => (
+                <div key={col.title} className="flex flex-col gap-6 w-20">
+                  <h4 className="type-label-eyebrow text-fg-neutral-inverted-muted">
+                    {col.title}
+                  </h4>
+                  <div className="flex flex-col gap-3">
+                    {col.links.map((link) =>
+                      link.href ? (
+                        <a
+                          key={link.label}
+                          href={link.href}
+                          className="type-label-button text-fg-neutral-inverted-muted whitespace-nowrap transition-colors duration-fast hover:text-fg-neutral-inverted"
+                        >
+                          {link.label}
+                        </a>
+                      ) : (
+                        <button
+                          key={link.label}
+                          type="button"
+                          onClick={showComingSoon}
+                          className="cursor-pointer text-left type-label-button text-fg-neutral-inverted-muted whitespace-nowrap transition-colors duration-fast hover:text-fg-neutral-inverted"
+                        >
+                          {link.label}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="border-t border-on-ink-line pt-6 flex items-center justify-between flex-wrap gap-3">
-            <span className="text-xs text-white/40">
-              © 2026 Wedding Easy Select
+
+          {comingSoonToast}
+          <div className="border-t border-stroke-neutral-inverted pt-6 flex items-center justify-between flex-wrap gap-3">
+            <span className="type-body-small text-fg-neutral-inverted-muted uppercase">
+              © 2026 Easy Select
             </span>
             <div className="flex gap-5">
               <a
-                href="#"
-                className="text-xs text-white/40 transition-colors duration-fast hover:text-on-ink"
+                href="/terms"
+                className="type-label-button text-fg-neutral-inverted-muted transition-colors duration-fast hover:text-fg-neutral-inverted"
               >
                 이용약관
               </a>
               <a
-                href="#"
-                className="text-xs text-white/40 transition-colors duration-fast hover:text-on-ink"
+                href="/privacy"
+                className="type-label-button text-fg-neutral-inverted-muted transition-colors duration-fast hover:text-fg-neutral-inverted"
               >
                 개인정보처리방침
               </a>
@@ -477,13 +418,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-
-      {/* 로그인 모달 (히어로 CTA에서도 열림) — OAuth 연동 전까지 비활성화
-      <LoginModal
-        open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        intent={loginIntent}
-      /> */}
     </>
   );
 }

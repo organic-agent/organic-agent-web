@@ -1,67 +1,67 @@
-import type { PhotoWorkflowSummary } from "@/lib/photographerPhotoWorkflow";
-import { ModalButtons, ModalShell } from "./ModalShell";
+/**
+ * 작가 — 전달 완료 확인 모달
+ * 위치: src/app/(photographer)/galleries/[galleryId]/_components/GalleryDeliveryConfirmModal.tsx
+ *
+ * 워크스페이스 탑바의 "전달 완료로 표시"에서 열어 최종 확인을 받는다.
+ * 확인하면 갤러리 상태가 전달 완료로 바뀐다 (홈 카드·필터에 반영).
+ */
+
+import {
+  GalleryModalButtons,
+  GalleryModalShell,
+} from "../../_components/GalleryModalShell";
 
 type Props = {
-  summary: PhotoWorkflowSummary;
+  /** 부부가 선택한 사진 수 */
+  selectedCount: number;
+  /** 목표 선택 장수 */
+  target: number;
+  /** 보정 요청이 남아 있는 사진 수 */
+  retouchCount: number;
+  /** 부부가 "작가에게 전달"을 눌러 셀렉을 제출했는지 */
+  selectionSubmitted: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  onReviewIncomplete: () => void;
 };
 
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="type-body-small text-fg-neutral-muted">{label}</span>
+      <strong className="type-label-button text-fg-neutral">{value}</strong>
+    </div>
+  );
+}
+
 export function GalleryDeliveryConfirmModal({
-  summary,
+  selectedCount,
+  target,
+  retouchCount,
+  selectionSubmitted,
   onClose,
   onConfirm,
-  onReviewIncomplete,
 }: Props) {
-  const canComplete = summary.total > 0 && summary.incomplete === 0;
-
   return (
-    <ModalShell
+    <GalleryModalShell
+      title="전달 완료로 표시할까요?"
+      desc="완료하면 갤러리 목록과 워크스페이스의 상태가 전달 완료로 변경됩니다."
       onClose={onClose}
-      title={canComplete ? "전달 완료로 표시할까요?" : "미완료 작업이 있어요"}
-      desc={
-        canComplete
-          ? "완료하면 갤러리 목록과 상세의 상태가 전달 완료로 변경됩니다."
-          : "최종 선택본의 보정 상태를 확인한 뒤 전달을 완료해 주세요."
-      }
     >
-      <div className="rounded-xl border border-line bg-paper px-4 py-4 mb-6">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-[12px] text-ink-3">최종 선택본</span>
-          <strong className="text-[14px] text-ink">{summary.total}장</strong>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-4">
-          <span className="text-[12px] text-ink-3">보정 완료</span>
-          <strong className="text-[14px] text-select">
-            {summary.done}/{summary.total}장
-          </strong>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-4">
-          <span className="text-[12px] text-ink-3">미완료</span>
-          <strong
-            className={`text-[14px] ${
-              summary.incomplete > 0 ? "text-hold" : "text-ink"
-            }`}
-          >
-            {summary.incomplete}장
-          </strong>
-        </div>
+      <div className="mb-6 flex flex-col gap-2 rounded-(--radius-8) border border-stroke-neutral-muted px-4 py-4">
+        <StatRow label="부부 선택" value={`${selectedCount} / ${target}장`} />
+        <StatRow label="보정 요청" value={`${retouchCount}건`} />
+        {!selectionSubmitted && (
+          <p className="mt-1 border-t border-stroke-neutral-muted pt-2 type-body-small text-fg-warning">
+            아직 부부의 셀렉이 제출되지 않았어요. 지금 완료 처리하면 셀렉
+            진행이 끝난 것으로 표시됩니다.
+          </p>
+        )}
       </div>
-
-      {canComplete ? (
-        <ModalButtons
-          onClose={onClose}
-          onConfirm={onConfirm}
-          confirmLabel="전달 완료 처리"
-        />
-      ) : (
-        <ModalButtons
-          onClose={onClose}
-          onConfirm={onReviewIncomplete}
-          confirmLabel={summary.total === 0 ? "최종 선택본 확인" : "미완료 사진 확인"}
-        />
-      )}
-    </ModalShell>
+      <GalleryModalButtons
+        onClose={onClose}
+        onConfirm={onConfirm}
+        confirmLabel="전달 완료 처리"
+      />
+    </GalleryModalShell>
   );
 }

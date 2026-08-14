@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 로그인 / 회원가입 모달 (+ 페이지 공용)
+ * 로그인 / 회원가입 모달 (+ 페이지 공용) — 피그마 Modal/Login 대응
  * 위치: src/components/LoginModal.tsx
  *
  * 사용법:
@@ -10,12 +10,14 @@
  *
  * - 소셜 로그인 3종 (카카오·네이버·구글), 첫 로그인 = 가입
  * - intent에 따라 카피가 달라짐 (couple / studio)
+ * - 소셜 버튼 색은 각 사 브랜드 가이드 고정값 — 테마(토큰) 비대상
  * - 부부 정책: 첫 진입은 반드시 초대 링크 필요 (서버에서 차단)
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
+import { CloseIcon } from "@/components/icons";
 
 type Provider = "kakao" | "naver" | "google";
 
@@ -32,35 +34,35 @@ type Provider = "kakao" | "naver" | "google";
 const COPY = {
   couple: {
     title: "다시 오신 걸 환영해요",
-    sub: "간편하게 로그인하고 사진을 확인하세요",
+    sub: "간편하게 로그인하고 이어서 진행하세요",
   },
   studio: {
-    title: "스튜디오 로그인",
-    sub: "로그인 후 갤러리를 개설할 수 있어요",
+    title: "스튜디오 시작하기",
+    sub: "간편 로그인 한 번으로 가입부터 갤러리 개설까지",
   },
 };
 
 const OAUTH = [
   {
     key: "kakao" as Provider,
-    label: "카카오로 시작하기",
+    label: "카카오 로그인",
     bg: "#FEE500",
     fg: "rgba(0,0,0,0.85)",
     spinStroke: "rgba(0,0,0,0.85)",
   },
   {
     key: "naver" as Provider,
-    label: "네이버로 시작하기",
+    label: "네이버 로그인",
     bg: "#03C75A",
     fg: "#fff",
     spinStroke: "#fff",
   },
   {
     key: "google" as Provider,
-    label: "Google로 시작하기",
+    label: "구글 로그인",
     bg: "#fff",
     fg: "#1F1F1F",
-    border: true,
+    border: true, // 보더 색은 구글 브랜드 가이드 #747775
     spinStroke: "#5f6368",
   },
 ];
@@ -111,111 +113,103 @@ export function LoginModal({
   const busy = loadingProvider !== null;
 
   const card = (
-    <div className="relative w-full max-w-[440px] bg-white rounded-2xl p-9 max-[480px]:px-6 max-[480px]:py-8">
-      {/* 닫기 (모달 모드) */}
-      {!asPage && onClose && (
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-full text-ink-3 hover:bg-paper-deep transition-colors"
-          aria-label="닫기"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
-      )}
-
-      {/* 로고 + 카피 */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2.5 mb-5">
-          <BrandLogo size={27} className="text-ink" />
-          <b className="font-display-en font-semibold text-[17px] tracking-[0.01em] text-ink">
-            Wedding Easy Select
-          </b>
+    <div className="w-full max-w-120 bg-bg-layer-default rounded-(--radius-16) p-6 flex flex-col gap-10">
+      {/* 헤더: 로고 로크업 + 닫기 / 제목·부제 */}
+      <div className="flex flex-col gap-5 w-full">
+        <div className="flex items-center justify-between w-full px-2">
+          <div className="flex items-center gap-2">
+            <BrandLogo size={32} className="text-fg-neutral shrink-0" />
+            <b className="type-brand-wordmark text-fg-neutral">Easy Select</b>
+          </div>
+          {!asPage && onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full text-fg-neutral hover:bg-bg-layer-default-hover transition-colors duration-fast cursor-pointer"
+              aria-label="닫기"
+            >
+              <CloseIcon />
+            </button>
+          )}
         </div>
-        <h2 className="text-[26px] font-semibold leading-snug tracking-[-0.02em] text-ink">
-          {copy.title}
-        </h2>
-        <p className="text-sm mt-1 text-ink-2">{copy.sub}</p>
+        <div className="flex flex-col gap-1 items-center text-center w-full">
+          <h2 className="type-heading-large text-fg-neutral">{copy.title}</h2>
+          {/* 부제는 시안대로 세리프 14 (전용 토큰 없음 — 시안 고유 스타일) */}
+          <p className="font-[family-name:var(--font-noto-serif-kr),serif] font-medium text-[14px] leading-[1.3] tracking-[-0.01em] text-fg-neutral-muted">
+            {copy.sub}
+          </p>
+        </div>
       </div>
 
-      {/* 소셜 버튼 */}
-      <div className="flex flex-col gap-3">
-        {OAUTH.map((o) => (
-          <button
-            key={o.key}
-            onClick={() => handleSignIn(o.key)}
-            disabled={busy}
-            aria-busy={loadingProvider === o.key}
-            className="relative w-full h-12 rounded-pill text-sm font-medium transition-transform active:scale-[0.98] disabled:pointer-events-none"
-            style={{
-              background: o.bg,
-              color: o.fg,
-              border: o.border ? "1px solid #DADCE0" : "none",
-              opacity: busy && loadingProvider !== o.key ? 0.45 : 1,
-            }}
+      {/* 소셜 버튼 + 동의 문구 */}
+      <div className="flex flex-col gap-10 items-center w-full">
+        <div className="flex flex-col gap-3 w-full max-w-61.5 mx-auto">
+          {OAUTH.map((o) => (
+            <button
+              key={o.key}
+              onClick={() => handleSignIn(o.key)}
+              disabled={busy}
+              aria-busy={loadingProvider === o.key}
+              className="relative w-full h-12 rounded-(--pill) type-body-small transition-transform active:scale-[0.98] disabled:pointer-events-none cursor-pointer"
+              style={{
+                background: o.bg,
+                color: o.fg,
+                border: o.border ? "1px solid #747775" : "none",
+                opacity: busy && loadingProvider !== o.key ? 0.45 : 1,
+              }}
+            >
+              {loadingProvider === o.key ? (
+                <svg
+                  className="mx-auto h-4.5 w-4.5 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                    strokeDasharray="42 60"
+                    stroke={o.spinStroke}
+                  />
+                </svg>
+              ) : (
+                <span className="flex items-center justify-center gap-1">
+                  <SocialIcon provider={o.key} />
+                  {o.label}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* 동의 문구 (간주 방식) */}
+        <p className="text-center type-body-small text-fg-neutral-subtle">
+          로그인 시{" "}
+          <a
+            href="/terms"
+            className="underline underline-offset-2 transition-colors duration-fast hover:text-fg-neutral"
           >
-            {loadingProvider === o.key ? (
-              <svg
-                className="mx-auto h-[18px] w-[18px] animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                  strokeWidth="2.6"
-                  strokeLinecap="round"
-                  strokeDasharray="42 60"
-                  stroke={o.spinStroke}
-                />
-              </svg>
-            ) : (
-              <span className="flex items-center justify-center gap-2.5">
-                <SocialIcon provider={o.key} />
-                {o.label}
-              </span>
-            )}
-          </button>
-        ))}
+            이용약관
+          </a>{" "}
+          및{" "}
+          <a
+            href="/privacy"
+            className="underline underline-offset-2 transition-colors duration-fast hover:text-fg-neutral"
+          >
+            개인정보 처리방침
+          </a>
+          에 동의합니다
+        </p>
       </div>
-
-      {/* 동의 문구 (간주 방식) */}
-      <p className="text-center text-xs mt-7 text-ink-3">
-        로그인 시{" "}
-        <a
-          href="/terms"
-          className="underline underline-offset-2 decoration-line-strong hover:text-accent-deep hover:decoration-accent"
-        >
-          이용약관
-        </a>{" "}
-        및{" "}
-        <a
-          href="/privacy"
-          className="underline underline-offset-2 decoration-line-strong hover:text-accent-deep hover:decoration-accent"
-        >
-          개인정보 처리방침
-        </a>
-        에 동의합니다
-      </p>
     </div>
   );
 
   // 페이지 모드: 전체 화면 중앙 배치
   if (asPage) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-white px-6 py-12">
+      <main className="grid min-h-dvh place-items-center bg-bg-layer-default px-6 py-12">
         {card}
       </main>
     );
@@ -225,22 +219,22 @@ export function LoginModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] grid place-items-center px-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-150 grid place-items-center px-4">
+      {/* Backdrop — bg.overlay 토큰 (딤 배경) */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-bg-overlay backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* Card */}
-      <div className="relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-200">
+      {/* Card — 래퍼에 w-full을 줘야 카드의 max-w가 실제로 작동한다 */}
+      <div className="relative z-10 w-full max-w-120 animate-in fade-in slide-in-from-bottom-4 duration-200">
         {card}
       </div>
     </div>
   );
 }
 
-/* ───────────────── 소셜 아이콘 ───────────────── */
+/* ───────────────── 소셜 아이콘 (각 사 브랜드 마크 — 크기는 시안 기준) ───────────────── */
 
 function SocialIcon({ provider }: { provider: Provider }) {
   if (provider === "kakao")
@@ -254,7 +248,7 @@ function SocialIcon({ provider }: { provider: Provider }) {
     );
   if (provider === "naver")
     return (
-      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
         <path
           fill="currentColor"
           d="M15.03 12.62 8.78 3.5H4v17h4.97v-9.12l6.25 9.12H20v-17h-4.97v9.12z"
@@ -262,7 +256,7 @@ function SocialIcon({ provider }: { provider: Provider }) {
       </svg>
     );
   return (
-    <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 48 48" aria-hidden="true">
       <path
         fill="#EA4335"
         d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
