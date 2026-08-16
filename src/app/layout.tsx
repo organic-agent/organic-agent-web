@@ -7,6 +7,7 @@
 
 import type { Metadata } from "next";
 import { Montserrat, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
+import { AuthBootstrap } from "@/components/AuthBootstrap";
 import "./tokens.css";
 import "./tokens.dark.css";
 import "./globals.css";
@@ -57,7 +58,10 @@ export default function RootLayout({
       data-theme="light"
       className={`${notoSansKr.variable} ${montserrat.variable} ${notoSerifKr.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <AuthBootstrap />
+        {children}
+      </body>
     </html>
   );
 }

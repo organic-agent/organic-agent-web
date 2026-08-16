@@ -13,7 +13,7 @@
 import { useEffect, useState } from "react";
 import { DropdownIcon, SlideshowIcon } from "@/components/icons";
 
-const STORAGE_KEY = "wes.filmstripOpen";
+const STORAGE_KEY = "sel.filmstripOpen";
 
 export function useFilmstripOpen() {
   const [filmstripOpen, setFilmstripOpen] = useState(true);

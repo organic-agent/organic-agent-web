@@ -11,7 +11,7 @@
 //    ("invoke a client function from the server") 레이아웃이 깨지고 그 아래 라우트가 전부 404가 된다.
 
 /** 사이드바 접힘 여부를 저장하는 쿠키 이름. */
-export const SIDEBAR_COOKIE = "wes.sidebar.collapsed";
+export const SIDEBAR_COOKIE = "sel.sidebar.collapsed";
 
 /** 서버가 읽은 쿠키 문자열("1"/"0"/없음)을 접힘 여부(boolean)로 바꾼다. */
 export function parseCollapsedCookie(raw: string | undefined): boolean {
