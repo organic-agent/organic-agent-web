@@ -1,8 +1,10 @@
 /**
- * 작가 스튜디오 정보 저장소 (localStorage 목업)
+ * 작가 스튜디오 정보 로컬 캐시
  * 위치: src/lib/studio.ts
  *
- * 화면은 useStudioInfo()로 읽고 saveStudioInfo()로 저장한다.
+ * 스튜디오 생성(POST /api/v1/studios) 성공 응답의 canonical 값을 저장하고,
+ * 갤러리 목록·온보딩 화면이 useStudioInfo()로 읽는다. 그 화면들이 서버
+ * 조회(GET /api/v1/studios/me)로 넘어가면 이 캐시는 없어질 예정이다.
  */
 
 import { useSyncExternalStore } from "react";
