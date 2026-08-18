@@ -65,7 +65,9 @@ export function resolveDestination(
   if (galleryId !== null) return "/gallery";
   if (user.userType === "PHOTOGRAPHER") return "/galleries";
   if (user.userType === "CLIENT") return "/gallery";
-  return intent === "studio" ? "/onboarding/studio" : "/gallery";
+  // 부부 정책: 갤러리 참여는 작가의 초대 링크로만 가능하다. 초대 없이 온
+  // 신규 부부는 갤러리 대신 초대 안내(/invite)로 보낸다.
+  return intent === "studio" ? "/onboarding/studio" : "/invite";
 }
 
 // provider 취소(access_denied)와 스웨거에서 확인한 백엔드 코드만 매핑한다.
