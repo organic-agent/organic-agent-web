@@ -15,6 +15,7 @@ import { LoginModal } from "@/components/LoginModal";
 type LoginSearchParams = {
   role?: string;
   inviteToken?: string;
+  error?: string;
 };
 
 export default async function LoginPage({
@@ -22,7 +23,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<LoginSearchParams>;
 }) {
-  const { role = "photographer", inviteToken } = await searchParams;
+  const { role = "photographer", inviteToken, error } = await searchParams;
 
   const intent = role === "couple" ? "couple" : "studio";
 
@@ -31,6 +32,7 @@ export default async function LoginPage({
       asPage
       intent={intent}
       inviteToken={inviteToken ?? null}
+      errorCode={error ?? null}
     />
   );
 }

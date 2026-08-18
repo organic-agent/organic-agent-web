@@ -15,21 +15,11 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
 import { CloseIcon } from "@/components/icons";
+import { loginErrorMessage, startLogin } from "@/lib/auth/loginFlow";
 
 type Provider = "kakao" | "naver" | "google";
-
-// OAuth 연동 시 복구: 로그인 후 역할·초대토큰을 담아 리다이렉트할 콜백 URL을 만든다.
-// const AFTER_LOGIN_ROUTER = "/auth/redirect";
-//
-// function buildCallbackUrl(intent: string, inviteToken?: string | null): string {
-//   const role = intent === "studio" ? "photographer" : "couple";
-//   const params = new URLSearchParams({ role });
-//   if (inviteToken) params.set("inviteToken", inviteToken);
-//   return `${AFTER_LOGIN_ROUTER}?${params.toString()}`;
-// }
 
 const COPY = {
   couple: {
@@ -71,17 +61,20 @@ export function LoginModal({
   open,
   onClose,
   intent = "couple",
-  // inviteToken,  // OAuth 연동 시 복구: buildCallbackUrl에서 사용
+  inviteToken = null,
+  errorCode = null,
   asPage = false,
 }: {
   open?: boolean;
   onClose?: () => void;
   intent?: "couple" | "studio";
   inviteToken?: string | null;
+  /** OAuth 콜백이 실패를 되돌려보낼 때의 에러 코드 (/login?error=...) */
+  errorCode?: string | null;
   asPage?: boolean;
 }) {
-  const router = useRouter();
   const [loadingProvider, setLoadingProvider] = useState<Provider | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
 
   // ESC 닫기 (모달 모드)
   const handleKeyDown = useCallback(
@@ -102,15 +95,23 @@ export function LoginModal({
     }
   }, [asPage, open, handleKeyDown]);
 
-  function handleSignIn(provider: Provider) {
+  async function handleSignIn(provider: Provider) {
     setLoadingProvider(provider);
-    // 백엔드 OAuth API 연동 시 실제 로그인 요청 후 콜백에서 오류 처리·역할 분기
-    // OAuth 미연동 임시: 로그인 성공으로 간주하고 역할에 맞는 화면으로 바로 이동
-    router.push(intent === "studio" ? "/onboarding/studio" : "/gallery");
+    setStartError(null);
+    try {
+      await startLogin(provider, { intent, inviteToken });
+      // 성공하면 페이지가 provider로 통째로 떠난다 — 로딩을 해제하지 않는 게 맞다.
+    } catch {
+      setLoadingProvider(null);
+      setStartError("로그인을 시작하지 못했어요. 네트워크 확인 후 다시 시도해주세요.");
+    }
   }
 
   const copy = COPY[intent];
   const busy = loadingProvider !== null;
+  // 시작 실패(이 화면에서 발생)가 콜백 실패(쿼리로 전달)보다 최신 정보다.
+  const errorMessage =
+    startError ?? (errorCode ? loginErrorMessage(errorCode) : null);
 
   const card = (
     <div className="w-full max-w-120 bg-bg-layer-default rounded-(--radius-16) p-6 flex flex-col gap-10">
@@ -143,6 +144,14 @@ export function LoginModal({
       {/* 소셜 버튼 + 동의 문구 */}
       <div className="flex flex-col gap-10 items-center w-full">
         <div className="flex flex-col gap-3 w-full max-w-61.5 mx-auto">
+          {errorMessage && (
+            <p
+              role="alert"
+              className="text-center type-body-small text-fg-warning"
+            >
+              {errorMessage}
+            </p>
+          )}
           {OAUTH.map((o) => (
             <button
               key={o.key}
