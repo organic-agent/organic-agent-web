@@ -64,6 +64,46 @@ export function createGallery(
 }
 
 /**
+ * 갤러리 단건 조회. 담당 작가이거나 초대를 수락한 멤버여야 한다.
+ *
+ * 실패 코드: 403(권한 없음·멤버가 DRAFT 조회) · 404(없는 갤러리).
+ */
+export function getGallery(galleryId: number): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}`);
+}
+
+/**
+ * 갤러리 열기 — DRAFT→OPEN. 열어야 초대된 부부에게 보인다.
+ * 담당 작가만(403). DRAFT가 아니면 400.
+ */
+export function openGallery(galleryId: number): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/open`, { method: "POST" });
+}
+
+/**
+ * 갤러리 선택 마감 — OPEN→CLOSED. 부부는 계속 볼 수 있고 고르는 것만
+ * 막힌다. 담당 작가만(403). OPEN이 아니면 400.
+ */
+export function closeGallery(galleryId: number): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/close`, { method: "POST" });
+}
+
+/**
+ * 갤러리 재오픈 — CLOSED→OPEN. 지난 기한을 그대로 두면 열자마자 다시
+ * 막히므로 마감 기한을 다시 받는다(null이면 기한 없음). 담당 작가만(403).
+ * CLOSED가 아니거나 지난 기한이면 400.
+ */
+export function reopenGallery(
+  galleryId: number,
+  selectionDeadline: string | null,
+): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/reopen`, {
+    method: "POST",
+    body: { selectionDeadline },
+  });
+}
+
+/**
  * 갤러리 휴지통 이동 — 즉시 삭제가 아니다. 휴지통에서 복원할 수 있고,
  * 보관 기간이 지나면 원본과 함께 자동으로 물리 삭제된다. 담당 작가만(403).
  */
