@@ -4,20 +4,19 @@
  * 작가 — 갤러리 생성 온보딩 페이지
  * 위치: src/app/(photographer)/onboarding/gallery/page.tsx
  *
- * 스튜디오 생성 직후 첫 샘플 갤러리를 단계별로 직접 만들어보는 화면이다.
- * 실제 새 갤러리 생성 항목을 하나씩 설명하며 갤러리 생성 과정을 체험하게 한다.
+ * 스튜디오 생성 직후 첫 샘플 갤러리를 단계별로 만들어보는 화면이다.
+ * 입력한 세 값(이름·완료 예정일·목표 장수)으로 POST /api/v1/galleries/mock을
+ * 호출해 샘플 사진이 채워진 진짜 갤러리를 만들고 목록으로 이동한다.
  *
- * 주요 책임:
- * - 샘플 갤러리 생성 단계 상태 관리
- * - 단계별 입력값 검증과 안내 문구 렌더링
- * - 입력값으로 샘플 갤러리 생성 후 갤러리 목록 이동
- *
- * 참고:
- * - 실제로는 POST /api/v1/galleries/mock 연결 후 /galleries로 이동할 예정이다.
+ * Mock 생성 API는 부를 때마다 새 갤러리를 만든다(멱등 아님) — 그래서
+ * 생성 시작 후에는 성공·이동까지 버튼을 계속 잠가 중복 생성을 막고,
+ * 실패했을 때만 버튼을 풀어 같은 자리에서 재시도하게 한다.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ApiError } from "@/lib/api/client";
+import { createMockGallery } from "@/lib/api/galleries";
 import { upsertGallery } from "@/lib/galleries";
 import { useStudioInfo } from "@/lib/studio";
 import {
@@ -29,6 +28,18 @@ import { OnboardingStepButtons } from "./_components/OnboardingStepButtons";
 import { OnboardingStepField } from "./_components/OnboardingStepField";
 import { STEPS, type StepKey } from "./_lib/galleryOnboarding";
 
+/** 실패 상태 코드 → 사용자 안내. 400은 서버 메시지가 더 구체적이라 그대로 쓴다. */
+function createErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 503)
+      return "샘플 사진이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요.";
+    if (err.status === 502)
+      return "샘플 사진을 복사하다 실패했어요. 만들다 만 갤러리는 남지 않으니 그대로 다시 시도하면 돼요.";
+    return err.message;
+  }
+  return "네트워크 연결을 확인한 뒤 다시 시도해 주세요.";
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const studio = useStudioInfo();
@@ -37,15 +48,15 @@ export default function OnboardingPage() {
   const [formName, setFormName] = useState("");
   const [formDueDate, setFormDueDate] = useState(() => addDaysAsInputValue(50));
   const [formTarget, setFormTarget] = useState("50");
-  const [formConcept, setFormConcept] = useState("");
-  const [formMemo, setFormMemo] = useState("");
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // 공유 폼 유틸(GalleryFormValues)과 형태를 맞춘다 — 컨셉·메모 단계는 기획에서 제거됨
   const formValues = {
     name: formName,
     dueDate: formDueDate,
     target: formTarget,
-    concept: formConcept,
-    memo: formMemo,
+    concept: "",
+    memo: "",
   };
 
   const current = STEPS[step];
@@ -55,7 +66,8 @@ export default function OnboardingPage() {
 
   function isCurrentStepValid(key: StepKey) {
     if (key === "name") return formName.trim().length > 0;
-    if (key === "dueDate") return formDueDate.length > 0;
+    // 지난 마감 기한은 서버가 400으로 거절한다 — 미리 막는다
+    if (key === "dueDate") return formDueDate >= addDaysAsInputValue(0);
     if (key === "target") return Number(formTarget) > 0;
     return true;
   }
@@ -70,20 +82,37 @@ export default function OnboardingPage() {
     setStep((prev) => Math.max(prev - 1, 0));
   }
 
-  function createSampleGallery() {
+  async function createSampleGallery() {
     if (!canCreate || creating) return;
     setCreating(true);
+    setError(null);
 
-    // 회의 후: await fetch("/api/v1/galleries/mock", { method: "POST" });
-    setTimeout(() => {
+    try {
+      const created = await createMockGallery({
+        title: formName.trim(),
+        // 폼은 날짜만 받는다 — 그날이 다 가기 전까지로 마감을 잡는다 (KST)
+        selectionDeadline: `${formDueDate}T23:59:59+09:00`,
+        maxSelectablePhotoCount: Number(formTarget),
+      });
+
+      // 갤러리 목록·상세가 아직 로컬 목업 스토어를 읽는다 — 서버 id로 반영해
+      // 이동한 목록에서 방금 만든 갤러리가 보이게 한다.
       upsertGallery(
-        createGalleryFromForm({
-          values: formValues,
-          id: `sample-${Date.now()}`,
-        }),
+        createGalleryFromForm({ values: formValues, id: String(created.id) }),
       );
+      // 성공 후에도 버튼은 잠근 채로 이동한다 — 전환 중 재클릭이 새 갤러리를
+      // 하나 더 만드는 사고 방지.
       router.push("/galleries");
-    }, 600);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        // 스튜디오가 없다(STUDIO_404_1) — 갤러리는 스튜디오에 속하므로
+        // 앞 단계인 스튜디오 온보딩으로 돌려보낸다.
+        router.push("/onboarding/studio");
+        return;
+      }
+      setError(createErrorMessage(err));
+      setCreating(false);
+    }
   }
 
   return (
@@ -143,15 +172,21 @@ export default function OnboardingPage() {
               formName={formName}
               formDueDate={formDueDate}
               formTarget={formTarget}
-              formConcept={formConcept}
-              formMemo={formMemo}
               onNameChange={setFormName}
               onDueDateChange={setFormDueDate}
               onTargetChange={setFormTarget}
-              onConceptChange={setFormConcept}
-              onMemoChange={setFormMemo}
             />
           </div>
+
+          {/* 생성 실패 안내 — 같은 버튼이 재시도 역할을 한다 */}
+          {error && (
+            <p
+              role="alert"
+              className="mb-4 type-body-small text-fg-critical"
+            >
+              {error}
+            </p>
+          )}
 
           <OnboardingStepButtons
             step={step}
