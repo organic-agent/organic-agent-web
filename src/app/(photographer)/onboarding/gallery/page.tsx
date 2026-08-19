@@ -16,7 +16,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
-import { createMockGallery } from "@/lib/api/galleries";
+import { createMockGallery, toSelectionDeadline } from "@/lib/api/galleries";
 import { upsertGallery } from "@/lib/galleries";
 import { useStudioInfo } from "@/lib/studio";
 import {
@@ -50,13 +50,10 @@ export default function OnboardingPage() {
   const [formTarget, setFormTarget] = useState("50");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 공유 폼 유틸(GalleryFormValues)과 형태를 맞춘다 — 컨셉·메모 단계는 기획에서 제거됨
   const formValues = {
     name: formName,
     dueDate: formDueDate,
     target: formTarget,
-    concept: "",
-    memo: "",
   };
 
   const current = STEPS[step];
@@ -90,8 +87,7 @@ export default function OnboardingPage() {
     try {
       const created = await createMockGallery({
         title: formName.trim(),
-        // 폼은 날짜만 받는다 — 그날이 다 가기 전까지로 마감을 잡는다 (KST)
-        selectionDeadline: `${formDueDate}T23:59:59+09:00`,
+        selectionDeadline: toSelectionDeadline(formDueDate),
         maxSelectablePhotoCount: Number(formTarget),
       });
 

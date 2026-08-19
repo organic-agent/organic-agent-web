@@ -5,27 +5,24 @@
  * 위치: src/components/photographer/StudioHeader.tsx
  *
  * 좌: 스튜디오 이름 / 우: 상태 필터 버튼 + 팝업.
- * 카드에서 상태 배지를 없앤 결정의 대응물로, 상태별 조회는 전부 이 필터가 담당한다.
- * 필터가 걸려 있으면 버튼 옆에 현재 필터 라벨을 보여줘 활성 상태를 드러낸다.
+ * 필터는 서버 status 3종(준비 중/진행 중/마감) + 전체 — 목록 API에 필터가
+ * 없어 클라이언트에서 거른다. 필터가 걸려 있으면 버튼 옆에 현재 필터
+ * 라벨을 보여줘 활성 상태를 드러낸다.
  * 내용은 랜딩과 같은 중앙 컨테이너(max-w-wrap)에 맞추고 보더만 전체 폭을 쓴다.
  */
 
 import { useEffect, useRef, useState } from "react";
+import { STATUS_LABEL } from "@/app/(photographer)/_lib/galleryStatus";
+import type { GalleryListItem } from "@/app/(photographer)/galleries/_lib/useGalleryList";
 import { FilterIcon } from "@/components/icons";
 import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem } from "@/components/ui/MenuItem";
-import {
-  GALLERY_STAGES,
-  getGalleryBadge,
-  type Gallery,
-} from "@/lib/galleries";
 
-/** 전체 + 선형 단계 + 보정 요청(전달 완료 앞에 삽입) — 구 목록 화면과 같은 순서 */
-const STATUS_FILTERS = [
+export const STATUS_FILTERS = [
   "전체",
-  ...GALLERY_STAGES.slice(0, -1),
-  "보정 요청 있음",
-  GALLERY_STAGES[GALLERY_STAGES.length - 1],
+  STATUS_LABEL.DRAFT,
+  STATUS_LABEL.OPEN,
+  STATUS_LABEL.CLOSED,
 ];
 
 export function StudioHeader({
@@ -35,7 +32,7 @@ export function StudioHeader({
   onStatusFilterChange,
 }: {
   studioName: string;
-  galleries: Gallery[];
+  galleries: GalleryListItem[];
   statusFilter: string;
   onStatusFilterChange: (filter: string) => void;
 }) {
@@ -55,7 +52,7 @@ export function StudioHeader({
 
   function countFor(filter: string) {
     if (filter === "전체") return galleries.length;
-    return galleries.filter((g) => getGalleryBadge(g).label === filter).length;
+    return galleries.filter((g) => STATUS_LABEL[g.status] === filter).length;
   }
 
   return (

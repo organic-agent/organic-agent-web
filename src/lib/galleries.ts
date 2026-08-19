@@ -220,3 +220,38 @@ export function deleteGallery(id: string): Gallery[] {
   galleriesStore.set(next);
   return next;
 }
+
+/**
+ * 서버 목록을 이 스토어에 통째로 반영하는 브리지 — 목록 화면은 서버를
+ * 직접 읽지만, 상세 화면(이슈 #18에서 전환 예정)과 부부 화면이 아직 여기서
+ * 읽기 때문에 카드 클릭 동선이 끊기지 않게 유지한다. 성공 조회마다 시드
+ * 데이터는 사라진다.
+ */
+export function syncGalleriesCache(
+  items: {
+    id: number;
+    title: string;
+    status: "DRAFT" | "OPEN" | "CLOSED";
+    selectionDeadline: string | null;
+    maxSelectablePhotoCount: number | null;
+    selectedCount: number;
+  }[],
+) {
+  galleriesStore.set(
+    items.map((item) => ({
+      id: String(item.id),
+      couple: item.title,
+      dueDate: item.selectionDeadline ? item.selectionDeadline.slice(0, 10) : "",
+      cover: "",
+      total: 0,
+      selected: item.selectedCount,
+      target: item.maxSelectablePhotoCount ?? 0,
+      memo: "",
+      invited: item.status !== "DRAFT",
+      uploaded: false,
+      selectionSubmittedAt: null,
+      delivered: false,
+      hasPendingCorrectionRequest: false,
+    })),
+  );
+}

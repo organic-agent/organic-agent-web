@@ -2,20 +2,24 @@
  * 작가 — 갤러리 폼 필드
  * 위치: src/app/(photographer)/galleries/_components/GalleryFormFields.tsx
  *
- * 새 갤러리 생성 모달과 갤러리 수정 모달에서 공통으로 사용하는 입력 필드 묶음이다.
- * 폼 상태는 부모가 소유하고, 이 컴포넌트는 표시와 변경 이벤트만 담당한다 (TextField·Textarea 부품 사용).
+ * 새 갤러리 생성 모달과 갤러리 수정 모달에서 공통으로 사용하는 입력 필드
+ * 묶음이다. 필드는 생성 계약의 세 값(이름·선택 마감 기한·계약 장수)이고,
+ * 선택 입력의 힌트가 서버 null의 의미를 그대로 말해준다.
+ * 폼 상태는 부모가 소유하고, 이 컴포넌트는 표시와 변경 이벤트만 담당한다.
  */
 
 import { TextField } from "@/components/ui/TextField";
-import { Textarea } from "@/components/ui/Textarea";
-import type { GalleryFormValues } from "../../_lib/galleryForm";
+import {
+  type GalleryFormValues,
+  isPastDueDate,
+} from "../../_lib/galleryForm";
 
 type Props = {
   values: GalleryFormValues;
   onChange: (values: GalleryFormValues) => void;
   namePlaceholder?: string;
-  memoPlaceholder?: string;
-  showDueDateHelp?: boolean;
+  /** 이름·마감 기한 잠금 — 수정 API(WES-216) 배포 전의 수정 모달용. */
+  lockNameAndDueDate?: boolean;
 };
 
 function FieldLabel({
@@ -35,9 +39,21 @@ function FieldLabel({
   );
 }
 
-function FieldHint({ children }: { children: string }) {
+function FieldHint({
+  children,
+  tone = "muted",
+}: {
+  children: string;
+  tone?: "muted" | "critical";
+}) {
   return (
-    <p className="mt-1.5 type-body-small text-fg-neutral-muted">{children}</p>
+    <p
+      className={`mt-1.5 type-body-small ${
+        tone === "critical" ? "text-fg-critical" : "text-fg-neutral-muted"
+      }`}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -45,8 +61,7 @@ export function GalleryFormFields({
   values,
   onChange,
   namePlaceholder,
-  memoPlaceholder,
-  showDueDateHelp = false,
+  lockNameAndDueDate = false,
 }: Props) {
   function update<K extends keyof GalleryFormValues>(
     key: K,
@@ -54,6 +69,8 @@ export function GalleryFormFields({
   ) {
     onChange({ ...values, [key]: value });
   }
+
+  const pastDue = isPastDueDate(values.dueDate);
 
   return (
     <>
@@ -63,64 +80,48 @@ export function GalleryFormFields({
           value={values.name}
           onChange={(v) => update("name", v)}
           placeholder={namePlaceholder}
+          disabled={lockNameAndDueDate}
           aria-label="갤러리 이름"
           className="h-10"
         />
       </div>
 
       <div className="mb-4">
-        <FieldLabel>완료 예정일</FieldLabel>
+        <FieldLabel optional>선택 마감 기한</FieldLabel>
         <TextField
           type="date"
           value={values.dueDate}
           onChange={(v) => update("dueDate", v)}
-          aria-label="완료 예정일"
+          error={pastDue}
+          disabled={lockNameAndDueDate}
+          aria-label="선택 마감 기한"
           className="h-10"
         />
-        {showDueDateHelp && (
-          <FieldHint>
-            갤러리 접근이 만료되는 날짜예요. 기본값은 생성일로부터 50일 뒤이며,
-            언제든 조정할 수 있어요.
+        {pastDue ? (
+          <FieldHint tone="critical">
+            이미 지난 날짜예요. 마감 기한을 다시 확인해 주세요.
           </FieldHint>
+        ) : (
+          !lockNameAndDueDate && <FieldHint>비워두면 기한 없이 열려요.</FieldHint>
         )}
       </div>
 
-      <div className="mb-4">
-        <FieldLabel>목표 선택 장수</FieldLabel>
+      <div className="mb-6">
+        <FieldLabel optional>계약 장수</FieldLabel>
         <TextField
           type="number"
           min={1}
           value={values.target}
           onChange={(v) => update("target", v)}
-          placeholder="50"
-          aria-label="목표 선택 장수"
+          placeholder="예: 50"
+          aria-label="계약 장수"
           className="h-10"
         />
-      </div>
-
-      <div className="mb-4">
-        <FieldLabel optional>컨셉 개수</FieldLabel>
-        <TextField
-          type="number"
-          min={1}
-          value={values.concept}
-          onChange={(v) => update("concept", v)}
-          placeholder="예: 4"
-          aria-label="컨셉 개수"
-          className="h-10"
-        />
-        <FieldHint>AI가 장면을 나눌 때 기준이 되는 컨셉 수예요.</FieldHint>
-      </div>
-
-      <div className="mb-6">
-        <FieldLabel optional>특이사항 메모</FieldLabel>
-        <Textarea
-          value={values.memo}
-          onChange={(v) => update("memo", v)}
-          placeholder={memoPlaceholder}
-          aria-label="특이사항 메모"
-          className="h-18"
-        />
+        <FieldHint>
+          {lockNameAndDueDate
+            ? "비워두면 제한이 없어져요. 이미 고른 장수보다 줄여도 저장돼요."
+            : "비워두면 부부가 제한 없이 고를 수 있어요."}
+        </FieldHint>
       </div>
     </>
   );

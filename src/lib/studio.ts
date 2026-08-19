@@ -38,3 +38,8 @@ export function useStudioInfo(): StudioInfo {
 export function saveStudioInfo(studio: StudioInfo) {
   studioStore.set(studio);
 }
+
+/** 서버 조회(GET /studios/me) 결과를 캐시에 반영 — 유입경로는 로컬 값을 보존한다. */
+export function updateStudioFromServer(name: string, url: string) {
+  studioStore.set({ ...studioStore.get(), name, url });
+}

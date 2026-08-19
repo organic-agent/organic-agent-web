@@ -46,6 +46,14 @@ export function checkGalleryUrlAvailability(
 }
 
 /**
+ * 내 스튜디오 조회. 아직 스튜디오를 만들지 않았으면(온보딩 미완료)
+ * STUDIO_404_1이다.
+ */
+export function fetchMyStudio(): Promise<StudioResponse> {
+  return api("/api/v1/studios/me");
+}
+
+/**
  * 스튜디오 생성. 성공하면 사용자 종류가 PHOTOGRAPHER로 확정된다 —
  * 종류만 정하는 API는 따로 없다.
  *
