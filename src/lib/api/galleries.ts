@@ -135,6 +135,26 @@ export function patchMaxSelectablePhotoCount(
   });
 }
 
+export type GalleryMemberResponse = {
+  /** 내보낼 때 쓰는 id — 사용자 id가 아니다. */
+  memberId: number;
+  userId: number;
+  nickname: string;
+  email: string | null;
+  /** 초대를 수락한 시각. */
+  joinedAt: string | null;
+};
+
+/**
+ * 갤러리 멤버 목록. 담당 작가와 부부 모두 조회 가능, 정원 2명이라
+ * 최대 두 건. 마감 뒤에도 열린다.
+ */
+export function listGalleryMembers(
+  galleryId: number,
+): Promise<GalleryMemberResponse[]> {
+  return api(`/api/v1/galleries/${galleryId}/members`);
+}
+
 /**
  * Mock 갤러리 생성 — 운영자가 시드한 샘플 템플릿의 사진(임베딩·미리보기
  * 포함)을 복제해 일반 갤러리 하나를 만든다. 온보딩 직후 체험용.
