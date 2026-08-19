@@ -705,11 +705,8 @@ export default function PhotographerGalleryWorkspacePage() {
       )}
       {inviteOpen && (
         <GalleryInviteModal
+          galleryId={gallery.id}
           onClose={() => setInviteOpen(false)}
-          onConfirm={() => {
-            if (legacy) updateGallery(legacy.id, { invited: true });
-            setInviteOpen(false);
-          }}
         />
       )}
       {deliveryOpen && (
