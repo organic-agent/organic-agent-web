@@ -1,47 +1,77 @@
+"use client";
+
 /**
- * 작가 — 갤러리 삭제 확인 모달
+ * 작가 — 갤러리 삭제(휴지통 이동) 확인 모달
  * 위치: src/app/(photographer)/galleries/_components/DeleteGalleryConfirmModal.tsx
  *
  * 목록 카드 메뉴에서 삭제를 누른 뒤 최종 확인을 받는다.
- * 실수 삭제를 막기 위해 갤러리 이름과 되돌릴 수 없다는 안내를 보여준다.
- *
- * 주요 책임:
- * - 삭제 대상 안내
- * - 삭제 취소/확정 이벤트 전달
+ * 서버 동작은 즉시 삭제가 아니라 휴지통 이동이다 — 복원할 수 있고,
+ * 보관 기간이 지나면 원본과 함께 자동으로 완전히 삭제된다.
+ * 문구가 그 사실을 그대로 말하게 한다.
  */
 
-import type { Gallery } from "@/lib/galleries";
+import { useState } from "react";
+import { ApiError } from "@/lib/api/client";
+import { moveGalleryToTrash } from "@/lib/api/galleries";
+import type { GalleryListItem } from "../_lib/useGalleryList";
 import { GalleryModalButtons, GalleryModalShell } from "./GalleryModalShell";
 
 type Props = {
-  gallery: Gallery | null;
+  gallery: GalleryListItem | null;
   onClose: () => void;
-  onConfirm: () => void;
+  onDeleted: (id: number) => void;
 };
 
 export function DeleteGalleryConfirmModal({
   gallery,
   onClose,
-  onConfirm,
+  onDeleted,
 }: Props) {
+  const [submitting, setSubmitting] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+
   if (!gallery) return null;
+
+  async function confirmDelete() {
+    if (!gallery || submitting) return;
+    setSubmitting(true);
+    setBanner(null);
+    try {
+      await moveGalleryToTrash(gallery.id);
+      onDeleted(gallery.id);
+    } catch (err) {
+      setBanner(
+        err instanceof ApiError
+          ? err.message
+          : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+      );
+      setSubmitting(false);
+    }
+  }
 
   return (
     <GalleryModalShell
-      title="갤러리를 삭제할까요?"
+      title="갤러리를 휴지통으로 보낼까요?"
       maxWidthClassName="max-w-[380px]"
       paddingClassName="p-7"
       onClose={onClose}
     >
       <p className="mb-6 type-body-medium text-fg-neutral-muted">
-        <span className="font-medium text-fg-neutral">{gallery.couple}</span>{" "}
-        갤러리가 목록에서 삭제됩니다. 이 작업은 되돌릴 수 없어요.
+        <span className="font-medium text-fg-neutral">{gallery.title}</span>의
+        사진과 선택 기록이 부부에게 보이지 않게 돼요. 휴지통에서 언제든 되돌릴
+        수 있고, 보관 기간이 지나면 원본과 함께 자동으로 완전히 삭제돼요.
       </p>
+      {banner && (
+        <p role="alert" className="mb-4 text-center type-body-small text-fg-critical">
+          {banner}
+        </p>
+      )}
       <GalleryModalButtons
         onClose={onClose}
-        onConfirm={onConfirm}
-        confirmLabel="삭제"
+        onConfirm={confirmDelete}
+        confirmLabel={submitting ? "보내는 중…" : "휴지통으로 보내기"}
         confirmVariant="danger"
+        disabled={submitting}
       />
     </GalleryModalShell>
   );

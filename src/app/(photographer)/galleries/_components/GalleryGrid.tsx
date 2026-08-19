@@ -7,16 +7,16 @@
  */
 
 import { PlusIcon } from "@/components/icons";
-import type { Gallery } from "@/lib/galleries";
 import { GalleryCard } from "./GalleryCard";
 import { GalleryEmptyState } from "./GalleryEmptyState";
+import type { GalleryListItem } from "../_lib/useGalleryList";
 
 type Props = {
-  galleries: Gallery[];
-  filteredGalleries: Gallery[];
+  galleries: GalleryListItem[];
+  filteredGalleries: GalleryListItem[];
   onCreateClick: () => void;
-  onEditGallery: (gallery: Gallery) => void;
-  onDeleteGallery: (gallery: Gallery) => void;
+  onEditGallery: (gallery: GalleryListItem) => void;
+  onDeleteGallery: (gallery: GalleryListItem) => void;
   onShowAll: () => void;
 };
 

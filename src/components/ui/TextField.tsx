@@ -12,6 +12,7 @@ type TextFieldProps = {
   type?: "text" | "date" | "number" | "email";
   placeholder?: string;
   error?: boolean;
+  disabled?: boolean;
   min?: number;
   "aria-label"?: string;
   className?: string;
@@ -23,6 +24,7 @@ export function TextField({
   type = "text",
   placeholder,
   error = false,
+  disabled = false,
   min,
   className = "",
   "aria-label": ariaLabel,
@@ -35,8 +37,9 @@ export function TextField({
       placeholder={placeholder}
       aria-label={ariaLabel}
       aria-invalid={error || undefined}
+      disabled={disabled}
       onChange={(e) => onChange?.(e.target.value)}
-      className={`h-8 w-full rounded-(--radius-8) border bg-bg-layer-default px-3 type-body-medium text-fg-neutral outline-none transition-colors duration-fast placeholder:text-fg-neutral-muted ${
+      className={`h-8 w-full rounded-(--radius-8) border bg-bg-layer-default px-3 type-body-medium text-fg-neutral outline-none transition-colors duration-fast placeholder:text-fg-neutral-muted disabled:cursor-not-allowed disabled:border-stroke-neutral-muted disabled:text-fg-disabled ${
         error
           ? "border-fg-critical ring-1 ring-fg-critical"
           : "border-stroke-neutral-weak focus:border-fg-neutral focus:ring-1 focus:ring-fg-neutral"

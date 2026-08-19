@@ -4,24 +4,24 @@
  * 작가 — 갤러리 카드 (피그마 Field/GalleryCard 대응)
  * 위치: src/app/(photographer)/galleries/_components/GalleryCard.tsx
  *
- * 커버(상태 칩 오버레이) + 정보(커플명 · 케밥 메뉴 · 마감일 · 셀렉 현황 바).
+ * 커버(상태 칩 오버레이) + 정보(제목 · 케밥 메뉴 · 마감일 · 셀렉 현황 바).
  * 커버 클릭 = 워크스페이스 이동, 케밥 = 수정/삭제 메뉴.
- * 업로드 전 갤러리는 커버 자리에 플레이스홀더(사진 아이콘)를 보여준다.
+ * 커버는 사진 업로드 연동(04) 전까지 플레이스홀더(사진 아이콘)를 보여준다.
  */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { deadlineDateLabel } from "@/app/(photographer)/_lib/galleryStatus";
 import { MoreIcon, PhotoIcon } from "@/components/icons";
 import { GalleryProgress } from "@/components/photographer/GalleryProgress";
 import { GalleryStatusChip } from "@/components/photographer/GalleryStatusChip";
 import { IconButton } from "@/components/ui/IconButton";
-import type { Gallery } from "@/lib/galleries";
-import { toDotDate } from "../_lib/galleryList";
+import type { GalleryListItem } from "../_lib/useGalleryList";
 
 type Props = {
-  gallery: Gallery;
-  onEdit: (gallery: Gallery) => void;
-  onDelete: (gallery: Gallery) => void;
+  gallery: GalleryListItem;
+  onEdit: (gallery: GalleryListItem) => void;
+  onDelete: (gallery: GalleryListItem) => void;
 };
 
 export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
@@ -39,19 +39,18 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [menuOpen]);
 
+  const deadline = deadlineDateLabel(gallery.selectionDeadline);
+
   return (
     <article className="relative flex flex-col overflow-hidden rounded-(--radius-16) border border-stroke-neutral-muted bg-bg-layer-default">
       <Link
         href={`/galleries/${gallery.id}`}
-        aria-label={`${gallery.couple} 갤러리 열기`}
+        aria-label={`${gallery.title} 갤러리 열기`}
         className="relative block aspect-12/7 bg-bg-disabled"
       >
-        {/* 실제 사진 연동 전까지 커버는 회색 자리로 두고, 업로드 전에만 아이콘을 얹는다 */}
-        {!gallery.uploaded && (
-          <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
-            <PhotoIcon size={24} />
-          </span>
-        )}
+        <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+          <PhotoIcon size={24} />
+        </span>
       </Link>
       <GalleryStatusChip
         gallery={gallery}
@@ -62,12 +61,12 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
         <div className="flex flex-col gap-1">
           <div className="flex h-8 items-center justify-between gap-2">
             <h2 className="truncate type-heading-card text-fg-neutral">
-              {gallery.couple}
+              {gallery.title}
             </h2>
             <div ref={menuRef} className="relative flex shrink-0">
               <IconButton
                 icon={<MoreIcon size={20} />}
-                aria-label={`${gallery.couple} 갤러리 메뉴`}
+                aria-label={`${gallery.title} 갤러리 메뉴`}
                 selected={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
               />
@@ -98,11 +97,14 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
             </div>
           </div>
           <p className="type-body-small text-fg-neutral-muted">
-            마감 : {toDotDate(gallery.dueDate)}
+            {deadline ? `마감 : ${deadline}` : "마감 기한 없음"}
           </p>
         </div>
 
-        <GalleryProgress selected={gallery.selected} target={gallery.target} />
+        <GalleryProgress
+          selected={gallery.selectedCount}
+          target={gallery.maxSelectablePhotoCount}
+        />
       </div>
     </article>
   );
