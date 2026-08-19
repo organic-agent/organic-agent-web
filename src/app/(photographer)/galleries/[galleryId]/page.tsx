@@ -6,9 +6,12 @@
  *
  * 부부 워크스페이스와 같은 뷰 4종(그리드 라지/스몰·비교·싱글)을 공유하되 껍데기가 다르다:
  * - 풀와이드 탑바: 사이드바 토글 + 로고(홈 복귀) + 뷰 전환 + 줌 | 전달 완료 버튼(조건부) + 알림 + 초대 + 프로필
- * - 사이드바: 커플명 + 사진 업로드 + 자동 분류(결과 구성 없음 — 앨범 반영은 부부 전용) + 필터 + 앨범
+ * - 사이드바: 갤러리명·상태 칩 + 상태 전환(열기/마감/재오픈) + 사진 업로드 + 자동 분류 + 필터 + 앨범
  * - 별점·선택은 부부의 것이라 전부 읽기 전용, 하단 툴바는 비교·싱글 뷰에서만
  * - 우측 레일: 댓글(부부 보정 요청 포함) · 정보(파일 정보만)
+ *
+ * 갤러리 메타(제목·상태·마감일·계약 장수)는 서버(GET /galleries/{id})가 진실이고,
+ * 사진·별점·전달 플래그는 아직 목업(04 업로드·05 분류·07 보정에서 서버 전환)이다.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -51,6 +54,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem } from "@/components/ui/MenuItem";
 import { PanelHeader } from "@/components/ui/PanelHeader";
 import { StarRating } from "@/components/ui/StarRating";
+import { GalleryStatusChip } from "@/components/photographer/GalleryStatusChip";
 import {
   EMPTY_REACTION,
   useGalleryFolders,
@@ -63,7 +67,13 @@ import { updateGallery, useGalleries } from "@/lib/galleries";
 import { useStudioInfo } from "@/lib/studio";
 import { GalleryDeliveryConfirmModal } from "./_components/GalleryDeliveryConfirmModal";
 import { GalleryInviteModal } from "./_components/GalleryInviteModal";
+import {
+  CloseGalleryConfirmModal,
+  OpenGalleryConfirmModal,
+  ReopenGalleryModal,
+} from "./_components/GalleryStatusModals";
 import { GalleryUploadModal } from "./_components/GalleryUploadModal";
+import { useGalleryDetail } from "./_lib/useGalleryDetail";
 
 // AI 연동 전 mock (시안 문구 — 부부 워크스페이스와 동일)
 const MOCK_ANALYSIS = [
@@ -78,8 +88,11 @@ type ViewMode = "grid-large" | "grid-small" | "single" | "compare";
 
 export default function PhotographerGalleryWorkspacePage() {
   const params = useParams<{ galleryId: string }>();
+  // 갤러리 메타(제목·상태·마감일·계약 장수)는 서버가 진실
+  const { result, reload, replace } = useGalleryDetail(params.galleryId);
+  // 업로드·전달 데모 플래그는 아직 레거시 스토어 몫(04·07에서 서버 전환) — 없으면 감춘다
   const galleries = useGalleries();
-  const gallery = galleries.find((g) => g.id === params.galleryId);
+  const legacy = galleries.find((g) => g.id === params.galleryId);
   const studio = useStudioInfo();
   const { collapsed, toggle } = useSidebar();
   // 정렬(별점 순)은 기획만 있고 미구현 — 준비 중 토스트로 안내 (부부 화면과 동일)
@@ -96,6 +109,10 @@ export default function PhotographerGalleryWorkspacePage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
+  // 상태 전환 다이얼로그 — DRAFT→열기 / OPEN→선택 마감 / CLOSED→재오픈
+  const [statusAction, setStatusAction] = useState<
+    "open" | "close" | "reopen" | null
+  >(null);
   // 자동 분류 데모 상태 (실제 분류는 AI 연동 시 합류)
   const [assistTime, setAssistTime] = useState(true);
   const [assistTimeSeconds, setAssistTimeSeconds] = useState(60);
@@ -165,21 +182,51 @@ export default function PhotographerGalleryWorkspacePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
-  if (!gallery) {
+  // 서버 조회 결과별 화면 — 로딩 / 권한 없음(403) / 없음(404) / 실패
+  if (result === null || result.kind !== "ready") {
+    const state =
+      result === null
+        ? {
+            title: "갤러리를 불러오는 중이에요",
+            desc: "잠시만 기다려 주세요.",
+            retry: false,
+          }
+        : result.kind === "forbidden"
+          ? {
+              title: "이 갤러리를 볼 권한이 없어요",
+              desc: "담당 작가의 갤러리만 열 수 있어요.",
+              retry: false,
+            }
+          : result.kind === "notFound"
+            ? {
+                title: "갤러리를 찾을 수 없어요",
+                desc: "휴지통으로 이동했거나 주소가 잘못됐을 수 있어요.",
+                retry: false,
+              }
+            : {
+                title: "갤러리를 불러오지 못했어요",
+                desc: "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+                retry: true,
+              };
     return (
       <div className="grid min-h-dvh place-items-center bg-bg-layer-default px-6">
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="type-heading-card text-fg-neutral">
-            갤러리를 찾을 수 없어요
-          </h1>
-          <p className="type-body-medium text-fg-neutral-muted">
-            삭제됐거나 주소가 잘못됐을 수 있어요.
-          </p>
-          <Button href="/galleries">갤러리 목록으로</Button>
+          <h1 className="type-heading-card text-fg-neutral">{state.title}</h1>
+          <p className="type-body-medium text-fg-neutral-muted">{state.desc}</p>
+          {result !== null && (
+            <div className="flex gap-2">
+              {state.retry && <Button onClick={reload}>다시 시도</Button>}
+              <Button kind={state.retry ? "ghost" : "primary"} href="/galleries">
+                갤러리 목록으로
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
   }
+
+  const gallery = result.gallery;
 
   const title =
     view === "selected"
@@ -319,8 +366,8 @@ export default function PhotographerGalleryWorkspacePage() {
     ...(panelRetouch
       ? [
           {
-            initial: gallery.couple.trim().slice(0, 1) || "부",
-            meta: gallery.couple,
+            initial: gallery.title.trim().slice(0, 1) || "부",
+            meta: gallery.title,
             tag: "보정 요청",
             text: panelRetouch,
           },
@@ -356,8 +403,17 @@ export default function PhotographerGalleryWorkspacePage() {
           </Link>
         </div>
         <div className="flex items-center gap-1">
-          {/* 전달 CTA는 사이드바 소속이지만, 접혀 있을 땐 액션이 사라지지 않게 탑바로 폴백 */}
-          {collapsed && gallery.uploaded && !gallery.delivered && (
+          {/* 핵심 CTA는 사이드바 소속이지만, 접혀 있을 땐 액션이 사라지지 않게 탑바로 폴백 */}
+          {collapsed && gallery.status === "DRAFT" && (
+            <Button
+              size="sm"
+              onClick={() => setStatusAction("open")}
+              className="mr-1"
+            >
+              갤러리 열기
+            </Button>
+          )}
+          {collapsed && legacy?.uploaded && !legacy.delivered && (
             <Button
               size="sm"
               onClick={() => setDeliveryOpen(true)}
@@ -381,14 +437,24 @@ export default function PhotographerGalleryWorkspacePage() {
         {/* 작가 사이드바 — 커플명 + 업로드 + 자동 분류 + 필터 + 앨범 */}
         {!collapsed && (
           <aside className="hidden w-70 shrink-0 flex-col border-r border-stroke-neutral-muted bg-bg-layer-default md:flex">
-            <div className="flex h-12 shrink-0 items-center px-5">
+            <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
               <h1 className="truncate type-heading-card text-fg-neutral">
-                {gallery.couple}
+                {gallery.title}
               </h1>
+              <GalleryStatusChip gallery={gallery} className="shrink-0 px-0!" />
             </div>
             <div className="mx-5 h-px shrink-0 bg-stroke-neutral-muted" />
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
               <div className="flex w-full flex-col gap-2">
+                {/* 상태 전환 — DRAFT의 핵심 CTA. 열어야 초대된 부부에게 보인다 */}
+                {gallery.status === "DRAFT" && (
+                  <Button
+                    onClick={() => setStatusAction("open")}
+                    className="w-full"
+                  >
+                    갤러리 열기
+                  </Button>
+                )}
                 <Button
                   onClick={() => setUploadOpen(true)}
                   icon={<UploadIcon />}
@@ -396,10 +462,29 @@ export default function PhotographerGalleryWorkspacePage() {
                 >
                   사진 업로드
                 </Button>
+                {/* 상태 전환 보조 액션 — 아웃라인 스타일은 공용 Button에 없어 직접 그린다 */}
+                {gallery.status === "OPEN" && (
+                  <button
+                    type="button"
+                    onClick={() => setStatusAction("close")}
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                  >
+                    선택 마감
+                  </button>
+                )}
+                {gallery.status === "CLOSED" && (
+                  <button
+                    type="button"
+                    onClick={() => setStatusAction("reopen")}
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                  >
+                    재오픈
+                  </button>
+                )}
                 {/* 워크플로 종결 액션 — 업로드 아래에 배치 (사용자 결정).
                     원래 조건은 부부의 셀렉 제출 후지만 BE 연동 전이라 업로드 후부터 노출.
-                    아웃라인 스타일은 공용 Button에 없어 직접 그린다 (base가 border-none) */}
-                {gallery.uploaded && !gallery.delivered && (
+                    업로드·전달 플래그는 레거시 스토어 몫(04·07에서 서버 전환) */}
+                {legacy?.uploaded && !legacy.delivered && (
                   <button
                     type="button"
                     onClick={() => setDeliveryOpen(true)}
@@ -435,7 +520,11 @@ export default function PhotographerGalleryWorkspacePage() {
                 <MenuItem
                   icon={<PhotoIcon size={20} />}
                   label="선택 사진"
-                  count={`${selectedIds.length}/${gallery.target}`}
+                  count={
+                    gallery.maxSelectablePhotoCount !== null
+                      ? `${selectedIds.length}/${gallery.maxSelectablePhotoCount}`
+                      : selectedIds.length
+                  }
                   selected={view === "selected"}
                   onClick={() => setView("selected")}
                 />
@@ -604,10 +693,12 @@ export default function PhotographerGalleryWorkspacePage() {
         <GalleryUploadModal
           onClose={() => setUploadOpen(false)}
           onConfirm={() => {
-            updateGallery(gallery.id, {
-              uploaded: true,
-              total: allPhotos.length,
-            });
+            if (legacy) {
+              updateGallery(legacy.id, {
+                uploaded: true,
+                total: allPhotos.length,
+              });
+            }
             setUploadOpen(false);
           }}
         />
@@ -616,7 +707,7 @@ export default function PhotographerGalleryWorkspacePage() {
         <GalleryInviteModal
           onClose={() => setInviteOpen(false)}
           onConfirm={() => {
-            updateGallery(gallery.id, { invited: true });
+            if (legacy) updateGallery(legacy.id, { invited: true });
             setInviteOpen(false);
           }}
         />
@@ -624,13 +715,43 @@ export default function PhotographerGalleryWorkspacePage() {
       {deliveryOpen && (
         <GalleryDeliveryConfirmModal
           selectedCount={selectedIds.length}
-          target={gallery.target}
+          target={gallery.maxSelectablePhotoCount ?? 0}
           retouchCount={retouchCount}
-          selectionSubmitted={gallery.selectionSubmittedAt !== null}
+          selectionSubmitted={legacy?.selectionSubmittedAt != null}
           onClose={() => setDeliveryOpen(false)}
           onConfirm={() => {
-            updateGallery(gallery.id, { delivered: true });
+            if (legacy) updateGallery(legacy.id, { delivered: true });
             setDeliveryOpen(false);
+          }}
+        />
+      )}
+      {statusAction === "open" && (
+        <OpenGalleryConfirmModal
+          gallery={gallery}
+          onClose={() => setStatusAction(null)}
+          onDone={(updated) => {
+            replace(updated);
+            setStatusAction(null);
+          }}
+        />
+      )}
+      {statusAction === "close" && (
+        <CloseGalleryConfirmModal
+          gallery={gallery}
+          onClose={() => setStatusAction(null)}
+          onDone={(updated) => {
+            replace(updated);
+            setStatusAction(null);
+          }}
+        />
+      )}
+      {statusAction === "reopen" && (
+        <ReopenGalleryModal
+          gallery={gallery}
+          onClose={() => setStatusAction(null)}
+          onDone={(updated) => {
+            replace(updated);
+            setStatusAction(null);
           }}
         />
       )}
