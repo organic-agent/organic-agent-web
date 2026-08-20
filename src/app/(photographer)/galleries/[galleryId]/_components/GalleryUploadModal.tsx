@@ -52,6 +52,10 @@ export function GalleryUploadModal({ galleryId, onClose, onUploaded }: Props) {
   }, [entries]);
 
   const allDone = counts.valid > 0 && counts.done === counts.valid;
+  // 실패 원인은 서버 메시지가 가장 정확하다 (발급 400의 형식·개수 안내 등)
+  const failedMessage = entries.find(
+    (e) => e.status === "failed" && e.errorMessage,
+  )?.errorMessage;
 
   function handleClose() {
     abortAll();
@@ -191,7 +195,8 @@ export function GalleryUploadModal({ galleryId, onClose, onUploaded }: Props) {
               role="alert"
               className="mb-4 text-center type-body-small text-fg-critical"
             >
-              네트워크가 불안정했어요. 실패한 사진만 다시 올릴 수 있어요.
+              {failedMessage ?? "네트워크가 불안정했어요."} 실패한 사진은 다시
+              시도할 수 있어요.
             </p>
             <div className="flex gap-2">
               <Button kind="ghost" onClick={handleClose} className="flex-1">
