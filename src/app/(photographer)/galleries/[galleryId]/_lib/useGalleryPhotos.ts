@@ -118,9 +118,15 @@ export function useGalleryPhotos(rawId: string) {
     setNonce((n) => n + 1);
   }
 
+  /** 기존 목록을 유지한 채 조용히 재조회 — 임베딩 진행(#24)의 셀 교체용 */
+  function silentRefresh() {
+    setNonce((n) => n + 1);
+  }
+
   return {
     result: validId ? result : { kind: "error" as const },
     reload,
     refreshOnImageError,
+    silentRefresh,
   };
 }
