@@ -87,6 +87,43 @@ export type PhotoPageResponse = {
   viewUrlTtlSeconds: number;
 };
 
+export type PhotoSummaryResponse = {
+  total: number;
+  pending: number;
+  uploaded: number;
+  /** 임베딩까지 끝난 수 — total과 같아지면 분석 완료(클러스터링 가능). */
+  embedded: number;
+};
+
+/**
+ * 사진 상태 집계 — 임베딩은 비동기라 진행 상황을 이 값으로 확인한다.
+ * embedded가 늘어나는 것이 유일한 진행 신호다.
+ */
+export function getPhotoSummary(
+  galleryId: number,
+): Promise<PhotoSummaryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/photos/summary`);
+}
+
+export type EmbeddingRunResponse = {
+  galleryId: number;
+  /** 이번 실행이 채우려는 사진 수 — 접수이지 완료가 아니다. */
+  targets: number;
+};
+
+/**
+ * 갤러리 임베딩 실행 — 202 접수 후 비동기로 돈다. 기본값은 임베딩 없는
+ * 사진만 처리하므로 재호출하면 남은 것만 이어서 한다(멱등에 가까움).
+ *
+ * 실패: 502(Lambda 호출 실패 — 계산 실패가 아니라 재시도하면 됨) ·
+ * 503(임베딩 함수 미설정 — 로컬·테스트 정상) · 403(담당 작가 아님).
+ */
+export function runEmbedding(galleryId: number): Promise<EmbeddingRunResponse> {
+  return api(`/api/v1/galleries/${galleryId}/embeddings/run`, {
+    method: "POST",
+  });
+}
+
 /** 사진 목록 한 페이지. 담당 작가와 초대받은 부부가 함께 쓴다. */
 export function listPhotos(
   galleryId: number,

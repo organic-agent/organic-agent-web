@@ -72,6 +72,7 @@ import {
   ReopenGalleryModal,
 } from "./_components/GalleryStatusModals";
 import { GalleryUploadModal } from "./_components/GalleryUploadModal";
+import { useEmbeddingProgress } from "./_lib/useEmbeddingProgress";
 import { useGalleryDetail } from "./_lib/useGalleryDetail";
 import {
   type GalleryPhoto,
@@ -132,7 +133,13 @@ export default function PhotographerGalleryWorkspacePage() {
     result: photosResult,
     reload: reloadPhotos,
     refreshOnImageError,
+    silentRefresh: silentRefreshPhotos,
   } = useGalleryPhotos(params.galleryId);
+  // 사진 분석(임베딩) — UI 없이 자동 실행·폴링, 진행분만큼 준비 중 셀이 실사진으로
+  const { notifyUploaded: notifyEmbedding } = useEmbeddingProgress(
+    params.galleryId,
+    silentRefreshPhotos,
+  );
   const allPhotos = useMemo(
     () => (photosResult?.kind === "ready" ? photosResult.photos : []),
     [photosResult],
@@ -761,6 +768,8 @@ export default function PhotographerGalleryWorkspacePage() {
           onUploaded={() => {
             // 방금 올린 사진이 바로 그리드에 보이게 (UPLOADED = 준비 중 셀)
             reloadPhotos();
+            // 분석 자동 실행 + 진행 폴링 재가동 (#24)
+            notifyEmbedding();
             // 전달 CTA 데모 플래그 — 전달 흐름(07) 서버 전환 전까지 레거시 유지
             if (legacy) {
               updateGallery(legacy.id, {

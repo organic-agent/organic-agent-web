@@ -112,10 +112,11 @@ export function AssistPanel({
                 onChange={onSimilarityChange}
               />
               {similarityChecked && (
-                // 유사성은 값 라벨 없음 — 눈금 위치가 곧 값 (시안 v5)
+                // 우측 값은 문구(엄격 등) 대신 수치 — 하단 단계 라벨만 없음 (#25 후속 보완)
                 <StepSlider
                   index={nearestIndex(SIMILARITY_STEPS, similarityValue)}
                   onChange={(i) => onSimilarityValueChange(SIMILARITY_STEPS[i])}
+                  label={`${similarityValue}%`}
                   aria-label="시각적 유사성 정도"
                 />
               )}
