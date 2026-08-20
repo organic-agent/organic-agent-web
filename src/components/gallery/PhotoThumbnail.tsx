@@ -12,6 +12,11 @@ type PhotoThumbnailProps = {
   label: string;
   selected?: boolean;
   badge?: string | number;
+  /** 서명된 조회 URL — 없으면 회색 플레이스홀더 */
+  imageUrl?: string | null;
+  /** 파생 JPEG 준비 전 — 물결 표시 (썸네일은 작아서 아이콘 생략) */
+  preparing?: boolean;
+  onImageError?: () => void;
 };
 
 export function PhotoThumbnail({
@@ -19,6 +24,9 @@ export function PhotoThumbnail({
   label,
   selected = false,
   badge,
+  imageUrl,
+  preparing = false,
+  onImageError,
 }: PhotoThumbnailProps) {
   return (
     <button
@@ -29,10 +37,25 @@ export function PhotoThumbnail({
       className="relative h-full shrink-0 cursor-pointer"
     >
       <span
-        className={`block aspect-4/5 h-full rounded-(--radius-4) bg-bg-disabled ${
+        className={`relative block aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-bg-disabled ${
           selected ? "border-2 border-fg-neutral" : ""
         }`}
-      />
+      >
+        {preparing ? (
+          <span className="shimmer-sweep" />
+        ) : (
+          imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageUrl}
+              alt=""
+              loading="lazy"
+              onError={onImageError}
+              className="absolute inset-0 size-full object-cover"
+            />
+          )
+        )}
+      </span>
       {badge !== undefined && (
         <span className="absolute left-1 top-1 rounded-(--radius-4) bg-bg-neutral-inverted px-1 py-0.5 type-body-small leading-none text-fg-neutral-inverted">
           {badge}

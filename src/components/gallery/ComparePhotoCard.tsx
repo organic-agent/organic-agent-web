@@ -21,6 +21,11 @@ type ComparePhotoCardProps = {
   rating: number;
   /** 없으면 별점도 읽기 전용 표시 */
   onRate?: (value: number) => void;
+  /** 서명된 조회 URL — 없으면 회색 플레이스홀더 */
+  imageUrl?: string | null;
+  /** 파생 JPEG 준비 전 — 물결 + 아이콘 (시안 v5) */
+  preparing?: boolean;
+  onImageError?: () => void;
 };
 
 export function ComparePhotoCard({
@@ -30,10 +35,37 @@ export function ComparePhotoCard({
   onToggleSelected,
   rating,
   onRate,
+  imageUrl,
+  preparing = false,
+  onImageError,
 }: ComparePhotoCardProps) {
-  const imageClass = `w-full aspect-4/5 bg-bg-disabled ${
+  const imageClass = `relative w-full aspect-4/5 overflow-hidden rounded-(--radius-4) bg-bg-disabled ${
     selected ? "border-2 border-fg-neutral" : ""
   }`;
+
+  const fill = preparing ? (
+    <span className="absolute inset-0">
+      <span className="shimmer-sweep" />
+      <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+      </span>
+    </span>
+  ) : (
+    imageUrl && (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt=""
+        loading="lazy"
+        onError={onImageError}
+        className="absolute inset-0 size-full object-cover"
+      />
+    )
+  );
 
   return (
     <div
@@ -47,9 +79,13 @@ export function ComparePhotoCard({
           aria-label={label}
           aria-pressed={selected}
           className={`${imageClass} cursor-pointer transition-opacity duration-fast hover:opacity-90`}
-        />
+        >
+          {fill}
+        </button>
       ) : (
-        <div role="img" aria-label={label} className={imageClass} />
+        <div role="img" aria-label={label} className={imageClass}>
+          {fill}
+        </div>
       )}
       <StarRating value={rating} onChange={onRate} />
     </div>

@@ -57,7 +57,6 @@ import { StarRating } from "@/components/ui/StarRating";
 import { GalleryStatusChip } from "@/components/photographer/GalleryStatusChip";
 import {
   EMPTY_REACTION,
-  useGalleryFolders,
   usePhotoRatings,
   usePhotoReactions,
   useRetouchRequests,
@@ -74,6 +73,10 @@ import {
 } from "./_components/GalleryStatusModals";
 import { GalleryUploadModal } from "./_components/GalleryUploadModal";
 import { useGalleryDetail } from "./_lib/useGalleryDetail";
+import {
+  type GalleryPhoto,
+  useGalleryPhotos,
+} from "./_lib/useGalleryPhotos";
 
 // AI 연동 전 mock (시안 문구 — 부부 워크스페이스와 동일)
 const MOCK_ANALYSIS = [
@@ -120,14 +123,24 @@ export default function PhotographerGalleryWorkspacePage() {
   const [assistSimilarityValue, setAssistSimilarityValue] = useState(50);
 
   const selectedIds = useSelectedIds();
-  const folders = useGalleryFolders();
   const ratings = usePhotoRatings();
   const retouchRequests = useRetouchRequests();
   const reactions = usePhotoReactions();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const allPhotos = useMemo(() => folders.flatMap((f) => f.photos), [folders]);
+  // 사진은 서버가 진실 — viewUrl(서명 URL)로 그리고, TTL 만료 전 재조회한다
+  const {
+    result: photosResult,
+    reload: reloadPhotos,
+    refreshOnImageError,
+  } = useGalleryPhotos(params.galleryId);
+  const allPhotos = useMemo(
+    () => (photosResult?.kind === "ready" ? photosResult.photos : []),
+    [photosResult],
+  );
   // 앨범은 부부의 AI 자동 분류가 만들 예정 — 연동 전까지 빈 상태 (부부 화면과 동일, 사용자 결정)
-  const albums = useMemo<typeof folders>(() => [], []);
+  const albums = useMemo<
+    { key: string; label: string; photos: GalleryPhoto[] }[]
+  >(() => [], []);
   const albumLabelByPhotoId = useMemo(() => {
     const map = new Map<number, string>();
     for (const f of albums) for (const p of f.photos) map.set(p.id, f.label);
@@ -288,9 +301,12 @@ export default function PhotographerGalleryWorkspacePage() {
         <PhotoThumbnail
           key={photo.id}
           onClick={() => setCurrentPhotoId(photo.id)}
-          label={`사진 ${photo.id}`}
+          label={photo.name}
           selected={photo.id === currentPhoto?.id}
           badge={view === "all" ? albumBadgeByPhotoId.get(photo.id) : undefined}
+          imageUrl={photo.url}
+          preparing={photo.preparing}
+          onImageError={refreshOnImageError}
         />
       ))}
     </div>
@@ -338,13 +354,9 @@ export default function PhotographerGalleryWorkspacePage() {
   const panelPhoto = currentPhoto ?? photos[0];
   const panelFileInfo = panelPhoto
     ? [
-        {
-          label: "파일 이름",
-          value: `#${String(panelPhoto.id).padStart(3, "0")}.JPG`,
-        },
-        { label: "촬영 일시", value: "2025.10.13 19:47" },
-        { label: "크기", value: "3072×4608 · 7.1MB" },
-        { label: "형식", value: "JPG" },
+        { label: "파일 이름", value: panelPhoto.name },
+        // 촬영 일시·크기는 사진 메타 API 확장 전까지 표기 보류
+        { label: "형식", value: panelPhoto.format || "-" },
         { label: "앨범", value: albumLabelByPhotoId.get(panelPhoto.id) ?? "-" },
         {
           label: "부부 별점",
@@ -562,10 +574,30 @@ export default function PhotographerGalleryWorkspacePage() {
                 {filmstripOpen && filmstrip}
                 <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-bg-stage p-3">
                   {currentPhoto ? (
-                    <div
-                      aria-label={`사진 ${currentPhoto.id} 크게 보기`}
-                      className="aspect-4/5 h-full bg-bg-disabled"
-                    />
+                    currentPhoto.preparing ? (
+                      // 파생 JPEG 준비 전 — 물결 + 아이콘 (그리드 셀과 동일 문법)
+                      <div
+                        aria-label={`${currentPhoto.name} — 미리보기 준비 중`}
+                        className="relative aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-bg-disabled"
+                      >
+                        <span className="shimmer-sweep" />
+                        <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                          </svg>
+                        </span>
+                      </div>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={currentPhoto.url ?? undefined}
+                        alt={currentPhoto.name}
+                        onError={refreshOnImageError}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    )
                   ) : (
                     <p className="type-body-medium text-fg-stage">
                       표시할 사진이 없어요.
@@ -598,9 +630,12 @@ export default function PhotographerGalleryWorkspacePage() {
                       <ComparePhotoCard
                         key={photo.id}
                         imageWidth={compareImageWidth}
-                        label={`사진 ${photo.id}`}
+                        label={photo.name}
                         selected={selectedSet.has(photo.id)}
                         rating={ratings[photo.id] ?? 0}
+                        imageUrl={photo.url}
+                        preparing={photo.preparing}
+                        onImageError={refreshOnImageError}
                       />
                     ))
                   )}
@@ -611,9 +646,36 @@ export default function PhotographerGalleryWorkspacePage() {
                 {/* 헤더는 스크롤 영역 밖 — 뷰 전환·스크롤에도 도구 위치 고정 */}
                 <div className="px-4 pt-4 pb-3">{contentHeader}</div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 scrollbar-gutter-stable">
-                {photos.length === 0 ? (
+                {photosResult === null ? (
+                  // 사진 목록 조회 중 — 정적 스켈레톤 셀 (shimmer는 '분석 준비 중' 전용)
+                  <div
+                    className="grid w-full justify-center gap-2"
+                    style={{
+                      gridTemplateColumns: `repeat(auto-fill, ${Math.round(
+                        (mode === "grid-small" ? 160 : 200) * zoom,
+                      )}px)`,
+                    }}
+                  >
+                    {Array.from({ length: 8 }, (_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+                      />
+                    ))}
+                  </div>
+                ) : photosResult.kind === "error" ? (
+                  <div className="flex flex-col items-center gap-3 py-16 text-center">
+                    <p className="type-body-medium text-fg-neutral-muted">
+                      사진을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
+                      시도해 주세요.
+                    </p>
+                    <Button size="sm" onClick={reloadPhotos}>
+                      다시 불러오기
+                    </Button>
+                  </div>
+                ) : photos.length === 0 ? (
                   <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
-                    아직 담긴 사진이 없어요.
+                    아직 사진이 없어요 — 사진 업로드로 시작해 보세요.
                   </p>
                 ) : (
                   <div
@@ -630,9 +692,12 @@ export default function PhotographerGalleryWorkspacePage() {
                         onClick={() => setCurrentPhotoId(photo.id)}
                         variant={mode === "grid-small" ? "small" : "large"}
                         focused={photo.id === currentPhoto?.id}
-                        name={`#${String(photo.id).padStart(3, "0")}`}
-                        format="JPG"
-                        label={`사진 ${photo.id}`}
+                        name={photo.name}
+                        format={photo.format}
+                        label={photo.name}
+                        imageUrl={photo.url}
+                        preparing={photo.preparing}
+                        onImageError={refreshOnImageError}
                       />
                     ))}
                   </div>
@@ -694,7 +759,9 @@ export default function PhotographerGalleryWorkspacePage() {
           galleryId={gallery.id}
           onClose={() => setUploadOpen(false)}
           onUploaded={() => {
-            // 전달 CTA 데모 플래그 — 그리드 실사진 전환(#25) 전까지 레거시 유지
+            // 방금 올린 사진이 바로 그리드에 보이게 (UPLOADED = 준비 중 셀)
+            reloadPhotos();
+            // 전달 CTA 데모 플래그 — 전달 흐름(07) 서버 전환 전까지 레거시 유지
             if (legacy) {
               updateGallery(legacy.id, {
                 uploaded: true,

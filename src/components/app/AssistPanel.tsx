@@ -6,25 +6,32 @@
  *
  * AI 자동 분류 조건(시간·시각적 유사성)과 묶음 결과 요약, 앨범 추가 액션.
  * 상태는 화면이 소유하고 이 컴포넌트는 표시·콜백만 담당한다.
- * - 시간 슬라이더는 우측 끝이 1분 (오른쪽으로 갈수록 간격이 촘촘해짐)
- * - 유사성 슬라이더는 우측 끝이 "덜 유사함"
+ *
+ * 슬라이더는 5단계 스냅(시안 v5 확정) — 하단 라벨 없이 눈금 위치가 값이고,
+ * 시간만 우측에 현재 값을 표기한다. 단계별 실제 값(초·유사도 임계치)은
+ * 05 분류 파라미터 확정 때 조정한다.
  */
 
 import { useState } from "react";
 import { PanelHeader } from "@/components/ui/PanelHeader";
 import { CheckboxField } from "@/components/ui/Checkbox";
-import { Slider } from "@/components/ui/Slider";
+import { StepSlider } from "@/components/ui/StepSlider";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { SparkleIcon, DropdownIcon } from "@/components/icons";
 
-/** 시간 간격 최대치 = 60초(1분). 사진 메타데이터의 촬영 시각으로 묶으므로 1분이 가장 긴 간격. */
-const TIME_MAX_SECONDS = 60;
+/** 시간 간격 5단계(초) — 최대 60초(1분): 촬영 시각으로 묶으므로 1분이 가장 긴 간격. */
+const TIME_STEPS = [5, 15, 30, 45, 60];
+/** 시각적 유사성 5단계 (0~100, 클수록 덜 유사함까지 허용) */
+const SIMILARITY_STEPS = [0, 25, 50, 75, 100];
 
-function similarityLabel(value: number): string {
-  if (value >= 67) return "덜 유사함";
-  if (value >= 34) return "보통";
-  return "매우 유사함";
+/** 현재 값에서 가장 가까운 단계 인덱스 */
+function nearestIndex(steps: number[], value: number) {
+  let best = 0;
+  for (let i = 1; i < steps.length; i += 1) {
+    if (Math.abs(steps[i] - value) < Math.abs(steps[best] - value)) best = i;
+  }
+  return best;
 }
 
 type AssistPanelProps = {
@@ -90,15 +97,10 @@ export function AssistPanel({
                 onChange={onTimeChange}
               />
               {timeChecked && (
-                <Slider
-                  value={timeValue}
-                  min={5}
-                  max={TIME_MAX_SECONDS}
-                  step={5}
-                  onChange={onTimeValueChange}
-                  label={
-                    timeValue >= TIME_MAX_SECONDS ? "1분" : `${timeValue}초`
-                  }
+                <StepSlider
+                  index={nearestIndex(TIME_STEPS, timeValue)}
+                  onChange={(i) => onTimeValueChange(TIME_STEPS[i])}
+                  label={timeValue >= 60 ? "1분" : `${timeValue}초`}
                   aria-label="시간 간격"
                 />
               )}
@@ -110,12 +112,10 @@ export function AssistPanel({
                 onChange={onSimilarityChange}
               />
               {similarityChecked && (
-                <Slider
-                  value={similarityValue}
-                  min={0}
-                  max={100}
-                  onChange={onSimilarityValueChange}
-                  label={similarityLabel(similarityValue)}
+                // 유사성은 값 라벨 없음 — 눈금 위치가 곧 값 (시안 v5)
+                <StepSlider
+                  index={nearestIndex(SIMILARITY_STEPS, similarityValue)}
+                  onChange={(i) => onSimilarityValueChange(SIMILARITY_STEPS[i])}
                   aria-label="시각적 유사성 정도"
                 />
               )}
