@@ -145,8 +145,11 @@ export function useUploadQueue(galleryId: number) {
   async function issueAndEnqueue(ids: string[]) {
       if (ids.length === 0) return;
       try {
-        const contentTypes = ids.map((id) => filesRef.current.get(id)!.type);
-        const issued = await issueUploadUrls(galleryId, contentTypes);
+        const files = ids.map((id) => {
+          const file = filesRef.current.get(id)!;
+          return { fileName: file.name, contentType: file.type };
+        });
+        const issued = await issueUploadUrls(galleryId, files);
         issued.uploads.forEach((upload, i) => {
           const id = ids[i];
           uploadUrlRef.current.set(id, upload.uploadUrl);

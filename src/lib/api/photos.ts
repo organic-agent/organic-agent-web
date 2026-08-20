@@ -23,17 +23,23 @@ export type IssueUploadUrlsResponse = {
   uploadUrlTtlSeconds: number;
 };
 
+export type UploadFileRequest = {
+  /** 원본 파일명 — 필수. 스웨거에선 보정 쪽 동명 스키마와 충돌해 가려져 있다(서버 DTO 확인). */
+  fileName: string;
+  contentType: string;
+};
+
 /**
  * 업로드 URL 일괄 발급. 파일 하나당 사진 행 하나가 PENDING으로 생긴다.
- * 실패: 400(개수 초과·미지원 형식) · 403(담당 작가 아님).
+ * 실패: 400(fileName·contentType 누락, 개수 초과, 미지원 형식) · 403(담당 작가 아님).
  */
 export function issueUploadUrls(
   galleryId: number,
-  contentTypes: string[],
+  files: UploadFileRequest[],
 ): Promise<IssueUploadUrlsResponse> {
   return api(`/api/v1/galleries/${galleryId}/photos/upload-urls`, {
     method: "POST",
-    body: { files: contentTypes.map((contentType) => ({ contentType })) },
+    body: { files },
   });
 }
 
