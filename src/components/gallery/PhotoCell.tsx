@@ -27,7 +27,39 @@ type PhotoCellProps = {
   selectable?: boolean;
   /** 선택 앨범에 담긴 상태 */
   selected?: boolean;
+  /** 서명된 조회 URL — 없으면 회색 플레이스홀더(연동 전 화면과 동일) */
+  imageUrl?: string | null;
+  /** 파생 JPEG 준비 전 — 물결 + 아이콘만 (시안 v5, 문구 없음) */
+  preparing?: boolean;
+  /** 이미지 로드 실패(서명 URL 만료 등) 폴백 */
+  onImageError?: () => void;
 };
+
+/** 준비 중 표현 — 물결(shimmer) + 사진 아이콘, 문구 없음 (시안 v5 확정) */
+function PreparingFill() {
+  return (
+    <span className="absolute inset-0 overflow-hidden rounded-[inherit]">
+      <span className="shimmer-sweep" />
+      <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+      </span>
+    </span>
+  );
+}
 
 export function PhotoCell({
   label,
@@ -39,22 +71,43 @@ export function PhotoCell({
   format,
   selectable = false,
   selected = false,
+  imageUrl,
+  preparing = false,
+  onImageError,
 }: PhotoCellProps) {
   const focusRing = focused ? "scale-103 z-10 shadow-(--shadow-hover)" : "";
   const selectedRing = selected ? "border-2 border-stroke-accent" : "";
   const cls =
     variant === "large"
-      ? `group relative block w-full aspect-4/5 rounded-(--radius-4) bg-bg-disabled transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer ${focusRing} ${selectedRing}`
+      ? `group relative block w-full aspect-4/5 rounded-(--radius-4) bg-bg-disabled transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer overflow-hidden ${focusRing} ${selectedRing}`
       : `group relative flex w-full flex-col gap-2 rounded-(--radius-4) bg-bg-layer-default-hover p-3 text-left transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer ${focusRing} ${selectedRing}`;
 
+  // 이미지 영역: 준비 중(물결+아이콘) > 실사진 > 회색 플레이스홀더
+  const imageFill: ReactNode = preparing ? (
+    <PreparingFill />
+  ) : imageUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imageUrl}
+      alt=""
+      loading="lazy"
+      onError={onImageError}
+      className="absolute inset-0 size-full rounded-[inherit] object-cover"
+    />
+  ) : null;
+
   const content: ReactNode =
-    variant === "large" ? null : (
+    variant === "large" ? (
+      imageFill
+    ) : (
       <>
         <span className="flex w-full items-center justify-between type-body-small text-fg-neutral-muted">
-          <span>{name}</span>
-          <span>{format}</span>
+          <span className="truncate">{name}</span>
+          <span className="shrink-0 pl-2">{format}</span>
         </span>
-        <span className="block w-full aspect-4/5 bg-bg-disabled" />
+        <span className="relative block w-full aspect-4/5 overflow-hidden rounded-(--radius-4) bg-bg-disabled">
+          {imageFill}
+        </span>
       </>
     );
 

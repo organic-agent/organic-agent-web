@@ -57,6 +57,47 @@ export function completePhotoUploads(
   });
 }
 
+export type PhotoResponse = {
+  photoId: number;
+  storageKey: string;
+  originalFileName: string;
+  contentType: string;
+  status: "PENDING" | "UPLOADED" | "EMBEDDED";
+  displayOrder: number;
+  createdAt: string | null;
+  /**
+   * 서명된 조회 URL — 그대로 img src에 넣는다(버킷 비공개라 이것 없이는
+   * 못 띄운다). PENDING이면 null. previewReady가 true면 파생 JPEG를,
+   * false면 원본을 가리킨다.
+   */
+  viewUrl: string | null;
+  /** false면 원본 그대로라 형식(HEIC 등)에 따라 브라우저가 못 그릴 수 있다. */
+  previewReady: boolean;
+  /** 별점(1~5). 없으면 null. */
+  score: number | null;
+};
+
+export type PhotoPageResponse = {
+  page: number;
+  size: number;
+  totalCount: number;
+  hasNext: boolean;
+  contents: PhotoResponse[];
+  /** viewUrl이 살아 있는 시간(초) — 만료 전에 목록을 다시 불러야 한다. */
+  viewUrlTtlSeconds: number;
+};
+
+/** 사진 목록 한 페이지. 담당 작가와 초대받은 부부가 함께 쓴다. */
+export function listPhotos(
+  galleryId: number,
+  page = 0,
+  size = 200,
+): Promise<PhotoPageResponse> {
+  return api(
+    `/api/v1/galleries/${galleryId}/photos?page=${page}&size=${size}`,
+  );
+}
+
 /**
  * S3 직접 PUT. fetch 대신 XHR을 쓰는 이유는 업로드 진행률 이벤트 하나다.
  * Content-Type은 발급 요청 값과 같아야 한다 — 서명에 포함되어 있어
