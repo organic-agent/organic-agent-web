@@ -691,15 +691,16 @@ export default function PhotographerGalleryWorkspacePage() {
 
       {uploadOpen && (
         <GalleryUploadModal
+          galleryId={gallery.id}
           onClose={() => setUploadOpen(false)}
-          onConfirm={() => {
+          onUploaded={() => {
+            // 전달 CTA 데모 플래그 — 그리드 실사진 전환(#25) 전까지 레거시 유지
             if (legacy) {
               updateGallery(legacy.id, {
                 uploaded: true,
                 total: allPhotos.length,
               });
             }
-            setUploadOpen(false);
           }}
         />
       )}
