@@ -62,14 +62,24 @@ import {
   useSelectedIds,
 } from "@/lib/couple";
 import { ApiError } from "@/lib/api/client";
-import { renameFolder, renameFolderGroup } from "@/lib/api/folders";
+import {
+  deleteFolder,
+  deleteFolderGroup,
+  movePhotosToFolder,
+  removePhotoFromFolder,
+  renameFolder,
+  renameFolderGroup,
+} from "@/lib/api/folders";
 import { updateGallery, useGalleries } from "@/lib/galleries";
 import { useStudioInfo } from "@/lib/studio";
 import { AlbumTreeSection } from "./_components/AlbumTreeSection";
 import { ClusterStackCell } from "./_components/ClusterStackCell";
+import { DeleteFolderModal } from "./_components/DeleteFolderModal";
 import { GalleryDeliveryConfirmModal } from "./_components/GalleryDeliveryConfirmModal";
 import { GalleryInviteModal } from "./_components/GalleryInviteModal";
+import { PhotoContextMenu } from "./_components/PhotoContextMenu";
 import { SaveAlbumModal } from "./_components/SaveAlbumModal";
+import { SelectionActionBar } from "./_components/SelectionActionBar";
 import {
   CloseGalleryConfirmModal,
   OpenGalleryConfirmModal,
@@ -133,6 +143,29 @@ export default function PhotographerGalleryWorkspacePage() {
   const [savedToast, setSavedToast] = useState<string | null>(null);
   const savedToastTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(savedToastTimer.current), []);
+  // 폴더 열람의 다중 선택(관리용) — 탐색기 문법(클릭·Shift·⌘), 표시는 딤.
+  // selectedIds(부부 셀렉)와 다른 것이라 pickedIds로 구분한다.
+  const [pickedIds, setPickedIds] = useState<number[]>([]);
+  const [lastSelIndex, setLastSelIndex] = useState<number | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  // 삭제 확인 대상 (앨범/폴더 공용)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    kind: "group" | "folder";
+    groupId: number;
+    folderId?: number;
+    name: string;
+  } | null>(null);
+  // 사진 드래그 출발지 — 트리의 같은 앨범 다른 폴더가 드롭 대상이 된다
+  const [dragSource, setDragSource] = useState<{
+    groupId: number;
+    folderId: number;
+  } | null>(null);
+
+  function clearSelection() {
+    setPickedIds([]);
+    setLastSelIndex(null);
+    setCtxMenu(null);
+  }
 
   const selectedIds = useSelectedIds();
   const ratings = usePhotoRatings();
@@ -185,6 +218,13 @@ export default function PhotographerGalleryWorkspacePage() {
         (f) => f.folderId === folderView.folderId,
       )
     : undefined;
+  // 이동 대상 — 같은 앨범의 다른 폴더들 (액션 바·우클릭·드래그가 공유)
+  const moveTargets =
+    folderView && activeGroupMeta
+      ? activeGroupMeta.folders
+          .filter((f) => f.folderId !== folderView.folderId)
+          .map((f) => ({ folderId: f.folderId, name: f.name }))
+      : [];
 
   // 클러스터 미리보기 파생값 — 켜져 있고 조회가 끝났을 때만
   const clusterReady =
@@ -240,6 +280,16 @@ export default function PhotographerGalleryWorkspacePage() {
       if (e.key === "ArrowLeft") movePhoto(-1);
       if (e.key === "ArrowRight") movePhoto(1);
       if (e.key === "f" || e.key === "F") toggleFilmstrip();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  // Esc — 폴더 열람의 선택·우클릭 메뉴 해제
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (pickedIds.length > 0 || ctxMenu !== null) clearSelection();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -328,6 +378,116 @@ export default function PhotographerGalleryWorkspacePage() {
           : "이름을 바꾸지 못했어요 — 네트워크를 확인해 주세요.",
       );
     }
+  }
+
+  /** 폴더 열람 그리드 — 탐색기 문법: 클릭=한 장, Shift=범위, ⌘/Ctrl=추가·해제 */
+  function handleSelectClick(
+    e: React.MouseEvent,
+    photoId: number,
+    index: number,
+  ) {
+    setCurrentPhotoId(photoId);
+    if (e.shiftKey && lastSelIndex !== null) {
+      const from = Math.min(lastSelIndex, index);
+      const to = Math.max(lastSelIndex, index);
+      const range = photos.slice(from, to + 1).map((p) => p.id);
+      setPickedIds((prev) => Array.from(new Set([...prev, ...range])));
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      setPickedIds((prev) =>
+        prev.includes(photoId)
+          ? prev.filter((id) => id !== photoId)
+          : [...prev, photoId],
+      );
+    } else {
+      // 같은 한 장을 다시 누르면 해제
+      setPickedIds((prev) =>
+        prev.length === 1 && prev[0] === photoId ? [] : [photoId],
+      );
+    }
+    setLastSelIndex(index);
+  }
+
+  async function handleMoveSelection(targetFolderId: number) {
+    if (!folderView || pickedIds.length === 0) return;
+    const count = pickedIds.length;
+    const target = activeGroupMeta?.folders.find(
+      (f) => f.folderId === targetFolderId,
+    );
+    try {
+      await movePhotosToFolder(gallery.id, folderView.groupId, folderView.folderId, {
+        targetFolderId,
+        photoIds: pickedIds,
+      });
+      notice(`${count}장을 '${target?.name ?? "폴더"}'(으)로 옮겼어요`);
+      clearSelection();
+      reloadFolderPhotos();
+      reloadFolderGroups();
+    } catch (err) {
+      notice(
+        err instanceof ApiError
+          ? err.message
+          : "옮기지 못했어요 — 네트워크를 확인해 주세요.",
+      );
+    }
+  }
+
+  async function handleRemoveSelection() {
+    if (!folderView || pickedIds.length === 0) return;
+    const count = pickedIds.length;
+    try {
+      // 제거는 장당 한 번 — 서버 계약이 단건 DELETE다
+      await Promise.all(
+        pickedIds.map((photoId) =>
+          removePhotoFromFolder(
+            gallery.id,
+            folderView.groupId,
+            folderView.folderId,
+            photoId,
+          ),
+        ),
+      );
+      notice(`${count}장을 폴더에서 뺐어요 — 사진 원본은 그대로예요`);
+    } catch (err) {
+      notice(
+        err instanceof ApiError
+          ? err.message
+          : "일부 사진을 빼지 못했어요 — 다시 시도해 주세요.",
+      );
+    }
+    clearSelection();
+    reloadFolderPhotos();
+    reloadFolderGroups();
+  }
+
+  /** 삭제 확정 — 실패 시 throw해 모달이 배너를 보여주게 둔다 */
+  async function handleDeleteTarget() {
+    if (!deleteTarget) return;
+    if (deleteTarget.kind === "group") {
+      await deleteFolderGroup(gallery.id, deleteTarget.groupId);
+    } else {
+      await deleteFolder(
+        gallery.id,
+        deleteTarget.groupId,
+        deleteTarget.folderId!,
+      );
+    }
+    // 열람 중이던 대상이 지워졌으면 모든 사진으로 복귀
+    if (
+      folderView &&
+      folderView.groupId === deleteTarget.groupId &&
+      (deleteTarget.kind === "group" ||
+        folderView.folderId === deleteTarget.folderId)
+    ) {
+      setView("all");
+    }
+    setDeleteTarget(null);
+    clearSelection();
+    reloadFolderGroups();
+    notice(
+      deleteTarget.kind === "group" ? "앨범을 삭제했어요" : "폴더를 삭제했어요",
+    );
   }
 
   const title =
@@ -709,7 +869,10 @@ export default function PhotographerGalleryWorkspacePage() {
                   label="모든 사진"
                   count={allPhotos.length}
                   selected={view === "all"}
-                  onClick={() => setView("all")}
+                  onClick={() => {
+                    clearSelection();
+                    setView("all");
+                  }}
                 />
                 <MenuItem
                   icon={<PhotoIcon size={20} />}
@@ -720,7 +883,10 @@ export default function PhotographerGalleryWorkspacePage() {
                       : selectedIds.length
                   }
                   selected={view === "selected"}
-                  onClick={() => setView("selected")}
+                  onClick={() => {
+                    clearSelection();
+                    setView("selected");
+                  }}
                 />
               </div>
 
@@ -733,8 +899,10 @@ export default function PhotographerGalleryWorkspacePage() {
                     ? `${folderView.groupId}:${folderView.folderId}`
                     : null
                 }
+                dragContext={dragSource}
                 onSelectFolder={(groupId, folderId) => {
                   setOpenClusterIndex(null);
+                  clearSelection();
                   setView(`album:${groupId}:${folderId}`);
                 }}
                 onRenameGroup={(groupId, name) =>
@@ -743,6 +911,13 @@ export default function PhotographerGalleryWorkspacePage() {
                 onRenameFolder={(groupId, folderId, name) =>
                   void handleRenameFolder(groupId, folderId, name)
                 }
+                onDeleteGroup={(groupId, name) =>
+                  setDeleteTarget({ kind: "group", groupId, name })
+                }
+                onDeleteFolder={(groupId, folderId, name) =>
+                  setDeleteTarget({ kind: "folder", groupId, folderId, name })
+                }
+                onDropPhotos={(folderId) => void handleMoveSelection(folderId)}
               />
             </div>
           </aside>
@@ -824,7 +999,7 @@ export default function PhotographerGalleryWorkspacePage() {
                 </div>
               </main>
             ) : (
-              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
                 {/* 헤더는 스크롤 영역 밖 — 뷰 전환·스크롤에도 도구 위치 고정 */}
                 <div className="px-4 pt-4 pb-3">{contentHeader}</div>
                 {/* 클러스터 미리보기 보조 줄 — 펼침: 돌아가기, 접힘: 안내 캡션 */}
@@ -852,7 +1027,13 @@ export default function PhotographerGalleryWorkspacePage() {
                       겹친 카드가 폴더예요 — 누르면 안의 사진만 보여요
                     </p>
                   )}
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 scrollbar-gutter-stable">
+                <div
+                  className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 scrollbar-gutter-stable"
+                  onClick={(e) => {
+                    // 빈 곳 클릭 — 선택 해제 (탐색기 문법)
+                    if (e.target === e.currentTarget) clearSelection();
+                  }}
+                >
                 {collapsedPreview ? (
                   cluster.result === null ? (
                     gridSkeleton
@@ -919,7 +1100,52 @@ export default function PhotographerGalleryWorkspacePage() {
                       폴더가 비어 있어요.
                     </p>
                   ) : (
-                    photoCellGrid
+                    // 폴더 열람 전용 그리드 — 탐색기식 선택·우클릭·드래그를 셀 래퍼가 받는다
+                    <div
+                      className="grid w-full justify-center gap-2"
+                      style={{ gridTemplateColumns }}
+                    >
+                      {photos.map((photo, index) => (
+                        <div
+                          key={photo.id}
+                          draggable={pickedIds.includes(photo.id)}
+                          onDragStart={(e) => {
+                            if (!folderView) return;
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", "");
+                            setDragSource({
+                              groupId: folderView.groupId,
+                              folderId: folderView.folderId,
+                            });
+                          }}
+                          onDragEnd={() => setDragSource(null)}
+                          onClick={(e) =>
+                            handleSelectClick(e, photo.id, index)
+                          }
+                          onDoubleClick={() => openPhoto(photo.id)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            if (!pickedIds.includes(photo.id)) {
+                              setPickedIds([photo.id]);
+                              setLastSelIndex(index);
+                            }
+                            setCtxMenu({ x: e.clientX, y: e.clientY });
+                          }}
+                        >
+                          <PhotoCell
+                            variant={mode === "grid-small" ? "small" : "large"}
+                            focused={photo.id === currentPhoto?.id}
+                            name={photo.name}
+                            format={photo.format}
+                            label={photo.name}
+                            imageUrl={photo.url}
+                            preparing={photo.preparing}
+                            dimmed={pickedIds.includes(photo.id)}
+                            onImageError={refreshOnImageError}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   )
                 ) : photosResult === null ? (
                   gridSkeleton
@@ -941,6 +1167,14 @@ export default function PhotographerGalleryWorkspacePage() {
                   photoCellGrid
                 )}
                 </div>
+                {folderView && pickedIds.length > 0 && (
+                  <SelectionActionBar
+                    count={pickedIds.length}
+                    targets={moveTargets}
+                    onMove={(folderId) => void handleMoveSelection(folderId)}
+                    onRemove={() => void handleRemoveSelection()}
+                  />
+                )}
               </main>
             )}
 
@@ -1076,6 +1310,31 @@ export default function PhotographerGalleryWorkspacePage() {
             reloadFolderGroups();
             notice(`앨범 '${group.name}'에 저장했어요`);
           }}
+        />
+      )}
+      {ctxMenu && folderView && pickedIds.length > 0 && (
+        <PhotoContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          count={pickedIds.length}
+          targets={moveTargets}
+          onMove={(folderId) => {
+            setCtxMenu(null);
+            void handleMoveSelection(folderId);
+          }}
+          onRemove={() => {
+            setCtxMenu(null);
+            void handleRemoveSelection();
+          }}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteFolderModal
+          kind={deleteTarget.kind}
+          name={deleteTarget.name}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteTarget}
         />
       )}
       {savedToast && (

@@ -135,3 +135,71 @@ export function renameFolder(
     { method: "PATCH", body: { name } },
   );
 }
+
+/** 앨범 삭제 — 안의 폴더·항목까지 함께. 사진 원본은 갤러리에 남는다. */
+export function deleteFolderGroup(
+  galleryId: number,
+  groupId: number,
+): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/folder-groups/${groupId}`, {
+    method: "DELETE",
+  });
+}
+
+/** 폴더 삭제 — 담긴 목록만 지워지고 사진 원본은 갤러리에 남는다. */
+export function deleteFolder(
+  galleryId: number,
+  groupId: number,
+  folderId: number,
+): Promise<void> {
+  return api(
+    `/api/v1/galleries/${galleryId}/folder-groups/${groupId}/folders/${folderId}`,
+    { method: "DELETE" },
+  );
+}
+
+/**
+ * 폴더에 사진 담기 — 같은 앨범 안 다른 폴더에 이미 든 사진이 섞이면
+ * 전체가 409로 거절된다(그때는 이동 API를 쓴다).
+ */
+export function addPhotosToFolder(
+  galleryId: number,
+  groupId: number,
+  folderId: number,
+  photoIds: number[],
+): Promise<PhotoFolderDetailResponse> {
+  return api(
+    `/api/v1/galleries/${galleryId}/folder-groups/${groupId}/folders/${folderId}/photos`,
+    { method: "POST", body: { photoIds } },
+  );
+}
+
+/**
+ * 사진을 같은 앨범의 다른 폴더로 이동 — 드래그 앤 드롭이 부르는 API.
+ * 옮길 사진 전부가 출발지 폴더에 들어 있어야 하고, 도착지는 같은 앨범
+ * 아래여야 한다. 응답은 사진이 도착한 폴더의 상세.
+ */
+export function movePhotosToFolder(
+  galleryId: number,
+  groupId: number,
+  folderId: number,
+  body: { targetFolderId: number; photoIds: number[] },
+): Promise<PhotoFolderDetailResponse> {
+  return api(
+    `/api/v1/galleries/${galleryId}/folder-groups/${groupId}/folders/${folderId}/photos/move`,
+    { method: "POST", body },
+  );
+}
+
+/** 폴더에서 사진 빼기 — 폴더에서만 빠지고 사진 원본은 갤러리에 남는다. */
+export function removePhotoFromFolder(
+  galleryId: number,
+  groupId: number,
+  folderId: number,
+  photoId: number,
+): Promise<void> {
+  return api(
+    `/api/v1/galleries/${galleryId}/folder-groups/${groupId}/folders/${folderId}/photos/${photoId}`,
+    { method: "DELETE" },
+  );
+}
