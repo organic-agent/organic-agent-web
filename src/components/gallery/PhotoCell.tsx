@@ -27,6 +27,11 @@ type PhotoCellProps = {
   selectable?: boolean;
   /** 선택 앨범에 담긴 상태 */
   selected?: boolean;
+  /**
+   * 폴더 관리용 다중 선택 상태 — 어두운 딤으로 표시 (이슈 #31).
+   * 셀렉(로즈 체크·테두리)과 다른 문법이라 겹쳐 읽히지 않는다.
+   */
+  dimmed?: boolean;
   /** 서명된 조회 URL — 없으면 회색 플레이스홀더(연동 전 화면과 동일) */
   imageUrl?: string | null;
   /** 파생 JPEG 준비 전 — 물결 + 아이콘만 (시안 v5, 문구 없음) */
@@ -71,6 +76,7 @@ export function PhotoCell({
   format,
   selectable = false,
   selected = false,
+  dimmed = false,
   imageUrl,
   preparing = false,
   onImageError,
@@ -151,6 +157,12 @@ export function PhotoCell({
       className={cls}
     >
       {content}
+      {dimmed && (
+        <span
+          aria-hidden
+          className="absolute inset-0 z-10 rounded-[inherit] bg-[rgba(23,23,23,0.45)]"
+        />
+      )}
       {selectIndicator}
     </button>
   );

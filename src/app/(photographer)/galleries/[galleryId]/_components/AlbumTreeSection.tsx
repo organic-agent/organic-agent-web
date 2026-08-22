@@ -5,13 +5,15 @@
  * 위치: src/app/(photographer)/galleries/[galleryId]/_components/AlbumTreeSection.tsx
  *
  * GET folder-groups 응답 하나로 그린다: 앨범(부모) 행 > 폴더(자식) 행.
- * 폴더 클릭 = 열람, 이름 더블클릭 = 인라인 수정(Enter/포커스 아웃 확정,
- * Esc 취소 — 갤러리 제목과 같은 문법). 활성 폴더는 MenuItem selected와
- * 같은 옅은 배경 + 좌측 로즈 인디케이터. 삭제·사진 이동은 후속(WES-231).
+ * - 폴더 클릭 = 열람, 이름 더블클릭 = 인라인 수정(행 호버 ⋯ 메뉴에도 같은 항목)
+ * - ⋯ 메뉴 = 이름 바꾸기 · 삭제 (피그마 Menu/Context target=folder)
+ * - 드래그 중이면 같은 앨범의 다른 폴더 행이 점선(kind=child-drop)으로
+ *   반응하고, 놓으면 선택 사진이 그 폴더로 이동한다.
+ * 활성 폴더는 MenuItem selected와 같은 옅은 배경 + 좌측 로즈 인디케이터.
  */
 
-import { useState } from "react";
-import { DropdownIcon } from "@/components/icons";
+import { useEffect, useRef, useState } from "react";
+import { DropdownIcon, MoreIcon } from "@/components/icons";
 import { PanelHeader } from "@/components/ui/PanelHeader";
 import type { PhotoFolderGroupResponse } from "@/lib/api/folders";
 import type { FolderGroupsResult } from "../_lib/useFolderGroups";
@@ -20,13 +22,23 @@ type Editing =
   | { kind: "group"; groupId: number }
   | { kind: "folder"; groupId: number; folderId: number };
 
+type MenuFor =
+  | { kind: "group"; groupId: number }
+  | { kind: "folder"; groupId: number; folderId: number };
+
 type AlbumTreeSectionProps = {
   result: FolderGroupsResult | null;
   /** 열람 중인 폴더 — "groupId:folderId" */
   activeKey: string | null;
+  /** 폴더 사진 드래그 중 — 출발지. 같은 앨범의 다른 폴더만 드롭 대상이 된다. */
+  dragContext: { groupId: number; folderId: number } | null;
   onSelectFolder: (groupId: number, folderId: number) => void;
   onRenameGroup: (groupId: number, name: string) => void;
   onRenameFolder: (groupId: number, folderId: number, name: string) => void;
+  onDeleteGroup: (groupId: number, name: string) => void;
+  onDeleteFolder: (groupId: number, folderId: number, name: string) => void;
+  /** 드롭 완료 — 선택 사진을 folderId로 이동 */
+  onDropPhotos: (folderId: number) => void;
 };
 
 /** 인라인 이름 입력 — 행 전체를 입력창으로 바꾼다 (버튼 안에 인풋을 넣지 않기 위함) */
@@ -70,15 +82,35 @@ function RenameRow({
 export function AlbumTreeSection({
   result,
   activeKey,
+  dragContext,
   onSelectFolder,
   onRenameGroup,
   onRenameFolder,
+  onDeleteGroup,
+  onDeleteFolder,
+  onDropPhotos,
 }: AlbumTreeSectionProps) {
   // 접힌 앨범 groupId 집합 — 기본은 모두 펼침
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<number>>(
     new Set(),
   );
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [menuFor, setMenuFor] = useState<MenuFor | null>(null);
+  const [dropFolderId, setDropFolderId] = useState<number | null>(null);
+
+  // ⋯ 메뉴 — 바깥을 누르면 닫힘. stopPropagation은 document에 단
+  // 리스너를 막지 못하므로(리액트 루트도 document) 포함 여부로 판별한다.
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (menuFor === null) return;
+    function onPointerDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuFor(null);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [menuFor]);
 
   function toggle(groupId: number) {
     setCollapsedIds((prev) => {
@@ -87,6 +119,66 @@ export function AlbumTreeSection({
       else next.add(groupId);
       return next;
     });
+  }
+
+  function menuMatches(target: MenuFor) {
+    if (menuFor === null || menuFor.kind !== target.kind) return false;
+    if (menuFor.groupId !== target.groupId) return false;
+    return menuFor.kind === "group" || target.kind === "group"
+      ? menuFor.kind === "group" && target.kind === "group"
+      : menuFor.folderId === target.folderId;
+  }
+
+  /** 행 우측 ⋯ 버튼 + 펼침 메뉴 (이름 바꾸기 · 삭제) */
+  function rowMenu(target: MenuFor, onRename: () => void, onDelete: () => void) {
+    const open = menuMatches(target);
+    return (
+      <>
+        <button
+          type="button"
+          aria-label="메뉴 열기"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuFor(open ? null : target);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          className={`absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-(--radius-4) bg-bg-layer-default-hover text-fg-neutral-muted transition-opacity duration-fast hover:text-fg-neutral focus-visible:opacity-100 ${
+            open ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
+          }`}
+        >
+          <MoreIcon size={16} />
+        </button>
+        {open && (
+          <div
+            ref={menuRef}
+            role="menu"
+            className="absolute top-full right-1.5 z-40 w-36 rounded-(--radius-12) border border-stroke-neutral-muted bg-bg-layer-default p-1.5 shadow-(--shadow-hover)"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setMenuFor(null);
+                onRename();
+              }}
+              className="block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-neutral hover:bg-bg-layer-default-hover"
+            >
+              이름 바꾸기
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuFor(null);
+                onDelete();
+              }}
+              className="block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-critical hover:bg-bg-layer-default-hover"
+            >
+              삭제
+            </button>
+          </div>
+        )}
+      </>
+    );
   }
 
   function renderGroup(group: PhotoFolderGroupResponse) {
@@ -108,32 +200,44 @@ export function AlbumTreeSection({
             onCancel={() => setEditing(null)}
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => toggle(group.groupId)}
-            onDoubleClick={() =>
-              setEditing({ kind: "group", groupId: group.groupId })
-            }
-            aria-expanded={open}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-3 py-2 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover"
-          >
-            <DropdownIcon
-              size={16}
-              className={`shrink-0 text-fg-neutral-muted transition-transform duration-fast ${open ? "" : "-rotate-90"}`}
-            />
-            <span className="min-w-0 flex-1 truncate type-body-medium text-fg-neutral">
-              {group.name}
-            </span>
-            <span className="shrink-0 type-body-small text-fg-neutral-muted">
-              {total}
-            </span>
-          </button>
+          <div className="group/row relative">
+            <button
+              type="button"
+              onClick={() => toggle(group.groupId)}
+              onDoubleClick={() =>
+                setEditing({ kind: "group", groupId: group.groupId })
+              }
+              aria-expanded={open}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-3 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover"
+            >
+              <DropdownIcon
+                size={16}
+                className={`shrink-0 text-fg-neutral-muted transition-transform duration-fast ${open ? "" : "-rotate-90"}`}
+              />
+              <span className="min-w-0 flex-1 truncate type-body-medium text-fg-neutral">
+                {group.name}
+              </span>
+              <span className="shrink-0 type-body-small text-fg-neutral-muted">
+                {total}
+              </span>
+            </button>
+            {rowMenu(
+              { kind: "group", groupId: group.groupId },
+              () => setEditing({ kind: "group", groupId: group.groupId }),
+              () => onDeleteGroup(group.groupId, group.name),
+            )}
+          </div>
         )}
 
         {open &&
           group.folders.map((folder) => {
             const key = `${group.groupId}:${folder.folderId}`;
             const active = activeKey === key;
+            const droppable =
+              dragContext !== null &&
+              dragContext.groupId === group.groupId &&
+              dragContext.folderId !== folder.folderId;
+            const dropping = droppable && dropFolderId === folder.folderId;
             const editingFolder =
               editing?.kind === "folder" &&
               editing.groupId === group.groupId &&
@@ -153,42 +257,73 @@ export function AlbumTreeSection({
               );
             }
             return (
-              <button
-                key={folder.folderId}
-                type="button"
-                onClick={() => onSelectFolder(group.groupId, folder.folderId)}
-                onDoubleClick={() =>
-                  setEditing({
+              <div key={folder.folderId} className="group/row relative">
+                <button
+                  type="button"
+                  onClick={() => onSelectFolder(group.groupId, folder.folderId)}
+                  onDoubleClick={() =>
+                    setEditing({
+                      kind: "folder",
+                      groupId: group.groupId,
+                      folderId: folder.folderId,
+                    })
+                  }
+                  onDragOver={(e) => {
+                    if (!droppable) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setDropFolderId(folder.folderId);
+                  }}
+                  onDragLeave={() => {
+                    if (dropping) setDropFolderId(null);
+                  }}
+                  onDrop={(e) => {
+                    if (!droppable) return;
+                    e.preventDefault();
+                    setDropFolderId(null);
+                    onDropPhotos(folder.folderId);
+                  }}
+                  aria-current={active || undefined}
+                  className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-9 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover ${
+                    active
+                      ? "bg-bg-layer-default-hover relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-(--pill) before:bg-bg-accent-solid"
+                      : ""
+                  } ${dropping ? "bg-bg-layer-default-hover outline-2 outline-dashed -outline-offset-2 outline-fg-neutral" : ""}`}
+                >
+                  <span className="size-5.5 shrink-0 overflow-hidden rounded-(--radius-4) bg-bg-disabled">
+                    {folder.coverPhoto?.viewUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={folder.coverPhoto.viewUrl}
+                        alt=""
+                        loading="lazy"
+                        className="size-full object-cover"
+                      />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate type-body-medium text-fg-neutral">
+                    {folder.name}
+                  </span>
+                  <span className="shrink-0 type-body-small text-fg-neutral-muted">
+                    {folder.photoCount}
+                  </span>
+                </button>
+                {rowMenu(
+                  {
                     kind: "folder",
                     groupId: group.groupId,
                     folderId: folder.folderId,
-                  })
-                }
-                aria-current={active || undefined}
-                className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-3 pl-9 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover ${
-                  active
-                    ? "bg-bg-layer-default-hover relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-(--pill) before:bg-bg-accent-solid"
-                    : ""
-                }`}
-              >
-                <span className="size-5.5 shrink-0 overflow-hidden rounded-(--radius-4) bg-bg-disabled">
-                  {folder.coverPhoto?.viewUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={folder.coverPhoto.viewUrl}
-                      alt=""
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1 truncate type-body-medium text-fg-neutral">
-                  {folder.name}
-                </span>
-                <span className="shrink-0 type-body-small text-fg-neutral-muted">
-                  {folder.photoCount}
-                </span>
-              </button>
+                  },
+                  () =>
+                    setEditing({
+                      kind: "folder",
+                      groupId: group.groupId,
+                      folderId: folder.folderId,
+                    }),
+                  () =>
+                    onDeleteFolder(group.groupId, folder.folderId, folder.name),
+                )}
+              </div>
             );
           })}
       </div>
