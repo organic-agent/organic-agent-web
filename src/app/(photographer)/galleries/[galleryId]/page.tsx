@@ -14,7 +14,7 @@
  * 사진·별점·전달 플래그는 아직 목업(04 업로드·05 분류·07 보정에서 서버 전환)이다.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppRightRail } from "@/components/app/AppRightRail";
@@ -52,7 +52,6 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem } from "@/components/ui/MenuItem";
-import { PanelHeader } from "@/components/ui/PanelHeader";
 import { StarRating } from "@/components/ui/StarRating";
 import { GalleryStatusChip } from "@/components/photographer/GalleryStatusChip";
 import {
@@ -62,22 +61,27 @@ import {
   useRetouchRequests,
   useSelectedIds,
 } from "@/lib/couple";
+import { ApiError } from "@/lib/api/client";
+import { renameFolder, renameFolderGroup } from "@/lib/api/folders";
 import { updateGallery, useGalleries } from "@/lib/galleries";
 import { useStudioInfo } from "@/lib/studio";
+import { AlbumTreeSection } from "./_components/AlbumTreeSection";
+import { ClusterStackCell } from "./_components/ClusterStackCell";
 import { GalleryDeliveryConfirmModal } from "./_components/GalleryDeliveryConfirmModal";
 import { GalleryInviteModal } from "./_components/GalleryInviteModal";
+import { SaveAlbumModal } from "./_components/SaveAlbumModal";
 import {
   CloseGalleryConfirmModal,
   OpenGalleryConfirmModal,
   ReopenGalleryModal,
 } from "./_components/GalleryStatusModals";
 import { GalleryUploadModal } from "./_components/GalleryUploadModal";
+import { useClusterPreview } from "./_lib/useClusterPreview";
 import { useEmbeddingProgress } from "./_lib/useEmbeddingProgress";
+import { useFolderGroups } from "./_lib/useFolderGroups";
+import { useFolderPhotos } from "./_lib/useFolderPhotos";
 import { useGalleryDetail } from "./_lib/useGalleryDetail";
-import {
-  type GalleryPhoto,
-  useGalleryPhotos,
-} from "./_lib/useGalleryPhotos";
+import { useGalleryPhotos } from "./_lib/useGalleryPhotos";
 
 // AI 연동 전 mock (시안 문구 — 부부 워크스페이스와 동일)
 const MOCK_ANALYSIS = [
@@ -86,7 +90,7 @@ const MOCK_ANALYSIS = [
   { label: "눈 뜨기", value: "좋음" },
 ];
 
-/** 사이드바 필터: 모든 사진 / 부부 선택 사진 / 특정 앨범 */
+/** 사이드바 필터: 모든 사진 / 부부 선택 사진 / 특정 폴더("album:groupId:folderId") */
 type GalleryView = "all" | "selected" | `album:${string}`;
 type ViewMode = "grid-large" | "grid-small" | "single" | "compare";
 
@@ -117,11 +121,18 @@ export default function PhotographerGalleryWorkspacePage() {
   const [statusAction, setStatusAction] = useState<
     "open" | "close" | "reopen" | null
   >(null);
-  // 자동 분류 데모 상태 (실제 분류는 AI 연동 시 합류)
-  const [assistTime, setAssistTime] = useState(true);
-  const [assistTimeSeconds, setAssistTimeSeconds] = useState(60);
-  const [assistSimilarity, setAssistSimilarity] = useState(false);
-  const [assistSimilarityValue, setAssistSimilarityValue] = useState(50);
+  // 자동 분류(클러스터) 미리보기 — 켜짐·레벨은 훅이 소유, 묶기는 서버가 한다
+  const cluster = useClusterPreview(params.galleryId);
+  // 앨범(폴더) 목록 — 사이드바 트리의 데이터 원천, 저장 성공 시 재조회
+  const { result: folderGroupsResult, reload: reloadFolderGroups } =
+    useFolderGroups(params.galleryId);
+  // 미리보기에서 연 묶음 — null이면 접힌 스택 그리드
+  const [openClusterIndex, setOpenClusterIndex] = useState<number | null>(null);
+  const [saveAlbumOpen, setSaveAlbumOpen] = useState(false);
+  // 앨범 저장 완료 토스트 (하단 검정 pill — ComingSoonToast와 같은 문법)
+  const [savedToast, setSavedToast] = useState<string | null>(null);
+  const savedToastTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(savedToastTimer.current), []);
 
   const selectedIds = useSelectedIds();
   const ratings = usePhotoRatings();
@@ -135,43 +146,75 @@ export default function PhotographerGalleryWorkspacePage() {
     refreshOnImageError,
     silentRefresh: silentRefreshPhotos,
   } = useGalleryPhotos(params.galleryId);
-  // 사진 분석(임베딩) — UI 없이 자동 실행·폴링, 진행분만큼 준비 중 셀이 실사진으로
+  // 사진 분석(임베딩) — UI 없이 자동 실행·폴링, 진행분만큼 준비 중 셀이 실사진으로.
+  // 새로 분석된 사진은 클러스터에도 합류해야 하므로 미리보기도 조용히 재조회한다.
   const { notifyUploaded: notifyEmbedding } = useEmbeddingProgress(
     params.galleryId,
-    silentRefreshPhotos,
+    () => {
+      silentRefreshPhotos();
+      cluster.refresh();
+    },
   );
   const allPhotos = useMemo(
     () => (photosResult?.kind === "ready" ? photosResult.photos : []),
     [photosResult],
   );
-  // 앨범은 부부의 AI 자동 분류가 만들 예정 — 연동 전까지 빈 상태 (부부 화면과 동일, 사용자 결정)
-  const albums = useMemo<
-    { key: string; label: string; photos: GalleryPhoto[] }[]
-  >(() => [], []);
-  const albumLabelByPhotoId = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const f of albums) for (const p of f.photos) map.set(p.id, f.label);
-    return map;
-  }, [albums]);
-  const albumBadgeByPhotoId = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const f of albums) {
-      const first = f.photos[0];
-      if (first) map.set(first.id, f.photos.length);
-    }
-    return map;
-  }, [albums]);
-
-  const activeAlbum = view.startsWith("album:")
-    ? albums.find((f) => f.key === view.slice("album:".length))
+  // 열람 중인 폴더 — view "album:groupId:folderId"에서 파싱
+  const folderView = useMemo(() => {
+    if (!view.startsWith("album:")) return null;
+    const [groupId, folderId] = view.slice("album:".length).split(":");
+    return { groupId: Number(groupId), folderId: Number(folderId) };
+  }, [view]);
+  const { result: folderPhotosResult, reload: reloadFolderPhotos } =
+    useFolderPhotos(params.galleryId, folderView);
+  // 다른 폴더의 지난 응답이 얹히지 않게 — 현재 폴더와 일치할 때만 사용
+  const activeFolderPhotos =
+    folderView &&
+    folderPhotosResult &&
+    folderPhotosResult.groupId === folderView.groupId &&
+    folderPhotosResult.folderId === folderView.folderId
+      ? folderPhotosResult
+      : null;
+  const folderGroupsReady =
+    folderGroupsResult?.kind === "ready" ? folderGroupsResult.groups : [];
+  const activeGroupMeta = folderView
+    ? folderGroupsReady.find((g) => g.groupId === folderView.groupId)
     : undefined;
+  const activeFolderMeta = folderView
+    ? activeGroupMeta?.folders.find(
+        (f) => f.folderId === folderView.folderId,
+      )
+    : undefined;
+
+  // 클러스터 미리보기 파생값 — 켜져 있고 조회가 끝났을 때만
+  const clusterReady =
+    cluster.enabled && cluster.result?.kind === "ready" ? cluster.result : null;
+  const clusterGroups = clusterReady?.groups ?? [];
+  const clusterSingles = clusterReady?.singles ?? [];
+  // 미리보기에서 연 묶음 — 재조회로 묶음 수가 줄면 자연히 접힌 화면으로 돌아간다
+  const openClusterGroup =
+    cluster.enabled && view === "all" && openClusterIndex !== null
+      ? clusterGroups[openClusterIndex]
+      : undefined;
+  // 접힌 미리보기(스택 그리드) 상태 — 싱글·비교의 이동 목록은 나머지 사진들
+  const collapsedPreview =
+    cluster.enabled && view === "all" && !openClusterGroup;
+  // "분석 중" 안내는 화면에 있는 사진 기준 — 서버 unclassified는 올리다 만
+  // PENDING 잔재까지 세서 실제보다 커질 수 있다
+  const preparingCount = allPhotos.filter((photo) => photo.preparing).length;
 
   const photos =
     view === "selected"
       ? allPhotos.filter((photo) => selectedSet.has(photo.id))
-      : activeAlbum
-        ? activeAlbum.photos
-        : allPhotos;
+      : folderView
+        ? activeFolderPhotos?.kind === "ready"
+          ? activeFolderPhotos.photos
+          : []
+        : openClusterGroup
+          ? openClusterGroup
+          : collapsedPreview && clusterReady
+            ? clusterSingles
+            : allPhotos;
 
   const currentIndex = photos.findIndex((p) => p.id === currentPhotoId);
   const currentPhoto = currentIndex >= 0 ? photos[currentIndex] : undefined;
@@ -248,11 +291,51 @@ export default function PhotographerGalleryWorkspacePage() {
 
   const gallery = result.gallery;
 
+  // 하단 알림 토스트 — 저장·이름 변경의 성공/실패 공용
+  function notice(message: string) {
+    window.clearTimeout(savedToastTimer.current);
+    setSavedToast(message);
+    savedToastTimer.current = window.setTimeout(() => setSavedToast(null), 2400);
+  }
+
+  async function handleRenameGroup(groupId: number, name: string) {
+    try {
+      await renameFolderGroup(gallery.id, groupId, name);
+      reloadFolderGroups();
+      notice("앨범 이름을 바꿨어요");
+    } catch (err) {
+      notice(
+        err instanceof ApiError
+          ? err.message
+          : "이름을 바꾸지 못했어요 — 네트워크를 확인해 주세요.",
+      );
+    }
+  }
+
+  async function handleRenameFolder(
+    groupId: number,
+    folderId: number,
+    name: string,
+  ) {
+    try {
+      await renameFolder(gallery.id, groupId, folderId, name);
+      reloadFolderGroups();
+      notice("폴더 이름을 바꿨어요");
+    } catch (err) {
+      notice(
+        err instanceof ApiError
+          ? err.message
+          : "이름을 바꾸지 못했어요 — 네트워크를 확인해 주세요.",
+      );
+    }
+  }
+
   const title =
     view === "selected"
       ? "선택 사진"
-      : activeAlbum
-        ? activeAlbum.label
+      : folderView
+        ? // 이름은 트리(목록)가 먼저 — 이름 변경 직후에도 새 이름이 바로 보인다
+          `${activeGroupMeta?.name ?? "앨범"} / ${activeFolderMeta?.name ?? (activeFolderPhotos?.kind === "ready" ? activeFolderPhotos.name : "폴더")}`
         : "모든 사진";
 
   // 비교 모드: 현재 위치부터 compareCount장 (부부 워크스페이스와 같은 계산)
@@ -267,6 +350,45 @@ export default function PhotographerGalleryWorkspacePage() {
   const compareImageWidth = `min(calc((100cqh - 36px) * 0.8), calc((100cqw - ${
     (compareCount - 1) * 24
   }px) / ${compareCount}))`;
+
+  // 그리드 공용 조각 — 일반 목록·폴더 열람이 같은 셀 그리드를 쓴다
+  const gridTemplateColumns = `repeat(auto-fill, ${Math.round(
+    (mode === "grid-small" ? 160 : 200) * zoom,
+  )}px)`;
+  const gridSkeleton = (
+    <div
+      className="grid w-full justify-center gap-2"
+      style={{ gridTemplateColumns }}
+    >
+      {Array.from({ length: 8 }, (_, i) => (
+        <div
+          key={i}
+          className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+        />
+      ))}
+    </div>
+  );
+  const photoCellGrid = (
+    <div
+      className="grid w-full justify-center gap-2"
+      style={{ gridTemplateColumns }}
+    >
+      {photos.map((photo) => (
+        <PhotoCell
+          key={photo.id}
+          onClick={() => setCurrentPhotoId(photo.id)}
+          variant={mode === "grid-small" ? "small" : "large"}
+          focused={photo.id === currentPhoto?.id}
+          name={photo.name}
+          format={photo.format}
+          label={photo.name}
+          imageUrl={photo.url}
+          preparing={photo.preparing}
+          onImageError={refreshOnImageError}
+        />
+      ))}
+    </div>
+  );
 
   // 뷰 전환 토글 — 그리드에선 헤더 우측, 싱글·비교에선 필름스트립 우측 (구글 포토식)
   const viewToggles = (
@@ -304,18 +426,48 @@ export default function PhotographerGalleryWorkspacePage() {
   // 높이는 화면에 비례(clamp 64~96px)해 작은 화면에서 사진 몫을 지킨다
   const filmstrip = (
     <div className="flex h-[clamp(64px,12dvh,96px)] shrink-0 items-center gap-1 overflow-x-auto border-b border-stroke-neutral-muted bg-bg-layer-default px-3 py-2">
-      {photos.map((photo) => (
-        <PhotoThumbnail
-          key={photo.id}
-          onClick={() => setCurrentPhotoId(photo.id)}
-          label={photo.name}
-          selected={photo.id === currentPhoto?.id}
-          badge={view === "all" ? albumBadgeByPhotoId.get(photo.id) : undefined}
-          imageUrl={photo.url}
-          preparing={photo.preparing}
-          onImageError={refreshOnImageError}
-        />
-      ))}
+      {collapsedPreview && clusterReady ? (
+        // 폴더 미리보기 — 스트립도 폴더(대표+장수 뱃지)와 나머지 사진으로.
+        // 폴더 칩을 누르면 그 폴더를 열고, 나머지는 그대로 이동한다.
+        <>
+          {clusterGroups.map((group, index) => (
+            <PhotoThumbnail
+              key={`group-${group[0].id}`}
+              onClick={() => {
+                setOpenClusterIndex(index);
+                setCurrentPhotoId(group[0].id);
+              }}
+              label={`폴더 ${index + 1} — ${group.length}장`}
+              badge={`${group.length}장`}
+              imageUrl={group[0].url}
+              onImageError={refreshOnImageError}
+            />
+          ))}
+          {clusterSingles.map((photo) => (
+            <PhotoThumbnail
+              key={photo.id}
+              onClick={() => setCurrentPhotoId(photo.id)}
+              label={photo.name}
+              selected={photo.id === currentPhoto?.id}
+              imageUrl={photo.url}
+              preparing={photo.preparing}
+              onImageError={refreshOnImageError}
+            />
+          ))}
+        </>
+      ) : (
+        photos.map((photo) => (
+          <PhotoThumbnail
+            key={photo.id}
+            onClick={() => setCurrentPhotoId(photo.id)}
+            label={photo.name}
+            selected={photo.id === currentPhoto?.id}
+            imageUrl={photo.url}
+            preparing={photo.preparing}
+            onImageError={refreshOnImageError}
+          />
+        ))
+      )}
     </div>
   );
 
@@ -351,7 +503,9 @@ export default function PhotographerGalleryWorkspacePage() {
         )}
         {viewToggles}
         <p className="ml-2 type-body-small text-fg-neutral-muted">
-          {photos.length}/{allPhotos.length} 장의 사진
+          {collapsedPreview && clusterReady
+            ? `폴더 ${clusterGroups.length}개 · 나머지 사진 ${clusterSingles.length}장`
+            : `${photos.length}/${allPhotos.length} 장의 사진`}
         </p>
       </div>
     </div>
@@ -364,7 +518,10 @@ export default function PhotographerGalleryWorkspacePage() {
         { label: "파일 이름", value: panelPhoto.name },
         // 촬영 일시·크기는 사진 메타 API 확장 전까지 표기 보류
         { label: "형식", value: panelPhoto.format || "-" },
-        { label: "앨범", value: albumLabelByPhotoId.get(panelPhoto.id) ?? "-" },
+        {
+          label: "앨범",
+          value: folderView ? (activeGroupMeta?.name ?? "-") : "-",
+        },
         {
           label: "부부 별점",
           value: `${ratings[panelPhoto.id] ?? 0} / 5`,
@@ -515,15 +672,33 @@ export default function PhotographerGalleryWorkspacePage() {
               </div>
 
               <AssistPanel
-                timeChecked={assistTime}
-                onTimeChange={setAssistTime}
-                timeValue={assistTimeSeconds}
-                onTimeValueChange={setAssistTimeSeconds}
-                similarityChecked={assistSimilarity}
-                onSimilarityChange={setAssistSimilarity}
-                similarityValue={assistSimilarityValue}
-                onSimilarityValueChange={setAssistSimilarityValue}
-                summary="묶음 4개 · 묶이지 않은 사진 2개"
+                checked={cluster.enabled}
+                onCheckedChange={(next) => {
+                  setOpenClusterIndex(null);
+                  cluster.setEnabled(next);
+                }}
+                levelIndex={cluster.levelIndex}
+                onLevelChange={(index) => {
+                  setOpenClusterIndex(null);
+                  cluster.setLevelIndex(index);
+                }}
+                summary={
+                  cluster.result === null
+                    ? null
+                    : cluster.result.kind === "error"
+                      ? "묶음을 불러오지 못했어요 — 잠시 후 다시 시도해 주세요"
+                      : `폴더 ${clusterGroups.length}개 · 나머지 사진 ${clusterSingles.length}장`
+                }
+                hint={
+                  clusterReady && preparingCount > 0
+                    ? `분석 중인 사진 ${preparingCount}장은 끝나는 대로 폴더에 담겨요`
+                    : undefined
+                }
+                onSave={() => setSaveAlbumOpen(true)}
+                saveDisabled={
+                  !clusterReady ||
+                  clusterGroups.length + clusterSingles.length === 0
+                }
               />
 
               <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
@@ -551,24 +726,24 @@ export default function PhotographerGalleryWorkspacePage() {
 
               <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
 
-              <PanelHeader>앨범</PanelHeader>
-              {albums.length === 0 ? (
-                <p className="px-3 type-body-small text-fg-neutral-muted">
-                  부부가 자동 분류로 앨범을 만들면 여기에 보여요
-                </p>
-              ) : (
-                <nav className="flex w-full flex-col gap-1">
-                  {albums.map((item) => (
-                    <MenuItem
-                      key={item.key}
-                      label={item.label}
-                      count={item.photos.length}
-                      selected={view === `album:${item.key}`}
-                      onClick={() => setView(`album:${item.key}`)}
-                    />
-                  ))}
-                </nav>
-              )}
+              <AlbumTreeSection
+                result={folderGroupsResult}
+                activeKey={
+                  folderView
+                    ? `${folderView.groupId}:${folderView.folderId}`
+                    : null
+                }
+                onSelectFolder={(groupId, folderId) => {
+                  setOpenClusterIndex(null);
+                  setView(`album:${groupId}:${folderId}`);
+                }}
+                onRenameGroup={(groupId, name) =>
+                  void handleRenameGroup(groupId, name)
+                }
+                onRenameFolder={(groupId, folderId, name) =>
+                  void handleRenameFolder(groupId, folderId, name)
+                }
+              />
             </div>
           </aside>
         )}
@@ -652,24 +827,102 @@ export default function PhotographerGalleryWorkspacePage() {
               <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                 {/* 헤더는 스크롤 영역 밖 — 뷰 전환·스크롤에도 도구 위치 고정 */}
                 <div className="px-4 pt-4 pb-3">{contentHeader}</div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 scrollbar-gutter-stable">
-                {photosResult === null ? (
-                  // 사진 목록 조회 중 — 정적 스켈레톤 셀 (shimmer는 '분석 준비 중' 전용)
-                  <div
-                    className="grid w-full justify-center gap-2"
-                    style={{
-                      gridTemplateColumns: `repeat(auto-fill, ${Math.round(
-                        (mode === "grid-small" ? 160 : 200) * zoom,
-                      )}px)`,
-                    }}
-                  >
-                    {Array.from({ length: 8 }, (_, i) => (
-                      <div
-                        key={i}
-                        className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
-                      />
-                    ))}
+                {/* 클러스터 미리보기 보조 줄 — 펼침: 돌아가기, 접힘: 안내 캡션 */}
+                {cluster.enabled && view === "all" && openClusterGroup && (
+                  <div className="flex items-baseline gap-2 px-4 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setOpenClusterIndex(null)}
+                      className="cursor-pointer type-label-button text-fg-neutral hover:underline"
+                    >
+                      ← 미리보기로
+                    </button>
+                    <span className="type-body-small text-fg-neutral-muted">
+                      폴더 {(openClusterIndex ?? 0) + 1} ·{" "}
+                      {openClusterGroup.length}장
+                    </span>
                   </div>
+                )}
+                {cluster.enabled &&
+                  view === "all" &&
+                  !openClusterGroup &&
+                  clusterReady &&
+                  clusterGroups.length > 0 && (
+                    <p className="px-4 pb-2 type-body-small text-fg-neutral-muted">
+                      겹친 카드가 폴더예요 — 누르면 안의 사진만 보여요
+                    </p>
+                  )}
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 scrollbar-gutter-stable">
+                {collapsedPreview ? (
+                  cluster.result === null ? (
+                    gridSkeleton
+                  ) : cluster.result.kind === "error" ? (
+                    <div className="flex flex-col items-center gap-3 py-16 text-center">
+                      <p className="type-body-medium text-fg-neutral-muted">
+                        묶음을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
+                        시도해 주세요.
+                      </p>
+                      <Button size="sm" onClick={cluster.retry}>
+                        다시 불러오기
+                      </Button>
+                    </div>
+                  ) : clusterGroups.length + clusterSingles.length === 0 ? (
+                    <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                      묶을 사진이 아직 없어요 — 업로드한 사진의 분석이 끝나면
+                      여기에 묶여요.
+                    </p>
+                  ) : (
+                    <div
+                      className="grid w-full justify-center gap-2"
+                      style={{ gridTemplateColumns }}
+                    >
+                      {clusterGroups.map((group, index) => (
+                        <ClusterStackCell
+                          key={group[0].id}
+                          photos={group}
+                          onOpen={() => setOpenClusterIndex(index)}
+                          onImageError={refreshOnImageError}
+                        />
+                      ))}
+                      {clusterSingles.map((photo) => (
+                        <PhotoCell
+                          key={photo.id}
+                          onClick={() => setCurrentPhotoId(photo.id)}
+                          variant={mode === "grid-small" ? "small" : "large"}
+                          focused={photo.id === currentPhoto?.id}
+                          name={photo.name}
+                          format={photo.format}
+                          label={photo.name}
+                          imageUrl={photo.url}
+                          preparing={photo.preparing}
+                          onImageError={refreshOnImageError}
+                        />
+                      ))}
+                    </div>
+                  )
+                ) : folderView ? (
+                  // 폴더 열람 — 목록·오류·빈 상태를 폴더 기준으로
+                  activeFolderPhotos === null ? (
+                    gridSkeleton
+                  ) : activeFolderPhotos.kind === "error" ? (
+                    <div className="flex flex-col items-center gap-3 py-16 text-center">
+                      <p className="type-body-medium text-fg-neutral-muted">
+                        폴더를 불러오지 못했어요. 네트워크를 확인한 뒤 다시
+                        시도해 주세요.
+                      </p>
+                      <Button size="sm" onClick={reloadFolderPhotos}>
+                        다시 불러오기
+                      </Button>
+                    </div>
+                  ) : photos.length === 0 ? (
+                    <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                      폴더가 비어 있어요.
+                    </p>
+                  ) : (
+                    photoCellGrid
+                  )
+                ) : photosResult === null ? (
+                  gridSkeleton
                 ) : photosResult.kind === "error" ? (
                   <div className="flex flex-col items-center gap-3 py-16 text-center">
                     <p className="type-body-medium text-fg-neutral-muted">
@@ -685,29 +938,7 @@ export default function PhotographerGalleryWorkspacePage() {
                     아직 사진이 없어요 — 사진 업로드로 시작해 보세요.
                   </p>
                 ) : (
-                  <div
-                    className="grid w-full justify-center gap-2"
-                    style={{
-                      gridTemplateColumns: `repeat(auto-fill, ${Math.round(
-                        (mode === "grid-small" ? 160 : 200) * zoom,
-                      )}px)`,
-                    }}
-                  >
-                    {photos.map((photo) => (
-                      <PhotoCell
-                        key={photo.id}
-                        onClick={() => setCurrentPhotoId(photo.id)}
-                        variant={mode === "grid-small" ? "small" : "large"}
-                        focused={photo.id === currentPhoto?.id}
-                        name={photo.name}
-                        format={photo.format}
-                        label={photo.name}
-                        imageUrl={photo.url}
-                        preparing={photo.preparing}
-                        onImageError={refreshOnImageError}
-                      />
-                    ))}
-                  </div>
+                  photoCellGrid
                 )}
                 </div>
               </main>
@@ -828,6 +1059,32 @@ export default function PhotographerGalleryWorkspacePage() {
             setStatusAction(null);
           }}
         />
+      )}
+      {saveAlbumOpen && clusterReady && (
+        <SaveAlbumModal
+          galleryId={gallery.id}
+          groups={clusterGroups}
+          singles={clusterSingles}
+          existingNames={
+            folderGroupsResult?.kind === "ready"
+              ? folderGroupsResult.groups.map((g) => g.name)
+              : []
+          }
+          onClose={() => setSaveAlbumOpen(false)}
+          onSaved={(group) => {
+            setSaveAlbumOpen(false);
+            reloadFolderGroups();
+            notice(`앨범 '${group.name}'에 저장했어요`);
+          }}
+        />
+      )}
+      {savedToast && (
+        <div
+          role="status"
+          className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-stroke-neutral-inverted bg-bg-neutral-inverted px-5 py-3 type-label-button text-fg-neutral-inverted shadow-(--shadow-hover)"
+        >
+          {savedToast}
+        </div>
       )}
       {comingSoonToast}
     </div>
