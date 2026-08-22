@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { listPhotos } from "@/lib/api/photos";
+import { type PhotoResponse, listPhotos } from "@/lib/api/photos";
 
 export type GalleryPhoto = {
   id: number;
@@ -29,6 +29,17 @@ type Result = { kind: "ready"; photos: GalleryPhoto[] } | { kind: "error" };
 
 const MIN_SILENT_INTERVAL_MS = 15_000;
 
+/** 서버 사진 → 화면 사진 매핑 — 클러스터 미리보기(useClusterPreview)와 공유 */
+export function toGalleryPhoto(p: PhotoResponse): GalleryPhoto {
+  return {
+    id: p.photoId,
+    url: p.viewUrl,
+    preparing: !p.previewReady,
+    name: p.originalFileName,
+    format: (p.contentType.split("/")[1] ?? "").toUpperCase(),
+  };
+}
+
 async function fetchAllPhotos(galleryId: number) {
   const all = [];
   let page = 0;
@@ -43,13 +54,7 @@ async function fetchAllPhotos(galleryId: number) {
   const photos: GalleryPhoto[] = all
     .filter((p) => p.status !== "PENDING" && p.viewUrl !== null)
     .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map((p) => ({
-      id: p.photoId,
-      url: p.viewUrl,
-      preparing: !p.previewReady,
-      name: p.originalFileName,
-      format: (p.contentType.split("/")[1] ?? "").toUpperCase(),
-    }));
+    .map(toGalleryPhoto);
   return { photos, ttlSeconds };
 }
 

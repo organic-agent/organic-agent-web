@@ -1,15 +1,14 @@
 "use client";
 
 /**
- * 자동 분류 패널 — 피그마 Panel/Assist 대응 (사이드바 상단)
+ * 자동 분류 패널 — 피그마 Panel/Assist 대응 (사이드바)
  * 위치: src/components/app/AssistPanel.tsx
  *
- * AI 자동 분류 조건(시간·시각적 유사성)과 묶음 결과 요약, 앨범 추가 액션.
- * 상태는 화면이 소유하고 이 컴포넌트는 표시·콜백만 담당한다.
- *
- * 슬라이더는 5단계 스냅(시안 v5 확정) — 하단 라벨 없이 눈금 위치가 값이고,
- * 시간만 우측에 현재 값을 표기한다. 단계별 실제 값(초·유사도 임계치)은
- * 05 분류 파라미터 확정 때 조정한다.
+ * 시안 v4 확정(이슈 #31): 슬라이더는 "시각적 유사성" 하나다. 서버가 받는
+ * 값이 레벨(1=크게 묶기 ~ 5=잘게 묶기) 하나뿐이라 시간 줄은 제거됐다 —
+ * 촬영 시각 기준은 서버가 알아서 반영한다. 5단계 스냅을 0·25·50·75·100%로
+ * 표기하고(우측 값), 체크박스는 폴더 미리보기 켜기/끄기다.
+ * '결과 구성' 소제목 없이 요약 바로 아래 '앨범으로 저장' 버튼이 붙는다.
  */
 
 import { useState } from "react";
@@ -20,52 +19,46 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { SparkleIcon, DropdownIcon } from "@/components/icons";
 
-/** 시간 간격 5단계(초) — 최대 60초(1분): 촬영 시각으로 묶으므로 1분이 가장 긴 간격. */
-const TIME_STEPS = [5, 15, 30, 45, 60];
-/** 시각적 유사성 5단계 (0~100, 클수록 덜 유사함까지 허용) */
-const SIMILARITY_STEPS = [0, 25, 50, 75, 100];
-
-/** 현재 값에서 가장 가까운 단계 인덱스 */
-function nearestIndex(steps: number[], value: number) {
-  let best = 0;
-  for (let i = 1; i < steps.length; i += 1) {
-    if (Math.abs(steps[i] - value) < Math.abs(steps[best] - value)) best = i;
-  }
-  return best;
-}
+/** 단계 인덱스(0~4)의 표기 라벨 — 서버에는 인덱스+1(1~5)을 보낸다 */
+export const LEVEL_PERCENT_LABELS = [
+  "0%",
+  "25%",
+  "50%",
+  "75%",
+  "100%",
+] as const;
 
 type AssistPanelProps = {
-  /** 시간 기준 묶기 사용 여부 */
-  timeChecked: boolean;
-  onTimeChange: (checked: boolean) => void;
-  /** 시간 간격(초, 5~60) — 슬라이더 우측 끝 = 60초(1분, 최대 간격) */
-  timeValue: number;
-  onTimeValueChange: (seconds: number) => void;
-  /** 시각적 유사성 기준 사용 여부 */
-  similarityChecked: boolean;
-  onSimilarityChange: (checked: boolean) => void;
-  /** 유사성 정도 (0~100, 클수록 덜 유사함까지 허용) */
-  similarityValue: number;
-  onSimilarityValueChange: (value: number) => void;
-  /** 결과 요약 문구 (예: "묶음 4개 · 묶이지 않은 사진 2개") */
-  summary: string;
-  /** 없으면 결과 구성(앨범에 추가하기) 섹션을 숨긴다 — 앨범 반영은 부부 전용 */
-  onAddToAlbum?: () => void;
+  /** 폴더 미리보기 켜짐 — 끄면 슬라이더·요약·저장이 숨고 원래 그리드로 */
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  /** 유사성 단계 인덱스(0~4) */
+  levelIndex: number;
+  onLevelChange: (index: number) => void;
+  /** 묶음 요약 문구 — null이면 조회 중(스켈레톤 표시) */
+  summary: string | null;
+  /** 요약 아래 보조 안내 — 예: 분석 중인 사진 n장 */
+  hint?: string;
+  /** 없으면 저장 버튼을 숨긴다 */
+  onSave?: () => void;
+  saveDisabled?: boolean;
 };
 
 export function AssistPanel({
-  timeChecked,
-  onTimeChange,
-  timeValue,
-  onTimeValueChange,
-  similarityChecked,
-  onSimilarityChange,
-  similarityValue,
-  onSimilarityValueChange,
+  checked,
+  onCheckedChange,
+  levelIndex,
+  onLevelChange,
   summary,
-  onAddToAlbum,
+  hint,
+  onSave,
+  saveDisabled = false,
 }: AssistPanelProps) {
   const [open, setOpen] = useState(true);
+  const clampedIndex = Math.min(
+    Math.max(levelIndex, 0),
+    LEVEL_PERCENT_LABELS.length - 1,
+  );
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -89,48 +82,43 @@ export function AssistPanel({
 
       {open && (
         <>
-          <div className="flex flex-col gap-2 w-full">
-            <div className="flex flex-col gap-1 w-full">
-              <CheckboxField
-                label="시간"
-                checked={timeChecked}
-                onChange={onTimeChange}
+          <div className="flex flex-col gap-1 w-full">
+            <CheckboxField
+              label="시각적 유사성"
+              checked={checked}
+              onChange={onCheckedChange}
+            />
+            {checked && (
+              <StepSlider
+                index={clampedIndex}
+                onChange={onLevelChange}
+                label={LEVEL_PERCENT_LABELS[clampedIndex]}
+                aria-label="시각적 유사성 정도"
               />
-              {timeChecked && (
-                <StepSlider
-                  index={nearestIndex(TIME_STEPS, timeValue)}
-                  onChange={(i) => onTimeValueChange(TIME_STEPS[i])}
-                  label={timeValue >= 60 ? "1분" : `${timeValue}초`}
-                  aria-label="시간 간격"
+            )}
+            {checked &&
+              (summary === null ? (
+                // 조회 중 — 정적 스켈레톤 (shimmer는 '분석 준비 중' 셀 전용)
+                <span
+                  aria-hidden
+                  className="mx-auto mt-1 h-3 w-36 rounded-(--pill) bg-bg-disabled"
                 />
-              )}
-            </div>
-            <div className="flex flex-col gap-1 w-full">
-              <CheckboxField
-                label="시각적 유사성"
-                checked={similarityChecked}
-                onChange={onSimilarityChange}
-              />
-              {similarityChecked && (
-                // 우측 값은 문구(엄격 등) 대신 수치 — 하단 단계 라벨만 없음 (#25 후속 보완)
-                <StepSlider
-                  index={nearestIndex(SIMILARITY_STEPS, similarityValue)}
-                  onChange={(i) => onSimilarityValueChange(SIMILARITY_STEPS[i])}
-                  label={`${similarityValue}%`}
-                  aria-label="시각적 유사성 정도"
-                />
-              )}
-            </div>
-            <p className="type-body-small text-fg-neutral-muted text-center w-full">
-              {summary}
-            </p>
+              ) : (
+                <p className="type-body-small text-fg-neutral-muted text-center w-full">
+                  {summary}
+                </p>
+              ))}
+            {checked && hint && (
+              <p className="type-body-small text-fg-neutral-subtle text-center w-full">
+                {hint}
+              </p>
+            )}
           </div>
 
-          {onAddToAlbum && (
-            <div className="flex flex-col gap-2 items-center w-full">
-              <PanelHeader>결과 구성</PanelHeader>
-              <Button size="sm" onClick={onAddToAlbum}>
-                앨범에 추가하기
+          {checked && onSave && (
+            <div className="flex w-full justify-center">
+              <Button size="sm" onClick={onSave} disabled={saveDisabled}>
+                앨범으로 저장
               </Button>
             </div>
           )}

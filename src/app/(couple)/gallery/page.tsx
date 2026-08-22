@@ -95,10 +95,9 @@ export default function CoupleGalleryWorkspacePage() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [zoom, setZoom] = useState<ZoomLevel>(1);
   // 자동 분류 데모 상태 (실제 분류는 AI 연동 시 합류)
-  const [assistTime, setAssistTime] = useState(true);
-  const [assistTimeSeconds, setAssistTimeSeconds] = useState(60);
-  const [assistSimilarity, setAssistSimilarity] = useState(false);
-  const [assistSimilarityValue, setAssistSimilarityValue] = useState(50);
+  // 자동 분류 데모 상태 — 부부 화면의 실연동(클러스터 조회·앨범 저장)은 06에서
+  const [assistOn, setAssistOn] = useState(true);
+  const [assistLevelIndex, setAssistLevelIndex] = useState(2);
   // 정렬(별점 순)·설정은 기획만 있고 미구현 — 준비 중 토스트로 안내
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const { collapsed, toggle } = useSidebar();
@@ -402,16 +401,12 @@ export default function CoupleGalleryWorkspacePage() {
         <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
 
         <AssistPanel
-          timeChecked={assistTime}
-          onTimeChange={setAssistTime}
-          timeValue={assistTimeSeconds}
-          onTimeValueChange={setAssistTimeSeconds}
-          similarityChecked={assistSimilarity}
-          onSimilarityChange={setAssistSimilarity}
-          similarityValue={assistSimilarityValue}
-          onSimilarityValueChange={setAssistSimilarityValue}
-          summary="묶음 4개 · 묶이지 않은 사진 2개"
-          onAddToAlbum={() => {}}
+          checked={assistOn}
+          onCheckedChange={setAssistOn}
+          levelIndex={assistLevelIndex}
+          onLevelChange={setAssistLevelIndex}
+          summary="폴더 4개 · 나머지 사진 2장"
+          onSave={() => {}}
         />
 
         <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
