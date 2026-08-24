@@ -18,8 +18,8 @@ type Props = {
   values: GalleryFormValues;
   onChange: (values: GalleryFormValues) => void;
   namePlaceholder?: string;
-  /** 이름·마감 기한 잠금 — 수정 API(WES-216) 배포 전의 수정 모달용. */
-  lockNameAndDueDate?: boolean;
+  /** 힌트 문구 맥락 — 수정(edit)은 "제한이 없어져요"처럼 변경 결과를 말한다. */
+  mode?: "create" | "edit";
 };
 
 function FieldLabel({
@@ -61,7 +61,7 @@ export function GalleryFormFields({
   values,
   onChange,
   namePlaceholder,
-  lockNameAndDueDate = false,
+  mode = "create",
 }: Props) {
   function update<K extends keyof GalleryFormValues>(
     key: K,
@@ -80,7 +80,6 @@ export function GalleryFormFields({
           value={values.name}
           onChange={(v) => update("name", v)}
           placeholder={namePlaceholder}
-          disabled={lockNameAndDueDate}
           aria-label="갤러리 이름"
           className="h-10"
         />
@@ -93,7 +92,6 @@ export function GalleryFormFields({
           value={values.dueDate}
           onChange={(v) => update("dueDate", v)}
           error={pastDue}
-          disabled={lockNameAndDueDate}
           aria-label="선택 마감 기한"
           className="h-10"
         />
@@ -102,7 +100,7 @@ export function GalleryFormFields({
             이미 지난 날짜예요. 마감 기한을 다시 확인해 주세요.
           </FieldHint>
         ) : (
-          !lockNameAndDueDate && <FieldHint>비워두면 기한 없이 열려요.</FieldHint>
+          <FieldHint>비워두면 기한 없이 열려요.</FieldHint>
         )}
       </div>
 
@@ -118,7 +116,7 @@ export function GalleryFormFields({
           className="h-10"
         />
         <FieldHint>
-          {lockNameAndDueDate
+          {mode === "edit"
             ? "비워두면 제한이 없어져요. 이미 고른 장수보다 줄여도 저장돼요."
             : "비워두면 부부가 제한 없이 고를 수 있어요."}
         </FieldHint>
