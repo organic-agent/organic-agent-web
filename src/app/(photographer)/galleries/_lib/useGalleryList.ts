@@ -12,11 +12,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  type GalleryResponse,
-  getPhotoSelection,
-  listGalleries,
-} from "@/lib/api/galleries";
+import { type GalleryResponse, listGalleries } from "@/lib/api/galleries";
+import { getPhotoSelection } from "@/lib/api/selection";
 import { syncGalleriesCache } from "@/lib/galleries";
 
 export type GalleryListItem = GalleryResponse & {

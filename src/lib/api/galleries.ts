@@ -25,17 +25,6 @@ export type CreateGalleryRequest = {
   maxSelectablePhotoCount?: number | null;
 };
 
-/** 선택 앨범 요약 — photos 목록도 오지만 목록 화면은 집계만 쓴다. */
-export type PhotoSelectionResponse = {
-  status: "SELECTING" | "SUBMITTED";
-  maxSelectablePhotoCount: number | null;
-  /** 지금까지 고른 장수. */
-  selectedCount: number;
-  remainingCount: number | null;
-  submittedAt: string | null;
-  photos: unknown[];
-};
-
 /**
  * 폼의 날짜(YYYY-MM-DD)를 그날이 다 가기 전까지의 마감 일시(KST)로 바꾼다.
  * 생성·재오픈 등 selectionDeadline을 받는 모든 요청이 같은 규칙을 쓴다.
@@ -109,16 +98,6 @@ export function reopenGallery(
  */
 export function moveGalleryToTrash(galleryId: number): Promise<void> {
   return api(`/api/v1/galleries/${galleryId}`, { method: "DELETE" });
-}
-
-/**
- * 선택 앨범 조회 — 목록 카드의 셀렉 현황 임시 집계용.
- * 목록 통계 API(WES-215)가 배포되면 이 호출은 목록 화면에서 빠진다.
- */
-export function getPhotoSelection(
-  galleryId: number,
-): Promise<PhotoSelectionResponse> {
-  return api(`/api/v1/galleries/${galleryId}/photo-selection`);
 }
 
 /**
