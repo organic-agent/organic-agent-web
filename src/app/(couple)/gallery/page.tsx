@@ -51,8 +51,6 @@ import {
 } from "@/components/icons";
 import {
   EMPTY_REACTION,
-  addToSelected,
-  removeFromSelected,
   setPhotoMemo,
   setPhotoRating,
   setRetouchRequest,
@@ -60,7 +58,6 @@ import {
   usePhotoRatings,
   usePhotoReactions,
   useRetouchRequests,
-  useSelectedIds,
 } from "@/lib/couple";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -89,6 +86,7 @@ import {
   isDeadlinePassed,
   useInvitedGallery,
 } from "./_lib/useInvitedGallery";
+import { usePhotoSelection } from "./_lib/usePhotoSelection";
 // 모달 셸은 작가 갤러리 모달들과 공용 (추후 공용 컴포넌트로 승격 예정)
 import {
   GalleryModalButtons,
@@ -147,7 +145,6 @@ export default function CoupleGalleryWorkspacePage() {
   // 정렬(별점 순)·설정은 기획만 있고 미구현 — 준비 중 토스트로 안내
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const { collapsed, toggle } = useSidebar();
-  const selectedIds = useSelectedIds();
   // 초대받은 갤러리(서버) — 목록 API가 부부에겐 초대 수락한 갤러리만 준다
   const { result: invited, reload: reloadInvited } = useInvitedGallery();
   const gallery = invited?.kind === "ready" ? invited.gallery : undefined;
@@ -166,7 +163,6 @@ export default function CoupleGalleryWorkspacePage() {
       : dueLabel === "오늘 마감"
         ? "text-fg-warning"
         : "text-fg-critical";
-  const selectTarget = gallery?.maxSelectablePhotoCount ?? null;
   // 편집 잠금 — 마감(CLOSED)이거나 선택 기한이 지났으면 앨범 만들기·수정이 잠긴다.
   // 열람(그리드·뷰어·미리보기·앨범 탐색)은 계속 가능 (서버 규칙 그대로)
   const deadlinePassed = gallery
@@ -176,6 +172,15 @@ export default function CoupleGalleryWorkspacePage() {
 
   // 자동 분류(클러스터) 미리보기 + 앨범(폴더) 목록 — 작가와 같은 훅
   const galleryIdStr = gallery ? String(gallery.id) : "";
+  // 셀렉(선택 앨범) — 서버가 진실. 담기/빼기는 낙관적 반영 후 거절 시 통째 롤백
+  const { result: selectionResult, toggle: toggleSelected } =
+    usePhotoSelection(galleryIdStr, notice);
+  const selection =
+    selectionResult?.kind === "ready" ? selectionResult.sel : null;
+  const selectedIds = useMemo(() => selection?.selectedIds ?? [], [selection]);
+  const selectedCount = selection?.selectedCount ?? 0;
+  const selectTarget =
+    selection?.max ?? gallery?.maxSelectablePhotoCount ?? null;
   const cluster = useClusterPreview(galleryIdStr);
   const { result: folderGroupsResult, reload: reloadFolderGroups } =
     useFolderGroups(galleryIdStr);
@@ -303,11 +308,6 @@ export default function CoupleGalleryWorkspacePage() {
     const base = currentIndex >= 0 ? currentIndex : 0;
     const next = Math.min(Math.max(base + delta, 0), photos.length - 1);
     setCurrentPhotoId(photos[next].id);
-  }
-
-  function toggleSelected(photoId: number) {
-    if (selectedSet.has(photoId)) removeFromSelected(photoId);
-    else addToSelected([photoId]);
   }
 
   // 마지막으로 머문 그리드 종류를 기억 (ESC 복귀용)
@@ -734,7 +734,7 @@ export default function CoupleGalleryWorkspacePage() {
               </>
             )}
             <span className="text-fg-accent">
-              {selectedIds.length}
+              {selectedCount}
               {selectTarget !== null ? `/${selectTarget}` : ""}장
             </span>{" "}
             선택
@@ -790,8 +790,8 @@ export default function CoupleGalleryWorkspacePage() {
             label="선택 사진"
             count={
               selectTarget !== null
-                ? `${selectedIds.length}/${selectTarget}`
-                : selectedIds.length
+                ? `${selectedCount}/${selectTarget}`
+                : selectedCount
             }
             accentCount
             selected={view === "selected"}
@@ -1279,7 +1279,7 @@ export default function CoupleGalleryWorkspacePage() {
             <span className="type-body-small text-fg-neutral-muted">
               {currentPhoto
                 ? `${currentIndex + 1} / ${photos.length}`
-                : `${selectedIds.length} / ${allPhotos.length}`}
+                : `${selectedCount} / ${allPhotos.length}`}
             </span>
           }
           center={
@@ -1329,7 +1329,7 @@ export default function CoupleGalleryWorkspacePage() {
                 선택한 사진
               </span>
               <strong className="type-label-button text-fg-neutral">
-                {selectedIds.length}
+                {selectedCount}
                 {selectTarget !== null ? ` / ${selectTarget}` : ""}장
               </strong>
             </div>
@@ -1341,7 +1341,7 @@ export default function CoupleGalleryWorkspacePage() {
                 {retouchCount}건
               </strong>
             </div>
-            {selectTarget !== null && selectedIds.length < selectTarget && (
+            {selectTarget !== null && selectedCount < selectTarget && (
               <p className="mt-1 border-t border-stroke-neutral-muted pt-2 type-body-small text-fg-warning">
                 목표 장수({selectTarget}장)보다 적게 선택했어요. 전달 후에는
                 선택을 바꿀 수 없어요.
