@@ -24,6 +24,8 @@ export type GalleryPhoto = {
   name: string;
   /** 표시용 포맷 (contentType의 서브타입 대문자, 예: JPEG) */
   format: string;
+  /** 별점(1~5) — 사진당 하나, 부부·작가가 같은 칸을 쓴다. 없으면 null */
+  score: number | null;
 };
 
 type Result =
@@ -54,6 +56,7 @@ export function toGalleryPhoto(p: PhotoResponse): GalleryPhoto {
     preparing: !p.previewReady,
     name: p.originalFileName,
     format: (p.contentType.split("/")[1] ?? "").toUpperCase(),
+    score: p.score,
   };
 }
 

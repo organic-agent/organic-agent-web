@@ -52,14 +52,13 @@ import {
 import {
   EMPTY_REACTION,
   setPhotoMemo,
-  setPhotoRating,
   setRetouchRequest,
   usePhotoMemos,
-  usePhotoRatings,
   usePhotoReactions,
   useRetouchRequests,
 } from "@/lib/couple";
 import { ApiError } from "@/lib/api/client";
+import { submitSelection } from "@/lib/api/selection";
 import {
   deleteFolder,
   deleteFolderGroup,
@@ -68,7 +67,6 @@ import {
   renameFolder,
   renameFolderGroup,
 } from "@/lib/api/folders";
-import { updateGallery, useGalleries } from "@/lib/galleries";
 import { useGalleryPhotos } from "@/lib/galleryPhotos";
 // 분류·앨범 부품은 작가 워크스페이스에서 공용 (GalleryModalShell과 같은 전례 —
 // 승격은 부부·작가 양쪽이 안정된 뒤 한 번에)
@@ -86,6 +84,7 @@ import {
   isDeadlinePassed,
   useInvitedGallery,
 } from "./_lib/useInvitedGallery";
+import { usePhotoRating } from "./_lib/usePhotoRating";
 import { usePhotoSelection } from "./_lib/usePhotoSelection";
 // 모달 셸은 작가 갤러리 모달들과 공용 (추후 공용 컴포넌트로 승격 예정)
 import {
@@ -148,8 +147,6 @@ export default function CoupleGalleryWorkspacePage() {
   // 초대받은 갤러리(서버) — 목록 API가 부부에겐 초대 수락한 갤러리만 준다
   const { result: invited, reload: reloadInvited } = useInvitedGallery();
   const gallery = invited?.kind === "ready" ? invited.gallery : undefined;
-  // 셀렉 제출 데모 플래그 — 09 서버 전환 전까지 레거시 스토어 몫 (없으면 감춘다)
-  const legacy = useGalleries().find((g) => g.id === String(gallery?.id));
   // 사이드바 헤더용 컨텍스트: 갤러리명 · 마감 D-day(마감되면 '선택 마감됨') · 목표 장수
   const closed = gallery?.status === "CLOSED";
   const dueLabel = closed
@@ -173,8 +170,12 @@ export default function CoupleGalleryWorkspacePage() {
   // 자동 분류(클러스터) 미리보기 + 앨범(폴더) 목록 — 작가와 같은 훅
   const galleryIdStr = gallery ? String(gallery.id) : "";
   // 셀렉(선택 앨범) — 서버가 진실. 담기/빼기는 낙관적 반영 후 거절 시 통째 롤백
-  const { result: selectionResult, toggle: toggleSelected } =
-    usePhotoSelection(galleryIdStr, notice);
+  const {
+    result: selectionResult,
+    toggle: toggleSelected,
+    replace: replaceSelection,
+    refresh: refreshSelection,
+  } = usePhotoSelection(galleryIdStr, notice);
   const selection =
     selectionResult?.kind === "ready" ? selectionResult.sel : null;
   const selectedIds = useMemo(() => selection?.selectedIds ?? [], [selection]);
@@ -215,7 +216,8 @@ export default function CoupleGalleryWorkspacePage() {
       : [];
   // ESC로 싱글·비교 뷰에서 빠져나갈 때 돌아갈 그리드 종류를 기억한다
   const lastGridModeRef = useRef<"grid-large" | "grid-small">("grid-large");
-  const ratings = usePhotoRatings();
+  // 별점 — 서버(score)가 진실, 방금 매긴 값만 오버레이 (기한이 지나면 읽기 전용)
+  const { scoreOf, rate } = usePhotoRating(galleryIdStr, notice);
   const memos = usePhotoMemos();
   const retouchRequests = useRetouchRequests();
   const reactions = usePhotoReactions();
@@ -317,15 +319,26 @@ export default function CoupleGalleryWorkspacePage() {
     }
   }, [mode]);
 
-  // 단일·비교 보기: ←/→ 사진 이동, ESC로 그리드 복귀, F로 필름스트립 접기
-  // (모달이 열려 있으면 모달이 우선)
+  // 단일·비교 보기: ←/→ 사진 이동, ESC로 그리드 복귀, F로 필름스트립 접기,
+  // 싱글 뷰 한정 1~5 = 현재 사진 별점 · 0 = 지우기 (모달·입력 중이면 양보)
   useEffect(() => {
     if (mode !== "single" && mode !== "compare") return;
     function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA"))
+        return;
       if (e.key === "ArrowLeft") movePhoto(-1);
       if (e.key === "ArrowRight") movePhoto(1);
       if (e.key === "Escape" && !shareOpen) setMode(lastGridModeRef.current);
       if (e.key === "f" || e.key === "F") toggleFilmstrip();
+      if (
+        mode === "single" &&
+        !editLocked &&
+        currentPhoto &&
+        e.key >= "0" &&
+        e.key <= "5"
+      )
+        void rate(currentPhoto.id, Number(e.key));
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -654,6 +667,33 @@ export default function CoupleGalleryWorkspacePage() {
     );
   }
 
+  /** 셀렉 제출 — 성공 응답(SUBMITTED)이 훅에 반영되며 담기/빼기가 잠긴다 */
+  async function handleSubmitSelection() {
+    if (!gallery) return;
+    try {
+      const res = await submitSelection(gallery.id);
+      replaceSelection(res);
+      setSubmitOpen(false);
+      notice("작가에게 전달했어요");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        // 이미 제출돼 있음 — 다른 한 명이 먼저 누른 것. 조용히 최신으로
+        refreshSelection();
+        setSubmitOpen(false);
+        notice(
+          "이미 작가에게 전달했어요 — 변경이 필요하면 작가에게 요청해 주세요",
+        );
+        return;
+      }
+      // 실패 — 모달을 열어 둔 채 이유만 알린다 (0장 400 포함, 서버 문구 그대로)
+      notice(
+        err instanceof ApiError
+          ? err.message
+          : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+      );
+    }
+  }
+
   /** 폴더 열람의 관리 선택 — 부부는 클릭이 셀렉이라 Shift/⌘·우클릭으로만 시작 */
   function handleManagePick(
     e: React.MouseEvent,
@@ -798,9 +838,10 @@ export default function CoupleGalleryWorkspacePage() {
             onClick={() => setView("selected")}
           />
           {/* 셀렉 제출 — 워크플로 종결 액션. 마감되면 숨김(시안 v3 잠김 문법),
-              제출 플래그는 09 서버 전환 전까지 레거시 스토어 몫 */}
+              제출 여부는 서버(photo-selection.status)가 진실 */}
           {!closed &&
-            (legacy?.selectionSubmittedAt ? (
+            selection &&
+            (selection.status === "SUBMITTED" ? (
               <p className="flex items-center gap-1.5 px-3 py-2 type-body-small text-fg-neutral-muted">
                 <span className="text-fg-positive">✓</span> 작가에게 전달됨
               </p>
@@ -936,8 +977,12 @@ export default function CoupleGalleryWorkspacePage() {
                     label={`${photo.name} 선택 토글`}
                     selected={selectedSet.has(photo.id)}
                     onToggleSelected={() => toggleSelected(photo.id)}
-                    rating={ratings[photo.id] ?? 0}
-                    onRate={(value) => setPhotoRating(photo.id, value)}
+                    rating={scoreOf(photo)}
+                    onRate={
+                      editLocked
+                        ? undefined
+                        : (value) => void rate(photo.id, value)
+                    }
                     imageUrl={photo.url}
                     preparing={photo.preparing}
                     onImageError={refreshOnImageError}
@@ -1285,8 +1330,12 @@ export default function CoupleGalleryWorkspacePage() {
           center={
             currentPhoto ? (
               <StarRating
-                value={ratings[currentPhoto.id] ?? 0}
-                onChange={(v) => setPhotoRating(currentPhoto.id, v)}
+                value={scoreOf(currentPhoto)}
+                onChange={
+                  editLocked
+                    ? undefined
+                    : (v) => void rate(currentPhoto.id, v)
+                }
               />
             ) : (
               <StarRating value={0} />
@@ -1316,7 +1365,7 @@ export default function CoupleGalleryWorkspacePage() {
       {/* 열 때마다 마운트해 디자인 탭 편집본이 저장값에서 새로 시작하게 한다 */}
       {shareOpen && <ShareModal open onClose={() => setShareOpen(false)} />}
 
-      {/* 셀렉 제출 확인 — 제출 자체는 09에서 서버 전환, 그 전까지 레거시 플래그 데모 */}
+      {/* 셀렉 제출 확인 — 확정하면 POST /submit, 이후 담기/빼기는 서버가 잠근다 */}
       {submitOpen && (
         <GalleryModalShell
           title="작가에게 전달할까요?"
@@ -1350,14 +1399,7 @@ export default function CoupleGalleryWorkspacePage() {
           </div>
           <GalleryModalButtons
             onClose={() => setSubmitOpen(false)}
-            onConfirm={() => {
-              if (legacy) {
-                updateGallery(legacy.id, {
-                  selectionSubmittedAt: new Date().toISOString(),
-                });
-              }
-              setSubmitOpen(false);
-            }}
+            onConfirm={() => void handleSubmitSelection()}
             confirmLabel="전달하기"
             confirmVariant="accent"
           />

@@ -8,10 +8,11 @@
  * - 풀와이드 탑바: 사이드바 토글 + 로고(홈 복귀) + 뷰 전환 + 줌 | 전달 완료 버튼(조건부) + 알림 + 초대 + 프로필
  * - 사이드바: 갤러리명·상태 칩 + 상태 전환(열기/마감/재오픈) + 사진 업로드 + 자동 분류 + 필터 + 앨범
  * - 별점·선택은 부부의 것이라 전부 읽기 전용, 하단 툴바는 비교·싱글 뷰에서만
+ * - 부부가 셀렉을 제출(SUBMITTED)하면 "선택 다시 열기"로 되돌릴 수 있다(작가 전용)
  * - 우측 레일: 댓글(부부 보정 요청 포함) · 정보(파일 정보만)
  *
- * 갤러리 메타(제목·상태·마감일·계약 장수)는 서버(GET /galleries/{id})가 진실이고,
- * 사진·별점·전달 플래그는 아직 목업(04 업로드·05 분류·07 보정에서 서버 전환)이다.
+ * 갤러리 메타·사진·선택 현황·별점은 서버가 진실이고,
+ * 업로드·전달 데모 플래그만 아직 목업(07 보정에서 서버 전환)이다.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -56,12 +57,11 @@ import { StarRating } from "@/components/ui/StarRating";
 import { GalleryStatusChip } from "@/components/photographer/GalleryStatusChip";
 import {
   EMPTY_REACTION,
-  usePhotoRatings,
   usePhotoReactions,
   useRetouchRequests,
-  useSelectedIds,
 } from "@/lib/couple";
 import { ApiError } from "@/lib/api/client";
+import { withdrawSelection } from "@/lib/api/selection";
 import {
   deleteFolder,
   deleteFolderGroup,
@@ -76,6 +76,10 @@ import { AlbumTreeSection } from "./_components/AlbumTreeSection";
 import { ClusterStackCell } from "./_components/ClusterStackCell";
 import { DeleteFolderModal } from "./_components/DeleteFolderModal";
 import { GalleryDeliveryConfirmModal } from "./_components/GalleryDeliveryConfirmModal";
+import {
+  GalleryModalButtons,
+  GalleryModalShell,
+} from "../_components/GalleryModalShell";
 import { GalleryInviteModal } from "./_components/GalleryInviteModal";
 import { PhotoContextMenu } from "./_components/PhotoContextMenu";
 import { SaveAlbumModal } from "./_components/SaveAlbumModal";
@@ -91,6 +95,7 @@ import { useEmbeddingProgress } from "./_lib/useEmbeddingProgress";
 import { useFolderGroups } from "./_lib/useFolderGroups";
 import { useFolderPhotos } from "./_lib/useFolderPhotos";
 import { useGalleryDetail } from "./_lib/useGalleryDetail";
+import { useSelectionOverview } from "./_lib/useSelectionOverview";
 import { useGalleryPhotos } from "@/lib/galleryPhotos";
 
 // AI 연동 전 mock (시안 문구 — 부부 워크스페이스와 동일)
@@ -131,6 +136,8 @@ export default function PhotographerGalleryWorkspacePage() {
   const [statusAction, setStatusAction] = useState<
     "open" | "close" | "reopen" | null
   >(null);
+  // 제출 되돌리기(withdraw) 확인 — 부부가 제출한 선택을 다시 연다
+  const [reopenSelectionOpen, setReopenSelectionOpen] = useState(false);
   // 자동 분류(클러스터) 미리보기 — 켜짐·레벨은 훅이 소유, 묶기는 서버가 한다
   const cluster = useClusterPreview(params.galleryId);
   // 앨범(폴더) 목록 — 사이드바 트리의 데이터 원천, 저장 성공 시 재조회
@@ -167,8 +174,12 @@ export default function PhotographerGalleryWorkspacePage() {
     setCtxMenu(null);
   }
 
-  const selectedIds = useSelectedIds();
-  const ratings = usePhotoRatings();
+  // 부부 선택 현황 — 서버(GET /photo-selection)가 진실, 작가는 관찰만
+  const { result: selectionResult, replace: replaceSelection } =
+    useSelectionOverview(params.galleryId);
+  const selection =
+    selectionResult?.kind === "ready" ? selectionResult.sel : null;
+  const selectedIds = useMemo(() => selection?.selectedIds ?? [], [selection]);
   const retouchRequests = useRetouchRequests();
   const reactions = usePhotoReactions();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -346,6 +357,23 @@ export default function PhotographerGalleryWorkspacePage() {
     window.clearTimeout(savedToastTimer.current);
     setSavedToast(message);
     savedToastTimer.current = window.setTimeout(() => setSavedToast(null), 2400);
+  }
+
+  /** 선택 다시 열기(withdraw) — 담당 작가만. 부부가 이어서 고를 수 있게 된다 */
+  async function handleReopenSelection() {
+    try {
+      const res = await withdrawSelection(gallery.id);
+      replaceSelection(res);
+      setReopenSelectionOpen(false);
+      notice("선택이 다시 열렸어요 — 부부가 이어서 고를 수 있어요");
+    } catch (err) {
+      setReopenSelectionOpen(false);
+      notice(
+        err instanceof ApiError
+          ? err.message
+          : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+      );
+    }
   }
 
   async function handleRenameGroup(groupId: number, name: string) {
@@ -684,7 +712,7 @@ export default function PhotographerGalleryWorkspacePage() {
         },
         {
           label: "부부 별점",
-          value: `${ratings[panelPhoto.id] ?? 0} / 5`,
+          value: `${panelPhoto.score ?? 0} / 5`,
         },
       ]
     : [];
@@ -817,6 +845,16 @@ export default function PhotographerGalleryWorkspacePage() {
                     재오픈
                   </button>
                 )}
+                {/* 부부가 셀렉을 제출한 뒤에만 — 되돌릴지는 작가가 판단(서버 규칙) */}
+                {selection?.status === "SUBMITTED" && (
+                  <button
+                    type="button"
+                    onClick={() => setReopenSelectionOpen(true)}
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                  >
+                    선택 다시 열기
+                  </button>
+                )}
                 {/* 워크플로 종결 액션 — 업로드 아래에 배치 (사용자 결정).
                     원래 조건은 부부의 셀렉 제출 후지만 BE 연동 전이라 업로드 후부터 노출.
                     업로드·전달 플래그는 레거시 스토어 몫(04·07에서 서버 전환) */}
@@ -876,11 +914,12 @@ export default function PhotographerGalleryWorkspacePage() {
                 <MenuItem
                   icon={<PhotoIcon size={20} />}
                   label="선택 사진"
-                  count={
-                    gallery.maxSelectablePhotoCount !== null
-                      ? `${selectedIds.length}/${gallery.maxSelectablePhotoCount}`
-                      : selectedIds.length
-                  }
+                  count={(() => {
+                    const max =
+                      selection?.max ?? gallery.maxSelectablePhotoCount;
+                    const count = selection?.selectedCount ?? 0;
+                    return max !== null ? `${count}/${max}` : count;
+                  })()}
                   selected={view === "selected"}
                   onClick={() => {
                     clearSelection();
@@ -988,7 +1027,7 @@ export default function PhotographerGalleryWorkspacePage() {
                         imageWidth={compareImageWidth}
                         label={photo.name}
                         selected={selectedSet.has(photo.id)}
-                        rating={ratings[photo.id] ?? 0}
+                        rating={photo.score ?? 0}
                         imageUrl={photo.url}
                         preparing={photo.preparing}
                         onImageError={refreshOnImageError}
@@ -1199,9 +1238,7 @@ export default function PhotographerGalleryWorkspacePage() {
                 </span>
               }
               center={
-                <StarRating
-                  value={currentPhoto ? (ratings[currentPhoto.id] ?? 0) : 0}
-                />
+                <StarRating value={currentPhoto?.score ?? 0} />
               }
             />
           )}
@@ -1252,16 +1289,30 @@ export default function PhotographerGalleryWorkspacePage() {
       )}
       {deliveryOpen && (
         <GalleryDeliveryConfirmModal
-          selectedCount={selectedIds.length}
-          target={gallery.maxSelectablePhotoCount ?? 0}
+          selectedCount={selection?.selectedCount ?? 0}
+          target={selection?.max ?? gallery.maxSelectablePhotoCount ?? 0}
           retouchCount={retouchCount}
-          selectionSubmitted={legacy?.selectionSubmittedAt != null}
+          selectionSubmitted={selection?.status === "SUBMITTED"}
           onClose={() => setDeliveryOpen(false)}
           onConfirm={() => {
             if (legacy) updateGallery(legacy.id, { delivered: true });
             setDeliveryOpen(false);
           }}
         />
+      )}
+      {/* 선택 다시 열기 확인 — 이미 보정에 들어갔을 수 있어 최종 판단은 작가 몫 */}
+      {reopenSelectionOpen && (
+        <GalleryModalShell
+          title="부부 선택을 다시 열까요?"
+          desc="다시 열면 부부가 이어서 고를 수 있어요. 이미 보정을 시작했다면 열기 전에 부부와 한번 확인해 주세요."
+          onClose={() => setReopenSelectionOpen(false)}
+        >
+          <GalleryModalButtons
+            onClose={() => setReopenSelectionOpen(false)}
+            onConfirm={() => void handleReopenSelection()}
+            confirmLabel="선택 다시 열기"
+          />
+        </GalleryModalShell>
       )}
       {statusAction === "open" && (
         <OpenGalleryConfirmModal

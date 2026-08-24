@@ -8,8 +8,6 @@
 
 export * from "./couple/photos";
 export * from "./couple/galleryFolders";
-export * from "./couple/selectedAlbum";
 export * from "./couple/photoNotes";
-export * from "./couple/photoRatings";
 export * from "./couple/photoReactions";
 export * from "./couple/shareDesign";
