@@ -91,7 +91,7 @@ import { useEmbeddingProgress } from "./_lib/useEmbeddingProgress";
 import { useFolderGroups } from "./_lib/useFolderGroups";
 import { useFolderPhotos } from "./_lib/useFolderPhotos";
 import { useGalleryDetail } from "./_lib/useGalleryDetail";
-import { useGalleryPhotos } from "./_lib/useGalleryPhotos";
+import { useGalleryPhotos } from "@/lib/galleryPhotos";
 
 // AI 연동 전 mock (시안 문구 — 부부 워크스페이스와 동일)
 const MOCK_ANALYSIS = [
@@ -832,10 +832,9 @@ export default function PhotographerGalleryWorkspacePage() {
               </div>
 
               <AssistPanel
-                checked={cluster.enabled}
-                onCheckedChange={(next) => {
+                onOpenChange={(open) => {
                   setOpenClusterIndex(null);
-                  cluster.setEnabled(next);
+                  cluster.setEnabled(open);
                 }}
                 levelIndex={cluster.levelIndex}
                 onLevelChange={(index) => {

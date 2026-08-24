@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { getFolderDetail } from "@/lib/api/folders";
-import { type GalleryPhoto, toGalleryPhoto } from "./useGalleryPhotos";
+import { type GalleryPhoto, toGalleryPhoto } from "@/lib/galleryPhotos";
 
 export type FolderPhotosResult = { groupId: number; folderId: number } & (
   | { kind: "ready"; name: string; photos: GalleryPhoto[] }

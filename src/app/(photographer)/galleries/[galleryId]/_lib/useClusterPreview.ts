@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { getPhotoClusters } from "@/lib/api/folders";
-import { type GalleryPhoto, toGalleryPhoto } from "./useGalleryPhotos";
+import { type GalleryPhoto, toGalleryPhoto } from "@/lib/galleryPhotos";
 
 export type ClusterPreviewResult =
   | {

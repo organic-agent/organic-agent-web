@@ -22,7 +22,7 @@ import {
   type PhotoFolderGroupResponse,
   createFolderGroup,
 } from "@/lib/api/folders";
-import type { GalleryPhoto } from "../_lib/useGalleryPhotos";
+import type { GalleryPhoto } from "@/lib/galleryPhotos";
 
 /** 기본 이름 — "M월 D일 자동 분류", 같은 이름이 이미 있으면 뒤에 2, 3… */
 export function defaultAlbumName(

@@ -32,6 +32,11 @@ type AlbumTreeSectionProps = {
   activeKey: string | null;
   /** 폴더 사진 드래그 중 — 출발지. 같은 앨범의 다른 폴더만 드롭 대상이 된다. */
   dragContext: { groupId: number; folderId: number } | null;
+  /**
+   * 편집 잠금(부부: 마감·기한 초과) — ⋯ 메뉴·이름 더블클릭·드롭이 나타나지
+   * 않는다(시안 A안: 회색이 아니라 숨김). 탐색·열람은 그대로.
+   */
+  readOnly?: boolean;
   onSelectFolder: (groupId: number, folderId: number) => void;
   onRenameGroup: (groupId: number, name: string) => void;
   onRenameFolder: (groupId: number, folderId: number, name: string) => void;
@@ -83,6 +88,7 @@ export function AlbumTreeSection({
   result,
   activeKey,
   dragContext,
+  readOnly = false,
   onSelectFolder,
   onRenameGroup,
   onRenameFolder,
@@ -204,8 +210,10 @@ export function AlbumTreeSection({
             <button
               type="button"
               onClick={() => toggle(group.groupId)}
-              onDoubleClick={() =>
-                setEditing({ kind: "group", groupId: group.groupId })
+              onDoubleClick={
+                readOnly
+                  ? undefined
+                  : () => setEditing({ kind: "group", groupId: group.groupId })
               }
               aria-expanded={open}
               className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-3 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover"
@@ -221,11 +229,12 @@ export function AlbumTreeSection({
                 {total}
               </span>
             </button>
-            {rowMenu(
-              { kind: "group", groupId: group.groupId },
-              () => setEditing({ kind: "group", groupId: group.groupId }),
-              () => onDeleteGroup(group.groupId, group.name),
-            )}
+            {!readOnly &&
+              rowMenu(
+                { kind: "group", groupId: group.groupId },
+                () => setEditing({ kind: "group", groupId: group.groupId }),
+                () => onDeleteGroup(group.groupId, group.name),
+              )}
           </div>
         )}
 
@@ -234,6 +243,7 @@ export function AlbumTreeSection({
             const key = `${group.groupId}:${folder.folderId}`;
             const active = activeKey === key;
             const droppable =
+              !readOnly &&
               dragContext !== null &&
               dragContext.groupId === group.groupId &&
               dragContext.folderId !== folder.folderId;
@@ -261,12 +271,15 @@ export function AlbumTreeSection({
                 <button
                   type="button"
                   onClick={() => onSelectFolder(group.groupId, folder.folderId)}
-                  onDoubleClick={() =>
-                    setEditing({
-                      kind: "folder",
-                      groupId: group.groupId,
-                      folderId: folder.folderId,
-                    })
+                  onDoubleClick={
+                    readOnly
+                      ? undefined
+                      : () =>
+                          setEditing({
+                            kind: "folder",
+                            groupId: group.groupId,
+                            folderId: folder.folderId,
+                          })
                   }
                   onDragOver={(e) => {
                     if (!droppable) return;
@@ -308,21 +321,26 @@ export function AlbumTreeSection({
                     {folder.photoCount}
                   </span>
                 </button>
-                {rowMenu(
-                  {
-                    kind: "folder",
-                    groupId: group.groupId,
-                    folderId: folder.folderId,
-                  },
-                  () =>
-                    setEditing({
+                {!readOnly &&
+                  rowMenu(
+                    {
                       kind: "folder",
                       groupId: group.groupId,
                       folderId: folder.folderId,
-                    }),
-                  () =>
-                    onDeleteFolder(group.groupId, folder.folderId, folder.name),
-                )}
+                    },
+                    () =>
+                      setEditing({
+                        kind: "folder",
+                        groupId: group.groupId,
+                        folderId: folder.folderId,
+                      }),
+                    () =>
+                      onDeleteFolder(
+                        group.groupId,
+                        folder.folderId,
+                        folder.name,
+                      ),
+                  )}
               </div>
             );
           })}
