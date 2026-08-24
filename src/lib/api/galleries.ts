@@ -101,6 +101,35 @@ export function moveGalleryToTrash(galleryId: number): Promise<void> {
 }
 
 /**
+ * 갤러리 이름 변경. 상태와 무관한 표시 정보라 DRAFT·OPEN·CLOSED 어느
+ * 상태에서든 바꿀 수 있다. 담당 작가만(403).
+ */
+export function renameGallery(
+  galleryId: number,
+  title: string,
+): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/title`, {
+    method: "PATCH",
+    body: { title },
+  });
+}
+
+/**
+ * 선택 마감 기한 변경. null이면 기한이 없어진다. 상태는 건드리지 않는다 —
+ * CLOSED 갤러리의 기한을 바꿔도 그것만으로 다시 열리지는 않는다(재오픈의 일).
+ * 담당 작가만(403).
+ */
+export function changeSelectionDeadline(
+  galleryId: number,
+  selectionDeadline: string | null,
+): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/selection-deadline`, {
+    method: "PATCH",
+    body: { selectionDeadline },
+  });
+}
+
+/**
  * 계약 장수 변경. null을 보내면 제한이 없어지고, 이미 고른 장수보다
  * 작은 값도 받는다(계약 축소는 실제로 있는 일). 담당 작가만(403).
  */
