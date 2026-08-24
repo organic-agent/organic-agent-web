@@ -7,7 +7,7 @@
  * 끝난 사진만 오므로 준비 중(물결) 상태가 없다.
  */
 
-import type { GalleryPhoto } from "../_lib/useGalleryPhotos";
+import type { GalleryPhoto } from "@/lib/galleryPhotos";
 
 type ClusterStackCellProps = {
   photos: GalleryPhoto[];
