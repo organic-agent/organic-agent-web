@@ -136,6 +136,73 @@ export function listPhotos(
 }
 
 /**
+ * 사진 휴지통 이동 — 담당 작가만, 한 장을 지워도 배치로. 휴지통의 사진은
+ * 목록·클러스터·폴더·선택 앨범·협업 화면 어디에도 보이지 않는다.
+ * **전부-아니면-404**: 이미 휴지통이거나 이 갤러리 사진이 아닌 id가 섞이면
+ * 한 장도 옮기지 않는다 — 화면이 낡았다는 신호라 재조회로 푼다.
+ */
+export function deletePhotos(
+  galleryId: number,
+  photoIds: number[],
+): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/photos`, {
+    method: "DELETE",
+    body: { photoIds },
+  });
+}
+
+export type TrashedPhotoResponse = {
+  photoId: number;
+  originalFileName: string;
+  deletedAt: string;
+  /** 이 시각이 지나면 자동으로 물리 삭제된다. */
+  expiresAt: string;
+  /** 휴지통 화면에 그릴 서명 URL. 올리다 만(PENDING) 사진은 null. */
+  viewUrl: string | null;
+};
+
+export type TrashedPhotoListResponse = {
+  photos: TrashedPhotoResponse[];
+  /** viewUrl 남은 수명(초) — 지나면 다시 불러 새 URL을 받는다. */
+  viewUrlTtlSeconds: number;
+};
+
+/** 휴지통 사진 목록. 갤러리 자체가 휴지통이면 404(갤러리 휴지통의 몫). */
+export function listTrashedPhotos(
+  galleryId: number,
+): Promise<TrashedPhotoListResponse> {
+  return api(`/api/v1/galleries/${galleryId}/photos/trash`);
+}
+
+/**
+ * 휴지통 사진 복원 — 목록·클러스터에 다시 나타난다.
+ * 전부-아니면-404: 휴지통에 없는 id가 섞이면 한 장도 되살리지 않는다.
+ */
+export function restoreTrashedPhotos(
+  galleryId: number,
+  photoIds: number[],
+): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/photos/trash/restore`, {
+    method: "POST",
+    body: { photoIds },
+  });
+}
+
+/**
+ * 휴지통 사진 완전 삭제 — 보관 기간을 기다리지 않고 지금 물리 삭제한다.
+ * 원본·미리보기가 함께 사라지며 **복구할 수 없다**. 전부-아니면-404.
+ */
+export function eraseTrashedPhotos(
+  galleryId: number,
+  photoIds: number[],
+): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/photos/trash`, {
+    method: "DELETE",
+    body: { photoIds },
+  });
+}
+
+/**
  * S3 직접 PUT. fetch 대신 XHR을 쓰는 이유는 업로드 진행률 이벤트 하나다.
  * Content-Type은 발급 요청 값과 같아야 한다 — 서명에 포함되어 있어
  * 다르면 S3가 SignatureDoesNotMatch로 거절한다.
