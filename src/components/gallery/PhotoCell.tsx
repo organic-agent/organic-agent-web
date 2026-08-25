@@ -30,8 +30,14 @@ type PhotoCellProps = {
   /**
    * 폴더 관리용 다중 선택 상태 — 어두운 딤으로 표시 (이슈 #31).
    * 셀렉(로즈 체크·테두리)과 다른 문법이라 겹쳐 읽히지 않는다.
+   * 부부 화면 전용 — 작가 화면은 managed(체크+검정 테두리)를 쓴다.
    */
   dimmed?: boolean;
+  /**
+   * 작가 관리 선택 상태 — 좌상단 검정 체크 + 검정 테두리 (#39 확정).
+   * 작가 화면엔 셀렉(로즈)이 없어 체크 문법을 중립색으로 쓴다.
+   */
+  managed?: boolean;
   /** 서명된 조회 URL — 없으면 회색 플레이스홀더(연동 전 화면과 동일) */
   imageUrl?: string | null;
   /** 파생 JPEG 준비 전 — 물결 + 아이콘만 (시안 v5, 문구 없음) */
@@ -77,12 +83,17 @@ export function PhotoCell({
   selectable = false,
   selected = false,
   dimmed = false,
+  managed = false,
   imageUrl,
   preparing = false,
   onImageError,
 }: PhotoCellProps) {
   const focusRing = focused ? "scale-103 z-10 shadow-(--shadow-hover)" : "";
-  const selectedRing = selected ? "border-2 border-stroke-accent" : "";
+  const selectedRing = selected
+    ? "border-2 border-stroke-accent"
+    : managed
+      ? "border-2 border-bg-neutral-inverted"
+      : "";
   const cls =
     variant === "large"
       ? `group relative block w-full aspect-4/5 rounded-(--radius-4) bg-bg-disabled transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer overflow-hidden ${focusRing} ${selectedRing}`
@@ -116,6 +127,26 @@ export function PhotoCell({
         </span>
       </>
     );
+
+  // 관리 선택 표시 — 좌상단 검정 체크 (부부 셀렉의 로즈 체크와 같은 자리, 중립색)
+  const managedIndicator = managed ? (
+    <span
+      aria-hidden
+      className={`absolute z-10 grid size-6 place-items-center rounded-full bg-bg-neutral-inverted text-fg-neutral-inverted ${
+        variant === "large" ? "left-2 top-2" : "left-5 top-10"
+      }`}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          d="M4 8.5L6.5 11L12 5"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  ) : null;
 
   // 선택 상태 표시 — 별도 버튼이 아니라 셀 자체가 토글이므로 시각 표시만 담당
   const selectIndicator = selectable ? (
@@ -153,7 +184,7 @@ export function PhotoCell({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       aria-label={label}
-      aria-pressed={selectable ? selected : undefined}
+      aria-pressed={selectable ? selected : managed || undefined}
       className={cls}
     >
       {content}
@@ -163,6 +194,7 @@ export function PhotoCell({
           className="absolute inset-0 z-10 rounded-[inherit] bg-[rgba(23,23,23,0.45)]"
         />
       )}
+      {managedIndicator}
       {selectIndicator}
     </button>
   );

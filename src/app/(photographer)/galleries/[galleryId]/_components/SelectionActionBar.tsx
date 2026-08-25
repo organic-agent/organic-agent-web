@@ -1,12 +1,15 @@
 "use client";
 
 /**
- * 폴더 열람 — 다중 선택 액션 바 (피그마 Bar/Selection 대응, 이슈 #31)
+ * 다중 선택 액션 바 (피그마 Bar/Selection kind=folder/photos/trash 대응)
  * 위치: src/app/(photographer)/galleries/[galleryId]/_components/SelectionActionBar.tsx
  *
- * 사진을 선택하면 그리드 하단 중앙에 떠서 마우스만으로 이동·빼기를
- * 처리한다. "다른 폴더로 이동"은 같은 앨범의 다른 폴더 목록을 위로
- * 펼쳐 고른다 — 우클릭 메뉴·드래그와 같은 API를 쓰는 세 번째 경로.
+ * 사진을 선택하면 그리드 하단 중앙에 떠서 마우스만으로 다음을 처리한다:
+ * - 폴더 열람: 다른 폴더로 이동 · 폴더에서 빼기 (+ 전체 선택 · 휴지통으로 이동)
+ * - 모든 사진: 전체 선택 · 휴지통으로 이동
+ * - 휴지통: 전체 선택 · 복원 · 완전 삭제
+ * 넘긴 핸들러만 항목으로 나타난다. 위험 액션(휴지통·완전 삭제)은 붉게 —
+ * 검정 바 위라 fg.critical 대신 밝은 red-300을 쓴다(피그마 확정색).
  */
 
 import { useState } from "react";
@@ -15,23 +18,37 @@ type MoveTarget = { folderId: number; name: string };
 
 type SelectionActionBarProps = {
   count: number;
-  /** 이동 대상 — 같은 앨범의 다른 폴더들 */
-  targets: MoveTarget[];
-  onMove: (folderId: number) => void;
-  onRemove: () => void;
+  /** 이동 대상 — 같은 앨범의 다른 폴더들 (폴더 열람에서만) */
+  targets?: MoveTarget[];
+  onMove?: (folderId: number) => void;
+  onRemove?: () => void;
+  onSelectAll?: () => void;
+  /** 휴지통으로 이동 (위험 표시) */
+  onTrash?: () => void;
+  onRestore?: () => void;
+  /** 완전 삭제 (위험 표시) */
+  onErase?: () => void;
 };
+
+const itemCls =
+  "cursor-pointer type-label-button text-fg-neutral-inverted hover:underline";
+const dangerCls = "cursor-pointer type-label-button text-[#fca5a5] hover:underline";
 
 export function SelectionActionBar({
   count,
-  targets,
+  targets = [],
   onMove,
   onRemove,
+  onSelectAll,
+  onTrash,
+  onRestore,
+  onErase,
 }: SelectionActionBarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center">
-      {pickerOpen && targets.length > 0 && (
+      {pickerOpen && targets.length > 0 && onMove && (
         <div className="mb-2 min-w-40 rounded-(--radius-12) border border-stroke-neutral-muted bg-bg-layer-default p-1.5 shadow-(--shadow-hover)">
           {targets.map((target) => (
             <button
@@ -53,22 +70,40 @@ export function SelectionActionBar({
           {count}장 선택됨
         </span>
         <span className="h-3.5 w-px bg-[rgba(255,255,255,0.25)]" />
-        {targets.length > 0 && (
+        {onSelectAll && (
+          <button type="button" onClick={onSelectAll} className={itemCls}>
+            전체 선택
+          </button>
+        )}
+        {targets.length > 0 && onMove && (
           <button
             type="button"
             onClick={() => setPickerOpen((v) => !v)}
-            className="cursor-pointer type-label-button text-fg-neutral-inverted hover:underline"
+            className={itemCls}
           >
             다른 폴더로 이동
           </button>
         )}
-        <button
-          type="button"
-          onClick={onRemove}
-          className="cursor-pointer type-label-button text-fg-neutral-inverted hover:underline"
-        >
-          폴더에서 빼기
-        </button>
+        {onRemove && (
+          <button type="button" onClick={onRemove} className={itemCls}>
+            폴더에서 빼기
+          </button>
+        )}
+        {onRestore && (
+          <button type="button" onClick={onRestore} className={itemCls}>
+            복원
+          </button>
+        )}
+        {onTrash && (
+          <button type="button" onClick={onTrash} className={dangerCls}>
+            휴지통으로 이동
+          </button>
+        )}
+        {onErase && (
+          <button type="button" onClick={onErase} className={dangerCls}>
+            완전 삭제
+          </button>
+        )}
         <span className="h-3.5 w-px bg-[rgba(255,255,255,0.25)]" />
         <span className="type-body-small text-[rgba(255,255,255,0.6)]">
           Esc 해제
