@@ -2,7 +2,7 @@
  * 메뉴 아이템 — 피그마 Item/Menuitem 대응 (px12·py8·라운드4, 아이콘 20 옵션 + 라벨 + 카운트)
  * 위치: src/components/ui/MenuItem.tsx
  *
- * 사이드바 앨범 내비 등에 사용.
+ * 사이드바 카테고리 내비 등에 사용.
  * selected: 현재 항목 — hover 배경 + 왼쪽 로즈 인디케이터 바(hover와 구분)
  * accentCount: 카운트를 로즈로 강조 (셀렉 수치 문법 — 예: 선택 사진 34/50)
  */

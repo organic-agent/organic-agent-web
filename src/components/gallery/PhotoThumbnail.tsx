@@ -3,7 +3,7 @@
  * 위치: src/components/gallery/PhotoThumbnail.tsx
  *
  * 크기는 필름스트립 행 높이(clamp 유동)를 따라간다 — h-full + aspect.
- * selected: 현재 보고 있는 사진 (검정 보더). badge: 좌상단 검정 칩 (앨범 사진 수 등).
+ * selected: 현재 보고 있는 사진 (검정 보더). badge: 좌상단 검정 칩.
  * 실제 이미지 연동 전까지 회색 플레이스홀더(bg.disabled 값 차용).
  */
 

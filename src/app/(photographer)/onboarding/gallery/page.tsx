@@ -17,11 +17,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { createMockGallery, toSelectionDeadline } from "@/lib/api/galleries";
-import { upsertGallery } from "@/lib/galleries";
+import { listWorkspaces } from "@/lib/api/workspaces";
 import { useStudioInfo } from "@/lib/studio";
 import {
   addDaysAsInputValue,
-  createGalleryFromForm,
   isGalleryFormValid,
 } from "../../_lib/galleryForm";
 import { OnboardingStepButtons } from "./_components/OnboardingStepButtons";
@@ -85,17 +84,16 @@ export default function OnboardingPage() {
     setError(null);
 
     try {
-      const created = await createMockGallery({
+      const workspaces = await listWorkspaces();
+      const workspace = workspaces.find((item) => item.type === "STUDIO") ?? workspaces[0];
+      if (!workspace) throw new Error("갤러리를 만들 작업공간이 없습니다.");
+      await createMockGallery({
+        workspaceId: workspace.id,
         title: formName.trim(),
         selectionDeadline: toSelectionDeadline(formDueDate),
         maxSelectablePhotoCount: Number(formTarget),
       });
 
-      // 갤러리 목록·상세가 아직 로컬 목업 스토어를 읽는다 — 서버 id로 반영해
-      // 이동한 목록에서 방금 만든 갤러리가 보이게 한다.
-      upsertGallery(
-        createGalleryFromForm({ values: formValues, id: String(created.id) }),
-      );
       // 성공 후에도 버튼은 잠근 채로 이동한다 — 전환 중 재클릭이 새 갤러리를
       // 하나 더 만드는 사고 방지.
       router.push("/galleries");

@@ -2,8 +2,8 @@
  * 갤러리 사진 목록 훅 (페이지 순회 + viewUrl TTL 재조회) — 작가·부부 공용
  * 위치: src/lib/galleryPhotos.ts (06에서 작가 _lib에서 승격 — 목록 API가 부부 공용이라)
  *
- * 기본 모드는 hasNext가 꺼질 때까지 순회해 전체를 모은다(작가 워크스페이스 —
- * 클러스터·앨범이 전체 목록을 전제한다). incremental 모드는 첫 페이지만 받고
+ * 기본 모드는 hasNext가 꺼질 때까지 순회해 전체를 모은다(작가 워크스페이스).
+ * incremental 모드는 첫 페이지만 받고
  * loadMore()로 한 페이지씩 이어 붙인다(부부 무한 스크롤, WES-139).
  *
  * PENDING(올리다 만 사진, viewUrl 없음)은 화면 대상이 아니라 여기서 걸러낸다.
@@ -48,7 +48,7 @@ type Options = {
 const MIN_SILENT_INTERVAL_MS = 15_000;
 const ERROR_RESULT: Result = { kind: "error" };
 
-/** 서버 사진 → 화면 사진 매핑 — 클러스터 미리보기(useClusterPreview)와 공유 */
+/** 서버 사진 → 화면 사진 매핑 */
 export function toGalleryPhoto(p: PhotoResponse): GalleryPhoto {
   return {
     id: p.photoId,

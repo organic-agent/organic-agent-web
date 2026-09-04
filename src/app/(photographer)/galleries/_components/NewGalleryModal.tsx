@@ -12,7 +12,7 @@
  * 입력값을 유지해 재시도할 수 있게 한다.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -24,6 +24,7 @@ import {
   isGalleryFormValid,
 } from "../../_lib/galleryForm";
 import type { GalleryListItem } from "../_lib/useGalleryList";
+import { listWorkspaces, type WorkspaceResponse } from "@/lib/api/workspaces";
 import { GalleryFormFields } from "./GalleryFormFields";
 import { GalleryModalButtons, GalleryModalShell } from "./GalleryModalShell";
 
@@ -40,12 +41,33 @@ export function NewGalleryModal({
   const [form, setForm] = useState(() => createDefaultGalleryForm());
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
-  const canCreate = isGalleryFormValid(form) && !submitting;
+  const [workspaces, setWorkspaces] = useState<WorkspaceResponse[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<number | null>(null);
+  const [shootType, setShootType] = useState<"REHEARSAL" | "CEREMONY" | "OTHER">("REHEARSAL");
+  const canCreate = isGalleryFormValid(form) && workspaceId !== null && !submitting;
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void listWorkspaces()
+      .then((items) => {
+        if (cancelled) return;
+        setWorkspaces(items);
+        setWorkspaceId((current) => current ?? items[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setBanner("작업공간을 불러오지 못했습니다.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   function handleClose() {
     if (submitting) return;
     onClose();
     setForm(createDefaultGalleryForm());
+    setShootType("REHEARSAL");
     setBanner(null);
   }
 
@@ -55,6 +77,7 @@ export function NewGalleryModal({
     setBanner(null);
     try {
       const created = await createGallery({
+        workspaceId: workspaceId!,
         title: form.name.trim(),
         selectionDeadline: form.dueDate
           ? toSelectionDeadline(form.dueDate)
@@ -62,6 +85,7 @@ export function NewGalleryModal({
         maxSelectablePhotoCount: form.target.trim()
           ? Number(form.target)
           : null,
+        shootType,
       });
       onCreated({ ...created, selectedCount: 0 });
       onClose();
@@ -95,6 +119,34 @@ export function NewGalleryModal({
         onChange={setForm}
         namePlaceholder="예: 지민 & 하윤 웨딩"
       />
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <label className="type-body-small text-fg-neutral-muted">
+          작업공간
+          <select
+            value={workspaceId ?? ""}
+            onChange={(event) => setWorkspaceId(Number(event.target.value))}
+            className="mt-1.5 h-10 w-full rounded-(--radius-4) border border-stroke-neutral-muted bg-bg-layer-default px-3 text-fg-neutral"
+          >
+            {workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name} · {workspace.type === "PERSONAL" ? "개인" : "스튜디오"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="type-body-small text-fg-neutral-muted">
+          촬영 종류
+          <select
+            value={shootType}
+            onChange={(event) => setShootType(event.target.value as typeof shootType)}
+            className="mt-1.5 h-10 w-full rounded-(--radius-4) border border-stroke-neutral-muted bg-bg-layer-default px-3 text-fg-neutral"
+          >
+            <option value="REHEARSAL">리허설</option>
+            <option value="CEREMONY">본식</option>
+            <option value="OTHER">기타</option>
+          </select>
+        </label>
+      </div>
       {banner && (
         <p role="alert" className="mb-4 text-center type-body-small text-fg-critical">
           {banner}

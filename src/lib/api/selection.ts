@@ -1,5 +1,5 @@
 /**
- * 선택 앨범(셀렉) API — 스웨거 [Selection] 계약의 타입화
+ * 사진 셀렉 API — 스웨거 [Selection] 계약의 타입화
  * 위치: src/lib/api/selection.ts
  *
  * 담기는 초대받은 부부만(작가는 조회만). 중복이 하나라도 섞이거나 계약
@@ -13,6 +13,10 @@ import { api } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
 
 export type SelectedPhotoResponse = {
+  itemId: number;
+  galleryId: number;
+  addedByUserId: number | null;
+  sortOrder: number;
   /** 담은 컷의 원본 사진 — 보정본으로 담았어도 원본 정보가 실린다 */
   photo: PhotoResponse;
   /** 보정본으로 담았으면 그 보정 항목 id, 원본이면 null */
@@ -29,13 +33,14 @@ export type PhotoSelectionResponse = {
   /** 더 고를 수 있는 장수 — 제한 없으면 null, 계약 축소로 이미 넘겼으면 0 */
   remainingCount: number | null;
   submittedAt: string | null;
+  submittedByUserId: number | null;
   /** 고른 항목 — 갤러리 노출 순서 */
   photos: SelectedPhotoResponse[];
   /** 서명 URL 남은 수명(초) */
   viewUrlTtlSeconds: number;
 };
 
-/** 선택 앨범 조회 — 갤러리를 볼 수 있는 누구나(작가는 마감 뒤에도). */
+/** 셀렉 조회 — 갤러리를 볼 수 있는 누구나(작가는 마감 뒤에도). */
 export function getPhotoSelection(
   galleryId: number,
 ): Promise<PhotoSelectionResponse> {
@@ -56,7 +61,7 @@ export function selectPhotos(
   });
 }
 
-/** 여러 장 빼기 — 앨범에 없는 id가 섞여도 나머지는 빠진다. */
+/** 여러 장 빼기 — 셀렉에 없는 id가 섞여도 나머지는 빠진다. */
 export function deselectPhotos(
   galleryId: number,
   photoIds: number[],
@@ -67,7 +72,7 @@ export function deselectPhotos(
   });
 }
 
-/** 한 장 빼기 — 앨범에 없으면 404(조용히 넘어가지 않는다). */
+/** 한 장 빼기 — 셀렉에 없으면 404(조용히 넘어가지 않는다). */
 export function deselectPhoto(
   galleryId: number,
   photoId: number,

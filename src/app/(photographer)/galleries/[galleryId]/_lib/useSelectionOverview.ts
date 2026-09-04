@@ -2,7 +2,7 @@
  * 작가 — 부부 선택 현황 훅 (읽기 + 다시 열기, WES-263)
  * 위치: src/app/(photographer)/galleries/[galleryId]/_lib/useSelectionOverview.ts
  *
- * 작가에게 선택 앨범은 관찰 대상이다 — 담기/빼기는 부부만 하므로 여기는
+ * 작가에게 셀렉은 관찰 대상이다 — 담기/빼기는 부부만 하므로 여기는
  * 조회가 전부고, 유일한 쓰기는 제출 되돌리기(withdraw) 응답을 replace로
  * 반영하는 것이다. 조회 실패는 "아직 아무것도 안 고름"과 구분해 error로 둔다.
  */

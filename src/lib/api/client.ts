@@ -39,6 +39,8 @@ type ApiOptions = {
   body?: unknown;
   /** false면 Authorization 헤더를 싣지 않는다. 기본 true. */
   auth?: boolean;
+  /** 게스트 토큰처럼 엔드포인트별로 필요한 추가 헤더. */
+  headers?: Record<string, string>;
 };
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -57,7 +59,7 @@ async function toApiError(res: Response): Promise<ApiError> {
 async function request<T>(path: string, options: ApiOptions): Promise<T> {
   const { method = "GET", body, auth = true } = options;
 
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (auth) {
     const token = getAccessToken();

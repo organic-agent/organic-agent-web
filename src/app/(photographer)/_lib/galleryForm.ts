@@ -9,10 +9,7 @@
  * 주요 책임:
  * - 갤러리 폼 기본값 생성
  * - 저장 가능 여부 검증
- * - 폼 값과 레거시 Gallery 데이터 간 변환 (목업 스토어 브리지용)
  */
-
-import type { Gallery } from "@/lib/galleries";
 
 export type GalleryFormValues = {
   name: string;
@@ -48,30 +45,4 @@ export function isGalleryFormValid(values: GalleryFormValues) {
   return (
     values.name.trim().length > 0 && !isPastDueDate(values.dueDate) && targetValid
   );
-}
-
-/** 폼 값 → 레거시 Gallery. 상세 화면이 서버 전환(이슈 #18)되기 전까지의 브리지. */
-export function createGalleryFromForm({
-  values,
-  id,
-}: {
-  values: GalleryFormValues;
-  id: string;
-}): Gallery {
-  return {
-    id,
-    couple: values.name.trim(),
-    dueDate: values.dueDate,
-    // 초상권 문제로 저장소에 사진 URL을 두지 않는다 — 커버는 업로드 연동 후 채워진다
-    cover: "",
-    total: 0,
-    selected: 0,
-    target: values.target.trim() ? Number(values.target) : 0,
-    memo: "",
-    invited: false,
-    uploaded: false,
-    selectionSubmittedAt: null,
-    delivered: false,
-    hasPendingCorrectionRequest: false,
-  };
 }

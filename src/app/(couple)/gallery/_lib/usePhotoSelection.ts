@@ -1,9 +1,9 @@
 /**
- * 부부 — 선택 앨범(셀렉) 훅
+ * 부부 — 사진 셀렉 훅
  * 위치: src/app/(couple)/gallery/_lib/usePhotoSelection.ts
  *
  * 서버가 진실이다. 담기/빼기는 낙관적으로 먼저 칠하고, 담기 성공 응답
- * (앨범 전체)으로 상태를 맞추며, 거절되면 **통째로** 되돌린다(서버가
+ * (셀렉 전체)으로 상태를 맞추며, 거절되면 **통째로** 되돌린다(서버가
  * 부분 반영을 하지 않으므로 화면도 그렇게).
  * - 409(이미 담긴 사진 겹침): 신랑·신부가 동시에 고르다 생긴 일 —
  *   토스트 없이 조용히 재조회해 화면을 최신으로 맞춘다.
@@ -136,7 +136,7 @@ export function usePhotoSelection(
     }
   }
 
-  /** 앨범 전체를 새 응답으로 교체 — 제출/철회 응답 반영용 */
+  /** 셀렉 전체를 새 응답으로 교체 — 제출/철회 응답 반영용 */
   function replace(res: PhotoSelectionResponse) {
     setResult({ kind: "ready", sel: toState(res) });
   }

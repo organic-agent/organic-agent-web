@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * 정보 패널 — 피그마 Panel/Info 대응 (280px: AI 분석 / 파일 정보 / 내 메모 / 보정 요청)
+ * 정보 패널 — 피그마 Panel/Info 대응 (280px: AI 분석 / 파일 정보)
  * 위치: src/components/app/InfoPanel.tsx
  *
- * AI 분석은 연동 전 mock, 파일 정보는 일부 실데이터, 메모·보정 요청은 로컬 스토어에 저장.
+ * AI 분석은 연동 전 mock이고 파일 정보는 서버 응답을 사용한다.
  * 각 섹션은 헤더(⌄ + 제목) 클릭으로 접고 펼 수 있다.
  */
 
 import { useState, type ReactNode } from "react";
 import { InfoRow } from "@/components/ui/InfoRow";
-import { Textarea } from "@/components/ui/Textarea";
 import { DropdownIcon } from "@/components/icons";
 
 type InfoItem = { label: string; value: string };
@@ -18,11 +17,6 @@ type InfoItem = { label: string; value: string };
 type InfoPanelProps = {
   analysis: InfoItem[];
   fileInfo: InfoItem[];
-  /** 핸들러가 없으면 해당 섹션을 숨긴다 — 메모·보정 요청 입력은 부부 전용 (작가는 파일 정보만) */
-  memo?: string;
-  onMemoChange?: (value: string) => void;
-  retouchRequest?: string;
-  onRetouchRequestChange?: (value: string) => void;
 };
 
 function Divider() {
@@ -61,10 +55,6 @@ function PanelSection({
 export function InfoPanel({
   analysis,
   fileInfo,
-  memo,
-  onMemoChange,
-  retouchRequest,
-  onRetouchRequestChange,
 }: InfoPanelProps) {
   return (
     <aside className="flex w-70 shrink-0 flex-col gap-3 overflow-y-auto border-l border-stroke-neutral-muted bg-bg-layer-default p-5">
@@ -85,36 +75,6 @@ export function InfoPanel({
           ))}
         </div>
       </PanelSection>
-
-      {onMemoChange && (
-        <>
-          <Divider />
-          <PanelSection title="내 메모">
-            <Textarea
-              value={memo ?? ""}
-              onChange={onMemoChange}
-              placeholder="나만 보는 메모를 남겨보세요"
-              aria-label="내 메모"
-              className="h-25"
-            />
-          </PanelSection>
-        </>
-      )}
-
-      {onRetouchRequestChange && (
-        <>
-          <Divider />
-          <PanelSection title="보정 요청">
-            <Textarea
-              value={retouchRequest ?? ""}
-              onChange={onRetouchRequestChange}
-              placeholder="작가님께 전달할 보정 요청을 남겨보세요"
-              aria-label="보정 요청"
-              className="h-25"
-            />
-          </PanelSection>
-        </>
-      )}
     </aside>
   );
 }

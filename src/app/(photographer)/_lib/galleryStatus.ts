@@ -18,6 +18,15 @@ export const STATUS_LABEL: Record<GalleryStatus, string> = {
   CLOSED: "마감",
 };
 
+export const STAGE_LABEL: Record<GalleryResponse["stage"], string> = {
+  UPLOAD: "업로드",
+  SELECTION_IN_PROGRESS: "셀렉 진행",
+  SELECTION_COMPLETED: "셀렉 완료",
+  RETOUCH: "보정",
+  DELIVERY: "납품",
+  ARCHIVED: "보관",
+};
+
 /**
  * 마감 기한까지 지난 일수(부호 있음). 양수면 기한을 지났고, 0이면 오늘
  * 마감, 음수면 남았다(-n = D-n). 기한이 없으면 null.

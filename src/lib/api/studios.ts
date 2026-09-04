@@ -7,11 +7,14 @@ import { api } from "@/lib/api/client";
 
 export type StudioResponse = {
   id: number;
+  workspaceId: number;
   name: string;
   /** trim + 소문자 정규화를 거친 canonical 공개 주소. */
   galleryUrl: string;
   /** 유입 경로. 마케팅 집계용이라 없을 수 있다. */
   inflowChannel: string | null;
+  contact: string | null;
+  description: string | null;
   createdAt: string | null;
 };
 
@@ -51,6 +54,37 @@ export function checkGalleryUrlAvailability(
  */
 export function fetchMyStudio(): Promise<StudioResponse> {
   return api("/api/v1/studios/me");
+}
+
+export function listStudios(): Promise<StudioResponse[]> {
+  return api("/api/v1/studios");
+}
+
+export type StudioMemberResponse = {
+  memberId: number;
+  userId: number;
+  nickname: string;
+  email: string | null;
+  role: "OWNER" | "MEMBER";
+};
+
+export function listStudioMembers(workspaceId: number): Promise<StudioMemberResponse[]> {
+  return api(`/api/v1/studios/${workspaceId}/members`);
+}
+
+export function changeStudioMemberRole(
+  workspaceId: number,
+  memberId: number,
+  role: StudioMemberResponse["role"],
+): Promise<StudioMemberResponse> {
+  return api(`/api/v1/studios/${workspaceId}/members/${memberId}/role`, {
+    method: "PATCH",
+    body: { role },
+  });
+}
+
+export function leaveStudio(workspaceId: number): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}/members/me`, { method: "DELETE" });
 }
 
 /**

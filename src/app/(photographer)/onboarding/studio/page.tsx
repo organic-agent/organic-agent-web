@@ -23,7 +23,6 @@ import { TextField } from "@/components/ui/TextField";
 import { BackIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
 import { checkGalleryUrlAvailability, createStudio } from "@/lib/api/studios";
-import { saveStudioInfo } from "@/lib/studio";
 import {
   useGalleryUrlAvailability,
   type GalleryUrlCheck,
@@ -109,15 +108,13 @@ export default function StudioNewPage() {
         return;
       }
 
-      const studio = await createStudio({
+      await createStudio({
         name: name.trim(),
         galleryUrl: availability.galleryUrl,
         inflowChannel:
           SOURCES.find((s) => s.key === source)?.label ?? null,
       });
 
-      // 갤러리 목록·온보딩 화면이 아직 이 로컬 스토어로 이름을 읽는다.
-      saveStudioInfo({ name: studio.name, url: studio.galleryUrl, source });
       router.push("/onboarding/gallery");
     } catch (err) {
       if (err instanceof ApiError) {

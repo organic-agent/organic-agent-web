@@ -25,7 +25,7 @@ type PhotoCellProps = {
   format?: string;
   /** 선택 가능한 셀 — 호버 체크 표시 + selected 상태 렌더링 (부부 전용) */
   selectable?: boolean;
-  /** 선택 앨범에 담긴 상태 */
+  /** 셀렉에 담긴 상태 */
   selected?: boolean;
   /**
    * 폴더 관리용 다중 선택 상태 — 어두운 딤으로 표시 (이슈 #31).

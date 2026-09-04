@@ -10,7 +10,13 @@ import { NotificationBell } from "@/components/app/NotificationBell";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/ui/Avatar";
 
-export function StudioTopbar({ studioInitial }: { studioInitial: string }) {
+export function StudioTopbar({
+  studioInitial,
+  onMembersClick,
+}: {
+  studioInitial: string;
+  onMembersClick?: () => void;
+}) {
   return (
     <header className="border-b border-stroke-neutral-muted bg-bg-layer-default">
       <div className="mx-auto flex h-12 w-full max-w-wrap items-center justify-between px-6">
@@ -22,6 +28,11 @@ export function StudioTopbar({ studioInitial }: { studioInitial: string }) {
           <b className="type-brand-wordmark">Easy Select</b>
         </Link>
         <div className="flex items-center gap-2">
+          {onMembersClick && (
+            <button type="button" onClick={onMembersClick} className="rounded-(--radius-4) px-3 py-2 type-label-button text-fg-neutral hover:bg-bg-layer-default-hover">
+              구성원
+            </button>
+          )}
           <NotificationBell />
           <Avatar initial={studioInitial} />
         </div>

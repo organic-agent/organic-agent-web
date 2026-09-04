@@ -7,9 +7,19 @@ import { api } from "@/lib/api/client";
 
 export type GalleryResponse = {
   id: number;
-  studioId: number;
+  workspaceId: number;
+  createdByUserId: number | null;
   title: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
+  workflowStatus: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED";
+  stage:
+    | "UPLOAD"
+    | "SELECTION_IN_PROGRESS"
+    | "SELECTION_COMPLETED"
+    | "RETOUCH"
+    | "DELIVERY"
+    | "ARCHIVED";
+  shootType: "REHEARSAL" | "CEREMONY" | "OTHER";
   /** 사진 선택 마감 기한. null이면 기한 없이 열려 있다. */
   selectionDeadline: string | null;
   /** 부부가 최종적으로 고를 사진 장수. null이면 제한이 없다. */
@@ -20,9 +30,12 @@ export type GalleryResponse = {
 };
 
 export type CreateGalleryRequest = {
+  workspaceId: number;
   title: string;
   selectionDeadline?: string | null;
   maxSelectablePhotoCount?: number | null;
+  maxRetouchRoundCount?: number | null;
+  shootType?: "REHEARSAL" | "CEREMONY" | "OTHER";
 };
 
 /**
@@ -37,8 +50,9 @@ export function toSelectionDeadline(date: string): string {
  * 내 갤러리 목록. 작가는 스튜디오의 갤러리 전부를 받는다.
  * 필터·페이징 없이 전체가 오고, 열람·선택 수치는 포함되지 않는다.
  */
-export function listGalleries(): Promise<GalleryResponse[]> {
-  return api("/api/v1/galleries");
+export function listGalleries(stage?: GalleryResponse["stage"]): Promise<GalleryResponse[]> {
+  const query = stage ? `?stage=${encodeURIComponent(stage)}` : "";
+  return api(`/api/v1/galleries${query}`);
 }
 
 /**
@@ -89,6 +103,16 @@ export function reopenGallery(
   return api(`/api/v1/galleries/${galleryId}/reopen`, {
     method: "POST",
     body: { selectionDeadline },
+  });
+}
+
+export function changeGalleryWorkflowStatus(
+  galleryId: number,
+  workflowStatus: GalleryResponse["workflowStatus"],
+): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/workflow-status`, {
+    method: "PATCH",
+    body: { workflowStatus },
   });
 }
 
