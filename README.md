@@ -33,7 +33,7 @@
 ### 디자인 시스템
 
 - 피그마 컴포넌트 체계와 1:1 대응하는 공용 컴포넌트(`src/components`)
-- 역할 기반 디자인 토큰 v2 — `tokens/*.json`에서 `tokens.css`를 생성하는 빌드 파이프라인
+- 디자이너 변수 기반 디자인 토큰(디자인 시스템 v2) — `tokens/*.json`에서 생성 CSS 2개를 만드는 빌드 파이프라인
 - 본문 서체 Noto Sans KR (next/font 셀프 호스팅, 피그마와 동일 서체)
 
 ## 기술 스택
@@ -75,10 +75,11 @@ npm run dev
 | `npm run build` | 프로덕션 빌드 생성 |
 | `npm run start` | 프로덕션 빌드 실행 |
 | `npm run lint` | ESLint 검사 |
-| `npm run tokens:build` | `tokens/*.json` → `tokens.css` · `tokens.dark.css` 생성 |
+| `npm run tokens:build` | `tokens/*.json` → `tokens.generated.css`(CSS 변수) · `tokens.tailwind.generated.css`(Tailwind 브리지·타이포 유틸) 생성 |
+| `npm run icons:build` | Material Symbols Rounded 300 → `src/components/icons.tsx` 생성 |
 | `npx tsc --noEmit` | TypeScript 타입 검사 |
 
-디자인 토큰을 수정할 때는 `tokens/*.json`을 고친 뒤 `npm run tokens:build`를 실행합니다. `src/app/tokens.css`와 `tokens.dark.css`는 생성 파일이므로 직접 수정하지 않습니다.
+디자인 토큰을 수정할 때는 `tokens/*.json`을 고친 뒤 `npm run tokens:build`를 실행합니다. `src/app/tokens.generated.css`와 `tokens.tailwind.generated.css`는 생성 파일이므로 직접 수정하지 않습니다.
 
 ## 주요 화면
 
