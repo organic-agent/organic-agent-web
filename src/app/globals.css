@@ -8,7 +8,7 @@
 
 @theme {
   --font-sans:
-    var(--font-pretendard), Pretendard, -apple-system, "Apple SD Gothic Neo",
+    "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo",
     system-ui, sans-serif;
 
   --leading-normal: 1.5;
@@ -25,7 +25,19 @@
 }
 
 @theme inline {
-  --font-brand: var(--font-families-montserrat), var(--font-montserrat), sans-serif;
+  /* 셀프 호스팅(next/font) Montserrat를 먼저 — 로컬 설치 폰트가 끼어들어 기기마다 다르게 보이지 않도록 */
+  --font-brand: var(--font-montserrat), var(--font-families-montserrat), sans-serif;
+}
+
+/* ─── 테마 ───
+   <html data-theme="light|dark">는 src/lib/theme-bootstrap.ts 스크립트가 첫 페인트 전에 정한다.
+   색 변수는 tokens.generated.css의 [data-theme="dark"] 블록이 덮어쓰고, 여기서는 브라우저 기본 UI
+   (스크롤바·입력창·체크박스 등)가 테마를 따르도록 color-scheme만 맞춘다. */
+:root {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 /* ─── Base resets ─── */
