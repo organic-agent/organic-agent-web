@@ -42,13 +42,13 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
   const deadline = deadlineDateLabel(gallery.selectionDeadline);
 
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-(--radius-16) border border-stroke-neutral-muted bg-bg-layer-default">
+    <article className="relative flex flex-col overflow-hidden rounded-(--radius-16) border border-divider-default bg-background-default-main">
       <Link
         href={`/galleries/${gallery.id}`}
         aria-label={`${gallery.title} 갤러리 열기`}
-        className="relative block aspect-12/7 bg-bg-disabled"
+        className="relative block aspect-12/7 bg-surface-default-light"
       >
-        <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+        <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
           <PhotoIcon size={24} />
         </span>
       </Link>
@@ -60,7 +60,7 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
       <div className="flex flex-col gap-5 p-3">
         <div className="flex flex-col gap-1">
           <div className="flex h-8 items-center justify-between gap-2">
-            <h2 className="truncate type-heading-card text-fg-neutral">
+            <h2 className="truncate type-title-m text-contents-light-bgd-default">
               {gallery.title}
             </h2>
             <div ref={menuRef} className="relative flex shrink-0">
@@ -71,14 +71,14 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
                 onClick={() => setMenuOpen((v) => !v)}
               />
               {menuOpen && (
-                <div className="absolute right-0 top-full z-20 mt-1 flex w-32 flex-col rounded-(--radius-8) border border-stroke-neutral-muted bg-bg-layer-default p-1 shadow-(--shadow-hover)">
+                <div className="absolute right-0 top-full z-20 mt-1 flex w-32 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover)">
                   <button
                     type="button"
                     onClick={() => {
                       setMenuOpen(false);
                       onEdit(gallery);
                     }}
-                    className="w-full cursor-pointer rounded-(--radius-4) px-3 py-2 text-left type-body-medium text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                    className="w-full cursor-pointer rounded-(--radius-4) px-3 py-2 text-left type-content-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
                   >
                     수정
                   </button>
@@ -88,7 +88,7 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
                       setMenuOpen(false);
                       onDelete(gallery);
                     }}
-                    className="w-full cursor-pointer rounded-(--radius-4) px-3 py-2 text-left type-body-medium text-fg-critical transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                    className="w-full cursor-pointer rounded-(--radius-4) px-3 py-2 text-left type-content-m text-function-error-default transition-colors duration-fast hover:bg-surface-default-lightness"
                   >
                     삭제
                   </button>
@@ -96,7 +96,7 @@ export function GalleryCard({ gallery, onEdit, onDelete }: Props) {
               )}
             </div>
           </div>
-          <p className="type-body-small text-fg-neutral-muted">
+          <p className="type-content-xs text-contents-light-bgd-sub">
             {deadline ? `마감 : ${deadline}` : "마감 기한 없음"}
           </p>
         </div>

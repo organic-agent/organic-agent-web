@@ -56,13 +56,13 @@ export function DeleteGalleryConfirmModal({
       paddingClassName="p-7"
       onClose={onClose}
     >
-      <p className="mb-6 type-body-medium text-fg-neutral-muted">
-        <span className="font-medium text-fg-neutral">{gallery.title}</span>의
+      <p className="mb-6 type-content-m text-contents-light-bgd-sub">
+        <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의
         사진과 선택 기록이 부부에게 보이지 않게 돼요. 휴지통에서 언제든 되돌릴
         수 있고, 보관 기간이 지나면 원본과 함께 자동으로 완전히 삭제돼요.
       </p>
       {banner && (
-        <p role="alert" className="mb-4 text-center type-body-small text-fg-critical">
+        <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
           {banner}
         </p>
       )}

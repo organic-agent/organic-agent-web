@@ -47,7 +47,7 @@ export function ZoomSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="확대 비율"
-        className="flex cursor-pointer items-center gap-1 type-body-medium text-fg-neutral"
+        className="flex cursor-pointer items-center gap-1 type-content-m text-contents-light-bgd-default"
       >
         {Math.round(value * 100)}%
         <DropdownIcon
@@ -59,7 +59,7 @@ export function ZoomSelect({
       {open && (
         <div
           role="listbox"
-          className={`absolute right-0 flex w-24 flex-col rounded-(--radius-8) border border-stroke-neutral-muted bg-bg-layer-default p-1 shadow-(--shadow-hover) ${
+          className={`absolute right-0 flex w-24 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover) ${
             direction === "up" ? "bottom-full mb-2" : "top-full mt-2 z-20"
           }`}
         >
@@ -73,10 +73,10 @@ export function ZoomSelect({
                 onChange(level);
                 setOpen(false);
               }}
-              className={`w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium transition-colors duration-fast hover:bg-bg-layer-default-hover ${
+              className={`w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-lightness ${
                 level === value
-                  ? "bg-bg-layer-default-hover text-fg-neutral"
-                  : "text-fg-neutral-muted"
+                  ? "bg-surface-default-lightness text-contents-light-bgd-default"
+                  : "text-contents-light-bgd-sub"
               }`}
             >
               {Math.round(level * 100)}%

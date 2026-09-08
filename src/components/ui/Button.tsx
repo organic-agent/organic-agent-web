@@ -2,7 +2,8 @@
  * 공용 버튼 — 디자인 시스템 Button 컴포넌트 (피그마 Components/Button 대응)
  * 위치: src/components/ui/Button.tsx
  *
- * kind: primary(채움) | ghost(투명) | accent(로즈 — "선택 확정" 액션 전용, 예: 작가에게 전달하기)
+ * kind: primary(채움 — 주 액션·"작가에게 전달하기" 포함) | ghost(투명)
+ * v2: accent(로즈) kind는 폐지됨 — 디자이너 시안에서 주 버튼은 brand/primary 하나
  * size: sm(32) | md(40) | lg(48)
  * href가 있으면 <Link>로, 없으면 <button>으로 렌더링한다.
  */
@@ -10,7 +11,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-type ButtonKind = "primary" | "ghost" | "accent";
+type ButtonKind = "primary" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = {
@@ -26,7 +27,7 @@ type ButtonProps = {
 };
 
 const base =
-  "type-label-button inline-flex items-center justify-center gap-2 rounded-(--pill) whitespace-nowrap cursor-pointer border-none transition-all duration-fast ease-out active:translate-y-px";
+  "type-label-medium-m inline-flex items-center justify-center gap-2 rounded-(--pill) whitespace-nowrap cursor-pointer border-none transition-all duration-fast ease-out active:translate-y-px";
 
 const sizes: Record<ButtonSize, string> = {
   sm: "h-8 px-4",
@@ -36,17 +37,14 @@ const sizes: Record<ButtonSize, string> = {
 
 const kinds: Record<ButtonKind, string> = {
   primary:
-    "bg-bg-brand-solid text-fg-neutral-inverted hover:bg-bg-brand-solid-hover hover:shadow-(--shadow-hover)",
+    "bg-brand-primary-default text-contents-dark-bgd-default hover:bg-brand-primary-light hover:shadow-(--shadow-hover)",
   ghost:
-    "bg-transparent text-fg-neutral hover:bg-bg-layer-default-hover",
-  accent:
-    "bg-bg-accent-solid text-fg-neutral-inverted hover:bg-bg-accent-solid-hover hover:shadow-(--shadow-hover)",
+    "bg-transparent text-contents-light-bgd-default hover:bg-surface-default-lightness",
 };
 
 const disabledKinds: Record<ButtonKind, string> = {
-  primary: "bg-bg-disabled text-fg-disabled cursor-not-allowed",
-  ghost: "bg-transparent text-fg-disabled cursor-not-allowed",
-  accent: "bg-bg-disabled text-fg-disabled cursor-not-allowed",
+  primary: "bg-surface-default-light text-contents-light-bgd-disabled cursor-not-allowed",
+  ghost: "bg-transparent text-contents-light-bgd-disabled cursor-not-allowed",
 };
 
 export function Button({

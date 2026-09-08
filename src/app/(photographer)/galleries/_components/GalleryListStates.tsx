@@ -18,12 +18,12 @@ export function GalleryListSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="flex flex-col overflow-hidden rounded-(--radius-16) border border-stroke-neutral-muted bg-bg-layer-default"
+          className="flex flex-col overflow-hidden rounded-(--radius-16) border border-divider-default bg-background-default-main"
         >
-          <div className="aspect-12/7 bg-bg-disabled" />
+          <div className="aspect-12/7 bg-surface-default-light" />
           <div className="flex flex-col gap-2.5 p-3 pb-5">
-            <div className="h-3 w-[70%] rounded-(--radius-4) bg-bg-disabled" />
-            <div className="h-3 w-[45%] rounded-(--radius-4) bg-bg-disabled" />
+            <div className="h-3 w-[70%] rounded-(--radius-4) bg-surface-default-light" />
+            <div className="h-3 w-[45%] rounded-(--radius-4) bg-surface-default-light" />
           </div>
         </div>
       ))}
@@ -33,11 +33,11 @@ export function GalleryListSkeleton() {
 
 export function GalleryListError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-stroke-neutral-weak px-6 py-14 text-center">
-      <p className="type-heading-card text-fg-neutral">
+    <div className="flex flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-border-default px-6 py-14 text-center">
+      <p className="type-title-m text-contents-light-bgd-default">
         갤러리 목록을 불러오지 못했어요
       </p>
-      <p className="mb-2 type-body-small text-fg-neutral-muted">
+      <p className="mb-2 type-content-xs text-contents-light-bgd-sub">
         네트워크 연결을 확인한 뒤 다시 시도해 주세요
       </p>
       <Button size="sm" onClick={onRetry}>

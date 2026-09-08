@@ -56,15 +56,15 @@ export function StudioHeader({
   }
 
   return (
-    <div className="border-b border-stroke-neutral-muted bg-bg-layer-default">
+    <div className="border-b border-divider-default bg-background-default-main">
       <div className="mx-auto flex h-12 w-full max-w-wrap items-center justify-between px-6">
-        <h1 className="truncate type-heading-page text-fg-neutral">
+        <h1 className="truncate type-title-l text-contents-light-bgd-default">
           {studioName}
         </h1>
 
         <div ref={menuRef} className="relative flex shrink-0 items-center gap-2">
           {statusFilter !== "전체" && (
-            <span className="type-label-button text-fg-neutral">
+            <span className="type-label-medium-m text-contents-light-bgd-default">
               {statusFilter}
             </span>
           )}
@@ -78,7 +78,7 @@ export function StudioHeader({
           {open && (
             <div
               role="listbox"
-              className="absolute right-0 top-full z-20 mt-1 flex w-48 flex-col rounded-(--radius-8) border border-stroke-neutral-muted bg-bg-layer-default p-1 shadow-(--shadow-hover)"
+              className="absolute right-0 top-full z-20 mt-1 flex w-48 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover)"
             >
               {STATUS_FILTERS.map((filter) => (
                 <MenuItem

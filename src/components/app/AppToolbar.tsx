@@ -20,7 +20,7 @@ export function AppToolbar({
 }) {
   return (
     <footer
-      className={`flex h-12 shrink-0 items-center justify-between px-4 bg-bg-layer-default border-t border-stroke-neutral-muted ${className}`}
+      className={`flex h-12 shrink-0 items-center justify-between px-4 bg-background-default-main border-t border-divider-default ${className}`}
     >
       <div className="flex items-center gap-1">{left}</div>
       <div className="flex items-center gap-1">{center}</div>

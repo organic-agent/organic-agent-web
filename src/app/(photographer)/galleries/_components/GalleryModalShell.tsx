@@ -52,12 +52,12 @@ export function GalleryModalShell({
       className="fixed inset-0 z-50 grid place-items-center px-4"
     >
       <div
-        className="absolute inset-0 bg-bg-overlay backdrop-blur-sm"
+        className="absolute inset-0 bg-surface-default-medium backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`relative z-10 w-full ${maxWidthClassName} rounded-(--radius-16) bg-bg-layer-default shadow-(--shadow-modal) ${paddingClassName}`}
+        className={`relative z-10 w-full ${maxWidthClassName} rounded-(--radius-16) bg-background-default-main shadow-(--shadow-modal) ${paddingClassName}`}
       >
         <IconButton
           icon={<CloseIcon />}
@@ -65,11 +65,11 @@ export function GalleryModalShell({
           aria-label="닫기"
           className="absolute right-5 top-5"
         />
-        <h2 className="mb-1 pr-8 type-heading-large text-fg-neutral">
+        <h2 className="mb-1 pr-8 type-title-xl text-contents-light-bgd-default">
           {title}
         </h2>
         {desc && (
-          <p className="mb-6 type-body-medium text-fg-neutral-muted">{desc}</p>
+          <p className="mb-6 type-content-m text-contents-light-bgd-sub">{desc}</p>
         )}
         {children}
       </div>
@@ -88,7 +88,7 @@ export function GalleryModalButtons({
   onConfirm: () => void;
   confirmLabel: string;
   /** accent = 로즈 — "선택 확정" 액션 전용 (예: 부부의 전달하기) */
-  confirmVariant?: "primary" | "danger" | "accent";
+  confirmVariant?: "primary" | "danger";
   disabled?: boolean;
 }) {
   return (
@@ -102,13 +102,13 @@ export function GalleryModalButtons({
           type="button"
           onClick={onConfirm}
           disabled={disabled}
-          className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-(--pill) bg-fg-critical px-5 type-label-button text-fg-neutral-inverted transition-opacity duration-fast hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
+          className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-(--pill) bg-function-error-default px-5 type-label-medium-m text-contents-dark-bgd-default transition-opacity duration-fast hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
         >
           {confirmLabel}
         </button>
       ) : (
         <Button
-          kind={confirmVariant === "accent" ? "accent" : "primary"}
+          kind="primary"
           onClick={onConfirm}
           disabled={disabled}
           className="flex-1"

@@ -37,8 +37,8 @@ export function PhotoThumbnail({
       className="relative h-full shrink-0 cursor-pointer"
     >
       <span
-        className={`relative block aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-bg-disabled ${
-          selected ? "border-2 border-fg-neutral" : ""
+        className={`relative block aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-surface-default-light ${
+          selected ? "border-2 border-contents-light-bgd-default" : ""
         }`}
       >
         {preparing ? (
@@ -57,7 +57,7 @@ export function PhotoThumbnail({
         )}
       </span>
       {badge !== undefined && (
-        <span className="absolute left-1 top-1 rounded-(--radius-4) bg-bg-neutral-inverted px-1 py-0.5 type-body-small leading-none text-fg-neutral-inverted">
+        <span className="absolute left-1 top-1 rounded-(--radius-4) bg-background-inverse-main px-1 py-0.5 type-content-xs leading-none text-contents-dark-bgd-default">
           {badge}
         </span>
       )}

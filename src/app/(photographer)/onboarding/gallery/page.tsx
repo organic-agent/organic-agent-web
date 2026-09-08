@@ -112,29 +112,29 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg-layer-default grid place-items-center px-6 py-12">
+    <main className="min-h-dvh bg-background-default-main grid place-items-center px-6 py-12">
       <div className="w-full max-w-130">
         <div className="mb-8">
-          <p className="mb-3 type-label-eyebrow text-fg-neutral-muted">
+          <p className="mb-3 type-label-eyebrow text-contents-light-bgd-sub">
             First gallery
           </p>
-          <h1 className="mb-2 type-heading-large text-fg-neutral">
+          <h1 className="mb-2 type-title-xl text-contents-light-bgd-default">
             첫 샘플 갤러리를 만들어볼까요
           </h1>
-          <p className="type-body-medium text-fg-neutral-muted">
-            <b className="font-medium text-fg-neutral">{studio.name}</b>에서
+          <p className="type-content-m text-contents-light-bgd-sub">
+            <b className="font-medium text-contents-light-bgd-default">{studio.name}</b>에서
             사용할 첫 갤러리를 실제 생성 흐름처럼 하나씩 입력해봅니다.
           </p>
         </div>
 
-        <div className="rounded-(--radius-16) border border-stroke-neutral-muted bg-bg-layer-default p-8">
+        <div className="rounded-(--radius-16) border border-divider-default bg-background-default-main p-8">
           <div className="mb-8">
             <div className="mb-3 flex items-center justify-between">
-              <p className="type-label-eyebrow text-fg-neutral-muted">
+              <p className="type-label-eyebrow text-contents-light-bgd-sub">
                 Step {step + 1} / {STEPS.length}
               </p>
               {current.optional && (
-                <span className="type-body-small text-fg-neutral-muted">
+                <span className="type-content-xs text-contents-light-bgd-sub">
                   선택 입력
                 </span>
               )}
@@ -148,17 +148,17 @@ export default function OnboardingPage() {
                   disabled={creating}
                   aria-label={`${index + 1}단계로 이동`}
                   className={`h-1.5 flex-1 cursor-pointer rounded-(--pill) transition-colors duration-fast ${
-                    index <= step ? "bg-bg-brand-solid" : "bg-bg-disabled"
+                    index <= step ? "bg-brand-primary-default" : "bg-surface-default-light"
                   }`}
                 />
               ))}
             </div>
           </div>
 
-          <h2 className="mb-2 type-heading-card text-fg-neutral">
+          <h2 className="mb-2 type-title-m text-contents-light-bgd-default">
             {current.title}
           </h2>
-          <p className="mb-7 type-body-medium text-fg-neutral-muted">
+          <p className="mb-7 type-content-m text-contents-light-bgd-sub">
             {current.desc}
           </p>
 
@@ -178,7 +178,7 @@ export default function OnboardingPage() {
           {error && (
             <p
               role="alert"
-              className="mb-4 type-body-small text-fg-critical"
+              className="mb-4 type-content-xs text-function-error-default"
             >
               {error}
             </p>

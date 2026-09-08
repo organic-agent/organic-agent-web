@@ -78,7 +78,7 @@ function RenameRow({
           if (e.key === "Escape") onCancel();
         }}
         aria-label="이름 수정"
-        className="h-7 w-full rounded-(--radius-4) border border-fg-neutral bg-bg-layer-default px-2 type-body-medium text-fg-neutral outline-none"
+        className="h-7 w-full rounded-(--radius-4) border border-contents-light-bgd-default bg-background-default-main px-2 type-content-m text-contents-light-bgd-default outline-none"
       />
     </div>
   );
@@ -149,7 +149,7 @@ export function AlbumTreeSection({
           }}
           onMouseDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
-          className={`absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-(--radius-4) bg-bg-layer-default-hover text-fg-neutral-muted transition-opacity duration-fast hover:text-fg-neutral focus-visible:opacity-100 ${
+          className={`absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-(--radius-4) bg-surface-default-lightness text-contents-light-bgd-sub transition-opacity duration-fast hover:text-contents-light-bgd-default focus-visible:opacity-100 ${
             open ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
           }`}
         >
@@ -159,7 +159,7 @@ export function AlbumTreeSection({
           <div
             ref={menuRef}
             role="menu"
-            className="absolute top-full right-1.5 z-40 w-36 rounded-(--radius-12) border border-stroke-neutral-muted bg-bg-layer-default p-1.5 shadow-(--shadow-hover)"
+            className="absolute top-full right-1.5 z-40 w-36 rounded-(--radius-12) border border-divider-default bg-background-default-main p-1.5 shadow-(--shadow-hover)"
           >
             <button
               type="button"
@@ -167,7 +167,7 @@ export function AlbumTreeSection({
                 setMenuFor(null);
                 onRename();
               }}
-              className="block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-neutral hover:bg-bg-layer-default-hover"
+              className="block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-content-m text-contents-light-bgd-default hover:bg-surface-default-lightness"
             >
               이름 바꾸기
             </button>
@@ -177,7 +177,7 @@ export function AlbumTreeSection({
                 setMenuFor(null);
                 onDelete();
               }}
-              className="block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-critical hover:bg-bg-layer-default-hover"
+              className="block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-content-m text-function-error-default hover:bg-surface-default-lightness"
             >
               삭제
             </button>
@@ -216,16 +216,16 @@ export function AlbumTreeSection({
                   : () => setEditing({ kind: "group", groupId: group.groupId })
               }
               aria-expanded={open}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-3 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-3 text-left transition-colors duration-fast hover:bg-surface-default-lightness"
             >
               <DropdownIcon
                 size={16}
-                className={`shrink-0 text-fg-neutral-muted transition-transform duration-fast ${open ? "" : "-rotate-90"}`}
+                className={`shrink-0 text-contents-light-bgd-sub transition-transform duration-fast ${open ? "" : "-rotate-90"}`}
               />
-              <span className="min-w-0 flex-1 truncate type-body-medium text-fg-neutral">
+              <span className="min-w-0 flex-1 truncate type-content-m text-contents-light-bgd-default">
                 {group.name}
               </span>
-              <span className="shrink-0 type-body-small text-fg-neutral-muted">
+              <span className="shrink-0 type-content-xs text-contents-light-bgd-sub">
                 {total}
               </span>
             </button>
@@ -297,13 +297,13 @@ export function AlbumTreeSection({
                     onDropPhotos(folder.folderId);
                   }}
                   aria-current={active || undefined}
-                  className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-9 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover ${
+                  className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) py-2 pr-8 pl-9 text-left transition-colors duration-fast hover:bg-surface-default-lightness ${
                     active
-                      ? "bg-bg-layer-default-hover relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-(--pill) before:bg-bg-accent-solid"
+                      ? "bg-surface-default-lightness relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light"
                       : ""
-                  } ${dropping ? "bg-bg-layer-default-hover outline-2 outline-dashed -outline-offset-2 outline-fg-neutral" : ""}`}
+                  } ${dropping ? "bg-surface-default-lightness outline-2 outline-dashed -outline-offset-2 outline-contents-light-bgd-default" : ""}`}
                 >
-                  <span className="size-5.5 shrink-0 overflow-hidden rounded-(--radius-4) bg-bg-disabled">
+                  <span className="size-5.5 shrink-0 overflow-hidden rounded-(--radius-4) bg-surface-default-light">
                     {folder.coverPhoto?.viewUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -314,10 +314,10 @@ export function AlbumTreeSection({
                       />
                     )}
                   </span>
-                  <span className="min-w-0 flex-1 truncate type-body-medium text-fg-neutral">
+                  <span className="min-w-0 flex-1 truncate type-content-m text-contents-light-bgd-default">
                     {folder.name}
                   </span>
-                  <span className="shrink-0 type-body-small text-fg-neutral-muted">
+                  <span className="shrink-0 type-content-xs text-contents-light-bgd-sub">
                     {folder.photoCount}
                   </span>
                 </button>
@@ -355,15 +355,15 @@ export function AlbumTreeSection({
       {result === null ? (
         // 목록 조회 중 — 정적 스켈레톤 행
         <div className="flex w-full flex-col gap-1" aria-hidden>
-          <span className="h-9 w-full rounded-(--radius-4) bg-bg-disabled" />
-          <span className="h-9 w-full rounded-(--radius-4) bg-bg-disabled" />
+          <span className="h-9 w-full rounded-(--radius-4) bg-surface-default-light" />
+          <span className="h-9 w-full rounded-(--radius-4) bg-surface-default-light" />
         </div>
       ) : result.kind === "error" ? (
-        <p className="px-3 type-body-small text-fg-neutral-muted">
+        <p className="px-3 type-content-xs text-contents-light-bgd-sub">
           앨범을 불러오지 못했어요.
         </p>
       ) : result.groups.length === 0 ? (
-        <p className="px-3 type-body-small text-fg-neutral-muted">
+        <p className="px-3 type-content-xs text-contents-light-bgd-sub">
           자동 분류로 앨범을 만들면 여기에 보여요
         </p>
       ) : (

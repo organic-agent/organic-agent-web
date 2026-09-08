@@ -24,7 +24,7 @@ export function Textarea({
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      className={`w-full resize-none rounded-(--radius-8) border border-stroke-neutral-weak bg-bg-layer-default p-3 type-body-medium text-fg-neutral outline-none transition-colors duration-fast placeholder:text-fg-neutral-muted focus:border-fg-neutral ${className}`}
+      className={`w-full resize-none rounded-(--radius-8) border border-border-default bg-background-default-main p-3 type-content-m text-contents-light-bgd-default outline-none transition-colors duration-fast placeholder:text-contents-light-bgd-sub focus:border-contents-light-bgd-default ${className}`}
     />
   );
 }

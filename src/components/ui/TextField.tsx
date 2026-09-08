@@ -39,10 +39,10 @@ export function TextField({
       aria-invalid={error || undefined}
       disabled={disabled}
       onChange={(e) => onChange?.(e.target.value)}
-      className={`h-8 w-full rounded-(--radius-8) border bg-bg-layer-default px-3 type-body-medium text-fg-neutral outline-none transition-colors duration-fast placeholder:text-fg-neutral-muted disabled:cursor-not-allowed disabled:border-stroke-neutral-muted disabled:text-fg-disabled ${
+      className={`h-8 w-full rounded-(--radius-8) border bg-background-default-main px-3 type-content-m text-contents-light-bgd-default outline-none transition-colors duration-fast placeholder:text-contents-light-bgd-sub disabled:cursor-not-allowed disabled:border-divider-default disabled:text-contents-light-bgd-disabled ${
         error
-          ? "border-fg-critical ring-1 ring-fg-critical"
-          : "border-stroke-neutral-weak focus:border-fg-neutral focus:ring-1 focus:ring-fg-neutral"
+          ? "border-function-error-default ring-1 ring-function-error-default"
+          : "border-border-default focus:border-contents-light-bgd-default focus:ring-1 focus:ring-contents-light-bgd-default"
       } ${className}`}
     />
   );

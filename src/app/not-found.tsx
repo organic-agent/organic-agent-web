@@ -10,13 +10,13 @@ import { Button } from "@/components/ui/Button";
 
 export default function NotFound() {
   return (
-    <main className="grid min-h-dvh place-items-center bg-bg-layer-default px-6">
+    <main className="grid min-h-dvh place-items-center bg-background-default-main px-6">
       <div className="flex flex-col items-center gap-4 text-center">
-        <BrandLogo size={40} className="text-fg-neutral" />
-        <h1 className="type-heading-large text-fg-neutral">
+        <BrandLogo size={40} className="text-contents-light-bgd-default" />
+        <h1 className="type-title-xl text-contents-light-bgd-default">
           페이지를 찾을 수 없어요
         </h1>
-        <p className="type-body-medium text-fg-neutral-muted">
+        <p className="type-content-m text-contents-light-bgd-sub">
           주소가 잘못됐거나, 삭제됐거나, 만료된 링크일 수 있어요.
         </p>
         <Button href="/" className="mt-2">

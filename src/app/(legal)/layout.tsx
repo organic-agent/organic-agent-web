@@ -14,16 +14,16 @@ export default function LegalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-bg-layer-default">
-      <header className="border-b border-stroke-neutral-muted">
+    <div className="min-h-dvh bg-background-default-main">
+      <header className="border-b border-divider-default">
         <div className="mx-auto flex h-16 w-full max-w-wrap items-center px-6">
           <Link
             href="/"
             className="flex items-center gap-2"
             aria-label="Easy Select 홈"
           >
-            <BrandLogo size={32} className="shrink-0 text-fg-neutral" />
-            <b className="type-brand-wordmark text-fg-neutral">Easy Select</b>
+            <BrandLogo size={32} className="shrink-0 text-contents-light-bgd-default" />
+            <b className="type-brand-wordmark text-contents-light-bgd-default">Easy Select</b>
           </Link>
         </div>
       </header>

@@ -31,15 +31,15 @@ export function ClusterStackCell({
     >
       <span
         aria-hidden
-        className="absolute inset-0 -translate-x-1 translate-y-0.5 -rotate-2 rounded-(--radius-4) bg-bg-disabled"
+        className="absolute inset-0 -translate-x-1 translate-y-0.5 -rotate-2 rounded-(--radius-4) bg-surface-default-light"
       />
       {photos.length > 3 && (
         <span
           aria-hidden
-          className="absolute inset-0 translate-x-1 translate-y-0.5 rotate-2 rounded-(--radius-4) bg-bg-disabled"
+          className="absolute inset-0 translate-x-1 translate-y-0.5 rotate-2 rounded-(--radius-4) bg-surface-default-light"
         />
       )}
-      <span className="absolute inset-0 overflow-hidden rounded-(--radius-4) bg-bg-disabled transition-opacity duration-fast group-hover:opacity-90">
+      <span className="absolute inset-0 overflow-hidden rounded-(--radius-4) bg-surface-default-light transition-opacity duration-fast group-hover:opacity-90">
         {representative?.url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -51,7 +51,7 @@ export function ClusterStackCell({
           />
         )}
       </span>
-      <span className="absolute right-1 bottom-1 rounded-(--radius-4) bg-bg-neutral-inverted px-1 py-0.5 type-body-small leading-none text-fg-neutral-inverted">
+      <span className="absolute right-1 bottom-1 rounded-(--radius-4) bg-background-inverse-main px-1 py-0.5 type-content-xs leading-none text-contents-dark-bgd-default">
         {photos.length}장
       </span>
     </button>

@@ -137,7 +137,7 @@ export default function LandingPage() {
       {/* Skip link */}
       <a
         href="#main"
-        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-0 focus-visible:top-0 focus-visible:z-200 focus-visible:bg-bg-neutral-inverted focus-visible:text-fg-neutral-inverted focus-visible:py-3 focus-visible:px-4.5 focus-visible:rounded-br-[10px] focus-visible:text-sm"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-0 focus-visible:top-0 focus-visible:z-200 focus-visible:bg-background-inverse-main focus-visible:text-contents-dark-bgd-default focus-visible:py-3 focus-visible:px-4.5 focus-visible:rounded-br-[10px] focus-visible:text-sm"
       >
         본문으로 건너뛰기
       </a>
@@ -147,21 +147,21 @@ export default function LandingPage() {
       <main id="main">
         {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
         <section
-          className="bg-bg-layer-default border-b border-stroke-neutral-muted pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14"
+          className="bg-background-default-main border-b border-divider-default pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14"
           aria-labelledby="hero-h"
         >
           <div className="max-w-wrap mx-auto px-6 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start">
             {/* 좌: 텍스트 + CTA */}
             <div className="flex flex-col items-start gap-5 max-w-107.5">
-              <p className="type-label-eyebrow text-fg-neutral-muted">
+              <p className="type-label-eyebrow text-contents-light-bgd-sub">
                 Easy Select
               </p>
-              <h1 id="hero-h" className="type-display-hero text-fg-neutral">
+              <h1 id="hero-h" className="type-maintext-l text-contents-light-bgd-default">
                 우리의 순간을,
                 <br />
                 함께 고르다.
               </h1>
-              <p className="type-body-large text-fg-neutral-muted">
+              <p className="type-content-l text-contents-light-bgd-sub">
                 막막했던 셀렉은 함께 고르는 설렘으로,
                 <br />
                 번거로웠던 전달은 클릭 한 번으로.
@@ -186,7 +186,7 @@ export default function LandingPage() {
               {/* 웨이트리스트 스크롤 링크 — 런칭 시 이 블록만 삭제 */}
               <a
                 href="#waitlist"
-                className="inline-flex items-center gap-1 type-label-button text-fg-neutral-muted hover:text-fg-neutral transition-colors"
+                className="inline-flex items-center gap-1 type-label-medium-m text-contents-light-bgd-sub hover:text-contents-light-bgd-default transition-colors"
               >
                 서비스 오픈 알림 받기
                 <ArrowDownIcon size={14} />
@@ -198,28 +198,28 @@ export default function LandingPage() {
                  플레이스홀더 회색은 실사진 교체 전 임시로 bg-disabled 값을 차용 */}
             <div
               aria-hidden
-              className="w-100 h-125 shrink-0 rounded-(--radius-24) bg-bg-disabled max-[900px]:w-full max-[900px]:h-80"
+              className="w-100 h-125 shrink-0 rounded-(--radius-24) bg-surface-default-light max-[900px]:w-full max-[900px]:h-80"
             />
           </div>
         </section>
 
         {/* ═══ FEATURES (피그마 Landing/Features) ═══ */}
         <section
-          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
+          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
           id="features"
           aria-labelledby="feat-h"
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
-              <p className="type-label-eyebrow text-fg-neutral-muted">
+              <p className="type-label-eyebrow text-contents-light-bgd-sub">
                 What we do
               </p>
-              <h2 id="feat-h" className="type-display-section text-fg-neutral">
+              <h2 id="feat-h" className="type-maintext-s text-contents-light-bgd-default">
                 사진 셀렉,
                 <br />
                 이렇게 달라집니다.
               </h2>
-              <p className="type-body-large text-fg-neutral-muted">
+              <p className="type-content-l text-contents-light-bgd-sub">
                 수천 장을 밤새 넘기고, 비슷한 컷을 비교하고, 서로 다른 취향을
                 맞추는 일.
                 <br />
@@ -231,19 +231,19 @@ export default function LandingPage() {
               {FEATURES.map(({ title, desc, Icon }, i) => (
                 <Reveal
                   key={title}
-                  className="bg-bg-layer-default border border-stroke-neutral-muted rounded-(--radius-16) p-8 flex flex-col gap-5 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
+                  className="bg-background-default-main border border-divider-default rounded-(--radius-16) p-8 flex flex-col gap-5 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
                   delay={((i % 3) + 1) as 1 | 2 | 3}
                 >
-                  <div className="self-start rounded-(--radius-12) bg-bg-neutral-inverted p-3 text-fg-neutral-inverted">
+                  <div className="self-start rounded-(--radius-12) bg-background-inverse-main p-3 text-contents-dark-bgd-default">
                     <span className="flex size-6 items-center justify-center">
                       <Icon />
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <h3 className="type-heading-card text-fg-neutral">
+                    <h3 className="type-title-m text-contents-light-bgd-default">
                       {title}
                     </h3>
-                    <p className="type-body-medium text-fg-neutral-muted">
+                    <p className="type-content-m text-contents-light-bgd-sub">
                       {desc}
                     </p>
                   </div>
@@ -255,16 +255,16 @@ export default function LandingPage() {
 
         {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
         <section
-          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
+          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
           id="audiences"
           aria-labelledby="aud-h"
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
-              <p className="type-label-eyebrow text-fg-neutral-muted">
+              <p className="type-label-eyebrow text-contents-light-bgd-sub">
                 Who it&apos;s for
               </p>
-              <h2 id="aud-h" className="type-display-section text-fg-neutral">
+              <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default">
                 고르는 사람에게도, 찍는 사람에게도.
               </h2>
             </Reveal>
@@ -273,25 +273,25 @@ export default function LandingPage() {
               {AUDIENCES.map(({ eyebrow, title, desc, items }, i) => (
                 <Reveal
                   key={eyebrow}
-                  className="bg-bg-layer-default border border-stroke-neutral-muted rounded-(--radius-16) p-10 flex flex-col gap-4 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
+                  className="bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
                   delay={(i + 1) as 1 | 2}
                 >
-                  <p className="type-label-eyebrow text-fg-neutral-muted">
+                  <p className="type-label-eyebrow text-contents-light-bgd-sub">
                     {eyebrow}
                   </p>
-                  <h3 className="type-heading-large text-fg-neutral">
+                  <h3 className="type-title-xl text-contents-light-bgd-default">
                     {title}
                   </h3>
-                  <p className="type-body-medium text-fg-neutral-muted">
+                  <p className="type-content-m text-contents-light-bgd-sub">
                     {desc}
                   </p>
                   <ul className="flex flex-col gap-3">
                     {items.map((text) => (
                       <li
                         key={text}
-                        className="flex items-center gap-2 type-body-medium text-fg-neutral-muted"
+                        className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
                       >
-                        <span className="size-1 rounded-full bg-fg-neutral shrink-0" />
+                        <span className="size-1 rounded-full bg-contents-light-bgd-default shrink-0" />
                         {text}
                       </li>
                     ))}
@@ -304,14 +304,14 @@ export default function LandingPage() {
 
         {/* ═══ Q&A (피그마 Landing/QnA) ═══ */}
         <section
-          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
+          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
           id="qna"
           aria-labelledby="qna-h"
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <p className="type-label-eyebrow text-fg-neutral-muted">FAQ</p>
-              <h2 id="qna-h" className="type-display-section text-fg-neutral">
+              <p className="type-label-eyebrow text-contents-light-bgd-sub">FAQ</p>
+              <h2 id="qna-h" className="type-maintext-s text-contents-light-bgd-default">
                 자주 묻는 질문
               </h2>
             </Reveal>
@@ -321,19 +321,19 @@ export default function LandingPage() {
 
         {/* ═══ WAITLIST — 하단 섹션 (런칭 시 이 섹션 전체 삭제) ═══ */}
         <section
-          className="bg-bg-layer-default border-b border-stroke-neutral-muted py-20 max-[640px]:py-14"
+          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
           id="waitlist"
           aria-labelledby="wl-h"
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-8 text-center">
             <Reveal className="flex flex-col items-center gap-4 max-w-94">
-              <p className="type-label-eyebrow text-fg-neutral-muted">
+              <p className="type-label-eyebrow text-contents-light-bgd-sub">
                 Waitlist
               </p>
-              <h2 id="wl-h" className="type-display-section text-fg-neutral">
+              <h2 id="wl-h" className="type-maintext-s text-contents-light-bgd-default">
                 가장 먼저 만나보세요
               </h2>
-              <p className="type-body-large text-fg-neutral-muted">
+              <p className="type-content-l text-contents-light-bgd-sub">
                 서비스 오픈 소식과 초대장을 가장 먼저 받아보실 수 있어요.
               </p>
             </Reveal>
@@ -343,7 +343,7 @@ export default function LandingPage() {
       </main>
 
       {/* ═══ FOOTER (피그마 Landing/Footer) ═══ */}
-      <footer className="bg-bg-neutral-inverted pt-16 pb-10">
+      <footer className="bg-background-inverse-main pt-16 pb-10">
         <div className="max-w-wrap mx-auto px-6 flex flex-col gap-12">
           <div className="flex items-start justify-between gap-10 max-[720px]:flex-col">
             {/* 브랜드 */}
@@ -351,13 +351,13 @@ export default function LandingPage() {
               <div className="flex items-center gap-2">
                 <BrandLogo
                   size={32}
-                  className="text-fg-neutral-inverted shrink-0"
+                  className="text-contents-dark-bgd-default shrink-0"
                 />
-                <b className="type-brand-wordmark text-fg-neutral-inverted">
+                <b className="type-brand-wordmark text-contents-dark-bgd-default">
                   Easy Select
                 </b>
               </div>
-              <p className="type-body-medium text-fg-neutral-inverted-muted">
+              <p className="type-content-m text-contents-dark-bgd-weakness">
                 업로드부터 전달까지, 사진 셀렉의 모든 과정을 한 곳에서.
               </p>
             </div>
@@ -366,7 +366,7 @@ export default function LandingPage() {
             <div className="flex gap-12 max-[480px]:flex-col">
               {FOOTER_COLUMNS.map((col) => (
                 <div key={col.title} className="flex flex-col gap-6 w-20">
-                  <h4 className="type-label-eyebrow text-fg-neutral-inverted-muted">
+                  <h4 className="type-label-eyebrow text-contents-dark-bgd-weakness">
                     {col.title}
                   </h4>
                   <div className="flex flex-col gap-3">
@@ -375,7 +375,7 @@ export default function LandingPage() {
                         <a
                           key={link.label}
                           href={link.href}
-                          className="type-label-button text-fg-neutral-inverted-muted whitespace-nowrap transition-colors duration-fast hover:text-fg-neutral-inverted"
+                          className="type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
                         >
                           {link.label}
                         </a>
@@ -384,7 +384,7 @@ export default function LandingPage() {
                           key={link.label}
                           type="button"
                           onClick={showComingSoon}
-                          className="cursor-pointer text-left type-label-button text-fg-neutral-inverted-muted whitespace-nowrap transition-colors duration-fast hover:text-fg-neutral-inverted"
+                          className="cursor-pointer text-left type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
                         >
                           {link.label}
                         </button>
@@ -397,20 +397,20 @@ export default function LandingPage() {
           </div>
 
           {comingSoonToast}
-          <div className="border-t border-stroke-neutral-inverted pt-6 flex items-center justify-between flex-wrap gap-3">
-            <span className="type-body-small text-fg-neutral-inverted-muted uppercase">
+          <div className="border-t border-surface-inverse-medium pt-6 flex items-center justify-between flex-wrap gap-3">
+            <span className="type-content-xs text-contents-dark-bgd-weakness uppercase">
               © 2026 Easy Select
             </span>
             <div className="flex gap-5">
               <a
                 href="/terms"
-                className="type-label-button text-fg-neutral-inverted-muted transition-colors duration-fast hover:text-fg-neutral-inverted"
+                className="type-label-medium-m text-contents-dark-bgd-weakness transition-colors duration-fast hover:text-contents-dark-bgd-default"
               >
                 이용약관
               </a>
               <a
                 href="/privacy"
-                className="type-label-button text-fg-neutral-inverted-muted transition-colors duration-fast hover:text-fg-neutral-inverted"
+                className="type-label-medium-m text-contents-dark-bgd-weakness transition-colors duration-fast hover:text-contents-dark-bgd-default"
               >
                 개인정보처리방침
               </a>

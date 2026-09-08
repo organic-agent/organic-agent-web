@@ -23,7 +23,7 @@ export function GuestSidebar({
   onSelectAlbum: (key: string) => void;
 }) {
   return (
-    <aside className="flex w-70 shrink-0 flex-col gap-2 overflow-y-auto border-r border-stroke-neutral-muted bg-bg-layer-default p-4 shadow-(--shadow-modal)">
+    <aside className="flex w-70 shrink-0 flex-col gap-2 overflow-y-auto border-r border-divider-default bg-background-default-main p-4 shadow-(--shadow-modal)">
       <MenuItem
         icon={<HomeIcon size={20} />}
         label="홈"
@@ -32,12 +32,12 @@ export function GuestSidebar({
       />
 
       <div className="flex w-full flex-col gap-1">
-        <div className="flex w-full items-center gap-2 px-3 py-2 text-fg-neutral">
+        <div className="flex w-full items-center gap-2 px-3 py-2 text-contents-light-bgd-default">
           <PhotoIcon size={20} />
-          <span className="type-body-medium">앨범</span>
+          <span className="type-content-m">앨범</span>
         </div>
         {albums.length === 0 && (
-          <p className="px-3 py-1 type-body-small text-fg-neutral-muted">
+          <p className="px-3 py-1 type-content-xs text-contents-light-bgd-sub">
             아직 공유된 앨범이 없어요
           </p>
         )}
@@ -46,14 +46,14 @@ export function GuestSidebar({
             key={album.key}
             type="button"
             onClick={() => onSelectAlbum(album.key)}
-            className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-3 py-2 text-left transition-colors duration-fast hover:bg-bg-layer-default-hover ${
-              activeAlbumKey === album.key ? "bg-bg-layer-default-hover" : ""
+            className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-3 py-2 text-left transition-colors duration-fast hover:bg-surface-default-lightness ${
+              activeAlbumKey === album.key ? "bg-surface-default-lightness" : ""
             }`}
           >
-            <span className="min-w-0 flex-1 truncate type-utility-panel text-fg-neutral">
+            <span className="min-w-0 flex-1 truncate type-label-semibold-xs text-contents-light-bgd-default">
               {album.label}
             </span>
-            <span className="shrink-0 type-body-small text-fg-neutral-muted">
+            <span className="shrink-0 type-content-xs text-contents-light-bgd-sub">
               {album.count}
             </span>
           </button>

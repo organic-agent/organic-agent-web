@@ -156,10 +156,10 @@ export default function CoupleGalleryWorkspacePage() {
       : undefined;
   const dueTone =
     !dueLabel || dueLabel.startsWith("D-")
-      ? "text-fg-neutral-muted"
+      ? "text-contents-light-bgd-sub"
       : dueLabel === "오늘 마감"
-        ? "text-fg-warning"
-        : "text-fg-critical";
+        ? "text-function-warning-default"
+        : "text-function-error-default";
   // 편집 잠금 — 마감(CLOSED)이거나 선택 기한이 지났으면 앨범 만들기·수정이 잠긴다.
   // 열람(그리드·뷰어·미리보기·앨범 탐색)은 계속 가능 (서버 규칙 그대로)
   const deadlinePassed = gallery
@@ -406,9 +406,9 @@ export default function CoupleGalleryWorkspacePage() {
   // 뷰 4버튼은 클러스터 맨 오른쪽 고정, 뷰에 따라 생기는 줌은 그 왼쪽에 끼어 토글이 안 움직인다.
   const contentHeader = (
     <div className="flex w-full items-center justify-between gap-3">
-      <div className="flex items-center gap-2 text-fg-neutral">
+      <div className="flex items-center gap-2 text-contents-light-bgd-default">
         <PhotoIcon size={20} />
-        <h1 className="type-body-medium text-fg-neutral">{title}</h1>
+        <h1 className="type-content-m text-contents-light-bgd-default">{title}</h1>
       </div>
       <div className="flex items-center gap-1">
         {/* 별점 순 정렬 예정 — 구현 전까지 준비 중 안내 */}
@@ -433,7 +433,7 @@ export default function CoupleGalleryWorkspacePage() {
           </div>
         )}
         {viewToggles}
-        <p className="ml-2 type-body-small text-fg-neutral-muted">
+        <p className="ml-2 type-content-xs text-contents-light-bgd-sub">
           {collapsedPreview && clusterReady
             ? `폴더 ${clusterGroups.length}개 · 나머지 사진 ${clusterSingles.length}장`
             : `${photos.length}/${totalCount} 장의 사진`}
@@ -445,7 +445,7 @@ export default function CoupleGalleryWorkspacePage() {
   // 필름스트립 (단일·비교 공용 — 피그마 App/Filmstrip)
   // 높이는 화면에 비례(clamp 64~96px)해 작은 화면에서 사진 몫을 지킨다
   const filmstrip = (
-    <div className="flex h-[clamp(64px,12dvh,96px)] shrink-0 items-center gap-1 overflow-x-auto border-b border-stroke-neutral-muted bg-bg-layer-default px-3 py-2">
+    <div className="flex h-[clamp(64px,12dvh,96px)] shrink-0 items-center gap-1 overflow-x-auto border-b border-divider-default bg-background-default-main px-3 py-2">
       {collapsedPreview && clusterReady ? (
         // 폴더 미리보기 — 스트립도 폴더 칩(대표+장수 뱃지)과 나머지 사진으로
         <>
@@ -537,10 +537,10 @@ export default function CoupleGalleryWorkspacePage() {
               retry: true,
             };
     return (
-      <div className="grid min-h-dvh place-items-center bg-bg-layer-default px-6">
+      <div className="grid min-h-dvh place-items-center bg-background-default-main px-6">
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="type-heading-card text-fg-neutral">{state.title}</h1>
-          <p className="type-body-medium text-fg-neutral-muted">{state.desc}</p>
+          <h1 className="type-title-m text-contents-light-bgd-default">{state.title}</h1>
+          <p className="type-content-m text-contents-light-bgd-sub">{state.desc}</p>
           {state.retry && <Button onClick={reloadInvited}>다시 시도</Button>}
         </div>
       </div>
@@ -716,9 +716,9 @@ export default function CoupleGalleryWorkspacePage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg-layer-default">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       {/* 풀와이드 탑바 — 작가 워크스페이스와 동일 문법 (사용자 결정) */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-stroke-neutral-muted bg-bg-layer-default px-3">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-divider-default bg-background-default-main px-3">
         <div className="flex items-center gap-1">
           <IconButton
             icon={<MenuIcon size={20} />}
@@ -732,7 +732,7 @@ export default function CoupleGalleryWorkspacePage() {
               setView("all");
               setMode(lastGridModeRef.current);
             }}
-            className="mx-2 flex cursor-pointer items-center gap-2 text-fg-neutral"
+            className="mx-2 flex cursor-pointer items-center gap-2 text-contents-light-bgd-default"
             aria-label="갤러리 홈"
           >
             <BrandLogo size={28} />
@@ -757,14 +757,14 @@ export default function CoupleGalleryWorkspacePage() {
 
       <div className="flex min-h-0 flex-1">
         {!collapsed && (
-          <aside className="hidden w-70 shrink-0 flex-col border-r border-stroke-neutral-muted bg-bg-layer-default md:flex">
+          <aside className="hidden w-70 shrink-0 flex-col border-r border-divider-default bg-background-default-main md:flex">
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
         {/* 갤러리 컨텍스트 헤더 — 어떤 촬영을, 언제까지, 몇 장 고르는지 (MYBOX 앨범 헤더 문법) */}
         <div className="flex w-full flex-col gap-1">
-          <h1 className="truncate type-heading-card text-fg-neutral">
+          <h1 className="truncate type-title-m text-contents-light-bgd-default">
             {gallery.title}
           </h1>
-          <p className="type-body-small text-fg-neutral-muted">
+          <p className="type-content-xs text-contents-light-bgd-sub">
             {dueLabel && (
               <>
                 <span className={dueTone}>
@@ -773,7 +773,7 @@ export default function CoupleGalleryWorkspacePage() {
                 {" · "}
               </>
             )}
-            <span className="text-fg-accent">
+            <span className="text-brand-secondary-dark">
               {selectedCount}
               {selectTarget !== null ? `/${selectTarget}` : ""}장
             </span>{" "}
@@ -781,7 +781,7 @@ export default function CoupleGalleryWorkspacePage() {
           </p>
         </div>
 
-        <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+        <div className="h-px w-full shrink-0 bg-divider-default" />
 
         <AssistPanel
           onOpenChange={(open) => {
@@ -815,7 +815,7 @@ export default function CoupleGalleryWorkspacePage() {
           }
         />
 
-        <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+        <div className="h-px w-full shrink-0 bg-divider-default" />
 
         <div className="flex w-full flex-col gap-1">
           <MenuItem
@@ -842,12 +842,12 @@ export default function CoupleGalleryWorkspacePage() {
           {!closed &&
             selection &&
             (selection.status === "SUBMITTED" ? (
-              <p className="flex items-center gap-1.5 px-3 py-2 type-body-small text-fg-neutral-muted">
-                <span className="text-fg-positive">✓</span> 작가에게 전달됨
+              <p className="flex items-center gap-1.5 px-3 py-2 type-content-xs text-contents-light-bgd-sub">
+                <span className="text-function-success-default">✓</span> 작가에게 전달됨
               </p>
             ) : (
               <Button
-                kind="accent"
+                kind="primary"
                 onClick={() => setSubmitOpen(true)}
                 className="mt-1 w-full"
               >
@@ -856,7 +856,7 @@ export default function CoupleGalleryWorkspacePage() {
             ))}
         </div>
 
-        <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+        <div className="h-px w-full shrink-0 bg-divider-default" />
 
         <AlbumTreeSection
           result={folderGroupsResult}
@@ -896,13 +896,13 @@ export default function CoupleGalleryWorkspacePage() {
             {filmstripOpen && filmstrip}
 
             {/* 뷰어 (피그마 App/Viewer — bg.stage 무대 배경) — 사진이 잔여 공간 전부 사용 */}
-            <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-bg-stage p-3">
+            <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background-inverse-sub p-3">
               {/* 이전/다음 — 다크 스테이지 위 반투명 원형 버튼 (카카오톡 앨범·구글 포토 문법) */}
               <button
                 type="button"
                 onClick={() => movePhoto(-1)}
                 aria-label="이전 사진"
-                className="absolute left-5 top-1/2 z-10 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-bg-accent-solid text-fg-neutral-inverted transition-colors duration-fast hover:bg-bg-accent-solid-hover"
+                className="absolute left-5 top-1/2 z-10 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-brand-primary-default text-contents-dark-bgd-default transition-colors duration-fast hover:bg-brand-primary-light"
               >
                 <BackIcon size={20} />
               </button>
@@ -911,10 +911,10 @@ export default function CoupleGalleryWorkspacePage() {
                   // 파생 JPEG 준비 전 — 물결 + 아이콘 (그리드 셀과 동일 문법)
                   <div
                     aria-label={`${currentPhoto.name} — 미리보기 준비 중`}
-                    className="relative aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-bg-disabled"
+                    className="relative aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-surface-default-light"
                   >
                     <span className="shimmer-sweep" />
-                    <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+                    <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <rect x="3" y="3" width="18" height="18" rx="2" />
                         <circle cx="8.5" cy="8.5" r="1.5" />
@@ -932,7 +932,7 @@ export default function CoupleGalleryWorkspacePage() {
                   />
                 )
               ) : (
-                <p className="type-body-medium text-fg-stage">
+                <p className="type-content-m text-contents-dark-bgd-default">
                   표시할 사진이 없어요.
                 </p>
               )}
@@ -940,7 +940,7 @@ export default function CoupleGalleryWorkspacePage() {
                 type="button"
                 onClick={() => movePhoto(1)}
                 aria-label="다음 사진"
-                className="absolute right-5 top-1/2 z-10 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-bg-accent-solid text-fg-neutral-inverted transition-colors duration-fast hover:bg-bg-accent-solid-hover"
+                className="absolute right-5 top-1/2 z-10 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-brand-primary-default text-contents-dark-bgd-default transition-colors duration-fast hover:bg-brand-primary-light"
               >
                 <BackIcon size={20} className="rotate-180" />
               </button>
@@ -952,11 +952,11 @@ export default function CoupleGalleryWorkspacePage() {
             {filmstripOpen && filmstrip}
 
             {/* 비교 바 (피그마 compare-bar — N장 보기 전환) */}
-            <div className="flex shrink-0 items-center justify-end bg-bg-layer-default px-4 py-1">
+            <div className="flex shrink-0 items-center justify-end bg-background-default-main px-4 py-1">
               <button
                 type="button"
                 onClick={() => setCompareCount(compareCount === 2 ? 4 : 2)}
-                className="flex cursor-pointer items-center gap-1 type-body-medium text-fg-neutral"
+                className="flex cursor-pointer items-center gap-1 type-content-m text-contents-light-bgd-default"
               >
                 {compareCount}장 보기
                 <DropdownIcon size={16} />
@@ -964,9 +964,9 @@ export default function CoupleGalleryWorkspacePage() {
             </div>
 
             {/* 비교 스테이지 — 카드 클릭 = 선택 앨범 토글. 컨테이너 쿼리로 카드 크기를 역산 */}
-            <div className="flex min-h-0 flex-1 items-center justify-center gap-6 bg-bg-layer-default p-3 [container-type:size]">
+            <div className="flex min-h-0 flex-1 items-center justify-center gap-6 bg-background-default-main p-3 [container-type:size]">
               {comparePhotos.length === 0 ? (
-                <p className="type-body-medium text-fg-neutral-muted">
+                <p className="type-content-m text-contents-light-bgd-sub">
                   비교할 사진이 없어요.
                 </p>
               ) : (
@@ -1001,18 +1001,18 @@ export default function CoupleGalleryWorkspacePage() {
                 <button
                   type="button"
                   onClick={() => setOpenClusterIndex(null)}
-                  className="cursor-pointer type-label-button text-fg-neutral hover:underline"
+                  className="cursor-pointer type-label-medium-m text-contents-light-bgd-default hover:underline"
                 >
                   ← 미리보기로
                 </button>
-                <span className="type-body-small text-fg-neutral-muted">
+                <span className="type-content-xs text-contents-light-bgd-sub">
                   폴더 {(openClusterIndex ?? 0) + 1} ·{" "}
                   {openClusterGroup.length}장
                 </span>
               </div>
             )}
             {collapsedPreview && clusterReady && clusterGroups.length > 0 && (
-              <p className="px-4 pb-2 type-body-small text-fg-neutral-muted">
+              <p className="px-4 pb-2 type-content-xs text-contents-light-bgd-sub">
                 겹친 카드가 폴더예요 — 누르면 안의 사진만 보여요
               </p>
             )}
@@ -1030,13 +1030,13 @@ export default function CoupleGalleryWorkspacePage() {
                   {Array.from({ length: 8 }, (_, i) => (
                     <div
                       key={i}
-                      className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+                      className="aspect-4/5 w-full rounded-(--radius-4) bg-surface-default-light"
                     />
                   ))}
                 </div>
               ) : cluster.result.kind === "error" ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
-                  <p className="type-body-medium text-fg-neutral-muted">
+                  <p className="type-content-m text-contents-light-bgd-sub">
                     묶음을 불러오지 못했어요. 네트워크를 확인한 뒤 다시 시도해
                     주세요.
                   </p>
@@ -1045,7 +1045,7 @@ export default function CoupleGalleryWorkspacePage() {
                   </Button>
                 </div>
               ) : clusterGroups.length + clusterSingles.length === 0 ? (
-                <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
                   묶을 사진이 아직 없어요 — 사진 분석이 끝나면 여기에 묶여요.
                 </p>
               ) : (
@@ -1101,13 +1101,13 @@ export default function CoupleGalleryWorkspacePage() {
                   {Array.from({ length: 8 }, (_, i) => (
                     <div
                       key={i}
-                      className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+                      className="aspect-4/5 w-full rounded-(--radius-4) bg-surface-default-light"
                     />
                   ))}
                 </div>
               ) : activeFolderPhotos.kind === "error" ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
-                  <p className="type-body-medium text-fg-neutral-muted">
+                  <p className="type-content-m text-contents-light-bgd-sub">
                     폴더를 불러오지 못했어요. 네트워크를 확인한 뒤 다시 시도해
                     주세요.
                   </p>
@@ -1116,7 +1116,7 @@ export default function CoupleGalleryWorkspacePage() {
                   </Button>
                 </div>
               ) : photos.length === 0 ? (
-                <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
                   폴더가 비어 있어요.
                 </p>
               ) : (
@@ -1198,13 +1198,13 @@ export default function CoupleGalleryWorkspacePage() {
                 {Array.from({ length: 8 }, (_, i) => (
                   <div
                     key={i}
-                    className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+                    className="aspect-4/5 w-full rounded-(--radius-4) bg-surface-default-light"
                   />
                 ))}
               </div>
             ) : photosResult.kind === "error" ? (
               <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <p className="type-body-medium text-fg-neutral-muted">
+                <p className="type-content-m text-contents-light-bgd-sub">
                   사진을 불러오지 못했어요. 네트워크를 확인한 뒤 다시 시도해
                   주세요.
                 </p>
@@ -1213,7 +1213,7 @@ export default function CoupleGalleryWorkspacePage() {
                 </Button>
               </div>
             ) : photos.length === 0 ? (
-              <p className="type-body-medium text-fg-neutral-muted py-16 text-center">
+              <p className="type-content-m text-contents-light-bgd-sub py-16 text-center">
                 {view === "selected"
                   ? "아직 선택한 사진이 없어요."
                   : "아직 사진이 없어요 — 작가님이 올리면 여기에 보여요."}
@@ -1267,18 +1267,18 @@ export default function CoupleGalleryWorkspacePage() {
                 {Array.from({ length: 6 }, (_, i) => (
                   <div
                     key={i}
-                    className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+                    className="aspect-4/5 w-full rounded-(--radius-4) bg-surface-default-light"
                   />
                 ))}
               </div>
             )}
             {view === "all" && !cluster.enabled && loadMoreFailed && (
-              <p className="mt-3 rounded-(--radius-8) bg-bg-layer-default-hover py-2 text-center type-body-small text-fg-neutral-muted">
+              <p className="mt-3 rounded-(--radius-8) bg-surface-default-lightness py-2 text-center type-content-xs text-contents-light-bgd-sub">
                 더 불러오지 못했어요 ·{" "}
                 <button
                   type="button"
                   onClick={() => void loadMore()}
-                  className="cursor-pointer font-bold text-fg-neutral hover:underline"
+                  className="cursor-pointer font-bold text-contents-light-bgd-default hover:underline"
                 >
                   다시 시도
                 </button>
@@ -1321,7 +1321,7 @@ export default function CoupleGalleryWorkspacePage() {
 
         <AppToolbar
           left={
-            <span className="type-body-small text-fg-neutral-muted">
+            <span className="type-content-xs text-contents-light-bgd-sub">
               {currentPhoto
                 ? `${currentIndex + 1} / ${photos.length}`
                 : `${selectedCount} / ${allPhotos.length}`}
@@ -1372,26 +1372,26 @@ export default function CoupleGalleryWorkspacePage() {
           desc="전달하면 작가가 선택 결과를 확인하고 다음 작업을 시작해요."
           onClose={() => setSubmitOpen(false)}
         >
-          <div className="mb-6 flex flex-col gap-2 rounded-(--radius-8) border border-stroke-neutral-muted px-4 py-4">
+          <div className="mb-6 flex flex-col gap-2 rounded-(--radius-8) border border-divider-default px-4 py-4">
             <div className="flex items-center justify-between gap-4">
-              <span className="type-body-small text-fg-neutral-muted">
+              <span className="type-content-xs text-contents-light-bgd-sub">
                 선택한 사진
               </span>
-              <strong className="type-label-button text-fg-neutral">
+              <strong className="type-label-medium-m text-contents-light-bgd-default">
                 {selectedCount}
                 {selectTarget !== null ? ` / ${selectTarget}` : ""}장
               </strong>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span className="type-body-small text-fg-neutral-muted">
+              <span className="type-content-xs text-contents-light-bgd-sub">
                 보정 요청
               </span>
-              <strong className="type-label-button text-fg-neutral">
+              <strong className="type-label-medium-m text-contents-light-bgd-default">
                 {retouchCount}건
               </strong>
             </div>
             {selectTarget !== null && selectedCount < selectTarget && (
-              <p className="mt-1 border-t border-stroke-neutral-muted pt-2 type-body-small text-fg-warning">
+              <p className="mt-1 border-t border-divider-default pt-2 type-content-xs text-function-warning-default">
                 목표 장수({selectTarget}장)보다 적게 선택했어요. 전달 후에는
                 선택을 바꿀 수 없어요.
               </p>
@@ -1401,7 +1401,7 @@ export default function CoupleGalleryWorkspacePage() {
             onClose={() => setSubmitOpen(false)}
             onConfirm={() => void handleSubmitSelection()}
             confirmLabel="전달하기"
-            confirmVariant="accent"
+            confirmVariant="primary"
           />
         </GalleryModalShell>
       )}
@@ -1447,7 +1447,7 @@ export default function CoupleGalleryWorkspacePage() {
       {savedToast && (
         <div
           role="status"
-          className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-stroke-neutral-inverted bg-bg-neutral-inverted px-5 py-3 type-label-button text-fg-neutral-inverted shadow-(--shadow-hover)"
+          className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-surface-inverse-medium bg-background-inverse-main px-5 py-3 type-label-medium-m text-contents-dark-bgd-default shadow-(--shadow-hover)"
         >
           {savedToast}
         </div>

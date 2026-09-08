@@ -30,13 +30,13 @@ export function Checkbox({
       />
       <span
         aria-hidden
-        className="absolute inset-0 rounded-(--radius-4) border border-stroke-neutral-weak transition-colors duration-fast peer-checked:border-transparent peer-checked:bg-bg-accent-solid peer-disabled:bg-bg-disabled peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-stroke-neutral-weak"
+        className="absolute inset-0 rounded-(--radius-4) border border-border-default transition-colors duration-fast peer-checked:border-transparent peer-checked:bg-brand-primary-default peer-disabled:bg-surface-default-light peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-border-default"
       />
       {/* 체크 표시 (시안 원본 경로) */}
       <svg
         viewBox="0 0 16 16"
         aria-hidden="true"
-        className="absolute inset-0 size-full opacity-0 transition-opacity duration-fast peer-checked:opacity-100 text-fg-neutral-inverted"
+        className="absolute inset-0 size-full opacity-0 transition-opacity duration-fast peer-checked:opacity-100 text-contents-dark-bgd-default"
       >
         <path
           d="M4 8.5L6.5 11L12 5"
@@ -63,7 +63,7 @@ export function CheckboxField({
       className={`flex items-center gap-2 cursor-pointer ${checkbox.disabled ? "cursor-not-allowed" : ""} ${className}`}
     >
       <Checkbox {...checkbox} />
-      <span className="type-body-medium text-fg-neutral">{label}</span>
+      <span className="type-content-m text-contents-light-bgd-default">{label}</span>
     </label>
   );
 }

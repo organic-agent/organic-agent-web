@@ -18,19 +18,19 @@ function formatSize(bytes: number) {
 function StateLabel({ entry }: { entry: UploadEntry }) {
   switch (entry.status) {
     case "waiting":
-      return <span className="text-fg-neutral-subtle">대기</span>;
+      return <span className="text-contents-light-bgd-weakness">대기</span>;
     case "uploading":
       return (
-        <span className="text-fg-neutral-muted">
+        <span className="text-contents-light-bgd-sub">
           {Math.round(entry.progress * 100)}%
         </span>
       );
     case "done":
-      return <span className="text-fg-positive">✓ 완료</span>;
+      return <span className="text-function-success-default">✓ 완료</span>;
     case "failed":
-      return <span className="font-medium text-fg-critical">실패</span>;
+      return <span className="font-medium text-function-error-default">실패</span>;
     case "excluded":
-      return <span className="text-fg-critical">제외됨</span>;
+      return <span className="text-function-error-default">제외됨</span>;
   }
 }
 
@@ -50,33 +50,33 @@ export function UploadFileRow({ entry }: { entry: UploadEntry }) {
           className="size-10 shrink-0 rounded-(--radius-4) object-cover"
         />
       ) : (
-        <span className="size-10 shrink-0 rounded-(--radius-4) bg-bg-disabled" />
+        <span className="size-10 shrink-0 rounded-(--radius-4) bg-surface-default-light" />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2 type-body-small">
+        <div className="flex items-baseline justify-between gap-2 type-content-xs">
           <span
             className={`truncate ${
-              entry.status === "failed" ? "text-fg-critical" : "text-fg-neutral"
+              entry.status === "failed" ? "text-function-error-default" : "text-contents-light-bgd-default"
             }`}
           >
             {entry.fileName}
           </span>
-          <span className="shrink-0 text-fg-neutral-subtle">
+          <span className="shrink-0 text-contents-light-bgd-weakness">
             {formatSize(entry.size)}
           </span>
         </div>
         {entry.status === "uploading" && (
-          <div className="h-1 w-full overflow-hidden rounded-(--pill) bg-bg-disabled">
+          <div className="h-1 w-full overflow-hidden rounded-(--pill) bg-surface-default-light">
             <div
-              className="h-full rounded-(--pill) bg-bg-brand-solid"
+              className="h-full rounded-(--pill) bg-brand-primary-default"
               style={{ width: `${Math.round(entry.progress * 100)}%` }}
             />
           </div>
         )}
       </div>
 
-      <span className="w-14 shrink-0 text-right type-body-small">
+      <span className="w-14 shrink-0 text-right type-content-xs">
         <StateLabel entry={entry} />
       </span>
     </div>

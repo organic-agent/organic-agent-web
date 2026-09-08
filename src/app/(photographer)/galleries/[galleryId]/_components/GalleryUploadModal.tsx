@@ -128,15 +128,15 @@ export function GalleryUploadModal({ galleryId, onClose, onUploaded }: Props) {
             onClick={() => inputRef.current?.click()}
             className={`mb-6 grid w-full cursor-pointer place-items-center rounded-(--radius-16) border-2 border-dashed py-12 text-center transition-colors duration-fast ${
               dragOver
-                ? "border-fg-neutral bg-bg-layer-default-hover"
-                : "border-stroke-neutral-weak hover:bg-bg-layer-default-hover"
+                ? "border-contents-light-bgd-default bg-surface-default-lightness"
+                : "border-border-default hover:bg-surface-default-lightness"
             }`}
           >
-            <UploadIcon size={32} className="mb-3 text-fg-neutral-subtle" />
-            <p className="type-body-medium text-fg-neutral-muted">
+            <UploadIcon size={32} className="mb-3 text-contents-light-bgd-weakness" />
+            <p className="type-content-m text-contents-light-bgd-sub">
               사진을 끌어다 놓거나 클릭해서 선택하세요
             </p>
-            <p className="mt-1 type-body-small text-fg-neutral-muted">
+            <p className="mt-1 type-content-xs text-contents-light-bgd-sub">
               JPG·PNG 등 이미지 파일 · 여러 장 한 번에
             </p>
           </button>
@@ -146,7 +146,7 @@ export function GalleryUploadModal({ galleryId, onClose, onUploaded }: Props) {
               {dragOver && (
                 <div
                   aria-hidden
-                  className="absolute -inset-1.5 z-10 rounded-(--radius-8) border-2 border-dashed border-fg-neutral bg-bg-layer-default/70"
+                  className="absolute -inset-1.5 z-10 rounded-(--radius-8) border-2 border-dashed border-contents-light-bgd-default bg-background-default-main/70"
                 />
               )}
               <div className="scrollbar-slim mb-2 flex max-h-62 flex-col gap-1 overflow-y-auto pr-1.5">
@@ -155,10 +155,10 @@ export function GalleryUploadModal({ galleryId, onClose, onUploaded }: Props) {
                 ))}
               </div>
             </div>
-            <p className="mb-3.5 px-1 type-body-small text-fg-neutral-subtle">
+            <p className="mb-3.5 px-1 type-content-xs text-contents-light-bgd-weakness">
               사진을 이 목록에 끌어다 놓으면 이어서 올라가요
             </p>
-            <div className="mb-5 flex items-center justify-between px-1 type-body-small text-fg-neutral-muted">
+            <div className="mb-5 flex items-center justify-between px-1 type-content-xs text-contents-light-bgd-sub">
               <span>
                 {counts.valid}장 · {totalMb}MB
               </span>
@@ -193,7 +193,7 @@ export function GalleryUploadModal({ galleryId, onClose, onUploaded }: Props) {
           <>
             <p
               role="alert"
-              className="mb-4 text-center type-body-small text-fg-critical"
+              className="mb-4 text-center type-content-xs text-function-error-default"
             >
               {failedMessage ?? "네트워크가 불안정했어요."} 실패한 사진은 다시
               시도할 수 있어요.

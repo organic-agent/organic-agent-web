@@ -106,7 +106,7 @@ export function EditGalleryModal({ gallery, onClose, onSaved }: Props) {
     >
       <GalleryFormFields values={form} onChange={setForm} mode="edit" />
       {banner && (
-        <p role="alert" className="mb-4 text-center type-body-small text-fg-critical">
+        <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
           {banner}
         </p>
       )}

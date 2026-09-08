@@ -15,8 +15,8 @@ export function LegalTitle({
 }) {
   return (
     <div className="mb-4 flex flex-col gap-2">
-      <h1 className="type-heading-large text-fg-neutral">{title}</h1>
-      <p className="type-body-small text-fg-neutral-muted">
+      <h1 className="type-title-xl text-contents-light-bgd-default">{title}</h1>
+      <p className="type-content-xs text-contents-light-bgd-sub">
         시행일: {effectiveDate}
       </p>
     </div>
@@ -26,7 +26,7 @@ export function LegalTitle({
 /** 초안 안내 배너 — 법률 검토 후 제거 */
 export function DraftNotice() {
   return (
-    <p className="mb-10 rounded-(--radius-8) border border-stroke-neutral-muted bg-bg-layer-default-hover px-4 py-3 type-body-small text-fg-neutral-muted">
+    <p className="mb-10 rounded-(--radius-8) border border-divider-default bg-surface-default-lightness px-4 py-3 type-content-xs text-contents-light-bgd-sub">
       이 문서는 정식 시행 전 초안입니다. [ ] 표시된 항목은 확정 후
       채워지며, 시행 시점에 이 안내는 제거됩니다.
     </p>
@@ -43,8 +43,8 @@ export function LegalArticle({
 }) {
   return (
     <section className="mb-8 flex flex-col gap-2">
-      <h2 className="type-heading-card text-fg-neutral">{title}</h2>
-      <div className="flex flex-col gap-2 type-body-medium leading-relaxed text-fg-neutral-muted [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mt-1">
+      <h2 className="type-title-m text-contents-light-bgd-default">{title}</h2>
+      <div className="flex flex-col gap-2 type-content-m leading-relaxed text-contents-light-bgd-sub [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mt-1">
         {children}
       </div>
     </section>

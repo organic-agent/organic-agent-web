@@ -57,8 +57,8 @@ function MemberRow({
   return (
     <div className="flex items-center gap-2">
       <Avatar initial={initial} />
-      <span className="type-body-medium text-fg-neutral">{name}</span>
-      <span className="ml-2 type-body-small text-fg-neutral-muted">
+      <span className="type-content-m text-contents-light-bgd-default">{name}</span>
+      <span className="ml-2 type-content-xs text-contents-light-bgd-sub">
         {status}
       </span>
     </div>
@@ -80,13 +80,13 @@ function CollapsibleSection({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex cursor-pointer items-center gap-1 text-fg-neutral"
+        className="flex cursor-pointer items-center gap-1 text-contents-light-bgd-default"
       >
         <DropdownIcon
           size={16}
           className={`transition-transform duration-fast ${open ? "" : "-rotate-90"}`}
         />
-        <span className="type-utility-panel">{label}</span>
+        <span className="type-label-semibold-xs">{label}</span>
       </button>
       {open && children}
     </div>
@@ -168,15 +168,15 @@ export function ShareModal({
     <div className="fixed inset-0 z-150 grid place-items-center px-4">
       {/* Backdrop — bg.overlay 토큰 */}
       <div
-        className="absolute inset-0 bg-bg-overlay backdrop-blur-sm"
+        className="absolute inset-0 bg-surface-default-medium backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      <div className="relative z-10 flex w-full max-w-120 flex-col gap-4 rounded-(--radius-16) bg-bg-layer-default p-6 shadow-(--shadow-modal)">
+      <div className="relative z-10 flex w-full max-w-120 flex-col gap-4 rounded-(--radius-16) bg-background-default-main p-6 shadow-(--shadow-modal)">
         {/* 헤더 */}
-        <div className="flex w-full items-center justify-between border-b border-stroke-neutral-muted pb-2">
-          <h2 className="type-heading-page text-fg-neutral">공유 및 초대</h2>
+        <div className="flex w-full items-center justify-between border-b border-divider-default pb-2">
+          <h2 className="type-title-l text-contents-light-bgd-default">공유 및 초대</h2>
           <IconButton icon={<CloseIcon />} onClick={onClose} aria-label="닫기" />
         </div>
 
@@ -187,10 +187,10 @@ export function ShareModal({
             onClick={() => setVisibilityOpen((v) => !v)}
             aria-haspopup="listbox"
             aria-expanded={visibilityOpen}
-            className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-(--radius-8) border border-stroke-neutral-weak px-3 text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+            className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-(--radius-8) border border-border-default px-3 text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
           >
             <currentVisibility.Icon size={16} />
-            <span className="flex-1 text-left type-body-medium">
+            <span className="flex-1 text-left type-content-m">
               {currentVisibility.label}
             </span>
             <DropdownIcon
@@ -201,7 +201,7 @@ export function ShareModal({
           {visibilityOpen && (
             <div
               role="listbox"
-              className="absolute left-0 top-full z-20 mt-2 flex w-full flex-col rounded-(--radius-8) border border-stroke-neutral-muted bg-bg-layer-default p-1 shadow-(--shadow-hover)"
+              className="absolute left-0 top-full z-20 mt-2 flex w-full flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover)"
             >
               {VISIBILITY_OPTIONS.map(({ key, label, Icon }) => (
                 <button
@@ -213,10 +213,10 @@ export function ShareModal({
                     setVisibility(key);
                     setVisibilityOpen(false);
                   }}
-                  className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-3 py-2 text-left type-body-medium transition-colors duration-fast hover:bg-bg-layer-default-hover ${
+                  className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-3 py-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-lightness ${
                     key === visibility
-                      ? "bg-bg-layer-default-hover text-fg-neutral"
-                      : "text-fg-neutral-muted"
+                      ? "bg-surface-default-lightness text-contents-light-bgd-default"
+                      : "text-contents-light-bgd-sub"
                   }`}
                 >
                   <Icon size={16} />
@@ -230,7 +230,7 @@ export function ShareModal({
         {/* 탭 */}
         <div
           role="tablist"
-          className="flex w-full items-center gap-4 border-b border-stroke-neutral-muted"
+          className="flex w-full items-center gap-4 border-b border-divider-default"
         >
           <TabItem
             label="권한"
@@ -309,7 +309,7 @@ export function ShareModal({
                 </div>
               )}
             </div>
-            <p className="type-body-small text-fg-neutral-muted">
+            <p className="type-content-xs text-contents-light-bgd-sub">
               완료를 누르면 게스트에게 보이는 앨범 표지에 반영돼요.
             </p>
           </div>
@@ -335,7 +335,7 @@ export function ShareModal({
         )}
 
         {/* 푸터 — 완료 단일 버튼 (확정 디자인). 닫기는 ESC·X·오버레이 클릭 */}
-        <div className="flex w-full items-center justify-end border-t border-stroke-neutral-muted px-1 pt-3">
+        <div className="flex w-full items-center justify-end border-t border-divider-default px-1 pt-3">
           <Button onClick={handleComplete}>완료</Button>
         </div>
       </div>

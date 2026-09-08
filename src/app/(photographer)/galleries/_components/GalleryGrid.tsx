@@ -50,12 +50,12 @@ export function GalleryGrid({
       <button
         type="button"
         onClick={onCreateClick}
-        className="flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-(--radius-16) border border-dashed border-stroke-neutral-muted text-fg-neutral-muted transition-colors duration-fast hover:bg-bg-layer-default-hover hover:text-fg-neutral"
+        className="flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-(--radius-16) border border-dashed border-divider-default text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness hover:text-contents-light-bgd-default"
       >
         <span className="grid size-14 place-items-center rounded-full border border-current">
           <PlusIcon size={24} />
         </span>
-        <span className="type-body-large">새 갤러리 만들기</span>
+        <span className="type-content-l">새 갤러리 만들기</span>
       </button>
     </div>
   );

@@ -34,9 +34,9 @@ type PhotoContextMenuProps = {
 };
 
 const itemCls =
-  "block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-neutral hover:bg-bg-layer-default-hover";
+  "block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-content-m text-contents-light-bgd-default hover:bg-surface-default-lightness";
 const dangerCls =
-  "block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-critical hover:bg-bg-layer-default-hover";
+  "block w-full cursor-pointer rounded-(--radius-4) px-3 py-1.5 text-left type-content-m text-function-error-default hover:bg-surface-default-lightness";
 
 export function PhotoContextMenu({
   x,
@@ -77,21 +77,21 @@ export function PhotoContextMenu({
       role="menu"
       aria-label={`선택한 ${count}장 관리`}
       style={{ left, top }}
-      className="fixed z-40 w-48 rounded-(--radius-12) border border-stroke-neutral-muted bg-bg-layer-default p-1.5 shadow-(--shadow-hover)"
+      className="fixed z-40 w-48 rounded-(--radius-12) border border-divider-default bg-background-default-main p-1.5 shadow-(--shadow-hover)"
     >
-      <p className="px-3 py-1 type-body-small text-fg-neutral-muted">
+      <p className="px-3 py-1 type-content-xs text-contents-light-bgd-sub">
         선택한 {count}장
       </p>
-      <div className="my-1 h-px bg-stroke-neutral-muted" />
+      <div className="my-1 h-px bg-divider-default" />
       {targets.length > 0 && onMove && (
         <button
           type="button"
           onClick={() => setMoveOpen((v) => !v)}
-          className="flex w-full cursor-pointer items-center justify-between rounded-(--radius-4) px-3 py-1.5 text-left type-body-medium text-fg-neutral hover:bg-bg-layer-default-hover"
+          className="flex w-full cursor-pointer items-center justify-between rounded-(--radius-4) px-3 py-1.5 text-left type-content-m text-contents-light-bgd-default hover:bg-surface-default-lightness"
         >
           다른 폴더로 이동
           <span
-            className={`text-fg-neutral-muted transition-transform duration-fast ${moveOpen ? "rotate-90" : ""}`}
+            className={`text-contents-light-bgd-sub transition-transform duration-fast ${moveOpen ? "rotate-90" : ""}`}
           >
             ▸
           </span>
@@ -104,7 +104,7 @@ export function PhotoContextMenu({
             key={target.folderId}
             type="button"
             onClick={() => onMove(target.folderId)}
-            className="block w-full cursor-pointer truncate rounded-(--radius-4) py-1.5 pr-3 pl-7 text-left type-body-medium text-fg-neutral hover:bg-bg-layer-default-hover"
+            className="block w-full cursor-pointer truncate rounded-(--radius-4) py-1.5 pr-3 pl-7 text-left type-content-m text-contents-light-bgd-default hover:bg-surface-default-lightness"
           >
             {target.name}
           </button>
@@ -115,7 +115,7 @@ export function PhotoContextMenu({
         </button>
       )}
       {hasFolderGroup && hasManageGroup && (
-        <div className="my-1 h-px bg-stroke-neutral-muted" />
+        <div className="my-1 h-px bg-divider-default" />
       )}
       {onSelectAll && (
         <button type="button" onClick={onSelectAll} className={itemCls}>

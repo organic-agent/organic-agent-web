@@ -20,7 +20,7 @@ type Props = {
 
 function FieldLabel({ children }: { children: string }) {
   return (
-    <label className="mb-1.5 block type-label-button text-fg-neutral">
+    <label className="mb-1.5 block type-label-medium-m text-contents-light-bgd-default">
       {children}
     </label>
   );
@@ -28,7 +28,7 @@ function FieldLabel({ children }: { children: string }) {
 
 function FieldHint({ children }: { children: string }) {
   return (
-    <p className="mt-2 type-body-small text-fg-neutral-muted">{children}</p>
+    <p className="mt-2 type-content-xs text-contents-light-bgd-sub">{children}</p>
   );
 }
 

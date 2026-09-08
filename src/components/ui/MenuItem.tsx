@@ -29,26 +29,26 @@ export function MenuItem({
   onClick,
   className = "",
 }: MenuItemProps) {
-  const cls = `flex items-center gap-2 w-full px-3 py-2 rounded-(--radius-4) text-left cursor-pointer transition-colors duration-fast ease-out hover:bg-bg-layer-default-hover ${
+  const cls = `flex items-center gap-2 w-full px-3 py-2 rounded-(--radius-4) text-left cursor-pointer transition-colors duration-fast ease-out hover:bg-surface-default-lightness ${
     selected
-      ? "bg-bg-layer-default-hover relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-(--pill) before:bg-bg-accent-solid"
+      ? "bg-surface-default-lightness relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light"
       : ""
   } ${className}`;
 
   const content = (
     <>
       {icon && (
-        <span className="shrink-0 text-fg-neutral flex items-center justify-center">
+        <span className="shrink-0 text-contents-light-bgd-default flex items-center justify-center">
           {icon}
         </span>
       )}
-      <span className="flex-1 min-w-0 truncate type-body-medium text-fg-neutral">
+      <span className="flex-1 min-w-0 truncate type-content-m text-contents-light-bgd-default">
         {label}
       </span>
       {count !== undefined && (
         <span
-          className={`shrink-0 type-body-small ${
-            accentCount ? "text-fg-accent" : "text-fg-neutral-muted"
+          className={`shrink-0 type-content-xs ${
+            accentCount ? "text-brand-secondary-dark" : "text-contents-light-bgd-sub"
           }`}
         >
           {count}

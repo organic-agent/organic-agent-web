@@ -13,11 +13,11 @@ export function InfoRow({
   value: string;
 }) {
   return (
-    <div className="flex w-full items-center justify-between gap-2 rounded-(--radius-4) bg-bg-layer-default-hover px-2 py-1">
-      <span className="shrink-0 type-body-small text-fg-neutral-muted">
+    <div className="flex w-full items-center justify-between gap-2 rounded-(--radius-4) bg-surface-default-lightness px-2 py-1">
+      <span className="shrink-0 type-content-xs text-contents-light-bgd-sub">
         {label}
       </span>
-      <span className="truncate type-body-small text-fg-neutral">{value}</span>
+      <span className="truncate type-content-xs text-contents-light-bgd-default">{value}</span>
     </div>
   );
 }
