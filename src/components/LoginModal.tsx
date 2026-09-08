@@ -9,7 +9,7 @@
  *   페이지로: <LoginModal asPage intent="couple" />
  *
  * - 소셜 로그인 3종 (카카오·네이버·구글), 첫 로그인 = 가입
- * - intent에 따라 카피가 달라짐 (couple / studio)
+ * - intent에 따라 카피가 달라짐 (couple / studio / personal / signup)
  * - 소셜 버튼 색은 각 사 브랜드 가이드 고정값 — 테마(토큰) 비대상
  * - 부부 정책: 첫 진입은 반드시 초대 링크 필요 (서버에서 차단)
  */
@@ -17,11 +17,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { CloseIcon } from "@/components/icons";
-import { loginErrorMessage, startLogin } from "@/lib/auth/loginFlow";
+import {
+  loginErrorMessage,
+  startLogin,
+  type LoginIntent,
+} from "@/lib/auth/loginFlow";
 
 type Provider = "kakao" | "naver" | "google";
 
-const COPY = {
+const COPY: Record<LoginIntent, { title: string; sub: string }> = {
   couple: {
     title: "다시 오신 걸 환영해요",
     sub: "간편하게 로그인하고 이어서 진행하세요",
@@ -29,6 +33,14 @@ const COPY = {
   studio: {
     title: "스튜디오 시작하기",
     sub: "간편 로그인 한 번으로 가입부터 갤러리 개설까지",
+  },
+  personal: {
+    title: "내 갤러리 만들기",
+    sub: "간편 로그인 한 번으로 가입부터 갤러리 만들기까지",
+  },
+  signup: {
+    title: "회원가입",
+    sub: "소셜 계정으로 시작하세요. 첫 로그인이 곧 가입이에요",
   },
 };
 
@@ -67,7 +79,7 @@ export function LoginModal({
 }: {
   open?: boolean;
   onClose?: () => void;
-  intent?: "couple" | "studio";
+  intent?: LoginIntent;
   inviteToken?: string | null;
   /** OAuth 콜백이 실패를 되돌려보낼 때의 에러 코드 (/login?error=...) */
   errorCode?: string | null;

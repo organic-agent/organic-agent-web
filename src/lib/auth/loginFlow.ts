@@ -11,7 +11,13 @@
 
 import { getLoginUrl, type OAuthProvider, type User } from "@/lib/api/auth";
 
-export type LoginIntent = "couple" | "studio";
+/**
+ * couple: 초대받은 클라이언트(초대 링크 경유·일반 로그인)
+ * studio: 스튜디오 개설
+ * personal: 개인 클라이언트(내 갤러리 만들기) — 목적지는 진입 흐름 PR에서 연결. 그 전까지는 couple과 같다
+ * signup: 역할을 아직 정하지 않은 회원가입 — 목적지는 진입 흐름 PR의 역할 선택. 그 전까지는 couple과 같다
+ */
+export type LoginIntent = "couple" | "studio" | "personal" | "signup";
 
 export type LoginContext = {
   intent: LoginIntent;

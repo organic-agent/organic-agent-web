@@ -1,8 +1,8 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { LandingNav } from "./_components/LandingNav";
-import { WaitlistForm } from "./_components/WaitlistForm";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
 import {
@@ -10,13 +10,15 @@ import {
   ArrowRightIcon,
   UploadIcon,
   UsersIcon,
-  CompareIcon,
+  SparkleIcon,
   CollabIcon,
   CommentIcon,
   DocIcon,
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
+import { LoginModal } from "@/components/LoginModal";
+import type { LoginIntent } from "@/lib/auth/loginFlow";
 
 /* ─── 기능 카드 데이터 (피그마 Landing/Features 카피) ─── */
 const FEATURES = [
@@ -31,9 +33,9 @@ const FEATURES = [
     Icon: UsersIcon,
   },
   {
-    title: "나란히 비교, 빠르게 선택",
-    desc: "2장·4장·N장을 나란히 놓고 한눈에 비교합니다. 빠르게 다음 컷으로 넘어갑니다.",
-    Icon: CompareIcon,
+    title: "고르기 어려울 땐, AI 셀렉",
+    desc: "고민되는 컷은 AI 추천으로 시작하세요. 폴더별로 잘 나온 사진을 선택 장수에 맞게 제안하고, 최종 선택은 직접 합니다.",
+    Icon: SparkleIcon,
   },
   {
     title: "함께 고르는 협업 셀렉",
@@ -52,30 +54,15 @@ const FEATURES = [
   },
 ];
 
-/* ─── 대상별 카드 데이터 (피그마 Landing/Audiences 카피) ─── */
-const AUDIENCES = [
-  {
-    eyebrow: "For Clients",
-    title: (
-      <>
-        어디에서든,
-        <br />
-        함께 고릅니다.
-      </>
-    ),
-    desc: (
-      <>
-        언제든지 편한 시간에 셀렉하세요.
-        <br />
-        함께 보는 사람들의 선택이 모이고, 마음에 든 컷만 남습니다.
-      </>
-    ),
-    items: [
-      "나란히 비교하며 빠른 선택",
-      "시간·유사도 자동 정렬",
-      "선택본부터 완성본까지 한 곳에서",
-    ],
-  },
+/* ─── 대상별 카드 데이터 (v2: 왼쪽 스튜디오 첫 개설 작가 · 오른쪽 개인 클라이언트)
+   초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. */
+const AUDIENCES: {
+  eyebrow: string;
+  title: ReactNode;
+  desc: string;
+  items: string[];
+  cta: { label: string; intent: LoginIntent };
+}[] = [
   {
     eyebrow: "For Studios",
     title: (
@@ -85,18 +72,30 @@ const AUDIENCES = [
         하나의 작업 공간에서
       </>
     ),
-    desc: (
+    desc: "스튜디오를 만들고 갤러리마다 초대 링크를 보내면, 셀렉 진행부터 보정 요청까지 한 화면에서 관리할 수 있습니다.",
+    items: [
+      "갤러리별 초대 링크 · 셀렉 진행 현황",
+      "보정 요청 한눈에 정리",
+      "팀원과 함께 쓰는 작업 공간",
+    ],
+    cta: { label: "무료로 스튜디오 만들기", intent: "studio" },
+  },
+  {
+    eyebrow: "For Individuals",
+    title: (
       <>
-        업로드 후 전달 업무가 줄어듭니다.
+        받은 사진을,
         <br />
-        셀렉 진행 현황부터 보정 요청, 완성본 전달까지 한 화면에서 관리하세요.
+        직접 올려 고릅니다.
       </>
     ),
+    desc: "작가에게 받은 원본을 그대로 올려 보세요. 비슷한 컷은 자동으로 묶이고, 파트너와 함께 고를 수 있습니다.",
     items: [
-      "여러 이미지 일괄 업로드",
-      "초대 링크 · 셀렉 진행 현황",
-      "보정 요청 한눈에 정리",
+      "여러 장 한 번에 업로드 · 자동 분류",
+      "파트너를 초대해 함께 선택",
+      "고른 사진 목록 정리",
     ],
+    cta: { label: "무료로 내 갤러리 만들기", intent: "personal" },
   },
 ];
 
@@ -131,6 +130,8 @@ const FOOTER_COLUMNS: {
 export default function LandingPage() {
   // 푸터의 준비 중 링크 안내용
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
+  // 로그인 모달 — nav(로그인·회원가입)와 대상 카드 버튼이 함께 쓴다. null이면 닫힘.
+  const [loginIntent, setLoginIntent] = useState<LoginIntent | null>(null);
 
   return (
     <>
@@ -142,7 +143,7 @@ export default function LandingPage() {
         본문으로 건너뛰기
       </a>
 
-      <LandingNav />
+      <LandingNav onOpenLogin={setLoginIntent} />
 
       <main id="main">
         {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
@@ -170,25 +171,12 @@ export default function LandingPage() {
                 완성돼요.
               </p>
 
-              <div className="flex items-center gap-3 flex-wrap">
-                <Button size="lg" kind="ghost" href="/gallery">
-                  내 갤러리 보기
-                </Button>
-                <Button
-                  size="lg"
-                  icon={<ArrowRightIcon />}
-                  href="/onboarding/studio"
-                >
-                  스튜디오 시작하기
-                </Button>
-              </div>
-
-              {/* 웨이트리스트 스크롤 링크 — 런칭 시 이 블록만 삭제 */}
+              {/* 역할별 진입은 Who it's for 카드의 버튼에서 — 히어로는 그리로 안내만 한다 */}
               <a
-                href="#waitlist"
+                href="#audiences"
                 className="inline-flex items-center gap-1 pb-px type-label-medium-m text-brand-secondary-dark border-b border-brand-secondary-lightness transition-colors duration-fast hover:text-brand-secondary-default hover:border-brand-secondary-default"
               >
-                서비스 오픈 알림 받기
+                나에게 맞는 시작 찾기
                 <ArrowDownIcon size={14} />
               </a>
             </div>
@@ -264,12 +252,12 @@ export default function LandingPage() {
                 Who it&apos;s for
               </p>
               <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default">
-                고르는 사람에게도, 찍는 사람에게도.
+                찍는 사람에게도, 고르는 사람에게도.
               </h2>
             </Reveal>
 
             <div className="grid grid-cols-2 gap-6 w-full max-[720px]:grid-cols-1">
-              {AUDIENCES.map(({ eyebrow, title, desc, items }, i) => (
+              {AUDIENCES.map(({ eyebrow, title, desc, items, cta }, i) => (
                 <Reveal key={eyebrow} delay={(i + 1) as RevealDelay}>
                   <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
                     <p className="type-label-eyebrow text-brand-secondary-default">
@@ -292,6 +280,14 @@ export default function LandingPage() {
                         </li>
                       ))}
                     </ul>
+                    <div className="mt-auto pt-4">
+                      <Button
+                        icon={<ArrowRightIcon />}
+                        onClick={() => setLoginIntent(cta.intent)}
+                      >
+                        {cta.label}
+                      </Button>
+                    </div>
                   </div>
                 </Reveal>
               ))}
@@ -316,27 +312,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ═══ WAITLIST — 하단 섹션 (런칭 시 이 섹션 전체 삭제) ═══ */}
-        <section
-          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
-          id="waitlist"
-          aria-labelledby="wl-h"
-        >
-          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-8 text-center">
-            <Reveal className="flex flex-col items-center gap-4 max-w-94">
-              <p className="type-label-eyebrow text-brand-secondary-default">
-                Waitlist
-              </p>
-              <h2 id="wl-h" className="type-maintext-s text-contents-light-bgd-default">
-                가장 먼저 만나보세요
-              </h2>
-              <p className="type-content-l text-contents-light-bgd-sub">
-                서비스 오픈 소식과 초대장을 가장 먼저 받아보실 수 있어요.
-              </p>
-            </Reveal>
-            <WaitlistForm />
-          </div>
-        </section>
       </main>
 
       {/* ═══ FOOTER (피그마 Landing/Footer) ═══ */}
@@ -415,6 +390,12 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      <LoginModal
+        open={loginIntent !== null}
+        onClose={() => setLoginIntent(null)}
+        intent={loginIntent ?? "couple"}
+      />
     </>
   );
 }
