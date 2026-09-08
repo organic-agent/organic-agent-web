@@ -4,7 +4,7 @@ import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { LandingNav } from "./_components/LandingNav";
 import { WaitlistForm } from "./_components/WaitlistForm";
 import { QnAAccordion } from "./_components/QnAAccordion";
-import { Reveal } from "./_components/Reveal";
+import { Reveal, type RevealDelay } from "./_components/Reveal";
 import {
   ArrowDownIcon,
   ArrowRightIcon,
@@ -153,7 +153,7 @@ export default function LandingPage() {
           <div className="max-w-wrap mx-auto px-6 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start">
             {/* 좌: 텍스트 + CTA */}
             <div className="flex flex-col items-start gap-5 max-w-107.5">
-              <p className="type-label-eyebrow text-contents-light-bgd-sub">
+              <p className="type-label-eyebrow text-brand-secondary-default">
                 Easy Select
               </p>
               <h1 id="hero-h" className="type-maintext-l text-contents-light-bgd-default">
@@ -186,7 +186,7 @@ export default function LandingPage() {
               {/* 웨이트리스트 스크롤 링크 — 런칭 시 이 블록만 삭제 */}
               <a
                 href="#waitlist"
-                className="inline-flex items-center gap-1 type-label-medium-m text-contents-light-bgd-sub hover:text-contents-light-bgd-default transition-colors"
+                className="inline-flex items-center gap-1 pb-px type-label-medium-m text-brand-secondary-dark border-b border-brand-secondary-lightness transition-colors duration-fast hover:text-brand-secondary-default hover:border-brand-secondary-default"
               >
                 서비스 오픈 알림 받기
                 <ArrowDownIcon size={14} />
@@ -195,10 +195,10 @@ export default function LandingPage() {
 
             {/* 우: 웨딩 사진 자리 (시안 400×500) — TODO: 실제 이미지로 교체
                  <Image src="/images/hero-wedding.jpg" alt="웨딩 사진" fill className="object-cover" />
-                 플레이스홀더 회색은 실사진 교체 전 임시로 bg-disabled 값을 차용 */}
+                 플레이스홀더는 실사진 교체 전 임시 — 브랜드 올리브 그라데이션(C1 랜딩 C2 결정) */}
             <div
               aria-hidden
-              className="w-100 h-125 shrink-0 rounded-(--radius-24) bg-surface-default-light max-[900px]:w-full max-[900px]:h-80"
+              className="w-100 h-125 shrink-0 rounded-(--radius-24) bg-linear-to-br from-brand-secondary-background to-brand-secondary-lightness max-[900px]:w-full max-[900px]:h-80"
             />
           </div>
         </section>
@@ -211,7 +211,7 @@ export default function LandingPage() {
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
-              <p className="type-label-eyebrow text-contents-light-bgd-sub">
+              <p className="type-label-eyebrow text-brand-secondary-default">
                 What we do
               </p>
               <h2 id="feat-h" className="type-maintext-s text-contents-light-bgd-default">
@@ -229,23 +229,22 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-3 gap-6 w-full max-[820px]:grid-cols-2 max-[520px]:grid-cols-1">
               {FEATURES.map(({ title, desc, Icon }, i) => (
-                <Reveal
-                  key={title}
-                  className="bg-background-default-main border border-divider-default rounded-(--radius-16) p-8 flex flex-col gap-5 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
-                  delay={((i % 3) + 1) as 1 | 2 | 3}
-                >
-                  <div className="self-start rounded-(--radius-12) bg-background-inverse-main p-3 text-contents-dark-bgd-default">
-                    <span className="flex size-6 items-center justify-center">
-                      <Icon />
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <h3 className="type-title-m text-contents-light-bgd-default">
-                      {title}
-                    </h3>
-                    <p className="type-content-m text-contents-light-bgd-sub">
-                      {desc}
-                    </p>
+                <Reveal key={title} delay={(i + 1) as RevealDelay}>
+                  {/* 리빌(래퍼)과 호버 떠오름(카드)을 다른 요소에 두어 transform 충돌을 피한다 */}
+                  <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-8 flex flex-col gap-5 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
+                    <div className="self-start rounded-(--radius-12) bg-brand-secondary-background p-3 text-brand-secondary-default">
+                      <span className="flex size-6 items-center justify-center">
+                        <Icon />
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <h3 className="type-title-m text-contents-light-bgd-default">
+                        {title}
+                      </h3>
+                      <p className="type-content-m text-contents-light-bgd-sub">
+                        {desc}
+                      </p>
+                    </div>
                   </div>
                 </Reveal>
               ))}
@@ -261,7 +260,7 @@ export default function LandingPage() {
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
-              <p className="type-label-eyebrow text-contents-light-bgd-sub">
+              <p className="type-label-eyebrow text-brand-secondary-default">
                 Who it&apos;s for
               </p>
               <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default">
@@ -271,31 +270,29 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-2 gap-6 w-full max-[720px]:grid-cols-1">
               {AUDIENCES.map(({ eyebrow, title, desc, items }, i) => (
-                <Reveal
-                  key={eyebrow}
-                  className="bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-shadow duration-base ease-out hover:shadow-(--shadow-hover)"
-                  delay={(i + 1) as 1 | 2}
-                >
-                  <p className="type-label-eyebrow text-contents-light-bgd-sub">
-                    {eyebrow}
-                  </p>
-                  <h3 className="type-title-xl text-contents-light-bgd-default">
-                    {title}
-                  </h3>
-                  <p className="type-content-m text-contents-light-bgd-sub">
-                    {desc}
-                  </p>
-                  <ul className="flex flex-col gap-3">
-                    {items.map((text) => (
-                      <li
-                        key={text}
-                        className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
-                      >
-                        <span className="size-1 rounded-full bg-contents-light-bgd-default shrink-0" />
-                        {text}
-                      </li>
-                    ))}
-                  </ul>
+                <Reveal key={eyebrow} delay={(i + 1) as RevealDelay}>
+                  <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
+                    <p className="type-label-eyebrow text-brand-secondary-default">
+                      {eyebrow}
+                    </p>
+                    <h3 className="type-title-xl text-contents-light-bgd-default">
+                      {title}
+                    </h3>
+                    <p className="type-content-m text-contents-light-bgd-sub">
+                      {desc}
+                    </p>
+                    <ul className="flex flex-col gap-3">
+                      {items.map((text) => (
+                        <li
+                          key={text}
+                          className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
+                        >
+                          <span className="size-1 rounded-full bg-brand-secondary-default shrink-0" />
+                          {text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </Reveal>
               ))}
             </div>
@@ -310,7 +307,7 @@ export default function LandingPage() {
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <p className="type-label-eyebrow text-contents-light-bgd-sub">FAQ</p>
+              <p className="type-label-eyebrow text-brand-secondary-default">FAQ</p>
               <h2 id="qna-h" className="type-maintext-s text-contents-light-bgd-default">
                 자주 묻는 질문
               </h2>
@@ -327,7 +324,7 @@ export default function LandingPage() {
         >
           <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-8 text-center">
             <Reveal className="flex flex-col items-center gap-4 max-w-94">
-              <p className="type-label-eyebrow text-contents-light-bgd-sub">
+              <p className="type-label-eyebrow text-brand-secondary-default">
                 Waitlist
               </p>
               <h2 id="wl-h" className="type-maintext-s text-contents-light-bgd-default">

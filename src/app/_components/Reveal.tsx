@@ -9,16 +9,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
+export type RevealDelay = 1 | 2 | 3 | 4 | 5 | 6;
+
 type RevealProps = {
   children: React.ReactNode;
   className?: string;
-  delay?: 1 | 2 | 3;
+  delay?: RevealDelay;
 };
 
 const delayClass: Record<number, string> = {
   1: "reveal-delay-1",
   2: "reveal-delay-2",
   3: "reveal-delay-3",
+  4: "reveal-delay-4",
+  5: "reveal-delay-5",
+  6: "reveal-delay-6",
 };
 
 function getInitialVisibility() {

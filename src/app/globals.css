@@ -111,6 +111,15 @@
   .reveal-delay-3 {
     transition-delay: 0.18s;
   }
+  .reveal-delay-4 {
+    transition-delay: 0.24s;
+  }
+  .reveal-delay-5 {
+    transition-delay: 0.3s;
+  }
+  .reveal-delay-6 {
+    transition-delay: 0.36s;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .reveal-base {
