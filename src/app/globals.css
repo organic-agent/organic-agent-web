@@ -28,6 +28,17 @@
   --font-brand: var(--font-families-montserrat), var(--font-montserrat), sans-serif;
 }
 
+/* ─── 테마 ───
+   <html data-theme="light|dark">는 src/lib/theme-bootstrap.ts 스크립트가 첫 페인트 전에 정한다.
+   색 변수는 tokens.generated.css의 [data-theme="dark"] 블록이 덮어쓰고, 여기서는 브라우저 기본 UI
+   (스크롤바·입력창·체크박스 등)가 테마를 따르도록 color-scheme만 맞춘다. */
+:root {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 /* ─── Base resets ─── */
 /* (참고) 한글 줄바꿈 정책은 body의 word-break: keep-all 하나로 전역 제어한다 */
 @layer base {

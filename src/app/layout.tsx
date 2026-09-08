@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import { AuthBootstrap } from "@/components/AuthBootstrap";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme-bootstrap";
 import "./tokens.generated.css";
 import "./globals.css";
 
@@ -46,11 +47,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
+    // data-theme은 <head>의 부팅 스크립트가 hydration 전에 정한다(저장값 → 라이트). 서버 HTML엔 없으므로
+    // React가 속성 불일치를 경고하지 않도록 suppressHydrationWarning. 토글 UI는 C1 프로필 메뉴에서 useTheme()로 연결.
     <html
       lang="ko"
-      data-theme="light"
+      suppressHydrationWarning
       className={`${pretendard.variable} ${montserrat.variable}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body>
         <AuthBootstrap />
         {children}
