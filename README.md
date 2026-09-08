@@ -34,7 +34,7 @@
 
 - 피그마 컴포넌트 체계와 1:1 대응하는 공용 컴포넌트(`src/components`)
 - 디자이너 변수 기반 디자인 토큰(디자인 시스템 v2) — `tokens/*.json`에서 생성 CSS 2개를 만드는 빌드 파이프라인
-- 본문 서체 Noto Sans KR (next/font 셀프 호스팅, 피그마와 동일 서체)
+- 본문·제목 서체 Pretendard Variable (유니코드 범위별 조각 92개를 `public/fonts/pretendard/`에 셀프 호스팅, 출처 orioncactus/pretendard v1.3.9) + 브랜드 워드마크 Montserrat (next/font)
 
 ## 기술 스택
 
@@ -44,7 +44,7 @@
 | UI | React 19, Tailwind CSS 4 |
 | Language | TypeScript 5 |
 | Design tokens | style-dictionary + tokens-studio 변환기 |
-| Fonts | next/font (Noto Sans KR · Noto Serif KR · Montserrat) |
+| Fonts | Pretendard Variable (동적 서브셋 셀프 호스팅) · Montserrat (next/font) |
 | State | React hooks, `useSyncExternalStore` |
 | Prototype data | `localStorage`, 정적 목업 데이터 |
 | Code quality | ESLint, TypeScript |
