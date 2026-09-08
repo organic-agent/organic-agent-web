@@ -26,29 +26,29 @@ export function ReactionPanel({
   comments: ReactionComment[];
 }) {
   return (
-    <aside className="flex w-70 shrink-0 flex-col gap-4 overflow-y-auto border-l border-stroke-neutral-muted bg-bg-layer-default p-5">
+    <aside className="flex w-70 shrink-0 flex-col gap-4 overflow-y-auto border-l border-divider-default bg-background-default-main p-5">
       <PanelHeader icon={<ReactionIcon size={16} />}>받은 반응</PanelHeader>
 
-      <div className="flex items-center gap-2 text-fg-neutral">
+      <div className="flex items-center gap-2 text-contents-light-bgd-default">
         <HeartIcon size={16} />
-        <span className="type-body-medium">{likesLabel}</span>
+        <span className="type-content-m">{likesLabel}</span>
       </div>
 
-      <div className="h-px w-full bg-stroke-neutral-muted" />
+      <div className="h-px w-full bg-divider-default" />
 
       {comments.map((comment, i) => (
         <div key={i} className="flex w-full items-start gap-2">
           <Avatar initial={comment.initial} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="flex items-center gap-1.5 type-body-small text-fg-neutral-muted">
+            <span className="flex items-center gap-1.5 type-content-xs text-contents-light-bgd-sub">
               {comment.meta}
               {comment.tag && (
-                <span className="rounded-(--radius-4) bg-bg-layer-default-hover px-1.5 py-0.5 text-fg-neutral">
+                <span className="rounded-(--radius-4) bg-surface-default-lightness px-1.5 py-0.5 text-contents-light-bgd-default">
                   {comment.tag}
                 </span>
               )}
             </span>
-            <p className="type-body-medium text-fg-neutral">{comment.text}</p>
+            <p className="type-content-m text-contents-light-bgd-default">{comment.text}</p>
           </div>
         </div>
       ))}

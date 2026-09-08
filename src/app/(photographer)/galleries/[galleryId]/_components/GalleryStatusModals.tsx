@@ -42,7 +42,7 @@ function errorMessage(err: unknown): string {
 function ErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="mb-4 text-center type-body-small text-fg-critical">
+    <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
       {message}
     </p>
   );
@@ -75,9 +75,9 @@ export function OpenGalleryConfirmModal({
       paddingClassName="p-7"
       onClose={onClose}
     >
-      <p className="mb-6 type-body-medium text-fg-neutral-muted">
+      <p className="mb-6 type-content-m text-contents-light-bgd-sub">
         열면 초대된 부부에게{" "}
-        <span className="font-medium text-fg-neutral">{gallery.title}</span>이
+        <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>이
         보이기 시작해요. 사진은 연 뒤에도 계속 올릴 수 있어요.
       </p>
       <ErrorBanner message={banner} />
@@ -118,9 +118,9 @@ export function CloseGalleryConfirmModal({
       paddingClassName="p-7"
       onClose={onClose}
     >
-      <p className="mb-6 type-body-medium text-fg-neutral-muted">
+      <p className="mb-6 type-content-m text-contents-light-bgd-sub">
         마감하면 부부는{" "}
-        <span className="font-medium text-fg-neutral">{gallery.title}</span>의
+        <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의
         사진을 계속 볼 수 있지만, 고르거나 묶는 건 멈춰요. 필요하면 언제든
         다시 열 수 있어요.
       </p>
@@ -171,9 +171,9 @@ export function ReopenGalleryModal({
       onClose={onClose}
     >
       <div className="mb-6">
-        <label className="mb-1.5 block type-label-button text-fg-neutral">
+        <label className="mb-1.5 block type-label-medium-m text-contents-light-bgd-default">
           선택 마감 기한
-          <span className="ml-1 font-normal text-fg-neutral-muted">(선택)</span>
+          <span className="ml-1 font-normal text-contents-light-bgd-sub">(선택)</span>
         </label>
         <TextField
           type="date"
@@ -184,8 +184,8 @@ export function ReopenGalleryModal({
           className="h-10"
         />
         <p
-          className={`mt-1.5 type-body-small ${
-            pastDue ? "text-fg-critical" : "text-fg-neutral-muted"
+          className={`mt-1.5 type-content-xs ${
+            pastDue ? "text-function-error-default" : "text-contents-light-bgd-sub"
           }`}
         >
           {pastDue

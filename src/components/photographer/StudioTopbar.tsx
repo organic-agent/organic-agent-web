@@ -12,11 +12,11 @@ import { Avatar } from "@/components/ui/Avatar";
 
 export function StudioTopbar({ studioInitial }: { studioInitial: string }) {
   return (
-    <header className="border-b border-stroke-neutral-muted bg-bg-layer-default">
+    <header className="border-b border-divider-default bg-background-default-main">
       <div className="mx-auto flex h-12 w-full max-w-wrap items-center justify-between px-6">
         <Link
           href="/galleries"
-          className="flex items-center gap-2 text-fg-neutral"
+          className="flex items-center gap-2 text-contents-light-bgd-default"
         >
           <BrandLogo size={32} />
           <b className="type-brand-wordmark">Easy Select</b>

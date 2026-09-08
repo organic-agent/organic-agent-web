@@ -152,14 +152,14 @@ export function GalleryInviteModal({ galleryId, onClose }: Props) {
       onClose={onClose}
     >
       {invite === null && !loadError && (
-        <p className="mb-6 py-6 text-center type-body-medium text-fg-neutral-muted">
+        <p className="mb-6 py-6 text-center type-content-m text-contents-light-bgd-sub">
           초대 정보를 불러오는 중이에요…
         </p>
       )}
 
       {loadError && (
         <div className="mb-6 flex flex-col items-center gap-3 py-4 text-center">
-          <p className="type-body-medium text-fg-neutral-muted">
+          <p className="type-content-m text-contents-light-bgd-sub">
             초대 정보를 불러오지 못했어요.
           </p>
           <Button size="sm" onClick={retryLoad}>
@@ -171,27 +171,27 @@ export function GalleryInviteModal({ galleryId, onClose }: Props) {
       {invite !== null && !loadError && (
         <>
           {/* 부부 입장 현황 — 정원 2명 */}
-          <div className="mb-3 rounded-(--radius-8) border border-stroke-neutral-muted px-4 py-3">
-            <p className="mb-1 type-body-small text-fg-neutral-muted">
+          <div className="mb-3 rounded-(--radius-8) border border-divider-default px-4 py-3">
+            <p className="mb-1 type-content-xs text-contents-light-bgd-sub">
               부부 입장 {members.length}/2
             </p>
-            <p className="truncate type-label-button text-fg-neutral">
+            <p className="truncate type-label-medium-m text-contents-light-bgd-default">
               {memberLine}
             </p>
           </div>
 
           {invite === "none" ? (
-            <p className="mb-6 type-body-small text-fg-neutral-muted">
+            <p className="mb-6 type-content-xs text-contents-light-bgd-sub">
               아직 초대 링크가 없어요. 링크를 만들어 신혼부부에게 보내주세요.
             </p>
           ) : (
             <>
               <div className="mb-3 flex items-center gap-2">
                 <div
-                  className={`flex h-10 min-w-0 flex-1 items-center truncate rounded-(--radius-8) border border-stroke-neutral-muted bg-bg-layer-default-hover px-3.5 type-body-small ${
+                  className={`flex h-10 min-w-0 flex-1 items-center truncate rounded-(--radius-8) border border-divider-default bg-surface-default-lightness px-3.5 type-content-xs ${
                     invite.status === "ACTIVE"
-                      ? "text-fg-neutral-muted"
-                      : "text-fg-disabled line-through"
+                      ? "text-contents-light-bgd-sub"
+                      : "text-contents-light-bgd-disabled line-through"
                   }`}
                 >
                   {invite.inviteUrl}
@@ -207,19 +207,19 @@ export function GalleryInviteModal({ galleryId, onClose }: Props) {
                 )}
               </div>
               {copyState === "failed" && (
-                <p className="mb-3 type-body-small text-fg-critical">
+                <p className="mb-3 type-content-xs text-function-error-default">
                   복사에 실패했어요. 링크를 직접 선택해서 복사해주세요.
                 </p>
               )}
-              <div className="mb-6 rounded-(--radius-8) border border-stroke-neutral-muted px-4 py-3">
-                <p className="mb-1 type-body-small text-fg-neutral-muted">
+              <div className="mb-6 rounded-(--radius-8) border border-divider-default px-4 py-3">
+                <p className="mb-1 type-content-xs text-contents-light-bgd-sub">
                   링크 만료
                 </p>
                 <p
-                  className={`type-label-button ${
+                  className={`type-label-medium-m ${
                     invite.status === "ACTIVE"
-                      ? "text-fg-neutral"
-                      : "text-fg-critical"
+                      ? "text-contents-light-bgd-default"
+                      : "text-function-error-default"
                   }`}
                 >
                   {invite.status === "ACTIVE"
@@ -233,7 +233,7 @@ export function GalleryInviteModal({ galleryId, onClose }: Props) {
           {banner && (
             <p
               role="alert"
-              className="mb-4 text-center type-body-small text-fg-critical"
+              className="mb-4 text-center type-content-xs text-function-error-default"
             >
               {banner}
             </p>
@@ -242,7 +242,7 @@ export function GalleryInviteModal({ galleryId, onClose }: Props) {
           {/* 액션 — 재발급 경고는 살아 있는 링크가 있을 때만 */}
           {confirmReissue && invite !== "none" && invite.status === "ACTIVE" ? (
             <div className="flex flex-col gap-3">
-              <p className="type-body-small text-fg-critical">
+              <p className="type-content-xs text-function-error-default">
                 다시 발급하면 이전에 보낸 링크는 즉시 쓸 수 없게 돼요. 이미
                 전달했다면 새 링크를 다시 보내야 해요.
               </p>
@@ -269,7 +269,7 @@ export function GalleryInviteModal({ galleryId, onClose }: Props) {
                 type="button"
                 onClick={() => revoke(invite)}
                 disabled={busy}
-                className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-(--pill) px-5 type-label-button text-fg-critical transition-colors duration-fast hover:bg-bg-layer-default-hover disabled:pointer-events-none disabled:opacity-40"
+                className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-(--pill) px-5 type-label-medium-m text-function-error-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:pointer-events-none disabled:opacity-40"
               >
                 {busy ? "처리 중…" : "링크 폐기"}
               </button>

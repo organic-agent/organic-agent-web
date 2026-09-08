@@ -16,8 +16,8 @@ export function Avatar({
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center rounded-full bg-bg-disabled text-fg-neutral ${
-        large ? "size-10 type-body-large" : "size-7 type-body-small"
+      className={`flex shrink-0 items-center justify-center rounded-full bg-surface-default-light text-contents-light-bgd-default ${
+        large ? "size-10 type-content-l" : "size-7 type-content-xs"
       } ${className}`}
     >
       {initial}

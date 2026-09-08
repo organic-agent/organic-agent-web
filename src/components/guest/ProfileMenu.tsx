@@ -12,7 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { MenuItem } from "@/components/ui/MenuItem";
 
 function Divider() {
-  return <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />;
+  return <div className="h-px w-full shrink-0 bg-divider-default" />;
 }
 
 export function ProfileMenu({
@@ -27,12 +27,12 @@ export function ProfileMenu({
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
 
   return (
-    <div className="absolute right-0 top-full z-50 mt-2 flex w-65 flex-col gap-2 rounded-(--radius-12) border border-stroke-neutral-weak bg-bg-layer-default p-3 shadow-(--shadow-modal)">
+    <div className="absolute right-0 top-full z-50 mt-2 flex w-65 flex-col gap-2 rounded-(--radius-12) border border-border-default bg-background-default-main p-3 shadow-(--shadow-modal)">
       <div className="flex w-full items-center gap-3">
         <Avatar initial={initial} large />
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="truncate type-body-large text-fg-neutral">{name}</p>
-          <p className="truncate type-body-small text-fg-neutral">{email}</p>
+          <p className="truncate type-content-l text-contents-light-bgd-default">{name}</p>
+          <p className="truncate type-content-xs text-contents-light-bgd-default">{email}</p>
         </div>
       </div>
       <Divider />

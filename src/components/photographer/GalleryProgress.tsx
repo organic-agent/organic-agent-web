@@ -25,17 +25,17 @@ export function GalleryProgress({
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
-      <div className="flex items-center justify-between px-1 type-body-small">
-        <span className="text-fg-neutral-muted">셀렉 현황</span>
-        <span className="text-fg-accent">
+      <div className="flex items-center justify-between px-1 type-content-xs">
+        <span className="text-contents-light-bgd-sub">셀렉 현황</span>
+        <span className="text-brand-secondary-dark">
           {target !== null ? `${selected} / ${target}` : `${selected}장 선택`}
         </span>
       </div>
       {target !== null && (
-        <div className="h-1 w-full overflow-hidden rounded-(--pill) bg-bg-disabled">
+        <div className="h-1 w-full overflow-hidden rounded-(--pill) bg-surface-default-light">
           {pct > 0 && (
             <div
-              className="h-full rounded-(--pill) bg-bg-accent-solid"
+              className="h-full rounded-(--pill) bg-brand-secondary-light"
               style={{ width: `${pct}%` }}
             />
           )}

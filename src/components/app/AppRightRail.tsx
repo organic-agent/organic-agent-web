@@ -22,7 +22,7 @@ export function AppRightRail({
     <aside
       className={`flex w-10 shrink-0 flex-col items-center ${
         footer ? "justify-between" : "justify-end"
-      } gap-1 bg-bg-layer-default border-l border-stroke-neutral-muted px-1 py-2 ${className}`}
+      } gap-1 bg-background-default-main border-l border-divider-default px-1 py-2 ${className}`}
     >
       {footer ? (
         <div className="flex flex-col items-center gap-1">{children}</div>

@@ -114,18 +114,18 @@ export function LoginModal({
     startError ?? (errorCode ? loginErrorMessage(errorCode) : null);
 
   const card = (
-    <div className="w-full max-w-120 bg-bg-layer-default rounded-(--radius-16) p-6 flex flex-col gap-10">
+    <div className="w-full max-w-120 bg-background-default-main rounded-(--radius-16) p-6 flex flex-col gap-10">
       {/* 헤더: 로고 로크업 + 닫기 / 제목·부제 */}
       <div className="flex flex-col gap-5 w-full">
         <div className="flex items-center justify-between w-full px-2">
           <div className="flex items-center gap-2">
-            <BrandLogo size={32} className="text-fg-neutral shrink-0" />
-            <b className="type-brand-wordmark text-fg-neutral">Easy Select</b>
+            <BrandLogo size={32} className="text-contents-light-bgd-default shrink-0" />
+            <b className="type-brand-wordmark text-contents-light-bgd-default">Easy Select</b>
           </div>
           {!asPage && onClose && (
             <button
               onClick={onClose}
-              className="p-1 rounded-full text-fg-neutral hover:bg-bg-layer-default-hover transition-colors duration-fast cursor-pointer"
+              className="p-1 rounded-full text-contents-light-bgd-default hover:bg-surface-default-lightness transition-colors duration-fast cursor-pointer"
               aria-label="닫기"
             >
               <CloseIcon />
@@ -133,9 +133,9 @@ export function LoginModal({
           )}
         </div>
         <div className="flex flex-col gap-1 items-center text-center w-full">
-          <h2 className="type-heading-large text-fg-neutral">{copy.title}</h2>
+          <h2 className="type-title-xl text-contents-light-bgd-default">{copy.title}</h2>
           {/* 부제는 시안대로 세리프 14 (전용 토큰 없음 — 시안 고유 스타일) */}
-          <p className="font-[family-name:var(--font-noto-serif-kr),serif] font-medium text-[14px] leading-[1.3] tracking-[-0.01em] text-fg-neutral-muted">
+          <p className="type-title-xs text-contents-light-bgd-sub">
             {copy.sub}
           </p>
         </div>
@@ -147,7 +147,7 @@ export function LoginModal({
           {errorMessage && (
             <p
               role="alert"
-              className="text-center type-body-small text-fg-warning"
+              className="text-center type-content-xs text-function-warning-default"
             >
               {errorMessage}
             </p>
@@ -158,7 +158,7 @@ export function LoginModal({
               onClick={() => handleSignIn(o.key)}
               disabled={busy}
               aria-busy={loadingProvider === o.key}
-              className="relative w-full h-12 rounded-(--pill) type-body-small transition-transform active:scale-[0.98] disabled:pointer-events-none cursor-pointer"
+              className="relative w-full h-12 rounded-(--pill) type-content-xs transition-transform active:scale-[0.98] disabled:pointer-events-none cursor-pointer"
               style={{
                 background: o.bg,
                 color: o.fg,
@@ -194,18 +194,18 @@ export function LoginModal({
         </div>
 
         {/* 동의 문구 (간주 방식) */}
-        <p className="text-center type-body-small text-fg-neutral-subtle">
+        <p className="text-center type-content-xs text-contents-light-bgd-weakness">
           로그인 시{" "}
           <a
             href="/terms"
-            className="underline underline-offset-2 transition-colors duration-fast hover:text-fg-neutral"
+            className="underline underline-offset-2 transition-colors duration-fast hover:text-contents-light-bgd-default"
           >
             이용약관
           </a>{" "}
           및{" "}
           <a
             href="/privacy"
-            className="underline underline-offset-2 transition-colors duration-fast hover:text-fg-neutral"
+            className="underline underline-offset-2 transition-colors duration-fast hover:text-contents-light-bgd-default"
           >
             개인정보 처리방침
           </a>
@@ -218,7 +218,7 @@ export function LoginModal({
   // 페이지 모드: 전체 화면 중앙 배치
   if (asPage) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-bg-layer-default px-6 py-12">
+      <main className="grid min-h-dvh place-items-center bg-background-default-main px-6 py-12">
         {card}
       </main>
     );
@@ -231,7 +231,7 @@ export function LoginModal({
     <div className="fixed inset-0 z-150 grid place-items-center px-4">
       {/* Backdrop — bg.overlay 토큰 (딤 배경) */}
       <div
-        className="absolute inset-0 bg-bg-overlay backdrop-blur-sm"
+        className="absolute inset-0 bg-surface-default-medium backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />

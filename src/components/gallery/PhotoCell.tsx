@@ -51,7 +51,7 @@ function PreparingFill() {
   return (
     <span className="absolute inset-0 overflow-hidden rounded-[inherit]">
       <span className="shimmer-sweep" />
-      <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+      <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
         <svg
           width="22"
           height="22"
@@ -90,14 +90,14 @@ export function PhotoCell({
 }: PhotoCellProps) {
   const focusRing = focused ? "scale-103 z-10 shadow-(--shadow-hover)" : "";
   const selectedRing = selected
-    ? "border-2 border-stroke-accent"
+    ? "border-2 border-brand-primary-default shadow-[inset_0_0_0_4px_var(--surface-inverse-dark)]"
     : managed
-      ? "border-2 border-bg-neutral-inverted"
+      ? "border-2 border-background-inverse-main"
       : "";
   const cls =
     variant === "large"
-      ? `group relative block w-full aspect-4/5 rounded-(--radius-4) bg-bg-disabled transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer overflow-hidden ${focusRing} ${selectedRing}`
-      : `group relative flex w-full flex-col gap-2 rounded-(--radius-4) bg-bg-layer-default-hover p-3 text-left transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer ${focusRing} ${selectedRing}`;
+      ? `group relative block w-full aspect-4/5 rounded-(--radius-4) bg-surface-default-light transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer overflow-hidden ${focusRing} ${selectedRing}`
+      : `group relative flex w-full flex-col gap-2 rounded-(--radius-4) bg-surface-default-lightness p-3 text-left transition-[opacity,transform] duration-fast hover:opacity-90 cursor-pointer ${focusRing} ${selectedRing}`;
 
   // 이미지 영역: 준비 중(물결+아이콘) > 실사진 > 회색 플레이스홀더
   const imageFill: ReactNode = preparing ? (
@@ -118,11 +118,11 @@ export function PhotoCell({
       imageFill
     ) : (
       <>
-        <span className="flex w-full items-center justify-between type-body-small text-fg-neutral-muted">
+        <span className="flex w-full items-center justify-between type-content-xs text-contents-light-bgd-sub">
           <span className="truncate">{name}</span>
           <span className="shrink-0 pl-2">{format}</span>
         </span>
-        <span className="relative block w-full aspect-4/5 overflow-hidden rounded-(--radius-4) bg-bg-disabled">
+        <span className="relative block w-full aspect-4/5 overflow-hidden rounded-(--radius-4) bg-surface-default-light">
           {imageFill}
         </span>
       </>
@@ -132,7 +132,7 @@ export function PhotoCell({
   const managedIndicator = managed ? (
     <span
       aria-hidden
-      className={`absolute z-10 grid size-6 place-items-center rounded-full bg-bg-neutral-inverted text-fg-neutral-inverted ${
+      className={`absolute z-10 grid size-6 place-items-center rounded-full bg-background-inverse-main text-contents-dark-bgd-default ${
         variant === "large" ? "left-2 top-2" : "left-5 top-10"
       }`}
     >
@@ -156,8 +156,8 @@ export function PhotoCell({
         variant === "large" ? "left-2 top-2" : "left-5 top-10"
       } ${
         selected
-          ? "border-transparent bg-bg-accent-solid text-fg-neutral-inverted opacity-100"
-          : "border-stroke-neutral-weak bg-bg-layer-default/90 text-fg-neutral-subtle opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+          ? "border-transparent bg-brand-primary-default text-contents-dark-bgd-default opacity-100"
+          : "border-border-default bg-background-default-main/90 text-contents-light-bgd-weakness opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
       }`}
     >
       <svg

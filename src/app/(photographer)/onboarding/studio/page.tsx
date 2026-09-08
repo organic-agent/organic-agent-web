@@ -55,26 +55,26 @@ function urlGuide(state: GalleryUrlCheck): { text: string; tone: string } {
     case "idle":
       return {
         text: "영문 소문자·숫자·하이픈만 사용할 수 있어요",
-        tone: "text-fg-neutral-muted",
+        tone: "text-contents-light-bgd-sub",
       };
     case "invalid":
       return {
         text: state.message ?? "3~50자, 영문 소문자·숫자·하이픈만 가능해요",
-        tone: "text-fg-critical",
+        tone: "text-function-error-default",
       };
     case "checking":
-      return { text: "주소를 확인하는 중…", tone: "text-fg-neutral-muted" };
+      return { text: "주소를 확인하는 중…", tone: "text-contents-light-bgd-sub" };
     case "available":
-      return { text: "✓ 사용할 수 있는 주소예요", tone: "text-fg-positive" };
+      return { text: "✓ 사용할 수 있는 주소예요", tone: "text-function-success-default" };
     case "taken":
       return {
         text: "이미 사용 중인 주소예요. 다른 주소를 입력해 주세요",
-        tone: "text-fg-critical",
+        tone: "text-function-error-default",
       };
     case "error":
       return {
         text: "주소 확인에 실패했어요. 잠시 후 다시 입력해 보세요",
-        tone: "text-fg-critical",
+        tone: "text-function-error-default",
       };
   }
 }
@@ -147,12 +147,12 @@ export default function StudioNewPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg-layer-default grid place-items-center px-6 py-12">
+    <main className="min-h-dvh bg-background-default-main grid place-items-center px-6 py-12">
       <div className="w-full max-w-115">
         {/* 뒤로가기 (랜딩으로) */}
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-1 type-label-button text-fg-neutral-muted transition-colors duration-fast hover:text-fg-neutral"
+          className="mb-6 inline-flex items-center gap-1 type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
         >
           <BackIcon size={16} />
           홈으로
@@ -160,23 +160,23 @@ export default function StudioNewPage() {
 
         {/* 브랜드 */}
         <div className="mb-8 flex items-center gap-2">
-          <BrandLogo size={32} className="text-fg-neutral" />
-          <b className="type-brand-wordmark text-fg-neutral">Easy Select</b>
+          <BrandLogo size={32} className="text-contents-light-bgd-default" />
+          <b className="type-brand-wordmark text-contents-light-bgd-default">Easy Select</b>
         </div>
 
-        <p className="mb-3 type-label-eyebrow text-fg-neutral-muted">
+        <p className="mb-3 type-label-eyebrow text-contents-light-bgd-sub">
           Set up your studio
         </p>
-        <h1 className="mb-2 type-heading-large text-fg-neutral">
+        <h1 className="mb-2 type-title-xl text-contents-light-bgd-default">
           스튜디오를 만들어볼까요
         </h1>
-        <p className="mb-9 type-body-medium text-fg-neutral-muted">
+        <p className="mb-9 type-content-m text-contents-light-bgd-sub">
           신혼부부에게 보여질 스튜디오 정보예요. 나중에 언제든 바꿀 수 있어요.
         </p>
 
         {/* 업체명 */}
         <div className="mb-6">
-          <label className="mb-2 block type-label-button text-fg-neutral">
+          <label className="mb-2 block type-label-medium-m text-contents-light-bgd-default">
             업체명
           </label>
           <TextField
@@ -190,17 +190,17 @@ export default function StudioNewPage() {
 
         {/* 갤러리 URL */}
         <div className="mb-6">
-          <label className="mb-2 block type-label-button text-fg-neutral">
+          <label className="mb-2 block type-label-medium-m text-contents-light-bgd-default">
             갤러리 주소
           </label>
           <div
-            className={`flex h-12 items-center overflow-hidden rounded-(--radius-8) border bg-bg-layer-default transition-colors duration-fast ${
+            className={`flex h-12 items-center overflow-hidden rounded-(--radius-8) border bg-background-default-main transition-colors duration-fast ${
               urlState.status === "invalid" || urlState.status === "taken"
-                ? "border-fg-critical ring-1 ring-fg-critical"
-                : "border-stroke-neutral-weak focus-within:border-fg-neutral focus-within:ring-1 focus-within:ring-fg-neutral"
+                ? "border-function-error-default ring-1 ring-function-error-default"
+                : "border-border-default focus-within:border-contents-light-bgd-default focus-within:ring-1 focus-within:ring-contents-light-bgd-default"
             }`}
           >
-            <span className="select-none pl-4 pr-1 type-body-medium text-fg-neutral-muted">
+            <span className="select-none pl-4 pr-1 type-content-m text-contents-light-bgd-sub">
               studio/
             </span>
             <input
@@ -212,13 +212,13 @@ export default function StudioNewPage() {
               }}
               placeholder="serora"
               aria-label="갤러리 주소"
-              className="h-full min-w-0 flex-1 bg-transparent pr-4 type-body-medium text-fg-neutral outline-none placeholder:text-fg-neutral-muted"
+              className="h-full min-w-0 flex-1 bg-transparent pr-4 type-content-m text-contents-light-bgd-default outline-none placeholder:text-contents-light-bgd-sub"
             />
           </div>
           {/* 검증·가용성 안내 */}
           <p
             aria-live="polite"
-            className={`mt-1.5 type-body-small ${guide.tone}`}
+            className={`mt-1.5 type-content-xs ${guide.tone}`}
           >
             {guide.text}
           </p>
@@ -226,9 +226,9 @@ export default function StudioNewPage() {
 
         {/* 유입경로 */}
         <div className="mb-9">
-          <label className="mb-2 block type-label-button text-fg-neutral">
+          <label className="mb-2 block type-label-medium-m text-contents-light-bgd-default">
             어떻게 알고 오셨나요?
-            <span className="ml-1 font-normal text-fg-neutral-muted">
+            <span className="ml-1 font-normal text-contents-light-bgd-sub">
               (선택)
             </span>
           </label>
@@ -239,10 +239,10 @@ export default function StudioNewPage() {
                 type="button"
                 onClick={() => setSource(s.key)}
                 aria-pressed={source === s.key}
-                className={`flex h-12 cursor-pointer items-center gap-2.5 rounded-(--radius-8) border px-4 type-label-button transition-colors duration-fast ${
+                className={`flex h-12 cursor-pointer items-center gap-2.5 rounded-(--radius-8) border px-4 type-label-medium-m transition-colors duration-fast ${
                   source === s.key
-                    ? "border-transparent bg-bg-brand-solid text-fg-neutral-inverted"
-                    : "border-stroke-neutral-muted text-fg-neutral-muted hover:border-stroke-neutral-weak"
+                    ? "border-transparent bg-brand-primary-default text-contents-dark-bgd-default"
+                    : "border-divider-default text-contents-light-bgd-sub hover:border-border-default"
                 }`}
               >
                 <svg
@@ -268,7 +268,7 @@ export default function StudioNewPage() {
         {banner && (
           <p
             role="alert"
-            className="mb-4 text-center type-body-small text-fg-critical"
+            className="mb-4 text-center type-content-xs text-function-error-default"
           >
             {banner}
           </p>
@@ -283,7 +283,7 @@ export default function StudioNewPage() {
         >
           {submitting ? "스튜디오 만드는 중…" : "스튜디오 만들고 시작하기"}
         </Button>
-        <p className="mt-4 text-center type-body-small text-fg-neutral-muted">
+        <p className="mt-4 text-center type-content-xs text-contents-light-bgd-sub">
           다음 단계에서 첫 갤러리를 만들어볼 거예요
         </p>
       </div>

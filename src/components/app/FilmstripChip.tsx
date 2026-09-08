@@ -49,7 +49,7 @@ export function FilmstripChip({
       onClick={onToggle}
       aria-expanded={open}
       aria-label={open ? "필름스트립 접기" : "필름스트립 펼치기"}
-      className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-(--pill) border border-stroke-neutral-muted px-3 type-body-small tabular-nums text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+      className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-(--pill) border border-divider-default px-3 type-content-xs tabular-nums text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
     >
       <SlideshowIcon size={14} />
       {position} / {total}

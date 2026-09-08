@@ -14,11 +14,11 @@ export function GalleryCreatedToast({ galleryName }: Props) {
   if (!galleryName) return null;
 
   return (
-    <div className="fixed bottom-8 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-0.5 rounded-(--radius-8) bg-bg-neutral-inverted px-5 py-3 shadow-(--shadow-hover)">
-      <p className="type-label-button text-fg-neutral-inverted">
+    <div className="fixed bottom-8 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-0.5 rounded-(--radius-8) bg-background-inverse-main px-5 py-3 shadow-(--shadow-hover)">
+      <p className="type-label-medium-m text-contents-dark-bgd-default">
         ‘{galleryName}’ 갤러리를 만들었어요
       </p>
-      <p className="type-body-small text-fg-neutral-inverted-muted">
+      <p className="type-content-xs text-contents-dark-bgd-weakness">
         열기 전까지 부부에게 보이지 않아요 · 준비되면 카드에서 열어주세요
       </p>
     </div>

@@ -96,7 +96,7 @@ export function NewGalleryModal({
         namePlaceholder="예: 지민 & 하윤 웨딩"
       />
       {banner && (
-        <p role="alert" className="mb-4 text-center type-body-small text-fg-critical">
+        <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
           {banner}
         </p>
       )}

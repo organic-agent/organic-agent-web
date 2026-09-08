@@ -29,8 +29,8 @@ export function IconButton({
       onClick={onClick}
       aria-label={ariaLabel}
       aria-pressed={selected || undefined}
-      className={`inline-flex items-center justify-center p-1 rounded-(--radius-4) text-fg-neutral cursor-pointer transition-colors duration-fast ease-out hover:bg-bg-layer-default-hover ${
-        selected ? "bg-bg-layer-default-hover" : ""
+      className={`inline-flex items-center justify-center p-1 rounded-(--radius-4) text-contents-light-bgd-default cursor-pointer transition-colors duration-fast ease-out hover:bg-surface-default-lightness ${
+        selected ? "bg-surface-default-lightness" : ""
       } ${className}`}
     >
       {icon}

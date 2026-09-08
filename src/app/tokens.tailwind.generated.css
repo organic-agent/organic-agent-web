@@ -1,0 +1,334 @@
+/* 자동 생성 — tokens/*.json → Tailwind @theme 브리지 + .type-* 유틸리티 — globals.css에서만 import. 직접 수정 금지: npm run tokens:build */
+
+@theme inline {
+  --color-brand-primary-default: var(--brand-primary-default);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-primary-lightness: var(--brand-primary-lightness);
+  --color-brand-primary-surface1: var(--brand-primary-surface1);
+  --color-brand-primary-surface2: var(--brand-primary-surface2);
+  --color-brand-secondary-default: var(--brand-secondary-default);
+  --color-brand-secondary-light: var(--brand-secondary-light);
+  --color-brand-secondary-lightness: var(--brand-secondary-lightness);
+  --color-brand-secondary-dark: var(--brand-secondary-dark);
+  --color-brand-secondary-background: var(--brand-secondary-background);
+  --color-brand-secondary-surface1: var(--brand-secondary-surface1);
+  --color-brand-secondary-surface2: var(--brand-secondary-surface2);
+  --color-background-default-main: var(--background-default-main);
+  --color-background-default-sub: var(--background-default-sub);
+  --color-background-inverse-main: var(--background-inverse-main);
+  --color-background-inverse-sub: var(--background-inverse-sub);
+  --color-surface-default-transparent: var(--surface-default-transparent);
+  --color-surface-default-lightness: var(--surface-default-lightness);
+  --color-surface-default-light: var(--surface-default-light);
+  --color-surface-default-medium: var(--surface-default-medium);
+  --color-surface-default-dark: var(--surface-default-dark);
+  --color-surface-default-darkness: var(--surface-default-darkness);
+  --color-surface-inverse-transparent: var(--surface-inverse-transparent);
+  --color-surface-inverse-lightness: var(--surface-inverse-lightness);
+  --color-surface-inverse-light: var(--surface-inverse-light);
+  --color-surface-inverse-medium: var(--surface-inverse-medium);
+  --color-surface-inverse-dark: var(--surface-inverse-dark);
+  --color-surface-inverse-darkness: var(--surface-inverse-darkness);
+  --color-contents-light-bgd-default: var(--contents-light-bgd-default);
+  --color-contents-light-bgd-sub: var(--contents-light-bgd-sub);
+  --color-contents-light-bgd-additional: var(--contents-light-bgd-additional);
+  --color-contents-light-bgd-weakness: var(--contents-light-bgd-weakness);
+  --color-contents-light-bgd-disabled: var(--contents-light-bgd-disabled);
+  --color-contents-dark-bgd-default: var(--contents-dark-bgd-default);
+  --color-contents-dark-bgd-sub: var(--contents-dark-bgd-sub);
+  --color-contents-dark-bgd-additional: var(--contents-dark-bgd-additional);
+  --color-contents-dark-bgd-weakness: var(--contents-dark-bgd-weakness);
+  --color-contents-dark-bgd-disabled: var(--contents-dark-bgd-disabled);
+  --color-border-default: var(--border-default);
+  --color-border-light: var(--border-light);
+  --color-border-deep: var(--border-deep);
+  --color-divider-default: var(--divider-default);
+  --color-divider-light: var(--divider-light);
+  --color-divider-deep: var(--divider-deep);
+  --color-function-success-default: var(--function-success-default);
+  --color-function-success-sub: var(--function-success-sub);
+  --color-function-success-surface: var(--function-success-surface);
+  --color-function-success-background: var(--function-success-background);
+  --color-function-error-default: var(--function-error-default);
+  --color-function-error-sub: var(--function-error-sub);
+  --color-function-error-surface: var(--function-error-surface);
+  --color-function-error-background: var(--function-error-background);
+  --color-function-warning-default: var(--function-warning-default);
+  --color-function-warning-sub: var(--function-warning-sub);
+  --color-function-warning-surface: var(--function-warning-surface);
+  --color-function-warning-background: var(--function-warning-background);
+  --color-function-info-default: var(--function-info-default);
+  --color-function-info-sub: var(--function-info-sub);
+  --color-function-info-surface: var(--function-info-surface);
+  --color-function-info-background: var(--function-info-background);
+}
+
+@layer utilities {
+  .type-label-medium-2xl {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-2xl-font-weight);
+    font-size: var(--label-medium-2xl-font-size);
+    line-height: var(--label-medium-2xl-line-height);
+    letter-spacing: var(--label-medium-2xl-letter-spacing);
+  }
+  .type-label-medium-xl {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-xl-font-weight);
+    font-size: var(--label-medium-xl-font-size);
+    line-height: var(--label-medium-xl-line-height);
+    letter-spacing: var(--label-medium-xl-letter-spacing);
+  }
+  .type-label-medium-l {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-l-font-weight);
+    font-size: var(--label-medium-l-font-size);
+    line-height: var(--label-medium-l-line-height);
+    letter-spacing: var(--label-medium-l-letter-spacing);
+  }
+  .type-label-medium-m {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-m-font-weight);
+    font-size: var(--label-medium-m-font-size);
+    line-height: var(--label-medium-m-line-height);
+    letter-spacing: var(--label-medium-m-letter-spacing);
+  }
+  .type-label-medium-s {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-s-font-weight);
+    font-size: var(--label-medium-s-font-size);
+    line-height: var(--label-medium-s-line-height);
+    letter-spacing: var(--label-medium-s-letter-spacing);
+  }
+  .type-label-medium-xs {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-xs-font-weight);
+    font-size: var(--label-medium-xs-font-size);
+    line-height: var(--label-medium-xs-line-height);
+    letter-spacing: var(--label-medium-xs-letter-spacing);
+  }
+  .type-label-medium-2xs {
+    font-family: var(--font-sans);
+    font-weight: var(--label-medium-2xs-font-weight);
+    font-size: var(--label-medium-2xs-font-size);
+    line-height: var(--label-medium-2xs-line-height);
+    letter-spacing: var(--label-medium-2xs-letter-spacing);
+  }
+  .type-label-semibold-2xl {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-2xl-font-weight);
+    font-size: var(--label-semibold-2xl-font-size);
+    line-height: var(--label-semibold-2xl-line-height);
+    letter-spacing: var(--label-semibold-2xl-letter-spacing);
+  }
+  .type-label-semibold-xl {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-xl-font-weight);
+    font-size: var(--label-semibold-xl-font-size);
+    line-height: var(--label-semibold-xl-line-height);
+    letter-spacing: var(--label-semibold-xl-letter-spacing);
+  }
+  .type-label-semibold-l {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-l-font-weight);
+    font-size: var(--label-semibold-l-font-size);
+    line-height: var(--label-semibold-l-line-height);
+    letter-spacing: var(--label-semibold-l-letter-spacing);
+  }
+  .type-label-semibold-m {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-m-font-weight);
+    font-size: var(--label-semibold-m-font-size);
+    line-height: var(--label-semibold-m-line-height);
+    letter-spacing: var(--label-semibold-m-letter-spacing);
+  }
+  .type-label-semibold-s {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-s-font-weight);
+    font-size: var(--label-semibold-s-font-size);
+    line-height: var(--label-semibold-s-line-height);
+    letter-spacing: var(--label-semibold-s-letter-spacing);
+  }
+  .type-label-semibold-xs {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-xs-font-weight);
+    font-size: var(--label-semibold-xs-font-size);
+    line-height: var(--label-semibold-xs-line-height);
+    letter-spacing: var(--label-semibold-xs-letter-spacing);
+  }
+  .type-label-semibold-2xs {
+    font-family: var(--font-sans);
+    font-weight: var(--label-semibold-2xs-font-weight);
+    font-size: var(--label-semibold-2xs-font-size);
+    line-height: var(--label-semibold-2xs-line-height);
+    letter-spacing: var(--label-semibold-2xs-letter-spacing);
+  }
+  .type-label-eyebrow {
+    font-family: var(--font-brand);
+    font-weight: var(--label-eyebrow-font-weight);
+    font-size: var(--label-eyebrow-font-size);
+    line-height: var(--label-eyebrow-line-height);
+    letter-spacing: var(--label-eyebrow-letter-spacing);
+    text-transform: var(--label-eyebrow-text-case);
+  }
+  .type-brand-wordmark {
+    font-family: var(--font-brand);
+    font-weight: var(--brand-wordmark-font-weight);
+    font-size: var(--brand-wordmark-font-size);
+    line-height: var(--brand-wordmark-line-height);
+    letter-spacing: var(--brand-wordmark-letter-spacing);
+  }
+  .type-maintext-3xl {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-3xl-font-weight);
+    font-size: var(--maintext-3xl-font-size);
+    line-height: var(--maintext-3xl-line-height);
+    letter-spacing: var(--maintext-3xl-letter-spacing);
+  }
+  .type-maintext-2xl {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-2xl-font-weight);
+    font-size: var(--maintext-2xl-font-size);
+    line-height: var(--maintext-2xl-line-height);
+    letter-spacing: var(--maintext-2xl-letter-spacing);
+  }
+  .type-maintext-xl {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-xl-font-weight);
+    font-size: var(--maintext-xl-font-size);
+    line-height: var(--maintext-xl-line-height);
+    letter-spacing: var(--maintext-xl-letter-spacing);
+  }
+  .type-maintext-l {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-l-font-weight);
+    font-size: var(--maintext-l-font-size);
+    line-height: var(--maintext-l-line-height);
+    letter-spacing: var(--maintext-l-letter-spacing);
+  }
+  .type-maintext-m {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-m-font-weight);
+    font-size: var(--maintext-m-font-size);
+    line-height: var(--maintext-m-line-height);
+    letter-spacing: var(--maintext-m-letter-spacing);
+  }
+  .type-maintext-s {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-s-font-weight);
+    font-size: var(--maintext-s-font-size);
+    line-height: var(--maintext-s-line-height);
+    letter-spacing: var(--maintext-s-letter-spacing);
+  }
+  .type-maintext-xs {
+    font-family: var(--font-sans);
+    font-weight: var(--maintext-xs-font-weight);
+    font-size: var(--maintext-xs-font-size);
+    line-height: var(--maintext-xs-line-height);
+    letter-spacing: var(--maintext-xs-letter-spacing);
+  }
+  .type-title-3xl {
+    font-family: var(--font-sans);
+    font-weight: var(--title-3xl-font-weight);
+    font-size: var(--title-3xl-font-size);
+    line-height: var(--title-3xl-line-height);
+    letter-spacing: var(--title-3xl-letter-spacing);
+  }
+  .type-title-2xl {
+    font-family: var(--font-sans);
+    font-weight: var(--title-2xl-font-weight);
+    font-size: var(--title-2xl-font-size);
+    line-height: var(--title-2xl-line-height);
+    letter-spacing: var(--title-2xl-letter-spacing);
+  }
+  .type-title-xl {
+    font-family: var(--font-sans);
+    font-weight: var(--title-xl-font-weight);
+    font-size: var(--title-xl-font-size);
+    line-height: var(--title-xl-line-height);
+    letter-spacing: var(--title-xl-letter-spacing);
+  }
+  .type-title-l {
+    font-family: var(--font-sans);
+    font-weight: var(--title-l-font-weight);
+    font-size: var(--title-l-font-size);
+    line-height: var(--title-l-line-height);
+    letter-spacing: var(--title-l-letter-spacing);
+  }
+  .type-title-m {
+    font-family: var(--font-sans);
+    font-weight: var(--title-m-font-weight);
+    font-size: var(--title-m-font-size);
+    line-height: var(--title-m-line-height);
+    letter-spacing: var(--title-m-letter-spacing);
+  }
+  .type-title-s {
+    font-family: var(--font-sans);
+    font-weight: var(--title-s-font-weight);
+    font-size: var(--title-s-font-size);
+    line-height: var(--title-s-line-height);
+    letter-spacing: var(--title-s-letter-spacing);
+  }
+  .type-title-xs {
+    font-family: var(--font-sans);
+    font-weight: var(--title-xs-font-weight);
+    font-size: var(--title-xs-font-size);
+    line-height: var(--title-xs-line-height);
+    letter-spacing: var(--title-xs-letter-spacing);
+  }
+  .type-title-2xs {
+    font-family: var(--font-sans);
+    font-weight: var(--title-2xs-font-weight);
+    font-size: var(--title-2xs-font-size);
+    line-height: var(--title-2xs-line-height);
+    letter-spacing: var(--title-2xs-letter-spacing);
+  }
+  .type-title-3xs {
+    font-family: var(--font-sans);
+    font-weight: var(--title-3xs-font-weight);
+    font-size: var(--title-3xs-font-size);
+    line-height: var(--title-3xs-line-height);
+    letter-spacing: var(--title-3xs-letter-spacing);
+  }
+  .type-content-2xl {
+    font-family: var(--font-sans);
+    font-weight: var(--content-2xl-font-weight);
+    font-size: var(--content-2xl-font-size);
+    line-height: var(--content-2xl-line-height);
+    letter-spacing: var(--content-2xl-letter-spacing);
+  }
+  .type-content-xl {
+    font-family: var(--font-sans);
+    font-weight: var(--content-xl-font-weight);
+    font-size: var(--content-xl-font-size);
+    line-height: var(--content-xl-line-height);
+    letter-spacing: var(--content-xl-letter-spacing);
+  }
+  .type-content-l {
+    font-family: var(--font-sans);
+    font-weight: var(--content-l-font-weight);
+    font-size: var(--content-l-font-size);
+    line-height: var(--content-l-line-height);
+    letter-spacing: var(--content-l-letter-spacing);
+  }
+  .type-content-m {
+    font-family: var(--font-sans);
+    font-weight: var(--content-m-font-weight);
+    font-size: var(--content-m-font-size);
+    line-height: var(--content-m-line-height);
+    letter-spacing: var(--content-m-letter-spacing);
+  }
+  .type-content-s {
+    font-family: var(--font-sans);
+    font-weight: var(--content-s-font-weight);
+    font-size: var(--content-s-font-size);
+    line-height: var(--content-s-line-height);
+    letter-spacing: var(--content-s-letter-spacing);
+  }
+  .type-content-xs {
+    font-family: var(--font-sans);
+    font-weight: var(--content-xs-font-weight);
+    font-size: var(--content-xs-font-size);
+    line-height: var(--content-xs-line-height);
+    letter-spacing: var(--content-xs-letter-spacing);
+  }
+}

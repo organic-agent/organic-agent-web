@@ -39,14 +39,14 @@ export function ComparePhotoCard({
   preparing = false,
   onImageError,
 }: ComparePhotoCardProps) {
-  const imageClass = `relative w-full aspect-4/5 overflow-hidden rounded-(--radius-4) bg-bg-disabled ${
-    selected ? "border-2 border-fg-neutral" : ""
+  const imageClass = `relative w-full aspect-4/5 overflow-hidden rounded-(--radius-4) bg-surface-default-light ${
+    selected ? "border-2 border-contents-light-bgd-default" : ""
   }`;
 
   const fill = preparing ? (
     <span className="absolute inset-0">
       <span className="shimmer-sweep" />
-      <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+      <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <circle cx="8.5" cy="8.5" r="1.5" />

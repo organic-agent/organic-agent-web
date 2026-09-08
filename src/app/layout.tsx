@@ -6,18 +6,18 @@
  */
 
 import type { Metadata } from "next";
-import { Montserrat, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
+import { Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import { AuthBootstrap } from "@/components/AuthBootstrap";
-import "./tokens.css";
-import "./tokens.dark.css";
+import "./tokens.generated.css";
 import "./globals.css";
 
-// 디자인 시스템 폰트 — 본문(Noto Sans KR) + 브랜드(Montserrat) + 감성 세리프(Noto Serif KR).
-// 셋 다 next/font 셀프 호스팅이라 외부 CDN 요청이 없다.
-const notoSansKr = Noto_Sans_KR({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-noto-sans-kr",
+// 디자인 시스템 v2 폰트 — 본문·제목 전부 Pretendard Variable(로컬 파일) + 브랜드 워드마크 Montserrat.
+// 둘 다 next/font 셀프 호스팅이라 외부 CDN 요청이 없다. 세리프는 v2에서 제거됨.
+const pretendard = localFont({
+  src: "./fonts/PretendardVariable.woff2",
+  weight: "45 920",
+  variable: "--font-pretendard",
   display: "swap",
 });
 
@@ -25,13 +25,6 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["500", "600"],
   variable: "--font-montserrat",
-  display: "swap",
-});
-
-const notoSerifKr = Noto_Serif_KR({
-  subsets: ["latin"],
-  weight: ["300", "500", "600", "700"],
-  variable: "--font-noto-serif-kr",
   display: "swap",
 });
 
@@ -56,7 +49,7 @@ export default function RootLayout({
     <html
       lang="ko"
       data-theme="light"
-      className={`${notoSansKr.variable} ${montserrat.variable} ${notoSerifKr.variable}`}
+      className={`${pretendard.variable} ${montserrat.variable}`}
     >
       <body>
         <AuthBootstrap />

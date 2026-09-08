@@ -14,10 +14,10 @@ import {
 import type { GalleryResponse } from "@/lib/api/galleries";
 
 const TONE_CLASS: Record<ChipTone, string> = {
-  muted: "text-fg-neutral-muted",
-  warning: "text-fg-warning",
-  critical: "text-fg-critical",
-  strong: "text-fg-neutral",
+  muted: "text-contents-light-bgd-sub",
+  warning: "text-function-warning-default",
+  critical: "text-function-error-default",
+  strong: "text-contents-light-bgd-default",
 };
 
 export function GalleryStatusChip({
@@ -31,7 +31,7 @@ export function GalleryStatusChip({
 
   return (
     <span
-      className={`inline-flex items-center rounded-(--pill) bg-bg-layer-default px-2 py-1 type-body-small ${TONE_CLASS[tone]} ${className}`}
+      className={`inline-flex items-center rounded-(--pill) bg-background-default-main px-2 py-1 type-content-xs ${TONE_CLASS[tone]} ${className}`}
     >
       {text}
     </span>

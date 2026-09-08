@@ -89,7 +89,7 @@ export default function GalleriesPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-bg-layer-default">
+    <div className="min-h-dvh bg-background-default-main">
       <StudioTopbar
         studioInitial={studio.name.trim().slice(0, 1) || "스"}
       />

@@ -88,11 +88,11 @@ export function InviteLanding({ token }: { token: string }) {
   if (errorCode) {
     const screen = ERROR_SCREENS[errorCode] ?? FALLBACK_ERROR;
     return (
-      <main className="grid min-h-dvh place-items-center bg-bg-layer-default px-6">
+      <main className="grid min-h-dvh place-items-center bg-background-default-main px-6">
         <div className="flex max-w-100 flex-col items-center gap-6 text-center">
           <div className="flex flex-col gap-2">
-            <h1 className="type-heading-large text-fg-neutral">{screen.title}</h1>
-            <p className="type-body-small text-fg-neutral-muted">
+            <h1 className="type-title-xl text-contents-light-bgd-default">{screen.title}</h1>
+            <p className="type-content-xs text-contents-light-bgd-sub">
               {screen.description}
             </p>
           </div>
@@ -105,8 +105,8 @@ export function InviteLanding({ token }: { token: string }) {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-bg-layer-default">
-      <p className="type-body-small text-fg-neutral-muted animate-pulse">
+    <main className="grid min-h-dvh place-items-center bg-background-default-main">
+      <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">
         초대를 확인하고 있어요…
       </p>
     </main>

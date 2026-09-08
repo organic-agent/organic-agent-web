@@ -100,14 +100,14 @@ export function SaveAlbumModal({
       {banner && (
         <p
           role="alert"
-          className="mb-4 text-center type-body-small text-fg-critical"
+          className="mb-4 text-center type-content-xs text-function-error-default"
         >
           {banner}
         </p>
       )}
       <div className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="type-body-small text-fg-neutral">앨범 이름</span>
+          <span className="type-content-xs text-contents-light-bgd-default">앨범 이름</span>
           <TextField
             value={name}
             onChange={setName}
@@ -115,7 +115,7 @@ export function SaveAlbumModal({
             aria-label="앨범 이름"
           />
         </label>
-        <p className="rounded-(--radius-8) bg-bg-layer-default-hover px-4 py-3 type-body-small text-fg-neutral-muted">
+        <p className="rounded-(--radius-8) bg-surface-default-lightness px-4 py-3 type-content-xs text-contents-light-bgd-sub">
           지금 구성 그대로 앨범에 담겨요. 폴더 이름은 저장 후 바꿀 수 있고,
           저장 후 유사성 단계를 바꿔도 이 앨범은 변하지 않아요.
         </p>

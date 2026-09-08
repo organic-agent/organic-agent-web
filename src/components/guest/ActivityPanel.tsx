@@ -28,13 +28,13 @@ export function ActivityPanel({
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col justify-between gap-4 border-l border-stroke-neutral-muted bg-bg-layer-default p-4">
+    <aside className="flex w-60 shrink-0 flex-col justify-between gap-4 border-l border-divider-default bg-background-default-main p-4">
       <div className="flex min-h-0 w-full flex-col gap-3">
-        <span className="type-utility-panel text-fg-neutral">활동</span>
-        <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+        <span className="type-label-semibold-xs text-contents-light-bgd-default">활동</span>
+        <div className="h-px w-full shrink-0 bg-divider-default" />
         <div className="flex min-h-0 w-full flex-col gap-3 overflow-y-auto">
           {comments.length === 0 ? (
-            <p className="type-body-small text-fg-neutral-muted">
+            <p className="type-content-xs text-contents-light-bgd-sub">
               아직 활동이 없어요. 첫 댓글을 남겨보세요!
             </p>
           ) : (
@@ -42,10 +42,10 @@ export function ActivityPanel({
               <div key={i} className="flex w-full items-start gap-2">
                 <Avatar initial={comment.initial} />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="type-body-small text-fg-neutral-muted">
+                  <span className="type-content-xs text-contents-light-bgd-sub">
                     {comment.author} · {comment.timeLabel}
                   </span>
-                  <p className="type-body-medium text-fg-neutral">
+                  <p className="type-content-m text-contents-light-bgd-default">
                     {comment.text}
                   </p>
                 </div>

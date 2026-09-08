@@ -4,31 +4,14 @@
  *
  * controlled: value(0~max)와 onChange. onChange가 없으면 읽기 전용 표시.
  * 같은 별을 다시 누르면 0점으로 해제한다.
- * 별 색은 로즈(accent) — 별점 = "마음에 듦" 표시라 선택 강조 전용색을 쓴다.
+ * v2: 별 글리프는 Material Symbols kid_star(디자이너 시안), 색은 brand/secondary(올리브) — 디자이너 확인 항목.
  */
 
-const STAR_PATH =
-  "M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z";
+import { StarFillIcon, StarIcon } from "@/components/icons";
 
 function Star({ filled, size = 24 }: { filled: boolean; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path
-        d={STAR_PATH}
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth={1.6}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  const Icon = filled ? StarFillIcon : StarIcon;
+  return <Icon size={size} className="shrink-0" />;
 }
 
 type StarRatingProps = {
@@ -52,7 +35,7 @@ export function StarRating({
   if (!onChange) {
     return (
       <div
-        className={`flex items-center gap-1 text-bg-accent-solid ${className}`}
+        className={`flex items-center gap-1 text-brand-secondary-default ${className}`}
         role="img"
         aria-label={`별점 ${value}/${max}`}
       >
@@ -64,7 +47,7 @@ export function StarRating({
   }
 
   return (
-    <div className={`flex items-center gap-1 text-bg-accent-solid ${className}`}>
+    <div className={`flex items-center gap-1 text-brand-secondary-default ${className}`}>
       {stars.map((n) => (
         <button
           key={n}

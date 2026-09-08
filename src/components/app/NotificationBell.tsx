@@ -38,10 +38,10 @@ export function NotificationBell() {
         aria-label="알림"
       />
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 flex w-64 flex-col rounded-(--radius-12) border border-stroke-neutral-weak bg-bg-layer-default p-3 shadow-(--shadow-modal)">
-          <span className="type-utility-panel text-fg-neutral">알림</span>
-          <div className="mt-3 h-px w-full bg-stroke-neutral-muted" />
-          <p className="py-8 text-center type-body-small text-fg-neutral-muted">
+        <div className="absolute right-0 top-full z-50 mt-2 flex w-64 flex-col rounded-(--radius-12) border border-border-default bg-background-default-main p-3 shadow-(--shadow-modal)">
+          <span className="type-label-semibold-xs text-contents-light-bgd-default">알림</span>
+          <div className="mt-3 h-px w-full bg-divider-default" />
+          <p className="py-8 text-center type-content-xs text-contents-light-bgd-sub">
             새 알림이 없어요
           </p>
         </div>

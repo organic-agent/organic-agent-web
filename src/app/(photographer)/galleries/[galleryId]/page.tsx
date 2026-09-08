@@ -387,10 +387,10 @@ export default function PhotographerGalleryWorkspacePage() {
                 retry: true,
               };
     return (
-      <div className="grid min-h-dvh place-items-center bg-bg-layer-default px-6">
+      <div className="grid min-h-dvh place-items-center bg-background-default-main px-6">
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="type-heading-card text-fg-neutral">{state.title}</h1>
-          <p className="type-body-medium text-fg-neutral-muted">{state.desc}</p>
+          <h1 className="type-title-m text-contents-light-bgd-default">{state.title}</h1>
+          <p className="type-content-m text-contents-light-bgd-sub">{state.desc}</p>
           {result !== null && (
             <div className="flex gap-2">
               {state.retry && <Button onClick={reload}>다시 시도</Button>}
@@ -688,7 +688,7 @@ export default function PhotographerGalleryWorkspacePage() {
       {Array.from({ length: 8 }, (_, i) => (
         <div
           key={i}
-          className="aspect-4/5 w-full rounded-(--radius-4) bg-bg-disabled"
+          className="aspect-4/5 w-full rounded-(--radius-4) bg-surface-default-light"
         />
       ))}
     </div>
@@ -769,7 +769,7 @@ export default function PhotographerGalleryWorkspacePage() {
 
   // 높이는 화면에 비례(clamp 64~96px)해 작은 화면에서 사진 몫을 지킨다
   const filmstrip = (
-    <div className="flex h-[clamp(64px,12dvh,96px)] shrink-0 items-center gap-1 overflow-x-auto border-b border-stroke-neutral-muted bg-bg-layer-default px-3 py-2">
+    <div className="flex h-[clamp(64px,12dvh,96px)] shrink-0 items-center gap-1 overflow-x-auto border-b border-divider-default bg-background-default-main px-3 py-2">
       {collapsedPreview && clusterReady ? (
         // 폴더 미리보기 — 스트립도 폴더(대표+장수 뱃지)와 나머지 사진으로.
         // 폴더 칩을 누르면 그 폴더를 열고, 나머지는 그대로 이동한다.
@@ -819,9 +819,9 @@ export default function PhotographerGalleryWorkspacePage() {
   // 뷰 4버튼은 클러스터 맨 오른쪽 고정, 뷰에 따라 생기는 줌은 그 왼쪽에 끼어 토글이 안 움직인다.
   const contentHeader = (
     <div className="flex w-full items-center justify-between gap-3">
-      <div className="flex items-center gap-2 text-fg-neutral">
+      <div className="flex items-center gap-2 text-contents-light-bgd-default">
         <PhotoIcon size={20} />
-        <h2 className="type-body-medium text-fg-neutral">{title}</h2>
+        <h2 className="type-content-m text-contents-light-bgd-default">{title}</h2>
       </div>
       <div className="flex items-center gap-1">
         {/* 별점 순 정렬 예정 — 구현 전까지 준비 중 안내 */}
@@ -847,7 +847,7 @@ export default function PhotographerGalleryWorkspacePage() {
         )}
         {/* 휴지통은 열람 전용 목록 — 크게 보기·비교 진입을 두지 않는다(시안 확정) */}
         {view !== "trash" && viewToggles}
-        <p className="ml-2 type-body-small text-fg-neutral-muted">
+        <p className="ml-2 type-content-xs text-contents-light-bgd-sub">
           {view === "trash"
             ? `${photos.length}장 · 보관 기간이 지나면 자동으로 완전히 삭제됩니다`
             : collapsedPreview && clusterReady
@@ -907,9 +907,9 @@ export default function PhotographerGalleryWorkspacePage() {
   ).length;
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg-layer-default">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       {/* 풀와이드 탑바 (피그마 작가 워크스페이스 탑바) */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-stroke-neutral-muted bg-bg-layer-default px-3">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-divider-default bg-background-default-main px-3">
         {/* 좌측은 내비(메뉴·로고)만 — 뷰 도구는 콘텐츠 영역으로 이동 (구글 포토식, 사용자 결정) */}
         <div className="flex items-center gap-1">
           <IconButton
@@ -919,7 +919,7 @@ export default function PhotographerGalleryWorkspacePage() {
           />
           <Link
             href="/galleries"
-            className="mx-2 flex items-center gap-2 text-fg-neutral"
+            className="mx-2 flex items-center gap-2 text-contents-light-bgd-default"
           >
             <BrandLogo size={28} />
             <b className="type-brand-wordmark">Easy Select</b>
@@ -959,14 +959,14 @@ export default function PhotographerGalleryWorkspacePage() {
       <div className="flex min-h-0 flex-1">
         {/* 작가 사이드바 — 커플명 + 업로드 + 자동 분류 + 필터 + 앨범 */}
         {!collapsed && (
-          <aside className="hidden w-70 shrink-0 flex-col border-r border-stroke-neutral-muted bg-bg-layer-default md:flex">
+          <aside className="hidden w-70 shrink-0 flex-col border-r border-divider-default bg-background-default-main md:flex">
             <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
-              <h1 className="truncate type-heading-card text-fg-neutral">
+              <h1 className="truncate type-title-m text-contents-light-bgd-default">
                 {gallery.title}
               </h1>
               <GalleryStatusChip gallery={gallery} className="shrink-0 px-0!" />
             </div>
-            <div className="mx-5 h-px shrink-0 bg-stroke-neutral-muted" />
+            <div className="mx-5 h-px shrink-0 bg-divider-default" />
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
               <div className="flex w-full flex-col gap-2">
                 {/* 상태 전환 — DRAFT의 핵심 CTA. 열어야 초대된 부부에게 보인다 */}
@@ -990,7 +990,7 @@ export default function PhotographerGalleryWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setStatusAction("close")}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
                   >
                     선택 마감
                   </button>
@@ -999,7 +999,7 @@ export default function PhotographerGalleryWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setStatusAction("reopen")}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
                   >
                     재오픈
                   </button>
@@ -1009,7 +1009,7 @@ export default function PhotographerGalleryWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setReopenSelectionOpen(true)}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
                   >
                     선택 다시 열기
                   </button>
@@ -1021,7 +1021,7 @@ export default function PhotographerGalleryWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setDeliveryOpen(true)}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-stroke-neutral-weak bg-bg-layer-default px-5 type-label-button text-fg-neutral transition-colors duration-fast hover:bg-bg-layer-default-hover"
+                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
                   >
                     전달 완료로 표시
                   </button>
@@ -1057,7 +1057,7 @@ export default function PhotographerGalleryWorkspacePage() {
                 }
               />
 
-              <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+              <div className="h-px w-full shrink-0 bg-divider-default" />
 
               <div className="flex w-full flex-col gap-1">
                 <MenuItem
@@ -1087,7 +1087,7 @@ export default function PhotographerGalleryWorkspacePage() {
                 />
               </div>
 
-              <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+              <div className="h-px w-full shrink-0 bg-divider-default" />
 
               <AlbumTreeSection
                 result={folderGroupsResult}
@@ -1117,7 +1117,7 @@ export default function PhotographerGalleryWorkspacePage() {
                 onDropPhotos={(folderId) => void handleMoveSelection(folderId)}
               />
 
-              <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />
+              <div className="h-px w-full shrink-0 bg-divider-default" />
 
               {/* 휴지통 진입점 — 트리 맨 아래 고정, 지운 게 있을 때만 개수 (시안 확정) */}
               <MenuItem
@@ -1141,16 +1141,16 @@ export default function PhotographerGalleryWorkspacePage() {
               <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <div className="px-4 pt-4 pb-3">{contentHeader}</div>
                 {filmstripOpen && filmstrip}
-                <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-bg-stage p-3">
+                <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background-inverse-sub p-3">
                   {currentPhoto ? (
                     currentPhoto.preparing ? (
                       // 파생 JPEG 준비 전 — 물결 + 아이콘 (그리드 셀과 동일 문법)
                       <div
                         aria-label={`${currentPhoto.name} — 미리보기 준비 중`}
-                        className="relative aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-bg-disabled"
+                        className="relative aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-surface-default-light"
                       >
                         <span className="shimmer-sweep" />
-                        <span className="absolute inset-0 grid place-items-center text-fg-neutral-subtle">
+                        <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <rect x="3" y="3" width="18" height="18" rx="2" />
                             <circle cx="8.5" cy="8.5" r="1.5" />
@@ -1168,7 +1168,7 @@ export default function PhotographerGalleryWorkspacePage() {
                       />
                     )
                   ) : (
-                    <p className="type-body-medium text-fg-stage">
+                    <p className="type-content-m text-contents-dark-bgd-default">
                       표시할 사진이 없어요.
                     </p>
                   )}
@@ -1178,20 +1178,20 @@ export default function PhotographerGalleryWorkspacePage() {
               <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <div className="px-4 pt-4 pb-3">{contentHeader}</div>
                 {filmstripOpen && filmstrip}
-                <div className="flex shrink-0 items-center justify-end bg-bg-layer-default px-4 py-1">
+                <div className="flex shrink-0 items-center justify-end bg-background-default-main px-4 py-1">
                   <button
                     type="button"
                     onClick={() => setCompareCount(compareCount === 2 ? 4 : 2)}
-                    className="flex cursor-pointer items-center gap-1 type-body-medium text-fg-neutral"
+                    className="flex cursor-pointer items-center gap-1 type-content-m text-contents-light-bgd-default"
                   >
                     {compareCount}장 보기
                     <DropdownIcon size={16} />
                   </button>
                 </div>
                 {/* 비교 스테이지 — 작가는 관찰만: 선택 테두리·별점 모두 읽기 전용 */}
-                <div className="flex min-h-0 flex-1 items-center justify-center gap-6 bg-bg-layer-default p-3 [container-type:size]">
+                <div className="flex min-h-0 flex-1 items-center justify-center gap-6 bg-background-default-main p-3 [container-type:size]">
                   {comparePhotos.length === 0 ? (
-                    <p className="type-body-medium text-fg-neutral-muted">
+                    <p className="type-content-m text-contents-light-bgd-sub">
                       비교할 사진이 없어요.
                     </p>
                   ) : (
@@ -1220,11 +1220,11 @@ export default function PhotographerGalleryWorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setOpenClusterIndex(null)}
-                      className="cursor-pointer type-label-button text-fg-neutral hover:underline"
+                      className="cursor-pointer type-label-medium-m text-contents-light-bgd-default hover:underline"
                     >
                       ← 미리보기로
                     </button>
-                    <span className="type-body-small text-fg-neutral-muted">
+                    <span className="type-content-xs text-contents-light-bgd-sub">
                       폴더 {(openClusterIndex ?? 0) + 1} ·{" "}
                       {openClusterGroup.length}장
                     </span>
@@ -1235,7 +1235,7 @@ export default function PhotographerGalleryWorkspacePage() {
                   !openClusterGroup &&
                   clusterReady &&
                   clusterGroups.length > 0 && (
-                    <p className="px-4 pb-2 type-body-small text-fg-neutral-muted">
+                    <p className="px-4 pb-2 type-content-xs text-contents-light-bgd-sub">
                       겹친 카드가 폴더예요 — 누르면 안의 사진만 보여요
                     </p>
                   )}
@@ -1251,7 +1251,7 @@ export default function PhotographerGalleryWorkspacePage() {
                     gridSkeleton
                   ) : cluster.result.kind === "error" ? (
                     <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <p className="type-body-medium text-fg-neutral-muted">
+                      <p className="type-content-m text-contents-light-bgd-sub">
                         묶음을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
                         시도해 주세요.
                       </p>
@@ -1260,7 +1260,7 @@ export default function PhotographerGalleryWorkspacePage() {
                       </Button>
                     </div>
                   ) : clusterGroups.length + clusterSingles.length === 0 ? (
-                    <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                    <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
                       묶을 사진이 아직 없어요 — 업로드한 사진의 분석이 끝나면
                       여기에 묶여요.
                     </p>
@@ -1299,7 +1299,7 @@ export default function PhotographerGalleryWorkspacePage() {
                     gridSkeleton
                   ) : activeFolderPhotos.kind === "error" ? (
                     <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <p className="type-body-medium text-fg-neutral-muted">
+                      <p className="type-content-m text-contents-light-bgd-sub">
                         폴더를 불러오지 못했어요. 네트워크를 확인한 뒤 다시
                         시도해 주세요.
                       </p>
@@ -1308,7 +1308,7 @@ export default function PhotographerGalleryWorkspacePage() {
                       </Button>
                     </div>
                   ) : photos.length === 0 ? (
-                    <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                    <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
                       폴더가 비어 있어요.
                     </p>
                   ) : (
@@ -1365,7 +1365,7 @@ export default function PhotographerGalleryWorkspacePage() {
                     gridSkeleton
                   ) : trashResult.kind === "error" ? (
                     <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <p className="type-body-medium text-fg-neutral-muted">
+                      <p className="type-content-m text-contents-light-bgd-sub">
                         휴지통을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
                         시도해 주세요.
                       </p>
@@ -1375,10 +1375,10 @@ export default function PhotographerGalleryWorkspacePage() {
                     </div>
                   ) : photos.length === 0 ? (
                     <div className="py-16 text-center">
-                      <p className="type-body-medium text-fg-neutral-muted">
+                      <p className="type-content-m text-contents-light-bgd-sub">
                         휴지통이 비어 있어요.
                       </p>
-                      <p className="mt-1 type-body-small text-fg-neutral-subtle">
+                      <p className="mt-1 type-content-xs text-contents-light-bgd-weakness">
                         지운 사진은 여기서 복원할 수 있습니다.
                       </p>
                     </div>
@@ -1418,7 +1418,7 @@ export default function PhotographerGalleryWorkspacePage() {
                   gridSkeleton
                 ) : photosResult.kind === "error" ? (
                   <div className="flex flex-col items-center gap-3 py-16 text-center">
-                    <p className="type-body-medium text-fg-neutral-muted">
+                    <p className="type-content-m text-contents-light-bgd-sub">
                       사진을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
                       시도해 주세요.
                     </p>
@@ -1427,7 +1427,7 @@ export default function PhotographerGalleryWorkspacePage() {
                     </Button>
                   </div>
                 ) : photos.length === 0 ? (
-                  <p className="py-16 text-center type-body-medium text-fg-neutral-muted">
+                  <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
                     아직 사진이 없어요 — 사진 업로드로 시작해 보세요.
                   </p>
                 ) : (
@@ -1476,7 +1476,7 @@ export default function PhotographerGalleryWorkspacePage() {
           {(mode === "single" || mode === "compare") && (
             <AppToolbar
               left={
-                <span className="type-body-small text-fg-neutral-muted">
+                <span className="type-content-xs text-contents-light-bgd-sub">
                   {currentPhoto
                     ? `${currentIndex + 1} / ${photos.length}`
                     : `${photos.length} / ${allPhotos.length}`}
@@ -1552,7 +1552,7 @@ export default function PhotographerGalleryWorkspacePage() {
           desc="휴지통에서 복원할 수 있습니다. 보관 기간이 지나면 자동으로 완전히 삭제됩니다."
           onClose={() => setTrashConfirmOpen(false)}
         >
-          <p className="mb-6 type-body-small text-fg-neutral-subtle">
+          <p className="mb-6 type-content-xs text-contents-light-bgd-weakness">
             선택 앨범·폴더·자동 분류에서도 함께 사라집니다.
           </p>
           <GalleryModalButtons
@@ -1700,7 +1700,7 @@ export default function PhotographerGalleryWorkspacePage() {
       {savedToast && (
         <div
           role="status"
-          className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-stroke-neutral-inverted bg-bg-neutral-inverted px-5 py-3 type-label-button text-fg-neutral-inverted shadow-(--shadow-hover)"
+          className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-surface-inverse-medium bg-background-inverse-main px-5 py-3 type-label-medium-m text-contents-dark-bgd-default shadow-(--shadow-hover)"
         >
           {savedToast}
         </div>

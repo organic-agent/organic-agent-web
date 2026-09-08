@@ -24,9 +24,9 @@ export function PanelHeader({
 }: PanelHeaderProps) {
   return (
     <div className={`flex items-center justify-between w-full ${className}`}>
-      <div className="flex items-center gap-2 text-fg-neutral">
+      <div className="flex items-center gap-2 text-contents-light-bgd-default">
         {icon}
-        <span className="type-utility-panel">{children}</span>
+        <span className="type-label-semibold-xs">{children}</span>
       </div>
       {action}
     </div>

@@ -24,11 +24,11 @@ export function Toggle({
       aria-label={ariaLabel}
       onClick={() => onChange?.(!checked)}
       className={`relative h-5 w-9 shrink-0 cursor-pointer rounded-(--pill) transition-colors duration-fast ${
-        checked ? "bg-bg-brand-solid" : "bg-stroke-neutral-weak"
+        checked ? "bg-brand-primary-default" : "bg-border-default"
       }`}
     >
       <span
-        className={`absolute top-0.5 size-4 rounded-full bg-fg-neutral-inverted transition-[left] duration-fast ${
+        className={`absolute top-0.5 size-4 rounded-full bg-contents-dark-bgd-default transition-[left] duration-fast ${
           checked ? "left-[18px]" : "left-0.5"
         }`}
       />
@@ -54,13 +54,13 @@ export function ToggleField({
     <div className="flex w-full flex-col gap-1">
       <div className="flex items-center gap-3">
         <Toggle {...toggle} aria-label={label} />
-        <span className="type-body-medium text-fg-neutral">{label}</span>
+        <span className="type-content-m text-contents-light-bgd-default">{label}</span>
         {value && (
-          <span className="type-label-button text-fg-neutral">{value}</span>
+          <span className="type-label-medium-m text-contents-light-bgd-default">{value}</span>
         )}
       </div>
       {description && (
-        <p className="type-body-small text-fg-neutral-muted">{description}</p>
+        <p className="type-content-xs text-contents-light-bgd-sub">{description}</p>
       )}
     </div>
   );

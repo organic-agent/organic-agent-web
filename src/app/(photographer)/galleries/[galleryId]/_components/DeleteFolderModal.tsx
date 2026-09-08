@@ -65,7 +65,7 @@ export function DeleteFolderModal({
       {banner && (
         <p
           role="alert"
-          className="mb-4 text-center type-body-small text-fg-critical"
+          className="mb-4 text-center type-content-xs text-function-error-default"
         >
           {banner}
         </p>

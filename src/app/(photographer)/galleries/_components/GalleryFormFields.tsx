@@ -30,10 +30,10 @@ function FieldLabel({
   optional?: boolean;
 }) {
   return (
-    <label className="mb-1.5 block type-label-button text-fg-neutral">
+    <label className="mb-1.5 block type-label-medium-m text-contents-light-bgd-default">
       {children}
       {optional && (
-        <span className="ml-1 font-normal text-fg-neutral-muted">(선택)</span>
+        <span className="ml-1 font-normal text-contents-light-bgd-sub">(선택)</span>
       )}
     </label>
   );
@@ -48,8 +48,8 @@ function FieldHint({
 }) {
   return (
     <p
-      className={`mt-1.5 type-body-small ${
-        tone === "critical" ? "text-fg-critical" : "text-fg-neutral-muted"
+      className={`mt-1.5 type-content-xs ${
+        tone === "critical" ? "text-function-error-default" : "text-contents-light-bgd-sub"
       }`}
     >
       {children}

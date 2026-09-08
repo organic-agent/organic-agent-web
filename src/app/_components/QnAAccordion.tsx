@@ -30,13 +30,13 @@ export function QnAAccordion() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
-    <div className="w-full max-w-170 mx-auto border-t border-stroke-neutral-muted">
+    <div className="w-full max-w-170 mx-auto border-t border-divider-default">
       {QNA_DATA.map((item, i) => {
         const isOpen = openIdx === i;
         return (
-          <div key={i} className="border-b border-stroke-neutral-muted">
+          <div key={i} className="border-b border-divider-default">
             <button
-              className="w-full flex items-center justify-between py-5 gap-4 text-left type-label-large text-fg-neutral cursor-pointer hover:text-fg-neutral-muted transition-colors duration-fast"
+              className="w-full flex items-center justify-between py-5 gap-4 text-left type-label-medium-l text-contents-light-bgd-default cursor-pointer hover:text-contents-light-bgd-sub transition-colors duration-fast"
               onClick={() => setOpenIdx(isOpen ? null : i)}
               aria-expanded={isOpen}
             >
@@ -49,7 +49,7 @@ export function QnAAccordion() {
             <div
               className={`qna-answer-base ${isOpen ? "qna-answer-open" : ""}`}
             >
-              <p className="pb-5 text-left type-body-large text-fg-neutral-muted">
+              <p className="pb-5 text-left type-content-l text-contents-light-bgd-sub">
                 {item.a}
               </p>
             </div>

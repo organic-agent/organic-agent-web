@@ -76,8 +76,8 @@ export function OAuthCallback({
   }, [provider, code, state, error, router]);
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-bg-layer-default">
-      <p className="type-body-small text-fg-neutral-muted animate-pulse">
+    <main className="grid min-h-dvh place-items-center bg-background-default-main">
+      <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">
         로그인하고 있어요…
       </p>
     </main>

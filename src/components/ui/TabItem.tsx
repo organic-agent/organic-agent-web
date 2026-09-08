@@ -18,10 +18,10 @@ export function TabItem({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`shrink-0 cursor-pointer border-b-2 px-1 py-2 type-label-button transition-colors duration-fast ${
+      className={`shrink-0 cursor-pointer border-b-2 px-1 py-2 type-label-medium-m transition-colors duration-fast ${
         active
-          ? "border-fg-neutral text-fg-neutral"
-          : "border-transparent text-fg-neutral-muted hover:text-fg-neutral"
+          ? "border-contents-light-bgd-default text-contents-light-bgd-default"
+          : "border-transparent text-contents-light-bgd-sub hover:text-contents-light-bgd-default"
       }`}
     >
       {label}

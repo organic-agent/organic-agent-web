@@ -27,8 +27,8 @@ type Props = {
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="type-body-small text-fg-neutral-muted">{label}</span>
-      <strong className="type-label-button text-fg-neutral">{value}</strong>
+      <span className="type-content-xs text-contents-light-bgd-sub">{label}</span>
+      <strong className="type-label-medium-m text-contents-light-bgd-default">{value}</strong>
     </div>
   );
 }
@@ -47,11 +47,11 @@ export function GalleryDeliveryConfirmModal({
       desc="완료하면 갤러리 목록과 워크스페이스의 상태가 전달 완료로 변경됩니다."
       onClose={onClose}
     >
-      <div className="mb-6 flex flex-col gap-2 rounded-(--radius-8) border border-stroke-neutral-muted px-4 py-4">
+      <div className="mb-6 flex flex-col gap-2 rounded-(--radius-8) border border-divider-default px-4 py-4">
         <StatRow label="부부 선택" value={`${selectedCount} / ${target}장`} />
         <StatRow label="보정 요청" value={`${retouchCount}건`} />
         {!selectionSubmitted && (
-          <p className="mt-1 border-t border-stroke-neutral-muted pt-2 type-body-small text-fg-warning">
+          <p className="mt-1 border-t border-divider-default pt-2 type-content-xs text-function-warning-default">
             아직 부부의 셀렉이 제출되지 않았어요. 지금 완료 처리하면 셀렉
             진행이 끝난 것으로 표시됩니다.
           </p>

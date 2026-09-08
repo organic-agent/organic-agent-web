@@ -20,12 +20,12 @@ type SliderProps = {
 };
 
 const thumb =
-  "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-bg-layer-default [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-stroke-neutral-weak [&::-webkit-slider-thumb]:-mt-[5.5px] " +
-  "[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-bg-layer-default [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-stroke-neutral-weak";
+  "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-background-default-main [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-border-default [&::-webkit-slider-thumb]:-mt-[5.5px] " +
+  "[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-background-default-main [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-border-default";
 
 const track =
-  "[&::-webkit-slider-runnable-track]:h-[3px] [&::-webkit-slider-runnable-track]:rounded-(--pill) [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,var(--bg-brand-solid)_var(--slider-pct),var(--bg-disabled)_var(--slider-pct))] " +
-  "[&::-moz-range-track]:h-[3px] [&::-moz-range-track]:rounded-(--pill) [&::-moz-range-track]:bg-bg-disabled [&::-moz-range-progress]:h-[3px] [&::-moz-range-progress]:rounded-(--pill) [&::-moz-range-progress]:bg-bg-brand-solid";
+  "[&::-webkit-slider-runnable-track]:h-[3px] [&::-webkit-slider-runnable-track]:rounded-(--pill) [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,var(--brand-primary-default)_var(--slider-pct),var(--surface-default-light)_var(--slider-pct))] " +
+  "[&::-moz-range-track]:h-[3px] [&::-moz-range-track]:rounded-(--pill) [&::-moz-range-track]:bg-surface-default-light [&::-moz-range-progress]:h-[3px] [&::-moz-range-progress]:rounded-(--pill) [&::-moz-range-progress]:bg-brand-primary-default";
 
 export function Slider({
   value,
@@ -42,7 +42,7 @@ export function Slider({
   return (
     <div className={`flex flex-col gap-1 w-full ${className}`}>
       {label && (
-        <span className="type-body-small text-fg-neutral-muted text-right w-full">
+        <span className="type-content-xs text-contents-light-bgd-sub text-right w-full">
           {label}
         </span>
       )}

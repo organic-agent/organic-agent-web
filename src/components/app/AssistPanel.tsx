@@ -85,10 +85,10 @@ export function AssistPanel({
         <>
           <div className="flex flex-col gap-1 w-full">
             <div className="flex w-full items-center justify-between">
-              <span className="type-body-medium text-fg-neutral">
+              <span className="type-content-m text-contents-light-bgd-default">
                 시각적 유사성
               </span>
-              <span className="type-body-small text-fg-neutral-muted">
+              <span className="type-content-xs text-contents-light-bgd-sub">
                 {LEVEL_PERCENT_LABELS[clampedIndex]}
               </span>
             </div>
@@ -101,15 +101,15 @@ export function AssistPanel({
               // 조회 중 — 정적 스켈레톤 (shimmer는 '분석 준비 중' 셀 전용)
               <span
                 aria-hidden
-                className="mx-auto mt-1 h-3 w-36 rounded-(--pill) bg-bg-disabled"
+                className="mx-auto mt-1 h-3 w-36 rounded-(--pill) bg-surface-default-light"
               />
             ) : (
-              <p className="type-body-small text-fg-neutral-muted text-center w-full">
+              <p className="type-content-xs text-contents-light-bgd-sub text-center w-full">
                 {summary}
               </p>
             )}
             {hint && (
-              <p className="type-body-small text-fg-neutral-subtle text-center w-full">
+              <p className="type-content-xs text-contents-light-bgd-weakness text-center w-full">
                 {hint}
               </p>
             )}

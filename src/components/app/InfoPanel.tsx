@@ -26,7 +26,7 @@ type InfoPanelProps = {
 };
 
 function Divider() {
-  return <div className="h-px w-full shrink-0 bg-stroke-neutral-muted" />;
+  return <div className="h-px w-full shrink-0 bg-divider-default" />;
 }
 
 /** 접히는 섹션 — 헤더(⌄ + 제목) 클릭으로 토글 */
@@ -45,13 +45,13 @@ function PanelSection({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center gap-2 text-fg-neutral"
+        className="flex w-full cursor-pointer items-center gap-2 text-contents-light-bgd-default"
       >
         <DropdownIcon
           size={16}
           className={`transition-transform duration-fast ${open ? "" : "-rotate-90"}`}
         />
-        <span className="type-utility-panel">{title}</span>
+        <span className="type-label-semibold-xs">{title}</span>
       </button>
       {open && children}
     </div>
@@ -67,7 +67,7 @@ export function InfoPanel({
   onRetouchRequestChange,
 }: InfoPanelProps) {
   return (
-    <aside className="flex w-70 shrink-0 flex-col gap-3 overflow-y-auto border-l border-stroke-neutral-muted bg-bg-layer-default p-5">
+    <aside className="flex w-70 shrink-0 flex-col gap-3 overflow-y-auto border-l border-divider-default bg-background-default-main p-5">
       <PanelSection title="AI 분석">
         <div className="flex w-full flex-col gap-1">
           {analysis.map((item) => (

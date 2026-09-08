@@ -37,7 +37,7 @@ export function StepSlider({
     <div className={`flex w-full flex-col gap-1 ${className}`}>
       {label !== undefined && (
         <div className="flex justify-end">
-          <span className="type-body-small text-fg-neutral-muted">{label}</span>
+          <span className="type-content-xs text-contents-light-bgd-sub">{label}</span>
         </div>
       )}
       <div className="relative h-4 w-full">
@@ -52,23 +52,23 @@ export function StepSlider({
           onChange={(e) => onChange?.(Number(e.target.value))}
           className="peer absolute inset-0 z-10 w-full cursor-pointer opacity-0"
         />
-        <span className="absolute top-1/2 h-0.5 w-full -translate-y-1/2 rounded-(--pill) bg-bg-disabled" />
+        <span className="absolute top-1/2 h-0.5 w-full -translate-y-1/2 rounded-(--pill) bg-surface-default-light" />
         <span
-          className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-(--pill) bg-bg-brand-solid"
+          className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-(--pill) bg-brand-primary-default"
           style={{ width: `${pct}%` }}
         />
         {Array.from({ length: steps }, (_, i) => (
           <span
             key={i}
             className={`absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-              i <= clamped ? "bg-bg-brand-solid" : "bg-stroke-neutral-weak"
+              i <= clamped ? "bg-brand-primary-default" : "bg-border-default"
             }`}
             style={{ left: `${steps <= 1 ? 0 : (i / (steps - 1)) * 100}%` }}
           />
         ))}
         <span
           aria-hidden
-          className="pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-fg-neutral bg-bg-layer-default shadow-[0_1px_3px_rgba(0,0,0,0.15)] peer-focus-visible:ring-2 peer-focus-visible:ring-stroke-neutral-weak"
+          className="pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-contents-light-bgd-default bg-background-default-main shadow-[0_1px_3px_rgba(0,0,0,0.15)] peer-focus-visible:ring-2 peer-focus-visible:ring-border-default"
           style={{ left: `${pct}%` }}
         />
       </div>

@@ -24,6 +24,7 @@ import { GuestInfoPanel } from "@/components/guest/GuestInfoPanel";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   BackIcon,
+  HeartFillIcon,
   HeartIcon,
   InfoIcon,
   MenuIcon,
@@ -126,9 +127,9 @@ export default function GuestSharedGalleryPage() {
     : [];
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg-layer-default">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       {/* 게스트 탑바 (피그마 Guest/Topbar) */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-stroke-neutral-muted bg-bg-layer-default px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-divider-default bg-background-default-main px-4">
         <div className="flex items-center gap-2">
           <IconButton
             icon={<MenuIcon size={20} />}
@@ -142,8 +143,8 @@ export default function GuestSharedGalleryPage() {
             className="flex cursor-pointer items-center gap-2"
             aria-label="홈으로"
           >
-            <BrandLogo size={32} className="shrink-0 text-fg-neutral" />
-            <b className="type-brand-wordmark text-fg-neutral">Easy Select</b>
+            <BrandLogo size={32} className="shrink-0 text-contents-light-bgd-default" />
+            <b className="type-brand-wordmark text-contents-light-bgd-default">Easy Select</b>
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -196,12 +197,12 @@ export default function GuestSharedGalleryPage() {
               {/* 앨범 표지 (피그마 album-header) — 제목·작성자는 부부의 디자인 설정을 따른다 */}
               <div className="flex flex-col items-center gap-3 pb-8 pt-16 text-center">
                 {(activeAlbum || design.showTitle) && (
-                  <h1 className="type-display-section text-fg-neutral">
+                  <h1 className="type-maintext-s text-contents-light-bgd-default">
                     {activeAlbum ? activeAlbum.label : design.title}
                   </h1>
                 )}
                 {design.showAuthor && design.author && (
-                  <p className="type-body-medium text-fg-neutral">
+                  <p className="type-content-m text-contents-light-bgd-default">
                     작성자 : {design.author}
                   </p>
                 )}
@@ -215,7 +216,7 @@ export default function GuestSharedGalleryPage() {
                     type="button"
                     onClick={() => openPhoto(photo.id)}
                     aria-label={`사진 ${photo.id} 크게 보기`}
-                    className="aspect-4/5 w-full cursor-pointer rounded-(--radius-4) bg-bg-disabled transition-opacity duration-fast hover:opacity-90"
+                    className="aspect-4/5 w-full cursor-pointer rounded-(--radius-4) bg-surface-default-light transition-opacity duration-fast hover:opacity-90"
                   />
                 ))}
               </div>
@@ -236,10 +237,10 @@ export default function GuestSharedGalleryPage() {
                    aspect만 주면 높이가 0으로 붕괴하므로 부부·작가 뷰어와 같은 h-full 패턴 */
                 <div
                   aria-label={`사진 ${currentPhoto.id}`}
-                  className="aspect-4/5 h-full bg-bg-disabled"
+                  className="aspect-4/5 h-full bg-surface-default-light"
                 />
               ) : (
-                <p className="type-body-medium text-fg-neutral-muted">
+                <p className="type-content-m text-contents-light-bgd-sub">
                   표시할 사진이 없어요.
                 </p>
               )}
@@ -272,10 +273,11 @@ export default function GuestSharedGalleryPage() {
               footer={
                 <IconButton
                   icon={
-                    <HeartIcon
-                      size={20}
-                      className={liked ? "fill-current text-fg-accent" : ""}
-                    />
+                    liked ? (
+                      <HeartFillIcon size={20} className="text-brand-secondary-default" />
+                    ) : (
+                      <HeartIcon size={20} />
+                    )
                   }
                   selected={liked}
                   onClick={() =>
