@@ -1,10 +1,10 @@
 /**
- * 작가 스튜디오 정보 로컬 캐시
+ * 작가 스튜디오 정보 로컬 캐시 — 작가 갤러리 화면이 이름을 읽는 임시 저장소
  * 위치: src/lib/studio.ts
  *
- * 스튜디오 생성(POST /api/v1/studios) 성공 응답의 canonical 값을 저장하고,
- * 갤러리 목록·온보딩 화면이 useStudioInfo()로 읽는다. 그 화면들이 서버
- * 조회(GET /api/v1/studios/me)로 넘어가면 이 캐시는 없어질 예정이다.
+ * 스튜디오 홈이 서버 조회(GET /studios/{workspaceId})로 받은 이름·공개 주소를 여기 넣고,
+ * 작가 갤러리 화면이 useStudioInfo()로 읽는다. 갤러리 화면이 서버 조회로 넘어가는
+ * C2에서 이 파일은 없어진다. 온보딩은 더 이상 여기에 쓰지 않는다.
  */
 
 import { useSyncExternalStore } from "react";
@@ -13,13 +13,11 @@ import { createLocalStore } from "@/lib/localStore";
 export type StudioInfo = {
   name: string;
   url: string;
-  source: string | null;
 };
 
 const DEFAULT_STUDIO: StudioInfo = {
   name: "스튜디오",
   url: "",
-  source: null,
 };
 
 const studioStore = createLocalStore<StudioInfo>(
@@ -35,11 +33,7 @@ export function useStudioInfo(): StudioInfo {
   );
 }
 
-export function saveStudioInfo(studio: StudioInfo) {
-  studioStore.set(studio);
-}
-
-/** 서버 조회(GET /studios/me) 결과를 캐시에 반영 — 유입경로는 로컬 값을 보존한다. */
+/** 서버 조회 결과를 캐시에 반영 */
 export function updateStudioFromServer(name: string, url: string) {
-  studioStore.set({ ...studioStore.get(), name, url });
+  studioStore.set({ name, url });
 }

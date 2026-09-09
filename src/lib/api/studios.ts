@@ -7,7 +7,7 @@ import { api } from "@/lib/api/client";
 
 export type StudioResponse = {
   id: number;
-  /** 스튜디오 작업공간 id — 주소 /studio/[studioId]와 GET /studios/{workspaceId}에 쓰는 값. */
+  /** 스튜디오 작업공간 id — GET /studios/{workspaceId}에 쓰는 값. 주소는 galleryUrl(공개 주소)이 정식이고 번호로도 열린다. */
   workspaceId: number;
   name: string;
   /** trim + 소문자 정규화를 거친 canonical 공개 주소. */
@@ -26,7 +26,10 @@ export type StudioResponse = {
 export type CreateStudioRequest = {
   name: string;
   galleryUrl: string;
-  inflowChannel?: string | null;
+  /** 고객에게 노출할 연락처 (선택) */
+  contact?: string | null;
+  /** 스튜디오 소개 (선택, 500자) */
+  description?: string | null;
 };
 
 export type GalleryUrlAvailability = {
@@ -54,11 +57,11 @@ export function checkGalleryUrlAvailability(
 }
 
 /**
- * 내 스튜디오 조회. 아직 스튜디오를 만들지 않았으면(온보딩 미완료)
- * STUDIO_404_1이다.
+ * 내 소속 스튜디오 목록. 공개 주소(galleryUrl)가 함께 오므로 주소 /studio/[공개 주소]에서
+ * 번호(workspaceId)를 찾는 데 쓴다.
  */
-export function fetchMyStudio(): Promise<StudioResponse> {
-  return api("/api/v1/studios/me");
+export function listMyStudios(): Promise<StudioResponse[]> {
+  return api("/api/v1/studios");
 }
 
 /**
@@ -70,11 +73,11 @@ export function fetchStudio(workspaceId: number | string): Promise<StudioRespons
 }
 
 /**
- * 스튜디오 생성. 성공하면 사용자 종류가 PHOTOGRAPHER로 확정된다 —
- * 종류만 정하는 API는 따로 없다.
+ * 스튜디오 작업공간 생성. 요청 사용자가 OWNER가 되고, 기존 개인 작업공간과
+ * 다른 스튜디오 소속은 유지된다.
  *
  * 실패 코드: STUDIO_400_1(형식 위반·예약어) · STUDIO_409_1(이미 스튜디오
- * 있음) · STUDIO_409_2(주소 중복) · USER_409_1(이미 부부로 확정된 계정).
+ * 있음) · STUDIO_409_2(주소 중복).
  */
 export function createStudio(
   request: CreateStudioRequest,
