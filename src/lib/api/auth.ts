@@ -80,6 +80,14 @@ export function login(
 // 토큰 재발급은 여기 없다 — 관문을 거치면 안 되는 특수 요청이라
 // src/lib/auth/refreshTokens.ts 가 전담한다.
 
+/**
+ * 서버 로그아웃 — 저장된 refresh token을 폐기한다. 현재 access token은 만료까지 유효하므로
+ * 로컬 삭제(clearTokens)와 함께 써야 진짜 로그아웃이다. 본문 없음, bearer 필요.
+ */
+export function logoutOnServer(): Promise<void> {
+  return api("/api/v1/auth/logout", { method: "POST" });
+}
+
 /** access token 주체의 사용자 정보. 로그인 상태 복구의 마지막 단계에서 쓴다. */
 export function getMe(): Promise<User> {
   return api("/api/v1/users/me");

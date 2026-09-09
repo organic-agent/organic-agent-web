@@ -40,6 +40,14 @@ export function saveLoginContext(ctx: LoginContext): void {
   }
 }
 
+export function clearLoginContext(): void {
+  try {
+    sessionStorage.removeItem(CONTEXT_KEY);
+  } catch {
+    // 지울 수 없는 환경이면 애초에 저장도 안 됐다.
+  }
+}
+
 export function readLoginContext(): LoginContext | null {
   try {
     const raw = sessionStorage.getItem(CONTEXT_KEY);
