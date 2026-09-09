@@ -5,12 +5,41 @@
 
 import { api } from "@/lib/api/client";
 
+/** 초대가 만드는 소속 종류 — 스튜디오 팀원 / 스튜디오 갤러리의 클라이언트 / 개인 갤러리의 파트너 */
+export type InviteKind = "STUDIO_MEMBER" | "GALLERY_MEMBER" | "PERSONAL_PARTNER";
+
+/** 지금 쓸 수 있는지 — 저장값이 아니라 조회 시점에 계산된다 */
+export type InviteStatus = "ACTIVE" | "EXPIRED" | "REVOKED" | "FULL" | "ALREADY_MEMBER";
+
+export type InvitePreviewResponse = {
+  kind: InviteKind;
+  status: InviteStatus;
+  workspaceId: number;
+  /** 개인 파트너 초대면 null */
+  studioName: string | null;
+  /** 스튜디오 팀원 초대면 null */
+  galleryId: number | null;
+  galleryTitle: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  remainingUses: number | null;
+  expiresAt: string;
+};
+
+/**
+ * 초대 미리보기 — 수락 전에 누가 어디로 부르는지와 상태(만료·회수·정원·기존 소속)를 본다.
+ * 로그인이 필요하다. 없는 링크는 404(GALLERY_404_3).
+ */
+export function previewInvite(token: string): Promise<InvitePreviewResponse> {
+  return api(`/api/v1/invites/${encodeURIComponent(token)}`);
+}
+
 export type InviteAcceptResponse = {
   /** 들어간 갤러리. 스튜디오 팀원 초대(STUDIO_MEMBER)면 null */
   galleryId: number | null;
   /** 들어간 작업공간 — 스튜디오 팀원 초대면 /studio/[workspaceId] */
   workspaceId: number;
-  kind: "STUDIO_MEMBER" | "GALLERY_MEMBER" | "PERSONAL_PARTNER";
+  kind: InviteKind;
   /** 이 사용자의 갤러리 멤버 id. 이미 멤버였다면 그때 만들어진 값. */
   memberId: number | null;
 };
@@ -21,7 +50,7 @@ export type GalleryInviteResponse = {
   /** 예비 부부에게 그대로 전달하는 링크. 토큰이 아니라 완성된 URL이다. */
   inviteUrl: string;
   /** 지금 쓸 수 있는지 — 저장된 값이 아니라 조회 시점에 계산된다. */
-  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  status: InviteStatus;
   expiresAt: string;
   /** 작가가 거둬들인 시각. 폐기하지 않았으면 null. */
   revokedAt: string | null;
@@ -74,6 +103,16 @@ export function revokeInvite(
  */
 export function acceptInvite(token: string): Promise<InviteAcceptResponse> {
   return api(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {
+    method: "POST",
+  });
+}
+
+/**
+ * 개인 파트너 초대 수락 — PERSONAL_PARTNER 종류만 받고, 소유자를 포함한 정원 2명을 검증한다.
+ * 갤러리·팀원 초대는 acceptInvite를 쓴다.
+ */
+export function acceptPartnerInvite(token: string): Promise<InviteAcceptResponse> {
+  return api(`/api/v1/invites/partner/${encodeURIComponent(token)}/accept`, {
     method: "POST",
   });
 }
