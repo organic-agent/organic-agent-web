@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
@@ -18,6 +19,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LoginModal, type LoginRequest } from "@/components/LoginModal";
+import { useAuth } from "@/lib/auth/authStore";
 import type { LoginIntent } from "@/lib/auth/loginFlow";
 
 /* ─── 기능 카드 데이터 (피그마 Landing/Features 카피) ─── */
@@ -132,7 +134,17 @@ export default function LandingPage() {
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
   // 로그인 모달 — nav(로그인·회원가입)와 대상 카드 버튼이 함께 쓴다. null이면 닫힘.
   // 카드 버튼은 신규 여부를 알 수 없어 항상 회원가입 문구로 열고, 목적지(intent)만 카드별로 다르다.
+  // 이미 로그인돼 있으면 모달 없이 그 온보딩으로 바로 간다.
   const [login, setLogin] = useState<LoginRequest | null>(null);
+  const auth = useAuth();
+  const router = useRouter();
+  function startAs(intent: LoginIntent) {
+    if (auth.status === "authenticated") {
+      router.push(intent === "studio" ? "/onboarding/studio" : "/onboarding/personal");
+      return;
+    }
+    setLogin({ mode: "signup", intent });
+  }
 
   return (
     <>
@@ -284,9 +296,7 @@ export default function LandingPage() {
                     <div className="mt-auto pt-4">
                       <Button
                         icon={<ArrowRightIcon />}
-                        onClick={() =>
-                          setLogin({ mode: "signup", intent: cta.intent })
-                        }
+                        onClick={() => startAs(cta.intent)}
                       >
                         {cta.label}
                       </Button>
