@@ -7,31 +7,26 @@
  * 플랜 API 목록을 카드로 그린다. 0원 플랜은 무료 카드(점선), 나머지는 유료 카드.
  * 무료를 고르면 결제 화면 없이 0원 이용권을 조용히 받아 바로 갤러리 정보로 간다 —
  * 갤러리 생성 API가 이용권을 필수로 받기 때문이다. 유료는 결제 화면으로 간다.
- * 무료 플랜이 아직 서버에 없으면 유료 카드만 보인다(백엔드에 0원 플랜 추가 요청 중).
+ * 서버가 플랜을 하나만 주는 동안은 표시 카탈로그(무료·스탠다드·프로)로 그린다 — planCatalog 참고.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
-import { initialOf } from "@/components/app/ProfileAvatarButton";
 import { ArrowRightIcon, BackIcon, InfoIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ApiError } from "@/lib/api/client";
-import {
-  createCheckout,
-  getPlans,
-  isFreePlan,
-  type PlansResponse,
-} from "@/lib/api/payments";
-import { useAuth } from "@/lib/auth/authStore";
+import { createCheckout, getPlans, isFreePlan } from "@/lib/api/payments";
 import { PersonalSteps } from "./_components/PersonalSteps";
 import { PlanCard } from "./_components/PlanCard";
+import { resolvePlans, type DisplayPlan } from "./_lib/planCatalog";
 
 export default function PersonalPlanPage() {
   const router = useRouter();
-  const auth = useAuth();
-  const [plans, setPlans] = useState<PlansResponse | null>(null);
+  const [plans, setPlans] = useState<{ list: DisplayPlan[]; checkoutEnabled: boolean } | null>(
+    null,
+  );
   const [failed, setFailed] = useState(false);
   const [nonce, setNonce] = useState(0);
   const [pickedId, setPickedId] = useState<string | null>(null);
@@ -43,7 +38,8 @@ export default function PersonalPlanPage() {
     (async () => {
       try {
         const res = await getPlans();
-        if (!cancelled) setPlans(res);
+        if (!cancelled)
+          setPlans({ list: resolvePlans(res).plans, checkoutEnabled: res.testCheckoutEnabled });
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -53,9 +49,9 @@ export default function PersonalPlanPage() {
     };
   }, [nonce]);
 
-  const picked = plans?.plans.find((p) => p.id === pickedId) ?? null;
+  const picked = plans?.list.find((p) => p.id === pickedId) ?? null;
   const paid = picked !== null && !isFreePlan(picked);
-  const checkoutOff = plans !== null && !plans.testCheckoutEnabled;
+  const checkoutOff = plans !== null && !plans.checkoutEnabled;
 
   async function proceed() {
     if (!picked || starting) return;
@@ -67,9 +63,9 @@ export default function PersonalPlanPage() {
     setStarting(true);
     setBanner(null);
     try {
-      const checkout = await createCheckout(picked.id);
+      const checkout = await createCheckout(picked.checkoutPlanId);
       router.push(
-        `/onboarding/personal/gallery?checkout=${encodeURIComponent(checkout.checkoutId)}`,
+        `/onboarding/personal/gallery?checkout=${encodeURIComponent(checkout.checkoutId)}&plan=${encodeURIComponent(picked.id)}`,
       );
     } catch (err) {
       setStarting(false);
@@ -91,7 +87,7 @@ export default function PersonalPlanPage() {
 
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initialOf(auth.user?.nickname)} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-170">
           <Link
@@ -138,10 +134,10 @@ export default function PersonalPlanPage() {
                   role="radiogroup"
                   aria-label="플랜"
                   className={`grid gap-3 max-[720px]:grid-cols-1 ${
-                    plans.plans.length >= 3 ? "grid-cols-3" : "grid-cols-2"
+                    plans.list.length >= 3 ? "grid-cols-3" : "grid-cols-2"
                   }`}
                 >
-                  {plans.plans.map((plan) => (
+                  {plans.list.map((plan) => (
                     <PlanCard
                       key={plan.id}
                       plan={plan}

@@ -13,19 +13,12 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
-import { initialOf } from "@/components/app/ProfileAvatarButton";
 import { BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ApiError } from "@/lib/api/client";
-import {
-  createCheckout,
-  formatAmount,
-  getPlans,
-  isFreePlan,
-  type Plan,
-} from "@/lib/api/payments";
-import { useAuth } from "@/lib/auth/authStore";
+import { createCheckout, formatAmount, getPlans, isFreePlan } from "@/lib/api/payments";
 import { PersonalSteps } from "../_components/PersonalSteps";
+import { resolvePlans, type DisplayPlan } from "../_lib/planCatalog";
 
 export default function PersonalCheckoutPage() {
   return (
@@ -37,9 +30,8 @@ export default function PersonalCheckoutPage() {
 
 function PersonalCheckout() {
   const router = useRouter();
-  const auth = useAuth();
   const planId = useSearchParams().get("plan");
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [plan, setPlan] = useState<DisplayPlan | null>(null);
   const [paying, setPaying] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
@@ -54,7 +46,7 @@ function PersonalCheckout() {
       try {
         const res = await getPlans();
         if (cancelled) return;
-        const found = res.plans.find((p) => p.id === planId) ?? null;
+        const found = resolvePlans(res).plans.find((p) => p.id === planId) ?? null;
         if (!found || isFreePlan(found)) router.replace("/onboarding/personal");
         else setPlan(found);
       } catch {
@@ -71,9 +63,9 @@ function PersonalCheckout() {
     setPaying(true);
     setBanner(null);
     try {
-      const checkout = await createCheckout(plan.id);
+      const checkout = await createCheckout(plan.checkoutPlanId);
       router.push(
-        `/onboarding/personal/gallery?checkout=${encodeURIComponent(checkout.checkoutId)}`,
+        `/onboarding/personal/gallery?checkout=${encodeURIComponent(checkout.checkoutId)}&plan=${encodeURIComponent(plan.id)}`,
       );
     } catch (err) {
       setPaying(false);
@@ -87,7 +79,7 @@ function PersonalCheckout() {
 
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initialOf(auth.user?.nickname)} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-130">
           <Link

@@ -9,11 +9,11 @@
  *
  * 로그인 상태의 소속 칩: 최근 활동 공간 이름 + 꼬리표(스튜디오 / 갤러리 / 외 n). 누르면 그 공간으로.
  * 소속이 없으면 "시작하기" → 역할 선택. 인증 복구 중에는 자리표시자만 두어 깜빡임을 막는다.
- * 아바타는 자리만 — 프로필 메뉴는 다음 PR.
+ * 아바타를 누르면 프로필 메뉴가 펼쳐진다.
  */
 
 import Link from "next/link";
-import { ProfileAvatarButton, initialOf } from "@/components/app/ProfileAvatarButton";
+import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { BrandLogo } from "@/components/BrandLogo";
 import { ArrowRightIcon } from "@/components/icons";
 import type { LoginRequest } from "@/components/LoginModal";
@@ -87,7 +87,7 @@ function SpaceChipLink({ user }: { user: NonNullable<ReturnType<typeof useAuth>[
         )}
         <ArrowRightIcon size={18} className="text-contents-light-bgd-weakness" />
       </Link>
-      <ProfileAvatarButton initial={initialOf(user.nickname)} />
+      <ProfileAvatarButton />
     </>
   );
 }

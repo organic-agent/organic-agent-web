@@ -14,20 +14,14 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
-import { initialOf } from "@/components/app/ProfileAvatarButton";
 import { ArrowRightIcon, BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import { createPersonalGallery, toSelectionDeadline } from "@/lib/api/galleries";
-import {
-  getCheckout,
-  getPlans,
-  type CheckoutResponse,
-  type Plan,
-} from "@/lib/api/payments";
-import { useAuth } from "@/lib/auth/authStore";
+import { getCheckout, getPlans, type CheckoutResponse } from "@/lib/api/payments";
 import { PersonalSteps } from "../_components/PersonalSteps";
+import { resolvePlans, type DisplayPlan } from "../_lib/planCatalog";
 
 export default function PersonalGalleryPage() {
   return (
@@ -39,11 +33,13 @@ export default function PersonalGalleryPage() {
 
 function PersonalGalleryForm() {
   const router = useRouter();
-  const auth = useAuth();
-  const checkoutId = useSearchParams().get("checkout");
-  const [ticket, setTicket] = useState<{ checkout: CheckoutResponse; plan: Plan | null } | null>(
-    null,
-  );
+  const search = useSearchParams();
+  const checkoutId = search.get("checkout");
+  const planId = search.get("plan");
+  const [ticket, setTicket] = useState<{
+    checkout: CheckoutResponse;
+    plan: DisplayPlan | null;
+  } | null>(null);
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
   const [count, setCount] = useState("");
@@ -61,9 +57,14 @@ function PersonalGalleryForm() {
       try {
         const [checkout, plans] = await Promise.all([getCheckout(checkoutId), getPlans()]);
         if (cancelled) return;
+        // 배지는 사용자가 고른 표시 플랜 기준. 주소에 없으면 이용권의 플랜으로 되짚는다.
+        const list = resolvePlans(plans).plans;
         setTicket({
           checkout,
-          plan: plans.plans.find((p) => p.id === checkout.planId) ?? null,
+          plan:
+            list.find((p) => p.id === planId) ??
+            list.find((p) => p.checkoutPlanId === checkout.planId) ??
+            null,
         });
       } catch {
         if (!cancelled) router.replace("/onboarding/personal");
@@ -72,9 +73,10 @@ function PersonalGalleryForm() {
     return () => {
       cancelled = true;
     };
-  }, [checkoutId, router]);
+  }, [checkoutId, planId, router]);
 
-  const paid = ticket !== null && ticket.checkout.amount > 0;
+  const paid =
+    ticket !== null && (ticket.plan ? ticket.plan.amount > 0 : ticket.checkout.amount > 0);
   const countNumber = Number(count);
   const countValid = count === "" || (Number.isInteger(countNumber) && countNumber >= 1);
   const canSubmit = title.trim().length > 0 && countValid && !submitting && ticket !== null;
@@ -104,12 +106,12 @@ function PersonalGalleryForm() {
 
   const backHref =
     ticket && paid
-      ? `/onboarding/personal/checkout?plan=${encodeURIComponent(ticket.checkout.planId)}`
+      ? `/onboarding/personal/checkout?plan=${encodeURIComponent(ticket.plan?.id ?? ticket.checkout.planId)}`
       : "/onboarding/personal";
 
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initialOf(auth.user?.nickname)} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-130">
           <Link

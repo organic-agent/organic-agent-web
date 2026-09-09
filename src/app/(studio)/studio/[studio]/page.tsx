@@ -144,7 +144,7 @@ export default function GalleriesPage() {
     <div className="min-h-dvh bg-background-default-main">
       <StudioTopbar
         studioSlug={current?.galleryUrl ?? params.studio}
-        studioInitial={studioName.trim().slice(0, 1) || "스"}
+        workspaceId={studioId}
       />
       <StudioHeader
         studioName={studioName}

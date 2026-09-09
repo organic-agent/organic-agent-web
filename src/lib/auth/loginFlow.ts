@@ -40,6 +40,14 @@ export function saveLoginContext(ctx: LoginContext): void {
   }
 }
 
+export function clearLoginContext(): void {
+  try {
+    sessionStorage.removeItem(CONTEXT_KEY);
+  } catch {
+    // 지울 수 없는 환경이면 애초에 저장도 안 됐다.
+  }
+}
+
 export function readLoginContext(): LoginContext | null {
   try {
     const raw = sessionStorage.getItem(CONTEXT_KEY);
@@ -84,14 +92,16 @@ export function spaceChip(user: User): SpaceChip {
   if (spaces.length === 0) {
     return { label: "시작하기", tag: null, href: "/onboarding/role" };
   }
-  const first = spaces[0];
-  const tag =
-    spaces.length > 1
-      ? `외 ${spaces.length - 1}`
-      : first.kind === "STUDIO"
-        ? "스튜디오"
-        : "갤러리";
-  return { label: first.name, tag, href: workspacePath(first) };
+  if (spaces.length > 1) {
+    // 어느 공간으로 갈지는 목록에서 고른다
+    return { label: "워크스페이스", tag: String(spaces.length), href: "/workspace" };
+  }
+  const only = spaces[0];
+  return {
+    label: only.name,
+    tag: only.kind === "STUDIO" ? "스튜디오" : "갤러리",
+    href: workspacePath(only),
+  };
 }
 
 export type DestinationInput = {
@@ -107,7 +117,7 @@ export type DestinationInput = {
  *  - 초대 토큰이 있으면 초대 수락 페이지. 서버는 자동 수락하지 않으니 사용자가 확인한다.
  *  - 소속 0개(신규): 의도가 있으면 그 온보딩으로, 없으면 역할 선택으로.
  *  - 소속 1개: 그 공간으로.
- *  - 소속 2개 이상: 고르는 화면(워크스페이스 목록)이 생기기 전까지 최근 활동 공간으로.
+ *  - 소속 2개 이상: 워크스페이스 목록에서 고른다.
  */
 export function resolveDestination({
   inviteToken,
@@ -121,6 +131,7 @@ export function resolveDestination({
     if (intent === "personal") return "/onboarding/personal";
     return "/onboarding/role";
   }
+  if (spaces.length > 1) return "/workspace";
   return workspacePath(spaces[0]);
 }
 

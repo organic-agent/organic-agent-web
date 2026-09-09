@@ -38,6 +38,7 @@ import {
   type InviteStatus,
 } from "@/lib/api/invites";
 import { useAuth } from "@/lib/auth/authStore";
+import { logout } from "@/lib/auth/logout";
 
 type Tone = "brand" | "ok" | "warn" | "bad";
 
@@ -200,6 +201,18 @@ export function InviteLanding({ token }: { token: string }) {
     };
   }, [auth.status, token, router]);
 
+  // 잘못된 계정으로 링크를 연 경우 — 로그아웃 뒤 초대 토큰을 실어 로그인으로, 로그인하면 다시 여기로
+  async function switchAccount() {
+    await logout();
+    const query = new URLSearchParams({ role: "couple", inviteToken: token });
+    router.replace(`/login?${query.toString()}`);
+  }
+  const switchButton = (
+    <Button kind="ghost" onClick={switchAccount} className="w-full">
+      다른 계정으로 로그인
+    </Button>
+  );
+
   async function accept(kind: InviteKind) {
     setAccepting(true);
     try {
@@ -214,11 +227,9 @@ export function InviteLanding({ token }: { token: string }) {
     }
   }
 
-  const initial = auth.user?.nickname.trim().slice(0, 1) || "?";
-
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initial} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-center px-6 py-14">
         {view.kind === "loading" ? (
           <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">
@@ -231,10 +242,22 @@ export function InviteLanding({ token }: { token: string }) {
             Icon={InfoIcon}
             title={(ERRORS[view.code] ?? FALLBACK_ERROR).title}
             desc={(ERRORS[view.code] ?? FALLBACK_ERROR).desc}
-            actions={<Button href="/">홈으로</Button>}
+            actions={
+              <>
+                <Button href="/" className="w-full">
+                  홈으로
+                </Button>
+                {switchButton}
+              </>
+            }
           />
         ) : (
-          <PreviewCard data={view.data} accepting={accepting} onAccept={accept} />
+          <PreviewCard
+            data={view.data}
+            accepting={accepting}
+            onAccept={accept}
+            secondary={switchButton}
+          />
         )}
       </div>
     </main>
@@ -245,10 +268,13 @@ function PreviewCard({
   data,
   accepting,
   onAccept,
+  secondary,
 }: {
   data: InvitePreviewResponse;
   accepting: boolean;
   onAccept: (kind: InviteKind) => void;
+  /** 주 버튼 아래 보조 동작 — "다른 계정으로 로그인" */
+  secondary: ReactNode;
 }) {
   const k = KIND[data.kind];
   const name = [data.studioName, data.galleryTitle].filter(Boolean).join(" · ");
@@ -264,13 +290,18 @@ function PreviewCard({
         title={st.title}
         desc={st.desc(k.ask)}
         actions={
-          st.action === "dest" ? (
-            <Button href={destinationOf(data)} icon={<ArrowRightIcon />}>
-              {k.destLabel}
-            </Button>
-          ) : (
-            <Button href="/">홈으로</Button>
-          )
+          <>
+            {st.action === "dest" ? (
+              <Button href={destinationOf(data)} icon={<ArrowRightIcon />} className="w-full">
+                {k.destLabel}
+              </Button>
+            ) : (
+              <Button href="/" className="w-full">
+                홈으로
+              </Button>
+            )}
+            {secondary}
+          </>
         }
       />
     );
@@ -299,15 +330,18 @@ function PreviewCard({
         ["만료", dateFormat.format(new Date(data.expiresAt))],
       ].filter((row): row is [string, string] => row !== null)}
       actions={
-        <Button
-          size="lg"
-          icon={accepting ? undefined : <ArrowRightIcon />}
-          disabled={accepting}
-          onClick={() => onAccept(data.kind)}
-          className="w-full"
-        >
-          {accepting ? "수락하는 중…" : "초대 수락하기"}
-        </Button>
+        <>
+          <Button
+            size="lg"
+            icon={accepting ? undefined : <ArrowRightIcon />}
+            disabled={accepting}
+            onClick={() => onAccept(data.kind)}
+            className="w-full"
+          >
+            {accepting ? "수락하는 중…" : "초대 수락하기"}
+          </Button>
+          {secondary}
+        </>
       }
     />
   );

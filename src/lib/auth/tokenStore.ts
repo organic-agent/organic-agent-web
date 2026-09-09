@@ -17,8 +17,8 @@
  * 쌍으로 교체돼야 한다. 그래서 set은 쌍만 받고, 한쪽만 갱신하는 API는
  * 의도적으로 만들지 않았다.
  *
- * 서버에 로그아웃 API가 없으므로(AuthController는 reissue뿐) clearTokens()로
- * 로컬에서 지우는 것이 로그아웃의 전부다.
+ * 로그아웃은 src/lib/auth/logout.ts가 맡는다 — 서버 폐기(POST /auth/logout) 뒤
+ * clearTokens()로 로컬을 지운다.
  */
 
 const REFRESH_TOKEN_KEY = "sel.refreshToken";

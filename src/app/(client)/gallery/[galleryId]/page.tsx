@@ -24,6 +24,7 @@ import { NotificationBell } from "@/components/app/NotificationBell";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useSidebar } from "@/components/SidebarProvider";
 import { useParams } from "next/navigation";
+import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem } from "@/components/ui/MenuItem";
@@ -45,7 +46,6 @@ import {
   SingleViewIcon,
   ShareIcon,
   InfoIcon,
-  SettingIcon,
   ReactionIcon,
   PhotoIcon,
   DropdownIcon,
@@ -749,11 +749,7 @@ export default function CoupleGalleryWorkspacePage() {
             onClick={() => setShareOpen(true)}
             aria-label="공유 및 초대"
           />
-          <IconButton
-            icon={<SettingIcon size={20} />}
-            onClick={showComingSoon}
-            aria-label="설정"
-          />
+          <ProfileAvatarButton current={{ kind: "GALLERY", galleryId: gallery.id }} />
         </div>
       </header>
 
