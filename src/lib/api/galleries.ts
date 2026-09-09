@@ -27,6 +27,23 @@ export type CreateGalleryRequest = {
   maxSelectablePhotoCount?: number | null;
 };
 
+export type CreatePersonalGalleryRequest = CreateGalleryRequest & {
+  /** 테스트 결제로 받은 이용권. 한 번 쓰면 소진된다 */
+  checkoutId: string;
+  /** AI 폴더의 큰 분류를 가르는 값. 온보딩은 본식으로 보내고 갤러리 설정에서 바꾼다 */
+  shootType: "REHEARSAL" | "CEREMONY" | "OTHER";
+};
+
+/**
+ * 개인 갤러리 개설 — 본인 이용권(checkoutId)을 한 번 쓴다. 만들어진 갤러리는 즉시
+ * 공개 상태이고, 플랜 기간이 기본 완료 예정일이 된다. 만든 사람이 OWNER다.
+ */
+export function createPersonalGallery(
+  request: CreatePersonalGalleryRequest,
+): Promise<GalleryResponse> {
+  return api("/api/v1/galleries/personal", { method: "POST", body: request });
+}
+
 /**
  * 폼의 날짜(YYYY-MM-DD)를 그날이 다 가기 전까지의 마감 일시(KST)로 바꾼다.
  * 생성·재오픈 등 selectionDeadline을 받는 모든 요청이 같은 규칙을 쓴다.
