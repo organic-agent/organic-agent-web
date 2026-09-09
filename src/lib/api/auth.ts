@@ -17,8 +17,10 @@ export type LoginUrlResponse = {
 export type LoginResponse = {
   accessToken: string;
   refreshToken: string;
-  /** 초대 링크 경유 로그인이면 방금 들어간 갤러리 id, 일반 로그인이면 null. */
+  /** 서버는 로그인 시 초대를 자동 수락하지 않는다. 일반 로그인과 수락 전 로그인은 null. */
   galleryId: number | null;
+  /** 초대 링크로 시작한 로그인이면 미리보기·수락에 쓸 초대 토큰. 없으면 null. */
+  inviteToken: string | null;
 };
 
 /** 내가 드나들 수 있는 공간 하나 — 스튜디오 작업공간 또는 (초대받았거나 내가 만든) 갤러리 */
@@ -41,11 +43,6 @@ export type User = {
   nickname: string;
   email: string | null;
   role: "USER" | "ADMIN";
-  /**
-   * @deprecated 서버 응답에서 사라진 필드(항상 undefined). 로그인 뒤 목적지는
-   * workspaces로 정한다 — 진입 흐름 2단계에서 라우팅 규칙과 함께 제거.
-   */
-  userType?: "PHOTOGRAPHER" | "CLIENT" | null;
   createdAt: string | null;
   /** 소속 목록. 비어 있으면 아직 역할을 정하지 않은 신규 사용자다 */
   workspaces: UserWorkspace[];

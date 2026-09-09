@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { getMe } from "@/lib/api/auth";
+import { sortByRecentActivity, workspacePath } from "@/lib/auth/loginFlow";
 
 export default function MyStudioPage() {
   const router = useRouter();
@@ -25,11 +26,11 @@ export default function MyStudioPage() {
       try {
         const me = await getMe();
         if (cancelled) return;
-        const studios = (me.workspaces ?? [])
-          .filter((w) => w.kind === "STUDIO")
-          .sort((a, b) => (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""));
+        const studios = sortByRecentActivity(
+          (me.workspaces ?? []).filter((w) => w.kind === "STUDIO"),
+        );
         router.replace(
-          studios.length > 0 ? `/studio/${studios[0].workspaceId}` : "/onboarding/studio",
+          studios.length > 0 ? workspacePath(studios[0]) : "/onboarding/studio",
         );
       } catch {
         if (!cancelled) setFailed(true);

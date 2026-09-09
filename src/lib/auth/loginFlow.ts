@@ -3,13 +3,18 @@
  * 위치: src/lib/auth/loginFlow.ts
  *
  * OAuth 왕복 동안 서버 state가 보존해주는 것은 inviteToken뿐이다. 목적지
- * 결정에 필요한 intent(부부/스튜디오)는 우리가 직접 날라야 해서
+ * 결정에 필요한 intent(스튜디오/개인/역할 미정)는 우리가 직접 날라야 해서
  * sessionStorage에 담는다 — 로그인 왕복 한 사이클짜리 임시 데이터라
  * 탭을 닫으면 사라지는 저장소가 맞다. 취소 후 재시도 시 inviteToken이
  * 유실되지 않는 것(WES-83)도 이 컨텍스트가 담당한다.
  */
 
-import { getLoginUrl, type OAuthProvider, type User } from "@/lib/api/auth";
+import {
+  getLoginUrl,
+  type OAuthProvider,
+  type User,
+  type UserWorkspace,
+} from "@/lib/api/auth";
 
 /**
  * 로그인 뒤 목적지를 정하는 값. 모달 문구(로그인/회원가입)는 LoginModal의 mode가 따로 정한다.
@@ -58,22 +63,47 @@ export async function startLogin(
   window.location.assign(loginUrl);
 }
 
+/** 소속 하나가 가리키는 주소 — 스튜디오면 스튜디오 홈, 갤러리면 그 갤러리 */
+export function workspacePath(space: UserWorkspace): string {
+  if (space.kind === "STUDIO") return `/studio/${space.workspaceId}`;
+  return space.galleryId !== null ? `/gallery/${space.galleryId}` : "/gallery";
+}
+
+/** 최근 활동순 정렬 — 소속이 여럿일 때 먼저 보여줄 공간을 고르는 기준 */
+export function sortByRecentActivity(spaces: UserWorkspace[]): UserWorkspace[] {
+  return [...spaces].sort((a, b) =>
+    (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""),
+  );
+}
+
+export type DestinationInput = {
+  /** 로그인 응답의 초대 토큰 — 초대 링크로 시작한 로그인이면 있다 */
+  inviteToken: string | null;
+  user: User;
+  /** 모달을 연 곳이 넘긴 목적지 의도. nav처럼 역할을 모르는 곳은 couple */
+  intent: LoginIntent;
+};
+
 /**
- * 로그인 완료 후 목적지.
- * galleryId가 있으면 초대 경유 — 서버가 수락까지 끝냈으니 바로 갤러리로.
- * 신규 가입자(userType null)만 intent로 가른다.
+ * 로그인 완료 후 목적지 — 소속 규칙.
+ *  - 초대 토큰이 있으면 초대 수락 페이지. 서버는 자동 수락하지 않으니 사용자가 확인한다.
+ *  - 소속 0개(신규): 의도가 있으면 그 온보딩으로, 없으면 역할 선택으로.
+ *  - 소속 1개: 그 공간으로.
+ *  - 소속 2개 이상: 고르는 화면(워크스페이스 목록)이 생기기 전까지 최근 활동 공간으로.
  */
-export function resolveDestination(
-  galleryId: number | null,
-  user: User,
-  intent: LoginIntent,
-): string {
-  if (galleryId !== null) return "/gallery";
-  if (user.userType === "PHOTOGRAPHER") return "/studio";
-  if (user.userType === "CLIENT") return "/gallery";
-  // 부부 정책: 갤러리 참여는 작가의 초대 링크로만 가능하다. 초대 없이 온
-  // 신규 부부는 갤러리 대신 초대 안내(/invite)로 보낸다.
-  return intent === "studio" ? "/onboarding/studio" : "/invite";
+export function resolveDestination({
+  inviteToken,
+  user,
+  intent,
+}: DestinationInput): string {
+  if (inviteToken) return `/invite/${encodeURIComponent(inviteToken)}`;
+  const spaces = sortByRecentActivity(user.workspaces ?? []);
+  if (spaces.length === 0) {
+    if (intent === "studio") return "/onboarding/studio";
+    if (intent === "personal") return "/onboarding/personal";
+    return "/onboarding/role";
+  }
+  return workspacePath(spaces[0]);
 }
 
 // provider 취소(access_denied)와 스웨거에서 확인한 백엔드 코드만 매핑한다.
