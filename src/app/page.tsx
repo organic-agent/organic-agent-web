@@ -17,7 +17,7 @@ import {
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
-import { LoginModal } from "@/components/LoginModal";
+import { LoginModal, type LoginRequest } from "@/components/LoginModal";
 import type { LoginIntent } from "@/lib/auth/loginFlow";
 
 /* ─── 기능 카드 데이터 (피그마 Landing/Features 카피) ─── */
@@ -131,7 +131,8 @@ export default function LandingPage() {
   // 푸터의 준비 중 링크 안내용
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
   // 로그인 모달 — nav(로그인·회원가입)와 대상 카드 버튼이 함께 쓴다. null이면 닫힘.
-  const [loginIntent, setLoginIntent] = useState<LoginIntent | null>(null);
+  // 카드 버튼은 신규 여부를 알 수 없어 항상 회원가입 문구로 열고, 목적지(intent)만 카드별로 다르다.
+  const [login, setLogin] = useState<LoginRequest | null>(null);
 
   return (
     <>
@@ -143,7 +144,7 @@ export default function LandingPage() {
         본문으로 건너뛰기
       </a>
 
-      <LandingNav onOpenLogin={setLoginIntent} />
+      <LandingNav onOpenLogin={setLogin} />
 
       <main id="main">
         {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
@@ -283,7 +284,9 @@ export default function LandingPage() {
                     <div className="mt-auto pt-4">
                       <Button
                         icon={<ArrowRightIcon />}
-                        onClick={() => setLoginIntent(cta.intent)}
+                        onClick={() =>
+                          setLogin({ mode: "signup", intent: cta.intent })
+                        }
                       >
                         {cta.label}
                       </Button>
@@ -392,9 +395,10 @@ export default function LandingPage() {
       </footer>
 
       <LoginModal
-        open={loginIntent !== null}
-        onClose={() => setLoginIntent(null)}
-        intent={loginIntent ?? "couple"}
+        open={login !== null}
+        onClose={() => setLogin(null)}
+        mode={login?.mode ?? "login"}
+        intent={login?.intent ?? "couple"}
       />
     </>
   );

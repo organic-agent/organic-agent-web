@@ -5,18 +5,18 @@
  * 위치: src/app/_components/LandingNav.tsx
  *
  * 로그인 모달은 페이지가 하나만 들고 있다(대상 카드 버튼과 공유). 여기서는 열어 달라고만 한다.
- * "로그인"은 기존 couple 카피가 이미 역할 중립이라 그대로 쓴다 — 역할 중립 intent 정리는 진입 흐름 PR에서.
+ * 문구는 mode(로그인/회원가입)가, 로그인 뒤 목적지는 intent가 정한다 — nav에서는 역할을 모르니 couple.
  */
 
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
-import type { LoginIntent } from "@/lib/auth/loginFlow";
+import type { LoginRequest } from "@/components/LoginModal";
 
 export function LandingNav({
   onOpenLogin,
 }: {
-  onOpenLogin: (intent: LoginIntent) => void;
+  onOpenLogin: (req: LoginRequest) => void;
 }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-100 bg-background-default-main border-b border-divider-default">
@@ -33,10 +33,17 @@ export function LandingNav({
 
         {/* Nav buttons */}
         <nav className="flex items-center gap-2">
-          <Button kind="ghost" onClick={() => onOpenLogin("couple")}>
+          <Button
+            kind="ghost"
+            onClick={() => onOpenLogin({ mode: "login", intent: "couple" })}
+          >
             로그인
           </Button>
-          <Button onClick={() => onOpenLogin("signup")}>회원가입</Button>
+          <Button
+            onClick={() => onOpenLogin({ mode: "signup", intent: "couple" })}
+          >
+            회원가입
+          </Button>
         </nav>
       </div>
     </header>
