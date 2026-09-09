@@ -20,6 +20,13 @@ import { checkGalleryUrlAvailability } from "@/lib/api/studios";
 /** 서버 생성 규칙과 동일 — 소문자·숫자·하이픈 3~50자. */
 export const GALLERY_URL_PATTERN = /^[a-z0-9-]{3,50}$/;
 
+/**
+ * 프론트 예약어 — 스튜디오 홈이 /studio/[공개 주소]라서 /studio/gallery/[id](작가 갤러리)와
+ * 겹치는 값은 막는다. 서버 예약어 목록에 gallery를 넣어 달라고 요청한 상태이며, 그 전까지의 안전망.
+ */
+export const RESERVED_GALLERY_URLS = ["gallery"];
+const RESERVED_MESSAGE = "쓸 수 없는 주소예요. 다른 주소를 입력해 주세요";
+
 export type GalleryUrlCheck =
   | { status: "idle" }
   | { status: "invalid"; message?: string }
@@ -40,10 +47,12 @@ const DEBOUNCE_MS = 400;
 export function useGalleryUrlAvailability(input: string): GalleryUrlCheck {
   const [result, setResult] = useState<CheckResult | null>(null);
   const slug = input.trim().toLowerCase();
-  const formatValid = GALLERY_URL_PATTERN.test(slug);
+  const reserved = RESERVED_GALLERY_URLS.includes(slug);
+  const formatValid = GALLERY_URL_PATTERN.test(slug) && !reserved;
 
   useEffect(() => {
     if (slug.length === 0 || !GALLERY_URL_PATTERN.test(slug)) return;
+    if (RESERVED_GALLERY_URLS.includes(slug)) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -69,6 +78,7 @@ export function useGalleryUrlAvailability(input: string): GalleryUrlCheck {
   }, [slug]);
 
   if (slug.length === 0) return { status: "idle" };
+  if (reserved) return { status: "invalid", message: RESERVED_MESSAGE };
   if (!formatValid) return { status: "invalid" };
   if (result === null || result.for !== slug) return { status: "checking" };
 

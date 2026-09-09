@@ -9,12 +9,14 @@
  * - 사이드바 접힘 쿠키 읽기
  * - SidebarProvider 초기값 전달
  * - 작가 하위 라우트 공통 상태 제공
+ * - 인증 가드: 로그인한 사용자만 통과, 게스트는 랜딩으로
  *
  * 참고:
  * - 쿠키를 읽으므로 이 경로들은 동적 렌더링으로 전환된다.
  */
 
 import { cookies } from "next/headers";
+import { AuthGuard } from "@/components/AuthGuard";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { SIDEBAR_COOKIE, parseCollapsedCookie } from "@/lib/sidebar";
 
@@ -27,6 +29,8 @@ export default async function PhotographerLayout({
     (await cookies()).get(SIDEBAR_COOKIE)?.value,
   );
   return (
-    <SidebarProvider initialCollapsed={collapsed}>{children}</SidebarProvider>
+    <SidebarProvider initialCollapsed={collapsed}>
+      <AuthGuard>{children}</AuthGuard>
+    </SidebarProvider>
   );
 }

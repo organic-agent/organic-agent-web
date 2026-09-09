@@ -76,6 +76,24 @@ export function sortByRecentActivity(spaces: UserWorkspace[]): UserWorkspace[] {
   );
 }
 
+/** 랜딩 nav의 소속 칩 — 최근 활동 공간 하나를 이름·꼬리표·링크로 */
+export type SpaceChip = { label: string; tag: string | null; href: string };
+
+export function spaceChip(user: User): SpaceChip {
+  const spaces = sortByRecentActivity(user.workspaces ?? []);
+  if (spaces.length === 0) {
+    return { label: "시작하기", tag: null, href: "/onboarding/role" };
+  }
+  const first = spaces[0];
+  const tag =
+    spaces.length > 1
+      ? `외 ${spaces.length - 1}`
+      : first.kind === "STUDIO"
+        ? "스튜디오"
+        : "갤러리";
+  return { label: first.name, tag, href: workspacePath(first) };
+}
+
 export type DestinationInput = {
   /** 로그인 응답의 초대 토큰 — 초대 링크로 시작한 로그인이면 있다 */
   inviteToken: string | null;

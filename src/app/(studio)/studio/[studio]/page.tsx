@@ -2,7 +2,7 @@
 
 /**
  * 작가 — 갤러리 목록(홈) 페이지
- * 위치: src/app/(studio)/studio/[studioId]/page.tsx
+ * 위치: src/app/(studio)/studio/[studio]/page.tsx
  * 시안: 피그마 Photographer/Home (탑바 + 스튜디오 헤더 + 카드 그리드)
  *
  * 주요 책임:
@@ -12,11 +12,16 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { STATUS_LABEL } from "@/app/(studio)/_lib/galleryStatus";
 import { StudioHeader } from "@/components/photographer/StudioHeader";
 import { StudioTopbar } from "@/components/photographer/StudioTopbar";
-import { fetchStudio } from "@/lib/api/studios";
+import { Button } from "@/components/ui/Button";
+import {
+  fetchStudio,
+  listMyStudios,
+  type StudioResponse,
+} from "@/lib/api/studios";
 import { updateStudioFromServer, useStudioInfo } from "@/lib/studio";
 import { DeleteGalleryConfirmModal } from "../_components/DeleteGalleryConfirmModal";
 import { EditGalleryModal } from "../_components/EditGalleryModal";
@@ -33,11 +38,17 @@ import {
 } from "../_lib/useGalleryList";
 
 export default function GalleriesPage() {
-  // 주소 /studio/[studioId] — 어느 스튜디오 홈인지는 주소가 정한다
-  const params = useParams<{ studioId: string }>();
-  const studioId = Number(params.studioId);
+  // 주소 /studio/[studio] — 공개 주소(serora)가 정식이고 번호(12)로 와도 열린다.
+  // 번호로 오면 조회 뒤 주소창을 공개 주소로 바꿔 준다.
+  const params = useParams<{ studio: string }>();
+  const router = useRouter();
+  const [current, setCurrent] = useState<StudioResponse | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const studioId = current?.workspaceId ?? null;
   const { result, reload, addItem, replaceItem, removeItem } = useGalleryList();
-  const studio = useStudioInfo();
+  // 작가 갤러리 화면이 아직 이 캐시에서 이름을 읽는다 — 서버 값이 오면 갱신하고, 오기 전엔 캐시로 표시
+  const cached = useStudioInfo();
+  const studioName = current?.name ?? cached.name;
   const [statusFilter, setStatusFilter] = useState("전체");
   const [newGalleryOpen, setNewGalleryOpen] = useState(false);
   const [createdToast, setCreatedToast] = useState<string | null>(null);
@@ -47,21 +58,38 @@ export default function GalleriesPage() {
   const [deletingGallery, setDeletingGallery] =
     useState<GalleryListItem | null>(null);
 
-  // 스튜디오 이름은 서버가 진실 — 주소의 studioId로 조회해 캐시를 갱신하고, 실패하면 캐시로 표시
+  // 주소의 값으로 스튜디오를 찾는다. 번호면 지정 조회, 공개 주소면 내 스튜디오 목록에서.
   useEffect(() => {
+    const key = params.studio;
+    if (
+      current &&
+      (current.galleryUrl === key || String(current.workspaceId) === key)
+    )
+      return;
     let cancelled = false;
     (async () => {
       try {
-        const mine = await fetchStudio(params.studioId);
-        if (!cancelled) updateStudioFromServer(mine.name, mine.galleryUrl);
+        const found = /^\d+$/.test(key)
+          ? await fetchStudio(key)
+          : ((await listMyStudios()).find((s) => s.galleryUrl === key) ?? null);
+        if (cancelled) return;
+        if (!found) {
+          setNotFound(true);
+          return;
+        }
+        setCurrent(found);
+        updateStudioFromServer(found.name, found.galleryUrl);
+        // 번호로 들어왔으면 정식 주소(공개 주소)로 바꿔 준다
+        if (found.galleryUrl !== key) router.replace(`/studio/${found.galleryUrl}`);
       } catch {
-        // 미로그인·소속 아님 등 — 캐시 이름으로 표시를 유지한다
+        // 소속 아님(403)·없는 번호(404)·네트워크 — 모두 "찾을 수 없음"으로
+        if (!cancelled) setNotFound(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [params.studioId]);
+  }, [params.studio, current, router]);
 
   useEffect(() => {
     if (!createdToast) return;
@@ -96,14 +124,30 @@ export default function GalleriesPage() {
     setDeletingGallery(null);
   }
 
+  if (notFound) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-background-default-main px-6">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="type-title-m text-contents-light-bgd-default">
+            스튜디오를 찾을 수 없어요
+          </h1>
+          <p className="type-content-m text-contents-light-bgd-sub">
+            내 소속이 아니거나 주소가 잘못됐어요.
+          </p>
+          <Button href="/studio">내 스튜디오로</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh bg-background-default-main">
       <StudioTopbar
-        studioId={params.studioId}
-        studioInitial={studio.name.trim().slice(0, 1) || "스"}
+        studioSlug={current?.galleryUrl ?? params.studio}
+        studioInitial={studioName.trim().slice(0, 1) || "스"}
       />
       <StudioHeader
-        studioName={studio.name}
+        studioName={studioName}
         galleries={galleries}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}

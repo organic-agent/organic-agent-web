@@ -10,7 +10,7 @@
  * 사용자가 받은 것을 직접 열어야 하므로 우리가 대신 열어 줄 곳이 없다.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { HeartIcon, PhotoIcon, ArrowRightIcon } from "@/components/icons";
@@ -49,11 +49,6 @@ export default function RoleSelectPage() {
   const router = useRouter();
   const auth = useAuth();
   const [picked, setPicked] = useState<Role | null>(null);
-
-  // 로그인 없이 들어오면 랜딩으로 — 정식 인증 가드는 진입 흐름 3단계에서
-  useEffect(() => {
-    if (auth.status === "guest") router.replace("/");
-  }, [auth.status, router]);
 
   const chosen = ROLES.find((r) => r.key === picked) ?? null;
   const initial = auth.user?.nickname.trim().slice(0, 1) || "?";

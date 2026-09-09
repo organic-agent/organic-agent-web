@@ -7,7 +7,7 @@ import { api } from "@/lib/api/client";
 
 export type GalleryResponse = {
   id: number;
-  /** 소속 작업공간(스튜디오 또는 개인) id — /studio/[studioId] 링크와 홈 필터에 쓴다 */
+  /** 소속 작업공간(스튜디오 또는 개인) id — 스튜디오 홈 링크(번호로도 열림)와 홈 필터에 쓴다 */
   workspaceId: number;
   studioId: number;
   title: string;
@@ -26,6 +26,23 @@ export type CreateGalleryRequest = {
   selectionDeadline?: string | null;
   maxSelectablePhotoCount?: number | null;
 };
+
+export type CreatePersonalGalleryRequest = CreateGalleryRequest & {
+  /** 테스트 결제로 받은 이용권. 한 번 쓰면 소진된다 */
+  checkoutId: string;
+  /** AI 폴더의 큰 분류를 가르는 값. 온보딩은 본식으로 보내고 갤러리 설정에서 바꾼다 */
+  shootType: "REHEARSAL" | "CEREMONY" | "OTHER";
+};
+
+/**
+ * 개인 갤러리 개설 — 본인 이용권(checkoutId)을 한 번 쓴다. 만들어진 갤러리는 즉시
+ * 공개 상태이고, 플랜 기간이 기본 완료 예정일이 된다. 만든 사람이 OWNER다.
+ */
+export function createPersonalGallery(
+  request: CreatePersonalGalleryRequest,
+): Promise<GalleryResponse> {
+  return api("/api/v1/galleries/personal", { method: "POST", body: request });
+}
 
 /**
  * 폼의 날짜(YYYY-MM-DD)를 그날이 다 가기 전까지의 마감 일시(KST)로 바꾼다.
@@ -163,20 +180,4 @@ export function listGalleryMembers(
   galleryId: number,
 ): Promise<GalleryMemberResponse[]> {
   return api(`/api/v1/galleries/${galleryId}/members`);
-}
-
-/**
- * Mock 갤러리 생성 — 운영자가 시드한 샘플 템플릿의 사진(임베딩·미리보기
- * 포함)을 복제해 일반 갤러리 하나를 만든다. 온보딩 직후 체험용.
- *
- * 본문 없이 부르면 제목 '샘플 갤러리', 기한·장수 제한 없음으로 만든다.
- * 부를 때마다 새 갤러리가 생기므로(멱등 아님) 중복 호출 방지는 화면 책임이다.
- *
- * 실패: 400(빈 제목·지난 기한·0 이하 장수) · STUDIO_404_1(스튜디오 없음) ·
- * 502(템플릿 복사 실패 — 잔해가 남지 않아 재요청 안전) · 503(샘플 미준비).
- */
-export function createMockGallery(
-  request?: CreateGalleryRequest,
-): Promise<GalleryResponse> {
-  return api("/api/v1/galleries/mock", { method: "POST", body: request });
 }

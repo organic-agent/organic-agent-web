@@ -15,6 +15,10 @@ type TextFieldProps = {
   disabled?: boolean;
   min?: number;
   "aria-label"?: string;
+  /** <label htmlFor>와 연결할 때 */
+  id?: string;
+  /** 브라우저 자동완성 힌트 (예: organization, tel) */
+  autoComplete?: string;
   className?: string;
 };
 
@@ -28,11 +32,15 @@ export function TextField({
   min,
   className = "",
   "aria-label": ariaLabel,
+  id,
+  autoComplete,
 }: TextFieldProps) {
   return (
     <input
+      id={id}
       type={type}
       value={value}
+      autoComplete={autoComplete}
       min={min}
       placeholder={placeholder}
       aria-label={ariaLabel}
