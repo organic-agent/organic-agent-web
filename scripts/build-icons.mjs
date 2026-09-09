@@ -58,6 +58,8 @@ const ICONS = [
   ['ZoomInIcon', 'zoom_in'],
   ['AddCommentIcon', 'add_comment'],
   ['TuneIcon', 'tune'],
+  ['LogoutIcon', 'logout'],
+  ['GridViewIcon', 'grid_view'],
 ];
 
 const paths = (symbol) => {

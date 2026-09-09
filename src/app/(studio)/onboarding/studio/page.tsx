@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import { checkGalleryUrlAvailability, createStudio } from "@/lib/api/studios";
-import { useAuth } from "@/lib/auth/authStore";
 import {
   useGalleryUrlAvailability,
   type GalleryUrlCheck,
@@ -65,7 +64,6 @@ function urlGuide(state: GalleryUrlCheck): { text: string; tone: string } {
 
 export default function StudioOnboardingPage() {
   const router = useRouter();
-  const auth = useAuth();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [contact, setContact] = useState("");
@@ -123,11 +121,9 @@ export default function StudioOnboardingPage() {
     }
   }
 
-  const initial = auth.user?.nickname.trim().slice(0, 1) || "?";
-
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initial} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-center px-6 py-12">
         <div className="w-full max-w-115">
           <Link

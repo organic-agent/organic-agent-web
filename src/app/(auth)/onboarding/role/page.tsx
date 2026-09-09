@@ -15,7 +15,6 @@ import { useRouter } from "next/navigation";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { HeartIcon, PhotoIcon, ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-import { useAuth } from "@/lib/auth/authStore";
 
 type Role = "studio" | "personal";
 
@@ -47,15 +46,13 @@ const ROLES: {
 
 export default function RoleSelectPage() {
   const router = useRouter();
-  const auth = useAuth();
   const [picked, setPicked] = useState<Role | null>(null);
 
   const chosen = ROLES.find((r) => r.key === picked) ?? null;
-  const initial = auth.user?.nickname.trim().slice(0, 1) || "?";
 
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initial} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-center px-6 py-14">
         <div className="flex w-full max-w-190 flex-col items-center gap-8 text-center">
           <div className="flex flex-col items-center gap-3">

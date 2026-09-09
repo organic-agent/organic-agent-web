@@ -214,11 +214,9 @@ export function InviteLanding({ token }: { token: string }) {
     }
   }
 
-  const initial = auth.user?.nickname.trim().slice(0, 1) || "?";
-
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
-      <EntryTopbar initial={initial} />
+      <EntryTopbar />
       <div className="grid flex-1 place-items-center px-6 py-14">
         {view.kind === "loading" ? (
           <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">

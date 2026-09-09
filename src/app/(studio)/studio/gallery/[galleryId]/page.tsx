@@ -50,7 +50,7 @@ import {
   UploadIcon,
 } from "@/components/icons";
 import { useSidebar } from "@/components/SidebarProvider";
-import { Avatar } from "@/components/ui/Avatar";
+import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem } from "@/components/ui/MenuItem";
@@ -77,7 +77,6 @@ import {
   renameFolderGroup,
 } from "@/lib/api/folders";
 import { updateGallery, useGalleries } from "@/lib/galleries";
-import { useStudioInfo } from "@/lib/studio";
 import { AlbumTreeSection } from "./_components/AlbumTreeSection";
 import { ClusterStackCell } from "./_components/ClusterStackCell";
 import { DeleteFolderModal } from "./_components/DeleteFolderModal";
@@ -123,7 +122,6 @@ export default function PhotographerGalleryWorkspacePage() {
   // 업로드·전달 데모 플래그는 아직 레거시 스토어 몫(04·07에서 서버 전환) — 없으면 감춘다
   const galleries = useGalleries();
   const legacy = galleries.find((g) => g.id === params.galleryId);
-  const studio = useStudioInfo();
   const { collapsed, toggle } = useSidebar();
   // 정렬(별점 순)은 기획만 있고 미구현 — 준비 중 토스트로 안내 (부부 화면과 동일)
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
@@ -952,7 +950,9 @@ export default function PhotographerGalleryWorkspacePage() {
             onClick={() => setInviteOpen(true)}
             aria-label="부부 초대"
           />
-          <Avatar initial={studio.name.trim().slice(0, 1) || "스"} />
+          <ProfileAvatarButton
+            current={{ kind: "STUDIO", workspaceId: gallery.workspaceId }}
+          />
         </div>
       </header>
 
