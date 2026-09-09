@@ -2,7 +2,7 @@
  * 루트 레이아웃 (모든 페이지를 감싸는 최상위 HTML 뼈대 + 전역 메타데이터·폰트)
  * 위치: src/app/layout.tsx
  *
- * (auth)·(couple)·(photographer) 등 하위 layout.tsx가 이 안에 중첩되고, 최종적으로 각 page.tsx가 children 자리에 렌더된다.
+ * (auth)·(client)·(studio) 등 하위 layout.tsx가 이 안에 중첩되고, 최종적으로 각 page.tsx가 children 자리에 렌더된다.
  */
 
 import type { Metadata } from "next";

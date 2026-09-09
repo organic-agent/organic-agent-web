@@ -17,8 +17,24 @@ export type LoginUrlResponse = {
 export type LoginResponse = {
   accessToken: string;
   refreshToken: string;
-  /** 초대 링크 경유 로그인이면 방금 들어간 갤러리 id, 일반 로그인이면 null. */
+  /** 서버는 로그인 시 초대를 자동 수락하지 않는다. 일반 로그인과 수락 전 로그인은 null. */
   galleryId: number | null;
+  /** 초대 링크로 시작한 로그인이면 미리보기·수락에 쓸 초대 토큰. 없으면 null. */
+  inviteToken: string | null;
+};
+
+/** 내가 드나들 수 있는 공간 하나 — 스튜디오 작업공간 또는 (초대받았거나 내가 만든) 갤러리 */
+export type UserWorkspace = {
+  id: number;
+  kind: "STUDIO" | "GALLERY";
+  /** 스튜디오면 /studio/[workspaceId]에 쓰는 값 */
+  workspaceId: number;
+  /** 갤러리면 /gallery/[galleryId]에 쓰는 값. 스튜디오는 null */
+  galleryId: number | null;
+  name: string;
+  role: "OWNER" | "MEMBER";
+  lastActivityAt: string | null;
+  workspaceType: "PERSONAL" | "STUDIO" | null;
 };
 
 export type User = {
@@ -27,8 +43,9 @@ export type User = {
   nickname: string;
   email: string | null;
   role: "USER" | "ADMIN";
-  userType: "PHOTOGRAPHER" | "CLIENT" | null;
   createdAt: string | null;
+  /** 소속 목록. 비어 있으면 아직 역할을 정하지 않은 신규 사용자다 */
+  workspaces: UserWorkspace[];
 };
 
 /**

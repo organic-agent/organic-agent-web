@@ -7,6 +7,8 @@ import { api } from "@/lib/api/client";
 
 export type GalleryResponse = {
   id: number;
+  /** 소속 작업공간(스튜디오 또는 개인) id — /studio/[studioId] 링크와 홈 필터에 쓴다 */
+  workspaceId: number;
   studioId: number;
   title: string;
   status: "DRAFT" | "OPEN" | "CLOSED";

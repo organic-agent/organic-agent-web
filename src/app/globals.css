@@ -111,6 +111,15 @@
   .reveal-delay-3 {
     transition-delay: 0.18s;
   }
+  .reveal-delay-4 {
+    transition-delay: 0.24s;
+  }
+  .reveal-delay-5 {
+    transition-delay: 0.3s;
+  }
+  .reveal-delay-6 {
+    transition-delay: 0.36s;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .reveal-base {
@@ -177,6 +186,30 @@
   @media (prefers-reduced-motion: reduce) {
     .shimmer-sweep {
       display: none;
+    }
+  }
+}
+
+/* ─── 모달 진입 — transform·opacity만, prefers-reduced-motion 시 정지 ─── */
+@layer utilities {
+  .modal-enter {
+    animation: modal-in var(--duration-base) var(--ease-out) both;
+  }
+
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-enter {
+      animation: none;
     }
   }
 }

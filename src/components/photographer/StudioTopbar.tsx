@@ -10,12 +10,19 @@ import { NotificationBell } from "@/components/app/NotificationBell";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/ui/Avatar";
 
-export function StudioTopbar({ studioInitial }: { studioInitial: string }) {
+export function StudioTopbar({
+  studioId,
+  studioInitial,
+}: {
+  /** 로고가 가리킬 스튜디오 홈 — 주소의 studioId(workspaceId) */
+  studioId: number | string;
+  studioInitial: string;
+}) {
   return (
     <header className="border-b border-divider-default bg-background-default-main">
       <div className="mx-auto flex h-12 w-full max-w-wrap items-center justify-between px-6">
         <Link
-          href="/galleries"
+          href={`/studio/${studioId}`}
           className="flex items-center gap-2 text-contents-light-bgd-default"
         >
           <BrandLogo size={32} />

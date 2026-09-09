@@ -6,9 +6,13 @@
 import { api } from "@/lib/api/client";
 
 export type InviteAcceptResponse = {
-  galleryId: number;
+  /** 들어간 갤러리. 스튜디오 팀원 초대(STUDIO_MEMBER)면 null */
+  galleryId: number | null;
+  /** 들어간 작업공간 — 스튜디오 팀원 초대면 /studio/[workspaceId] */
+  workspaceId: number;
+  kind: "STUDIO_MEMBER" | "GALLERY_MEMBER" | "PERSONAL_PARTNER";
   /** 이 사용자의 갤러리 멤버 id. 이미 멤버였다면 그때 만들어진 값. */
-  memberId: number;
+  memberId: number | null;
 };
 
 export type GalleryInviteResponse = {

@@ -67,7 +67,11 @@ export function OAuthCallback({
         const user = await getMe();
         setAuthenticated(user);
         router.replace(
-          resolveDestination(result.galleryId, user, ctx?.intent ?? "couple"),
+          resolveDestination({
+            inviteToken: result.inviteToken,
+            user,
+            intent: ctx?.intent ?? "couple",
+          }),
         );
       } catch (err) {
         backToLogin(err instanceof ApiError ? err.code : "network");
