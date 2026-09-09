@@ -21,14 +21,34 @@ export type LoginResponse = {
   galleryId: number | null;
 };
 
+/** 내가 드나들 수 있는 공간 하나 — 스튜디오 작업공간 또는 (초대받았거나 내가 만든) 갤러리 */
+export type UserWorkspace = {
+  id: number;
+  kind: "STUDIO" | "GALLERY";
+  /** 스튜디오면 /studio/[workspaceId]에 쓰는 값 */
+  workspaceId: number;
+  /** 갤러리면 /gallery/[galleryId]에 쓰는 값. 스튜디오는 null */
+  galleryId: number | null;
+  name: string;
+  role: "OWNER" | "MEMBER";
+  lastActivityAt: string | null;
+  workspaceType: "PERSONAL" | "STUDIO" | null;
+};
+
 export type User = {
   id: number;
   provider: OAuthProvider;
   nickname: string;
   email: string | null;
   role: "USER" | "ADMIN";
-  userType: "PHOTOGRAPHER" | "CLIENT" | null;
+  /**
+   * @deprecated 서버 응답에서 사라진 필드(항상 undefined). 로그인 뒤 목적지는
+   * workspaces로 정한다 — 진입 흐름 2단계에서 라우팅 규칙과 함께 제거.
+   */
+  userType?: "PHOTOGRAPHER" | "CLIENT" | null;
   createdAt: string | null;
+  /** 소속 목록. 비어 있으면 아직 역할을 정하지 않은 신규 사용자다 */
+  workspaces: UserWorkspace[];
 };
 
 /**

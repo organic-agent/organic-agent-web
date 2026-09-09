@@ -7,12 +7,20 @@ import { api } from "@/lib/api/client";
 
 export type StudioResponse = {
   id: number;
+  /** 스튜디오 작업공간 id — 주소 /studio/[studioId]와 GET /studios/{workspaceId}에 쓰는 값. */
+  workspaceId: number;
   name: string;
   /** trim + 소문자 정규화를 거친 canonical 공개 주소. */
   galleryUrl: string;
-  /** 유입 경로. 마케팅 집계용이라 없을 수 있다. */
+  /** @deprecated 과거 운영 데이터 호환용. 생성 요청에서는 더 받지 않는다. */
   inflowChannel: string | null;
+  /** 고객에게 노출할 연락처 */
+  contact: string | null;
+  /** 스튜디오 소개 */
+  description: string | null;
   createdAt: string | null;
+  /** 이 스튜디오에서의 내 역할. 소속이 아니면 null. */
+  role: "OWNER" | "MEMBER" | null;
 };
 
 export type CreateStudioRequest = {
@@ -51,6 +59,14 @@ export function checkGalleryUrlAvailability(
  */
 export function fetchMyStudio(): Promise<StudioResponse> {
   return api("/api/v1/studios/me");
+}
+
+/**
+ * 지정 스튜디오 조회 — 주소의 studioId(= workspaceId)로. 내 소속 여부와
+ * 역할(OWNER/MEMBER)이 함께 온다. 소속이 아니면 403.
+ */
+export function fetchStudio(workspaceId: number | string): Promise<StudioResponse> {
+  return api(`/api/v1/studios/${workspaceId}`);
 }
 
 /**

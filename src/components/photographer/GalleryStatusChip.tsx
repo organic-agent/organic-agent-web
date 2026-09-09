@@ -10,7 +10,7 @@
 import {
   type ChipTone,
   galleryChip,
-} from "@/app/(photographer)/_lib/galleryStatus";
+} from "@/app/(studio)/_lib/galleryStatus";
 import type { GalleryResponse } from "@/lib/api/galleries";
 
 const TONE_CLASS: Record<ChipTone, string> = {

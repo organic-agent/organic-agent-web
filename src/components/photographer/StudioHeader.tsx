@@ -12,8 +12,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { STATUS_LABEL } from "@/app/(photographer)/_lib/galleryStatus";
-import type { GalleryListItem } from "@/app/(photographer)/galleries/_lib/useGalleryList";
+import { STATUS_LABEL } from "@/app/(studio)/_lib/galleryStatus";
+import type { GalleryListItem } from "@/app/(studio)/studio/_lib/useGalleryList";
 import { FilterIcon } from "@/components/icons";
 import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem } from "@/components/ui/MenuItem";

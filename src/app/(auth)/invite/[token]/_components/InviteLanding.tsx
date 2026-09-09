@@ -76,8 +76,12 @@ export function InviteLanding({ token }: { token: string }) {
 
     (async () => {
       try {
-        await acceptInvite(token);
-        router.replace("/gallery");
+        const accepted = await acceptInvite(token);
+        router.replace(
+          accepted.galleryId !== null
+            ? `/gallery/${accepted.galleryId}`
+            : `/studio/${accepted.workspaceId}`,
+        );
       } catch (err) {
         acceptedTokens.delete(token);
         setErrorCode(err instanceof ApiError ? err.code : "network");
