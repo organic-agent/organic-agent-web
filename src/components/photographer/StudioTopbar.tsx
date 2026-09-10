@@ -5,12 +5,11 @@
  * 위치: src/components/photographer/StudioTopbar.tsx
  *
  * 좌: 로고 락업(랜딩 링크) / 우: 초대 · 알림 · 프로필 메뉴. 홈에는 사이드바가 없어 메뉴 버튼도 없다.
- * 초대는 팀원(작가) 초대라 C2 범위 밖 — 자리만 두고 "준비 중" 토스트를 띄운다.
+ * 초대는 팀원(작가) 초대 모달(StudioInviteModal)을 연다 — 열림 상태는 홈 페이지가 가진다.
  * data-coach 속성은 첫 진입 코치마크(StudioCoachMarks)가 스포트라이트 대상을 찾는 표식이다.
  */
 
 import Link from "next/link";
-import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -19,12 +18,13 @@ import { IconButton } from "@/components/ui/IconButton";
 
 export function StudioTopbar({
   workspaceId,
+  onInviteClick,
 }: {
   /** 프로필 메뉴가 "현재"를 표시할 스튜디오. 아직 모르면 null */
   workspaceId: number | null;
+  /** 초대 버튼 — 팀원 초대 모달 열기 */
+  onInviteClick: () => void;
 }) {
-  const { showComingSoon, comingSoonToast } = useComingSoonToast();
-
   return (
     <header className="border-b border-divider-default bg-background-default-main">
       <div className="mx-auto flex h-12 w-full max-w-wrap items-center justify-between px-6">
@@ -37,7 +37,7 @@ export function StudioTopbar({
             <IconButton
               icon={<PersonAddIcon size={20} />}
               aria-label="팀원 초대"
-              onClick={showComingSoon}
+              onClick={onInviteClick}
             />
           </div>
           <div data-coach="bell" className="flex">
@@ -48,7 +48,6 @@ export function StudioTopbar({
           />
         </div>
       </div>
-      {comingSoonToast}
     </header>
   );
 }

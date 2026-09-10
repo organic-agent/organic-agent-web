@@ -84,3 +84,49 @@ export function createStudio(
 ): Promise<StudioResponse> {
   return api("/api/v1/studios", { method: "POST", body: request });
 }
+
+export type StudioMemberResponse = {
+  /** 내보내기·역할 변경에 쓰는 소속 id — 사용자 id가 아니다 */
+  memberId: number;
+  userId: number;
+  nickname: string;
+  email: string | null;
+  role: "OWNER" | "MEMBER";
+};
+
+/** 스튜디오 멤버 목록 — 소속이면 누구나 볼 수 있다 */
+export function listStudioMembers(
+  workspaceId: number,
+): Promise<StudioMemberResponse[]> {
+  return api(`/api/v1/studios/${workspaceId}/members`);
+}
+
+export type StudioInviteResponse = {
+  id: number;
+  workspaceId: number;
+  kind: "STUDIO_MEMBER" | "GALLERY_MEMBER" | "PERSONAL_PARTNER";
+  /** 작가에게 그대로 전달하는 완성된 링크 */
+  inviteUrl: string;
+  /** 조회 시점에 계산한 상태 — ACTIVE만 쓸 수 있다 */
+  status: "ACTIVE" | "EXPIRED" | "REVOKED" | "FULL" | "ALREADY_MEMBER";
+  usedCount: number;
+  expiresAt: string;
+  revokedAt: string | null;
+};
+
+/** 현재 작가 초대 링크 조회. 발급한 적이 없으면 404 */
+export function getStudioInviteLink(
+  workspaceId: number,
+): Promise<StudioInviteResponse> {
+  return api(`/api/v1/studios/${workspaceId}/invite-link`);
+}
+
+/**
+ * 작가 초대 링크 발급 — 스튜디오 멤버면 누구나. 7일 뒤 만료하고,
+ * 재발급하면 이전 링크는 폐기된다. 갤러리가 없어도 발급할 수 있다.
+ */
+export function issueStudioInviteLink(
+  workspaceId: number,
+): Promise<StudioInviteResponse> {
+  return api(`/api/v1/studios/${workspaceId}/invite-link`, { method: "POST" });
+}

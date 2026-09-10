@@ -66,6 +66,14 @@ const ICONS = [
   ['DeleteForeverIcon', 'delete_forever'],
   ['EditIcon', 'edit'],
   ['VisibilityIcon', 'visibility'],
+  ['CheckCircleIcon', 'check_circle'],
+  ['BrushIcon', 'brush'],
+  ['ScheduleIcon', 'schedule'],
+  ['BellOffIcon', 'notifications_off'],
+  ['ManageAccountsIcon', 'manage_accounts'],
+  ['CopyIcon', 'content_copy'],
+  ['PersonRemoveIcon', 'person_remove'],
+  ['GroupIcon', 'group'],
 ];
 
 const paths = (symbol) => {

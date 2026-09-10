@@ -45,7 +45,7 @@ const STEPS: ReadonlyArray<{
     key: "invite",
     eyebrow: "초대",
     title: "함께 일하는 작가 초대",
-    body: "초대 링크로 스튜디오 팀원을 불러요. 곧 열려요.",
+    body: "초대 링크로 함께 일하는 작가를 스튜디오에 불러요.",
     round: true,
   },
 ];

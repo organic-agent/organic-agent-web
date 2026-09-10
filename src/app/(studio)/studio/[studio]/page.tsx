@@ -9,13 +9,14 @@
  * - 서버 갤러리 목록 조회(useGalleryList)와 6단계 필터링 (필터는 헤더의 팝업이 담당)
  * - 이용권 소프트 게이트: 없음 → 배너·타일이 결제 모달로, 다 씀 → 타일 잠금 → 결제 모달 → 새 갤러리
  * - 새 갤러리 생성/수정/보관/완전 삭제 모달 열림 상태 관리와 결과의 목록 반영
- * - 첫 진입 코치마크(목록이 준비된 뒤 1회)
+ * - 팀원 초대 모달(상단바 초대 버튼), 첫 진입 코치마크(목록이 준비된 뒤 1회)
  * - 스튜디오 이름 서버 동기화 (공개 주소 정규화 포함)
  */
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { StageFilter } from "@/app/(studio)/_lib/galleryStatus";
+import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { TicketIcon } from "@/components/icons";
 import { StudioHeader } from "@/components/photographer/StudioHeader";
 import { StudioTopbar } from "@/components/photographer/StudioTopbar";
@@ -38,6 +39,7 @@ import {
 } from "../_components/GalleryListStates";
 import { NewGalleryModal } from "../_components/NewGalleryModal";
 import { StudioCoachMarks } from "../_components/StudioCoachMarks";
+import { StudioInviteModal } from "../_components/StudioInviteModal";
 import {
   TicketCheckoutModal,
   type TicketCheckoutMode,
@@ -63,6 +65,9 @@ export default function GalleriesPage() {
   const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
   const [newGalleryOpen, setNewGalleryOpen] = useState(false);
   const [ticketModal, setTicketModal] = useState<TicketCheckoutMode | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  // 멤버 관리(역할 · 내보내기)는 스튜디오 설정 화면 몫 — 설정이 생기기 전까지 준비 중 안내
+  const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const [createdToast, setCreatedToast] = useState<string | null>(null);
   const [editingGallery, setEditingGallery] = useState<GalleryListItem | null>(
     null,
@@ -175,7 +180,7 @@ export default function GalleriesPage() {
 
   return (
     <div className="min-h-dvh bg-background-default-main">
-      <StudioTopbar workspaceId={studioId} />
+      <StudioTopbar workspaceId={studioId} onInviteClick={() => setInviteOpen(true)} />
       <StudioHeader
         studioName={studioName}
         galleries={galleries}
@@ -261,8 +266,19 @@ export default function GalleriesPage() {
           onDeleted={handleDeleted}
         />
       )}
+      {studioId !== null && inviteOpen && (
+        <StudioInviteModal
+          workspaceId={studioId}
+          studioName={studioName}
+          onClose={() => setInviteOpen(false)}
+          onManageMembers={showComingSoon}
+        />
+      )}
       <GalleryCreatedToast galleryName={createdToast} />
-      <StudioCoachMarks ready={listReady && !newGalleryOpen && ticketModal === null} />
+      {comingSoonToast}
+      <StudioCoachMarks
+        ready={listReady && !newGalleryOpen && ticketModal === null && !inviteOpen}
+      />
     </div>
   );
 }
