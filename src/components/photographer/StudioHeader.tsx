@@ -39,13 +39,15 @@ export function StudioHeader({
   galleries: GalleryListItem[];
   stageFilter: StageFilter;
   onStageFilterChange: (filter: StageFilter) => void;
-  tickets: StudioTickets;
+  /** 스튜디오를 아직 모르면(서버 조회 전) null — pill을 그리지 않는다 */
+  tickets: StudioTickets | null;
   /** pill의 "추가" — 이용권 결제 모달을 연다 */
   onTicketClick: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // 바깥 클릭·ESC로 닫기
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
@@ -53,8 +55,15 @@ export function StudioHeader({
         setOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   const countFor = (stage: GalleryStage) =>
@@ -89,7 +98,7 @@ export function StudioHeader({
       </div>
 
       <div ref={menuRef} className="relative flex shrink-0 items-center gap-2">
-        <TicketPill tickets={tickets} onClick={onTicketClick} />
+        {tickets && <TicketPill tickets={tickets} onClick={onTicketClick} />}
         <button
           type="button"
           data-coach="filter"

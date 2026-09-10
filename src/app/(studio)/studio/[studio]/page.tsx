@@ -9,7 +9,7 @@
  * - 서버 갤러리 목록 조회(useGalleryList)와 6단계 필터링 (필터는 헤더의 팝업이 담당)
  * - 이용권 소프트 게이트: 없음 → 배너·타일이 결제 모달로, 다 씀 → 타일 잠금 → 결제 모달 → 새 갤러리
  * - 새 갤러리 생성/수정/보관/완전 삭제 모달 열림 상태 관리와 결과의 목록 반영
- * - 팀원 초대 모달(상단바 초대 버튼), 첫 진입 코치마크(목록이 준비된 뒤 1회)
+ * - 팀원 초대 모달(상단바 초대 버튼), 첫 진입 코치마크(갤러리 0개일 때 1회)
  * - 스튜디오 이름 서버 동기화 (공개 주소 정규화 포함)
  */
 
@@ -188,7 +188,7 @@ export default function GalleriesPage() {
         galleries={galleries}
         stageFilter={stageFilter}
         onStageFilterChange={setStageFilter}
-        tickets={tickets}
+        tickets={studioId !== null ? tickets : null}
         onTicketClick={() => setTicketModal(tickets.state === "full" ? "over" : "add")}
       />
 
@@ -281,8 +281,15 @@ export default function GalleriesPage() {
         />
       )}
       <GalleryCreatedToast galleryName={createdToast} />
+      {/* 코치마크는 갤러리가 하나도 없는 첫 진입에만 — 이미 쓰고 있는 작가에겐 띄우지 않는다 */}
       <StudioCoachMarks
-        ready={listReady && !newGalleryOpen && ticketModal === null && !inviteOpen}
+        ready={
+          listReady &&
+          galleries.length === 0 &&
+          !newGalleryOpen &&
+          ticketModal === null &&
+          !inviteOpen
+        }
       />
     </div>
   );
