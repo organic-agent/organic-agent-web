@@ -16,7 +16,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { StageFilter } from "@/app/(studio)/_lib/galleryStatus";
-import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { TicketIcon } from "@/components/icons";
 import { StudioHeader } from "@/components/photographer/StudioHeader";
 import { StudioTopbar } from "@/components/photographer/StudioTopbar";
@@ -66,8 +65,8 @@ export default function GalleriesPage() {
   const [newGalleryOpen, setNewGalleryOpen] = useState(false);
   const [ticketModal, setTicketModal] = useState<TicketCheckoutMode | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  // 멤버 관리(역할 · 내보내기)는 스튜디오 설정 화면 몫 — 설정이 생기기 전까지 준비 중 안내
-  const { showComingSoon, comingSoonToast } = useComingSoonToast();
+  // 초대는 소유자만(2026-09-10 결정) — 멤버에게는 상단바 초대 버튼을 그리지 않는다
+  const isOwner = current?.role === "OWNER";
   const [createdToast, setCreatedToast] = useState<string | null>(null);
   const [editingGallery, setEditingGallery] = useState<GalleryListItem | null>(
     null,
@@ -180,7 +179,10 @@ export default function GalleriesPage() {
 
   return (
     <div className="min-h-dvh bg-background-default-main">
-      <StudioTopbar workspaceId={studioId} onInviteClick={() => setInviteOpen(true)} />
+      <StudioTopbar
+        workspaceId={studioId}
+        onInviteClick={isOwner ? () => setInviteOpen(true) : undefined}
+      />
       <StudioHeader
         studioName={studioName}
         galleries={galleries}
@@ -271,11 +273,14 @@ export default function GalleriesPage() {
           workspaceId={studioId}
           studioName={studioName}
           onClose={() => setInviteOpen(false)}
-          onManageMembers={showComingSoon}
+          onManageMembers={() =>
+            router.push(
+              `/settings?studio=${studioId}&tab=members&from=${encodeURIComponent(`/studio/${current?.galleryUrl ?? studioId}`)}`,
+            )
+          }
         />
       )}
       <GalleryCreatedToast galleryName={createdToast} />
-      {comingSoonToast}
       <StudioCoachMarks
         ready={listReady && !newGalleryOpen && ticketModal === null && !inviteOpen}
       />

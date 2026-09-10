@@ -79,7 +79,9 @@ export function StudioCoachMarks({ ready }: { ready: boolean }) {
       const el = document.querySelector<HTMLElement>(`[data-coach="${step.key}"]`);
       frame = requestAnimationFrame(() => {
         if (!el) {
-          setIndex((i) => i + 1);
+          // 대상이 없으면 건너뛴다 — 마지막 단계(멤버에겐 초대 버튼이 없다)면 여기서 끝
+          if (index === STEPS.length - 1) doneStore.set(true);
+          else setIndex((i) => i + 1);
           return;
         }
         el.scrollIntoView({ block: "nearest" });
@@ -95,7 +97,7 @@ export function StudioCoachMarks({ ready }: { ready: boolean }) {
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [active, step]);
+  }, [active, step, index]);
 
   useEffect(() => {
     if (!active) return;

@@ -130,3 +130,37 @@ export function issueStudioInviteLink(
 ): Promise<StudioInviteResponse> {
   return api(`/api/v1/studios/${workspaceId}/invite-link`, { method: "POST" });
 }
+
+export type UpdateStudioRequest = {
+  name: string;
+  /** 바꾸지 않을 거라면 지금 값을 그대로 보낸다 — 공개 주소는 만든 뒤 바꾸지 않는 운영 결정 */
+  galleryUrl: string;
+  contact?: string | null;
+  description?: string | null;
+};
+
+/** 스튜디오 정보 수정 — 소유자만. 공개 주소는 현재 값을 그대로 보낸다 */
+export function updateStudio(
+  workspaceId: number,
+  request: UpdateStudioRequest,
+): Promise<StudioResponse> {
+  return api(`/api/v1/studios/${workspaceId}`, { method: "PATCH", body: request });
+}
+
+/** 스튜디오 삭제 — 소유자만. 갤러리·사진·멤버가 함께 사라지고 멤버에게 알림이 간다 */
+export function deleteStudio(workspaceId: number): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}`, { method: "DELETE" });
+}
+
+/** 초대 작가 내보내기 — 소유자만 MEMBER를 내보낼 수 있다. OWNER는 내보낼 수 없다 */
+export function removeStudioMember(
+  workspaceId: number,
+  memberId: number,
+): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}/members/${memberId}`, { method: "DELETE" });
+}
+
+/** 스튜디오 나가기 — MEMBER는 언제든. OWNER는 다른 OWNER가 있을 때만 */
+export function leaveStudio(workspaceId: number): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}/members/me`, { method: "DELETE" });
+}

@@ -75,3 +75,20 @@ export function markNotificationsRead(
 ): Promise<ReadNotificationsResponse> {
   return api("/api/v1/notifications/read", { method: "PATCH", body: request });
 }
+
+export type NotificationSettings = {
+  emailEnabled: boolean;
+  browserEnabled: boolean;
+};
+
+/** 내 알림 수신 설정 — 이메일 · 브라우저 */
+export function getNotificationSettings(): Promise<NotificationSettings> {
+  return api("/api/v1/notifications/settings");
+}
+
+/** 알림 수신 설정 저장 — 둘을 한 번에 보낸다 */
+export function updateNotificationSettings(
+  settings: NotificationSettings,
+): Promise<NotificationSettings> {
+  return api("/api/v1/notifications/settings", { method: "PUT", body: settings });
+}

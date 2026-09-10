@@ -6,6 +6,7 @@
  *
  * 좌: 로고 락업(랜딩 링크) / 우: 초대 · 알림 · 프로필 메뉴. 홈에는 사이드바가 없어 메뉴 버튼도 없다.
  * 초대는 팀원(작가) 초대 모달(StudioInviteModal)을 연다 — 열림 상태는 홈 페이지가 가진다.
+ * 초대는 소유자만 하기로 해서(2026-09-10) onInviteClick이 없으면 버튼 자체를 그리지 않는다.
  * data-coach 속성은 첫 진입 코치마크(StudioCoachMarks)가 스포트라이트 대상을 찾는 표식이다.
  */
 
@@ -22,8 +23,8 @@ export function StudioTopbar({
 }: {
   /** 프로필 메뉴가 "현재"를 표시할 스튜디오. 아직 모르면 null */
   workspaceId: number | null;
-  /** 초대 버튼 — 팀원 초대 모달 열기 */
-  onInviteClick: () => void;
+  /** 초대 버튼 — 팀원 초대 모달 열기. 소유자가 아니면 주지 않는다(버튼 숨김) */
+  onInviteClick?: () => void;
 }) {
   return (
     <header className="border-b border-divider-default bg-background-default-main">
@@ -33,13 +34,15 @@ export function StudioTopbar({
           <b className="type-brand-wordmark">Easy Select</b>
         </Link>
         <div className="flex items-center gap-2">
-          <div data-coach="invite" className="flex">
-            <IconButton
-              icon={<PersonAddIcon size={20} />}
-              aria-label="팀원 초대"
-              onClick={onInviteClick}
-            />
-          </div>
+          {onInviteClick && (
+            <div data-coach="invite" className="flex">
+              <IconButton
+                icon={<PersonAddIcon size={20} />}
+                aria-label="팀원 초대"
+                onClick={onInviteClick}
+              />
+            </div>
+          )}
           <div data-coach="bell" className="flex">
             <NotificationBell />
           </div>
