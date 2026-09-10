@@ -1,43 +1,45 @@
 "use client";
 
 /**
- * 작가 — 갤러리 삭제(휴지통 이동) 확인 모달
+ * 작가 — 갤러리 완전 삭제 확인 모달 (와이어프레임 04 삭제 확인)
  * 위치: src/app/(studio)/studio/_components/DeleteGalleryConfirmModal.tsx
  *
- * 목록 카드 메뉴에서 삭제를 누른 뒤 최종 확인을 받는다.
- * 서버 동작은 즉시 삭제가 아니라 휴지통 이동이다 — 복원할 수 있고,
- * 보관 기간이 지나면 원본과 함께 자동으로 완전히 삭제된다.
- * 문구가 그 사실을 그대로 말하게 한다.
+ * 홈에는 휴지통 UI를 두지 않기로 했다(2026-09-10 결정). 그래서 삭제는 곧 완전 삭제다 —
+ * 서버의 휴지통 이동(DELETE /galleries/{id}) 뒤 즉시 완전 삭제(DELETE /trash/galleries/{id})를
+ * 이어 부른다. 되돌릴 수 없음을 문구와 확인 체크로 두 번 못 박는다.
+ * 두 번째 호출이 실패해도 갤러리는 이미 휴지통이라 목록에서는 빠진 상태다 — 보관 기간 뒤
+ * 서버가 지우므로 사용자에게는 삭제된 것으로 보여준다.
  */
 
 import { useState } from "react";
+import { CheckboxField } from "@/components/ui/Checkbox";
 import { ApiError } from "@/lib/api/client";
-import { moveGalleryToTrash } from "@/lib/api/galleries";
+import { moveGalleryToTrash, purgeGallery } from "@/lib/api/galleries";
 import type { GalleryListItem } from "../_lib/useGalleryList";
 import { GalleryModalButtons, GalleryModalShell } from "./GalleryModalShell";
 
 type Props = {
-  gallery: GalleryListItem | null;
+  gallery: GalleryListItem;
   onClose: () => void;
   onDeleted: (id: number) => void;
 };
 
-export function DeleteGalleryConfirmModal({
-  gallery,
-  onClose,
-  onDeleted,
-}: Props) {
+export function DeleteGalleryConfirmModal({ gallery, onClose, onDeleted }: Props) {
+  const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
-  if (!gallery) return null;
-
   async function confirmDelete() {
-    if (!gallery || submitting) return;
+    if (!acknowledged || submitting) return;
     setSubmitting(true);
     setBanner(null);
     try {
       await moveGalleryToTrash(gallery.id);
+      try {
+        await purgeGallery(gallery.id);
+      } catch {
+        // 휴지통 이동은 됐다 — 보관 기간이 지나면 서버가 완전히 지운다
+      }
       onDeleted(gallery.id);
     } catch (err) {
       setBanner(
@@ -51,16 +53,22 @@ export function DeleteGalleryConfirmModal({
 
   return (
     <GalleryModalShell
-      title="갤러리를 휴지통으로 보낼까요?"
-      maxWidthClassName="max-w-[380px]"
+      title="갤러리를 완전히 삭제할까요?"
+      maxWidthClassName="max-w-[400px]"
       paddingClassName="p-7"
       onClose={onClose}
     >
-      <p className="mb-6 type-content-m text-contents-light-bgd-sub">
+      <p className="mb-5 type-content-m text-contents-light-bgd-sub">
         <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의
-        사진과 선택 기록이 부부에게 보이지 않게 돼요. 휴지통에서 언제든 되돌릴
-        수 있고, 보관 기간이 지나면 원본과 함께 자동으로 완전히 삭제돼요.
+        사진·폴더·셀렉 기록이 모두 사라지고 되돌릴 수 없어요. 클라이언트도 더 이상 열 수
+        없어요.
       </p>
+      <CheckboxField
+        label="되돌릴 수 없다는 걸 확인했어요"
+        checked={acknowledged}
+        onChange={setAcknowledged}
+        className="mb-6"
+      />
       {banner && (
         <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
           {banner}
@@ -69,9 +77,9 @@ export function DeleteGalleryConfirmModal({
       <GalleryModalButtons
         onClose={onClose}
         onConfirm={confirmDelete}
-        confirmLabel={submitting ? "보내는 중…" : "휴지통으로 보내기"}
+        confirmLabel={submitting ? "삭제하는 중…" : "완전히 삭제"}
         confirmVariant="danger"
-        disabled={submitting}
+        disabled={!acknowledged || submitting}
       />
     </GalleryModalShell>
   );

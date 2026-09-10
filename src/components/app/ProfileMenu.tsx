@@ -5,12 +5,11 @@
  * 위치: src/components/app/ProfileMenu.tsx
  *
  * 이름·이메일 → 워크스페이스(최근 활동순 4개, 현재 공간 표시) → 모두 보기(5개 이상) →
- * 새 공간 만들기 → 다크 모드 토글 → 설정(준비 중) → 로그아웃.
+ * 새 공간 만들기 → 다크 모드 토글 → 설정(/settings) → 로그아웃.
  * 열고 닫는 것과 바깥 클릭·ESC는 ProfileAvatarButton이 맡는다.
  */
 
 import { useRouter } from "next/navigation";
-import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import {
   DarkModeIcon,
   GridViewIcon,
@@ -101,7 +100,6 @@ export function ProfileMenu({
 }) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
-  const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const spaces = sortByRecentActivity(user.workspaces ?? []);
   const listed = spaces.slice(0, MAX_LISTED);
   const dark = theme === "dark";
@@ -195,8 +193,12 @@ export function ProfileMenu({
       <MenuItem
         label="설정"
         icon={<SettingIcon size={20} />}
-        count="준비 중"
-        onClick={showComingSoon}
+        onClick={() => {
+          onClose();
+          // 설정의 "돌아가기"가 여기로 돌아오도록 현재 위치를 실어 보낸다
+          const from = `${window.location.pathname}${window.location.search}`;
+          router.push(`/settings?from=${encodeURIComponent(from)}`);
+        }}
       />
       <Divider />
       {/* 로그아웃 — 되돌리기 어려운 동작이라 error 색으로 구분 */}
@@ -210,7 +212,6 @@ export function ProfileMenu({
         </span>
         <span className="flex-1 type-content-m">로그아웃</span>
       </button>
-      {comingSoonToast}
     </div>
   );
 }

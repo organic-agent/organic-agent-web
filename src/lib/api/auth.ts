@@ -92,3 +92,16 @@ export function logoutOnServer(): Promise<void> {
 export function getMe(): Promise<User> {
   return api("/api/v1/users/me");
 }
+
+/** 서비스 닉네임 수정 — OAuth 제공자의 이름과 별개로 저장된다 */
+export function updateNickname(nickname: string): Promise<User> {
+  return api("/api/v1/users/me", { method: "PATCH", body: { nickname } });
+}
+
+/**
+ * 회원 탈퇴 — 소유한 스튜디오는 하위 갤러리와 함께 삭제되고, 단순 소속과
+ * 클라이언트 갤러리 멤버십은 해제된다. 되돌릴 수 없다.
+ */
+export function deleteMyAccount(): Promise<void> {
+  return api("/api/v1/users/me", { method: "DELETE" });
+}

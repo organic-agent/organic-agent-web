@@ -4,7 +4,7 @@
  * 작가 — 갤러리 수정 모달
  * 위치: src/app/(studio)/studio/_components/EditGalleryModal.tsx
  *
- * 목록 카드 메뉴에서 여는 갤러리 정보 수정 폼. 세 필드(이름·마감 기한·계약
+ * 목록 카드 메뉴에서 여는 갤러리 정보 수정 폼. 세 필드(이름·선택 마감·고를
  * 장수)가 각자 별도 PATCH라서 원본과 비교해 **바뀐 필드만** 순서대로 보낸다.
  * 중간에 실패하면 이미 보낸 필드는 서버에 반영된 상태다 — 입력을 유지한 채
  * 배너로 알리고, 다시 저장하면 같은 값 PATCH는 멱등이라 안전하다.
@@ -101,7 +101,7 @@ export function EditGalleryModal({ gallery, onClose, onSaved }: Props) {
   return (
     <GalleryModalShell
       title="갤러리 수정"
-      desc="이름과 마감 기한, 계약 장수를 바꿀 수 있어요."
+      desc="이름과 선택 마감, 고를 장수를 바꿀 수 있어요."
       onClose={onClose}
     >
       <GalleryFormFields values={form} onChange={setForm} mode="edit" />

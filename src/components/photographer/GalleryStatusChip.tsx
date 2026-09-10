@@ -1,9 +1,9 @@
 /**
- * 갤러리 상태 칩 — 피그마 Item/DdayInfo 대응 (흰 pill, "상태 · D-day")
+ * 갤러리 상태 칩 — 피그마 Item/DdayInfo 대응 (흰 pill, "단계 · D-day")
  * 위치: src/components/photographer/GalleryStatusChip.tsx
  *
- * 서버 status(DRAFT/OPEN/CLOSED) 기반. 문구·톤은 galleryChip이 계산한다.
- * 시안 문법: 기본 muted → 오늘 마감 warning → 지연 critical, 마감은 기본색.
+ * 서버 6단계 stage 기반. 문구·톤은 galleryChip이 계산한다.
+ * 시안 문법: 기본 muted → 오늘 마감 warning → 지연 critical, 셀렉 완료 뒤 단계는 기본색.
  * 텍스트 한 덩어리에 색만 바뀐다.
  */
 
@@ -24,7 +24,7 @@ export function GalleryStatusChip({
   gallery,
   className = "",
 }: {
-  gallery: Pick<GalleryResponse, "status" | "selectionDeadline">;
+  gallery: Pick<GalleryResponse, "stage" | "selectionDeadline">;
   className?: string;
 }) {
   const { text, tone } = galleryChip(gallery);

@@ -742,7 +742,11 @@ export default function CoupleGalleryWorkspacePage() {
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <NotificationBell />
+          <NotificationBell
+            hrefFor={(n) =>
+              n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null
+            }
+          />
           <IconButton
             icon={<ShareIcon size={20} />}
             selected={shareOpen}

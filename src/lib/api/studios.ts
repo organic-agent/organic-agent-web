@@ -84,3 +84,83 @@ export function createStudio(
 ): Promise<StudioResponse> {
   return api("/api/v1/studios", { method: "POST", body: request });
 }
+
+export type StudioMemberResponse = {
+  /** 내보내기·역할 변경에 쓰는 소속 id — 사용자 id가 아니다 */
+  memberId: number;
+  userId: number;
+  nickname: string;
+  email: string | null;
+  role: "OWNER" | "MEMBER";
+};
+
+/** 스튜디오 멤버 목록 — 소속이면 누구나 볼 수 있다 */
+export function listStudioMembers(
+  workspaceId: number,
+): Promise<StudioMemberResponse[]> {
+  return api(`/api/v1/studios/${workspaceId}/members`);
+}
+
+export type StudioInviteResponse = {
+  id: number;
+  workspaceId: number;
+  kind: "STUDIO_MEMBER" | "GALLERY_MEMBER" | "PERSONAL_PARTNER";
+  /** 작가에게 그대로 전달하는 완성된 링크 */
+  inviteUrl: string;
+  /** 조회 시점에 계산한 상태 — ACTIVE만 쓸 수 있다 */
+  status: "ACTIVE" | "EXPIRED" | "REVOKED" | "FULL" | "ALREADY_MEMBER";
+  usedCount: number;
+  expiresAt: string;
+  revokedAt: string | null;
+};
+
+/** 현재 작가 초대 링크 조회. 발급한 적이 없으면 404 */
+export function getStudioInviteLink(
+  workspaceId: number,
+): Promise<StudioInviteResponse> {
+  return api(`/api/v1/studios/${workspaceId}/invite-link`);
+}
+
+/**
+ * 작가 초대 링크 발급 — 스튜디오 멤버면 누구나. 7일 뒤 만료하고,
+ * 재발급하면 이전 링크는 폐기된다. 갤러리가 없어도 발급할 수 있다.
+ */
+export function issueStudioInviteLink(
+  workspaceId: number,
+): Promise<StudioInviteResponse> {
+  return api(`/api/v1/studios/${workspaceId}/invite-link`, { method: "POST" });
+}
+
+export type UpdateStudioRequest = {
+  name: string;
+  /** 바꾸지 않을 거라면 지금 값을 그대로 보낸다 — 공개 주소는 만든 뒤 바꾸지 않는 운영 결정 */
+  galleryUrl: string;
+  contact?: string | null;
+  description?: string | null;
+};
+
+/** 스튜디오 정보 수정 — 소유자만. 공개 주소는 현재 값을 그대로 보낸다 */
+export function updateStudio(
+  workspaceId: number,
+  request: UpdateStudioRequest,
+): Promise<StudioResponse> {
+  return api(`/api/v1/studios/${workspaceId}`, { method: "PATCH", body: request });
+}
+
+/** 스튜디오 삭제 — 소유자만. 갤러리·사진·멤버가 함께 사라지고 멤버에게 알림이 간다 */
+export function deleteStudio(workspaceId: number): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}`, { method: "DELETE" });
+}
+
+/** 초대 작가 내보내기 — 소유자만 MEMBER를 내보낼 수 있다. OWNER는 내보낼 수 없다 */
+export function removeStudioMember(
+  workspaceId: number,
+  memberId: number,
+): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}/members/${memberId}`, { method: "DELETE" });
+}
+
+/** 스튜디오 나가기 — MEMBER는 언제든. OWNER는 다른 OWNER가 있을 때만 */
+export function leaveStudio(workspaceId: number): Promise<void> {
+  return api(`/api/v1/studios/${workspaceId}/members/me`, { method: "DELETE" });
+}
