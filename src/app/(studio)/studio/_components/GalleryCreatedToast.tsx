@@ -3,7 +3,7 @@
  * 위치: src/app/(studio)/studio/_components/GalleryCreatedToast.tsx
  *
  * 새 갤러리 생성 후 목록 화면 하단에 짧은 완료 알림을 보여준다.
- * 둘째 줄이 생성 직후 상태(DRAFT — 열기 전까지 부부에게 비공개)를 안내한다.
+ * 둘째 줄이 다음 할 일(사진 업로드 · 클라이언트 초대)을 안내한다.
  */
 
 type Props = {
@@ -19,7 +19,7 @@ export function GalleryCreatedToast({ galleryName }: Props) {
         ‘{galleryName}’ 갤러리를 만들었어요
       </p>
       <p className="type-content-xs text-contents-dark-bgd-weakness">
-        열기 전까지 부부에게 보이지 않아요 · 준비되면 카드에서 열어주세요
+        사진을 올리고 클라이언트를 초대해 보세요
       </p>
     </div>
   );

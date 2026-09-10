@@ -1,19 +1,22 @@
 "use client";
 
 /**
- * 작가 — 갤러리 목록(홈) 페이지
+ * 작가 — 스튜디오 홈(갤러리 목록) 페이지
  * 위치: src/app/(studio)/studio/[studio]/page.tsx
- * 시안: 피그마 Photographer/Home (탑바 + 스튜디오 헤더 + 카드 그리드)
+ * 시안: 와이어프레임 02 첫 진입 · 03 스튜디오 화면 · 04 갤러리 모달, 보드 "스튜디오 홈 v2 최종 구성"
  *
  * 주요 책임:
- * - 서버 갤러리 목록 조회(useGalleryList)와 상태 필터링 (필터는 헤더의 팝업이 담당)
- * - 새 갤러리 생성/수정/삭제 모달 열림 상태 관리와 결과의 목록 반영
- * - 스튜디오 이름 서버 동기화 (GET /studios/me → 로컬 캐시, 실패 시 캐시 유지)
+ * - 서버 갤러리 목록 조회(useGalleryList)와 6단계 필터링 (필터는 헤더의 팝업이 담당)
+ * - 이용권 소프트 게이트: 없음 → 배너·타일이 결제 모달로, 다 씀 → 타일 잠금 → 결제 모달 → 새 갤러리
+ * - 새 갤러리 생성/수정/보관/완전 삭제 모달 열림 상태 관리와 결과의 목록 반영
+ * - 첫 진입 코치마크(목록이 준비된 뒤 1회)
+ * - 스튜디오 이름 서버 동기화 (공개 주소 정규화 포함)
  */
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { STATUS_LABEL } from "@/app/(studio)/_lib/galleryStatus";
+import type { StageFilter } from "@/app/(studio)/_lib/galleryStatus";
+import { TicketIcon } from "@/components/icons";
 import { StudioHeader } from "@/components/photographer/StudioHeader";
 import { StudioTopbar } from "@/components/photographer/StudioTopbar";
 import { Button } from "@/components/ui/Button";
@@ -23,6 +26,8 @@ import {
   type StudioResponse,
 } from "@/lib/api/studios";
 import { updateStudioFromServer, useStudioInfo } from "@/lib/studio";
+import { useStudioTickets } from "@/lib/studioTickets";
+import { ArchiveGalleryConfirmModal } from "../_components/ArchiveGalleryConfirmModal";
 import { DeleteGalleryConfirmModal } from "../_components/DeleteGalleryConfirmModal";
 import { EditGalleryModal } from "../_components/EditGalleryModal";
 import { GalleryCreatedToast } from "../_components/GalleryCreatedToast";
@@ -32,6 +37,11 @@ import {
   GalleryListSkeleton,
 } from "../_components/GalleryListStates";
 import { NewGalleryModal } from "../_components/NewGalleryModal";
+import { StudioCoachMarks } from "../_components/StudioCoachMarks";
+import {
+  TicketCheckoutModal,
+  type TicketCheckoutMode,
+} from "../_components/TicketCheckoutModal";
 import {
   type GalleryListItem,
   useGalleryList,
@@ -49,12 +59,16 @@ export default function GalleriesPage() {
   // 작가 갤러리 화면이 아직 이 캐시에서 이름을 읽는다 — 서버 값이 오면 갱신하고, 오기 전엔 캐시로 표시
   const cached = useStudioInfo();
   const studioName = current?.name ?? cached.name;
-  const [statusFilter, setStatusFilter] = useState("전체");
+  const tickets = useStudioTickets(studioId);
+  const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
   const [newGalleryOpen, setNewGalleryOpen] = useState(false);
+  const [ticketModal, setTicketModal] = useState<TicketCheckoutMode | null>(null);
   const [createdToast, setCreatedToast] = useState<string | null>(null);
   const [editingGallery, setEditingGallery] = useState<GalleryListItem | null>(
     null,
   );
+  const [archivingGallery, setArchivingGallery] =
+    useState<GalleryListItem | null>(null);
   const [deletingGallery, setDeletingGallery] =
     useState<GalleryListItem | null>(null);
 
@@ -102,12 +116,26 @@ export default function GalleriesPage() {
     result?.kind === "ready"
       ? result.items.filter((gallery) => gallery.workspaceId === studioId)
       : [];
+  // 전체 = 보관 제외. 보관된 갤러리는 "보관됨" 필터에서만 보인다
   const filteredGalleries =
-    statusFilter === "전체"
-      ? galleries
-      : galleries.filter(
-          (gallery) => STATUS_LABEL[gallery.status] === statusFilter,
-        );
+    stageFilter === "ALL"
+      ? galleries.filter((gallery) => gallery.stage !== "ARCHIVED")
+      : galleries.filter((gallery) => gallery.stage === stageFilter);
+  const listReady = result?.kind === "ready" && studioId !== null;
+
+  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다 */
+  function openNewGallery() {
+    if (tickets.state === "none") setTicketModal("first");
+    else if (tickets.state === "full") setTicketModal("over");
+    else setNewGalleryOpen(true);
+  }
+
+  function handlePurchased() {
+    const mode = ticketModal;
+    setTicketModal(null);
+    // 첫 결제·다 써서 막혔던 결제는 만들려던 갤러리로 이어진다
+    if (mode === "first" || mode === "over") setNewGalleryOpen(true);
+  }
 
   function handleCreated(gallery: GalleryListItem) {
     addItem(gallery);
@@ -117,6 +145,11 @@ export default function GalleriesPage() {
   function handleSaved(gallery: GalleryListItem) {
     replaceItem(gallery);
     setEditingGallery(null);
+  }
+
+  function handleArchived(gallery: GalleryListItem) {
+    replaceItem(gallery);
+    setArchivingGallery(null);
   }
 
   function handleDeleted(id: number) {
@@ -142,39 +175,68 @@ export default function GalleriesPage() {
 
   return (
     <div className="min-h-dvh bg-background-default-main">
-      <StudioTopbar
-        studioSlug={current?.galleryUrl ?? params.studio}
-        workspaceId={studioId}
-      />
+      <StudioTopbar workspaceId={studioId} />
       <StudioHeader
         studioName={studioName}
         galleries={galleries}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
+        stageFilter={stageFilter}
+        onStageFilterChange={setStageFilter}
+        tickets={tickets}
+        onTicketClick={() => setTicketModal(tickets.state === "full" ? "over" : "add")}
       />
 
-      <main className="mx-auto w-full max-w-wrap px-6 pb-10 pt-6">
+      <main className="mx-auto w-full max-w-wrap px-6 pt-5 pb-16">
+        {listReady && tickets.state === "none" && (
+          <div className="mb-5 flex flex-wrap items-center gap-3 rounded-(--radius-12) border border-divider-default bg-surface-default-lightness px-4 py-3">
+            <span className="flex shrink-0 text-brand-secondary-default">
+              <TicketIcon size={20} />
+            </span>
+            <p className="flex-1 type-content-s text-contents-light-bgd-default">
+              아직 이용권이 없어요. 갤러리 하나에 이용권 하나가 필요해요.
+            </p>
+            <Button size="sm" onClick={() => setTicketModal("first")}>
+              결제하기
+            </Button>
+          </div>
+        )}
+
         {result === null ? (
           <GalleryListSkeleton />
         ) : result.kind === "error" ? (
           <GalleryListError onRetry={reload} />
         ) : (
           <GalleryGrid
-            galleries={galleries}
             filteredGalleries={filteredGalleries}
-            onCreateClick={() => setNewGalleryOpen(true)}
+            stageFilter={stageFilter}
+            tickets={tickets}
+            onCreateClick={openNewGallery}
             onEditGallery={setEditingGallery}
+            onArchiveGallery={setArchivingGallery}
             onDeleteGallery={setDeletingGallery}
-            onShowAll={() => setStatusFilter("전체")}
+            onShowAll={() => setStageFilter("ALL")}
           />
         )}
       </main>
 
-      <NewGalleryModal
-        open={newGalleryOpen}
-        onClose={() => setNewGalleryOpen(false)}
-        onCreated={handleCreated}
-      />
+      {studioId !== null && (
+        <NewGalleryModal
+          open={newGalleryOpen}
+          workspaceId={studioId}
+          ticketsRemaining={tickets.remaining}
+          onClose={() => setNewGalleryOpen(false)}
+          onCreated={handleCreated}
+        />
+      )}
+      {studioId !== null && ticketModal && (
+        <TicketCheckoutModal
+          key={ticketModal}
+          mode={ticketModal}
+          workspaceId={studioId}
+          remaining={tickets.remaining}
+          onClose={() => setTicketModal(null)}
+          onPurchased={handlePurchased}
+        />
+      )}
       {editingGallery && (
         <EditGalleryModal
           key={editingGallery.id}
@@ -183,12 +245,24 @@ export default function GalleriesPage() {
           onSaved={handleSaved}
         />
       )}
-      <DeleteGalleryConfirmModal
-        gallery={deletingGallery}
-        onClose={() => setDeletingGallery(null)}
-        onDeleted={handleDeleted}
-      />
+      {archivingGallery && (
+        <ArchiveGalleryConfirmModal
+          key={archivingGallery.id}
+          gallery={archivingGallery}
+          onClose={() => setArchivingGallery(null)}
+          onArchived={handleArchived}
+        />
+      )}
+      {deletingGallery && (
+        <DeleteGalleryConfirmModal
+          key={deletingGallery.id}
+          gallery={deletingGallery}
+          onClose={() => setDeletingGallery(null)}
+          onDeleted={handleDeleted}
+        />
+      )}
       <GalleryCreatedToast galleryName={createdToast} />
+      <StudioCoachMarks ready={listReady && !newGalleryOpen && ticketModal === null} />
     </div>
   );
 }

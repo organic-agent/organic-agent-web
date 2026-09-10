@@ -5,6 +5,18 @@
 
 import { api } from "@/lib/api/client";
 
+/** 갤러리 화면의 6단계 진행 상태 — 홈 카드 칩·필터가 이 값으로 갈린다 */
+export type GalleryStage =
+  | "UPLOAD"
+  | "SELECTION_IN_PROGRESS"
+  | "SELECTION_COMPLETED"
+  | "RETOUCH"
+  | "DELIVERY"
+  | "ARCHIVED";
+
+/** 촬영 종류. AI 폴더의 큰 분류 목록이 이 값으로 갈린다 */
+export type ShootType = "REHEARSAL" | "CEREMONY" | "OTHER";
+
 export type GalleryResponse = {
   id: number;
   /** 소속 작업공간(스튜디오 또는 개인) id — 스튜디오 홈 링크(번호로도 열림)와 홈 필터에 쓴다 */
@@ -12,9 +24,12 @@ export type GalleryResponse = {
   studioId: number;
   title: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
+  workflowStatus: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "ARCHIVED";
+  stage: GalleryStage;
+  shootType: ShootType;
   /** 사진 선택 마감 기한. null이면 기한 없이 열려 있다. */
   selectionDeadline: string | null;
-  /** 부부가 최종적으로 고를 사진 장수. null이면 제한이 없다. */
+  /** 클라이언트가 최종적으로 고를 사진 장수. null이면 제한이 없다. */
   maxSelectablePhotoCount: number | null;
   /** 계약한 보정 요청 횟수. null이면 제한이 없다. */
   maxRetouchRoundCount: number | null;
@@ -23,8 +38,13 @@ export type GalleryResponse = {
 
 export type CreateGalleryRequest = {
   title: string;
+  /** 갤러리를 소유할 스튜디오 작업공간 id. 스튜디오가 여럿일 때 어느 홈의 갤러리인지 못 박는다 */
+  workspaceId?: number;
   selectionDeadline?: string | null;
   maxSelectablePhotoCount?: number | null;
+  maxRetouchRoundCount?: number | null;
+  /** 비우면 서버가 리허설로 저장한다 — 화면은 개인 온보딩과 같이 본식을 기본으로 보낸다 */
+  shootType?: ShootType;
 };
 
 export type CreatePersonalGalleryRequest = CreateGalleryRequest & {
@@ -117,6 +137,15 @@ export function reopenGallery(
  */
 export function moveGalleryToTrash(galleryId: number): Promise<void> {
   return api(`/api/v1/galleries/${galleryId}`, { method: "DELETE" });
+}
+
+/**
+ * 휴지통 갤러리 즉시 완전 삭제 — 보관 기간을 기다리지 않고 지금 물리 삭제한다.
+ * 사진 원본·미리보기와 폴더·앨범·협업 기록까지 사라지며 복구할 수 없다.
+ * 홈의 "완전히 삭제"는 휴지통 이동 → 이 호출을 이어서 부른다 (휴지통 UI를 두지 않기로 한 결정).
+ */
+export function purgeGallery(galleryId: number): Promise<void> {
+  return api(`/api/v1/trash/galleries/${galleryId}`, { method: "DELETE" });
 }
 
 /**

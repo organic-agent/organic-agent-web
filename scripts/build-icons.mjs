@@ -60,6 +60,12 @@ const ICONS = [
   ['TuneIcon', 'tune'],
   ['LogoutIcon', 'logout'],
   ['GridViewIcon', 'grid_view'],
+  ['PersonAddIcon', 'person_add'],
+  ['TicketIcon', 'confirmation_number'],
+  ['ArchiveIcon', 'inventory_2'],
+  ['DeleteForeverIcon', 'delete_forever'],
+  ['EditIcon', 'edit'],
+  ['VisibilityIcon', 'visibility'],
 ];
 
 const paths = (symbol) => {
