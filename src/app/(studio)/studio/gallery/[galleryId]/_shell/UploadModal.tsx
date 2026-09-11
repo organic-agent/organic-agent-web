@@ -75,29 +75,27 @@ export function UploadModal({
   const overPlan = remaining !== null && counts.valid > remaining;
 
   function addFiles(list: Iterable<File>) {
-    setEntries((prev) => {
-      const seen = new Set(prev.map((e) => e.key));
-      const added: Entry[] = [];
-      for (const file of list) {
-        const key = entryKey(file);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const excluded: Entry["excluded"] = !isAcceptedUpload(file)
-          ? "type"
-          : file.size > UPLOAD_MAX_BYTES * 4 // 원본 상한은 서버 20MB지만 줄여 올리므로 아주 큰 파일만 미리 막는다
-            ? "size"
-            : null;
-        added.push({ key, file, excluded });
-      }
-      if (added.length === 0) return prev;
-      const next = [...prev, ...added];
-      // 첫 묶음은 뒤에서 미리 줄여 둔다 — 누른 즉시 첫 PUT이 나가도록
-      next
-        .filter((e) => e.excluded === null)
-        .slice(0, UPLOAD_ISSUE_BATCH)
-        .forEach((e) => void prepareCached(e.file).catch(() => undefined));
-      return next;
-    });
+    const seen = new Set(entries.map((e) => e.key));
+    const added: Entry[] = [];
+    for (const file of list) {
+      const key = entryKey(file);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const excluded: Entry["excluded"] = !isAcceptedUpload(file)
+        ? "type"
+        : file.size > UPLOAD_MAX_BYTES * 4 // 원본 상한은 서버 20MB지만 줄여 올리므로 아주 큰 파일만 미리 막는다
+          ? "size"
+          : null;
+      added.push({ key, file, excluded });
+    }
+    if (added.length === 0) return;
+    const next = [...entries, ...added];
+    setEntries(next);
+    // 첫 묶음은 뒤에서 미리 줄여 둔다 — 누른 즉시 첫 PUT이 나가도록(전부 줄이면 blob이 GB 단위라 첫 묶음만)
+    next
+      .filter((e) => e.excluded === null)
+      .slice(0, UPLOAD_ISSUE_BATCH)
+      .forEach((e) => void prepareCached(e.file).catch(() => undefined));
   }
 
   function removeEntry(key: string) {

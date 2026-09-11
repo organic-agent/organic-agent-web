@@ -6,8 +6,9 @@
  *
  * 상단 한 줄 · 사이드바(접힘 가능) · 폴더 열(1단계만) · 메인(헤더 + 그리드) · 하단 바(주 버튼).
  * B1 = 화면 구성: 갤러리 · 사진 · 폴더 · 선택 앨범은 읽고, 갤러리 열기 · 기간 연장 · 장수 바꾸기 ·
- * 초대 링크처럼 작은 쓰기만 한다. B2 = 업로드(useUploadRun · UploadModal · 하단 진행 막대) · AI 분석 ·
- * 폴더 편집 · 사진 삭제.
+ * 초대 링크처럼 작은 쓰기만 한다. B2 = 업로드(useUploadRun · UploadModal · 하단 진행 막대) · AI 분석 진행
+ * (useAnalysisWatch) · 끊김 복구(RecoveryBanner) · 검토 동작(FolderColumn 케밥 · FolderModals: 폴더 추가 · 삭제 ·
+ * 사진 이동 · 사진 삭제=휴지통 이동). 이름 바꾸기는 서버 API가 없어 없다.
  * 셀렉 완료 → 보정 작업 전환은 서버 방법 확인 전이라 확인 모달까지만.
  *
  * 개발 서버 전용 장치(배포 빌드에서는 코드가 빠진다):
@@ -37,7 +38,15 @@ import { Button } from "@/components/ui/Button";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { isAnalysisActive } from "@/lib/api/analysis";
 import { ApiError } from "@/lib/api/client";
-import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
+import {
+  createConceptFolder,
+  createDetailFolder,
+  deleteConceptFolder,
+  deleteDetailFolder,
+  listConceptFolders,
+  moveCategoryPhotos,
+  type ConceptFolderResponse,
+} from "@/lib/api/conceptFolders";
 import {
   getGallery,
   listGalleryMembers,
@@ -51,6 +60,13 @@ import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
 import { ExtendDeadlineModal } from "./_shell/ExtendDeadlineModal";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "./_shell/FolderColumn";
+import {
+  DeletePhotosModal,
+  FolderDeleteModal,
+  FolderNameModal,
+  MovePhotosModal,
+  type FolderDeleteTarget,
+} from "./_shell/FolderModals";
 import { GalleryInviteModal, type InviteTab } from "./_shell/GalleryInviteModal";
 import { OpenGalleryModal } from "./_shell/OpenGalleryModal";
 import { PhotoGrid } from "./_shell/PhotoGrid";
@@ -117,7 +133,7 @@ export default function StudioGalleryShellPage() {
   const [gallery, setGallery] = useState<GalleryResponse | null>(null);
   const [studio, setStudio] = useState<StudioResponse | null>(null);
   const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
-  const [folders, setFolders] = useState<ConceptFolderResponse[] | null>(null);
+  const [rawFolders, setFolders] = useState<ConceptFolderResponse[] | null>(null);
   const [members, setMembers] = useState<GalleryMemberResponse[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -136,6 +152,14 @@ export default function StudioGalleryShellPage() {
   /** 사진 목록을 마지막으로 읽은 시각 — 복구 대상 PENDING의 나이를 이 시각으로 잰다(렌더 중 시계를 읽지 않기 위해) */
   const [photosLoadedAt, setPhotosLoadedAt] = useState(0);
   const [discarding, setDiscarding] = useState(false);
+  const [folderModal, setFolderModal] = useState<
+    | { kind: "createConcept" }
+    | { kind: "createDetail"; concept: ConceptFolderResponse }
+    | { kind: "delete"; target: FolderDeleteTarget }
+    | null
+  >(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [deletePhotosOpen, setDeletePhotosOpen] = useState(false);
   /** 업로드가 끝난 뒤 하단 왼쪽에 잠시 보이는 문구(완료 · 오류) */
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
 
@@ -269,6 +293,23 @@ export default function StudioGalleryShellPage() {
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
   const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
+  // 서버의 세부 폴더 photoIds는 순서가 없고 휴지통 사진도 섞여 온다 — 살아 있는 사진만 남기고 업로드 순으로
+  const folders = useMemo(() => {
+    if (!rawFolders) return null;
+    const live = new Map(allPhotos.map((p) => [p.photoId, p]));
+    const order = (a: number, b: number) => {
+      const pa = live.get(a)!;
+      const pb = live.get(b)!;
+      return pa.displayOrder - pb.displayOrder || pa.photoId - pb.photoId;
+    };
+    return rawFolders.map((concept) => ({
+      ...concept,
+      details: concept.details.map((detail) => ({
+        ...detail,
+        photoIds: detail.photoIds.filter((id) => live.has(id)).sort(order),
+      })),
+    }));
+  }, [rawFolders, allPhotos]);
 
   // ── 끊김 복구 — 이 브라우저가 발급한 사진 기억(localStorage 구독) + 서버 PENDING ──
   const rememberedRaw = useSyncExternalStore(
@@ -301,6 +342,40 @@ export default function StudioGalleryShellPage() {
           : null,
     );
     void startUpload(fresh, resume);
+  }
+  // ── 검토 동작 — 폴더 만들기 · 삭제 · 사진 이동 · 사진 삭제 (서버는 본문 없이 끝나므로 다시 조회) ──
+  async function submitFolderName(name: string) {
+    if (!folderModal || folderModal.kind === "delete") return;
+    if (folderModal.kind === "createConcept") await createConceptFolder(galleryId, name);
+    else await createDetailFolder(galleryId, folderModal.concept.id, name);
+    await refreshFolders();
+    setFolderModal(null);
+  }
+  async function confirmFolderDelete() {
+    if (!folderModal || folderModal.kind !== "delete") return;
+    const { target } = folderModal;
+    if (target.kind === "concept") await deleteConceptFolder(galleryId, target.concept.id);
+    else await deleteDetailFolder(galleryId, target.concept.id, target.detail.id);
+    await refreshFolders();
+    // 보고 있던 폴더가 사라졌으면 모든 사진으로
+    if (
+      folderSel.kind === "detail" &&
+      (folderSel.conceptId === target.concept.id || (target.kind === "detail" && folderSel.detailId === target.detail.id))
+    )
+      setFolderSel({ kind: "all" });
+    setFolderModal(null);
+  }
+  async function confirmMove(targetDetailId: number | null) {
+    await moveCategoryPhotos(galleryId, [...selected], targetDetailId);
+    await refreshFolders();
+    setSelected(new Set());
+    setMoveOpen(false);
+  }
+  async function confirmDeletePhotos() {
+    await deletePhotos(galleryId, [...selected]);
+    await Promise.all([refreshPhotos(), refreshFolders()]);
+    setSelected(new Set());
+    setDeletePhotosOpen(false);
   }
   async function discardPending() {
     if (discarding || recoverable.length === 0) return;
@@ -776,6 +851,12 @@ export default function StudioGalleryShellPage() {
             unsortedCount={unsortedCount}
             selection={folderSel}
             onSelect={changeFolder}
+            onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
+            onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
+            onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
+            onDeleteDetail={(concept, detail) =>
+              setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
+            }
             pendingNote={
               folders && folders.length === 0 && (uploading || aiActive)
                 ? aiCategorizing
@@ -851,8 +932,8 @@ export default function StudioGalleryShellPage() {
       <ShellBottomBar
         selectionCount={selected.size}
         onClearSelection={() => setSelected(new Set())}
-        onMoveSelection={showComingSoon}
-        onDeleteSelection={showComingSoon}
+        onMoveSelection={() => setMoveOpen(true)}
+        onDeleteSelection={() => setDeletePhotosOpen(true)}
         hint={bottomHint}
         progress={
           stageIndex === 0 && (uploadProgress || aiProgress) ? (
@@ -879,6 +960,37 @@ export default function StudioGalleryShellPage() {
         />
       )}
 
+      {folderModal && folderModal.kind !== "delete" && (
+        <FolderNameModal
+          kind={folderModal.kind === "createConcept" ? "concept" : "detail"}
+          parentName={folderModal.kind === "createDetail" ? folderModal.concept.name : undefined}
+          onClose={() => setFolderModal(null)}
+          onSubmit={submitFolderName}
+        />
+      )}
+      {folderModal && folderModal.kind === "delete" && (
+        <FolderDeleteModal
+          target={folderModal.target}
+          onClose={() => setFolderModal(null)}
+          onConfirm={confirmFolderDelete}
+        />
+      )}
+      {moveOpen && (
+        <MovePhotosModal
+          count={selected.size}
+          folders={folders ?? []}
+          currentDetailId={folderSel.kind === "detail" ? folderSel.detailId : null}
+          onClose={() => setMoveOpen(false)}
+          onConfirm={confirmMove}
+        />
+      )}
+      {deletePhotosOpen && (
+        <DeletePhotosModal
+          count={selected.size}
+          onClose={() => setDeletePhotosOpen(false)}
+          onConfirm={confirmDeletePhotos}
+        />
+      )}
       {openConfirm && gallery && (
         <OpenGalleryModal
           gallery={gallery}

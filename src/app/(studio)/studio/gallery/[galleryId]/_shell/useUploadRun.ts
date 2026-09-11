@@ -243,8 +243,8 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         if (controller.signal.aborted) return [];
         const ready: { item: ResumeItem; prepared: PreparedFile }[] = [];
         batch.forEach((item, i) => {
-          const done = prepared[i];
-          if (done) ready.push({ item, prepared: done });
+          const result = prepared[i];
+          if (result) ready.push({ item, prepared: result });
           else failedFiles.push(item.file);
         });
         if (ready.length === 0) return [];
@@ -252,10 +252,10 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         try {
           res = await reissueUploadUrls(
             galleryId,
-            ready.map(({ item, prepared: done }) => ({
+            ready.map(({ item, prepared: result }) => ({
               photoId: item.photoId,
-              contentLength: done.blob.size,
-              crc32c: done.crc32c,
+              contentLength: result.blob.size,
+              crc32c: result.crc32c,
             })),
           );
         } catch (err) {
@@ -266,12 +266,12 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         }
         const byId = new Map(res.uploads.map((upload) => [upload.photoId, upload.uploadUrl]));
         const issued: Issued[] = [];
-        for (const { item, prepared: done } of ready) {
+        for (const { item, prepared: result } of ready) {
           const uploadUrl = byId.get(item.photoId);
           if (uploadUrl)
             issued.push({
               file: item.file,
-              prepared: done,
+              prepared: result,
               photoId: item.photoId,
               uploadUrl,
               contentType: uploadContentType(item.file),
