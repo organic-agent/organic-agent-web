@@ -60,6 +60,7 @@ import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
 import { ExtendDeadlineModal } from "./_shell/ExtendDeadlineModal";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "./_shell/FolderColumn";
+import { duplicateConceptGroups, mergeDuplicateConcepts, normalizeFolders } from "./_shell/folderView";
 import {
   DeletePhotosModal,
   FolderDeleteModal,
@@ -98,18 +99,20 @@ import { describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
+import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "./_shell/zoomMemory";
 
 const DEV = process.env.NODE_ENV === "development";
 
 /** 사진 목록은 200장씩 — 전부 받아 한 화면에서 거른다 (수천 장까지) */
 async function listAllPhotos(galleryId: number): Promise<PhotoResponse[]> {
-  const all: PhotoResponse[] = [];
+  // 올리는 중에 목록을 읽으면 페이지 사이에 행이 끼어들 수 있어 같은 사진이 두 번 올 수 있다 — id로 한 번만
+  const byId = new Map<number, PhotoResponse>();
   for (let page = 0; page < 50; page++) {
     const res = await listPhotos(galleryId, page, 200);
-    all.push(...res.contents);
+    for (const photo of res.contents) byId.set(photo.photoId, photo);
     if (!res.hasNext) break;
   }
-  return all;
+  return [...byId.values()];
 }
 
 function ddayLabel(deadline: string | null): string {
@@ -146,7 +149,8 @@ export default function StudioGalleryShellPage() {
 
   const [view, setView] = useState<ShellView>("all");
   const [folderSel, setFolderSel] = useState<FolderSelection>({ kind: "all" });
-  const [zoom, setZoom] = useState(40);
+  // 사진 크기(줌)는 브라우저에 기억 — 새로 고쳐도 맞춰 둔 크기 그대로(서버 렌더는 기본 40)
+  const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
   const [sort, setSort] = useState<SortKey>("uploaded");
   const [filter, setFilter] = useState<FilterKey>("none");
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -263,9 +267,22 @@ export default function StudioGalleryShellPage() {
     },
     {
       onDone: () => {
-        void refreshFolders();
-        void refreshPhotos();
         setUploadNotice(null);
+        void (async () => {
+          const [f, p] = await Promise.all([
+            listConceptFolders(galleryId).catch(() => null),
+            listAllPhotos(galleryId).catch(() => null),
+          ]);
+          if (f) setFolders(f);
+          if (p) {
+            setPhotos(p);
+            setPhotosLoadedAt(Date.now());
+          }
+          if (f && p)
+            await mergeDuplicates(
+              normalizeFolders(f, p.filter((x) => x.status === "UPLOADED"), reviewedIdsRef.current),
+            );
+        })();
       },
       onEmbeddedChange: () => void refreshPhotos(),
     },
@@ -303,24 +320,46 @@ export default function StudioGalleryShellPage() {
   // "검토 완료"로 표시한 세부 폴더(브라우저 기억) — 서버 needsReview는 지울 수 없어 화면에서만 감춘다
   const reviewedRaw = useSyncExternalStore(subscribeReviewed, () => readReviewedRaw(galleryId), () => "");
   const reviewedIds = useMemo(() => new Set(parseReviewed(reviewedRaw)), [reviewedRaw]);
+  const reviewedIdsRef = useRef(reviewedIds);
+  useEffect(() => {
+    reviewedIdsRef.current = reviewedIds;
+  }, [reviewedIds]);
   // 서버의 세부 폴더 photoIds는 순서가 없고 휴지통 사진도 섞여 온다 — 살아 있는 사진만 남기고 업로드 순으로
-  const folders = useMemo(() => {
-    if (!rawFolders) return null;
-    const live = new Map(allPhotos.map((p) => [p.photoId, p]));
-    const order = (a: number, b: number) => {
-      const pa = live.get(a)!;
-      const pb = live.get(b)!;
-      return pa.displayOrder - pb.displayOrder || pa.photoId - pb.photoId;
-    };
-    return rawFolders.map((concept) => ({
-      ...concept,
-      details: concept.details.map((detail) => ({
-        ...detail,
-        needsReview: detail.needsReview && !reviewedIds.has(detail.id),
-        photoIds: detail.photoIds.filter((id) => live.has(id)).sort(order),
-      })),
-    }));
-  }, [rawFolders, allPhotos, reviewedIds]);
+  const folders = useMemo(
+    () => (rawFolders ? normalizeFolders(rawFolders, allPhotos, reviewedIds) : null),
+    [rawFolders, allPhotos, reviewedIds],
+  );
+
+  // ── 중복 컨셉 합치기 — 재분석이 같은 이름 컨셉을 덧붙이는 서버 동작(백엔드 요청)을 화면에서 정리 ──
+  const [merging, setMerging] = useState(false);
+  const mergingRef = useRef(false);
+  const mergeDuplicates = useCallback(
+    async (list: ConceptFolderResponse[]) => {
+      if (mergingRef.current || duplicateConceptGroups(list).length === 0) return;
+      mergingRef.current = true;
+      setMerging(true);
+      try {
+        await mergeDuplicateConcepts(galleryId, list);
+      } catch (err) {
+        setUploadNotice(describeUploadError(err));
+      } finally {
+        await refreshFolders();
+        mergingRef.current = false;
+        setMerging(false);
+      }
+    },
+    [galleryId, refreshFolders],
+  );
+  // 화면에 들어왔을 때 이미 중복이 있으면(이전 재분석의 흔적) 한 번 정리 — 올리는 중 · 분석 중엔 기다린다
+  const mergedOnLoadRef = useRef(false);
+  useEffect(() => {
+    if (mergedOnLoadRef.current || !folders || stageIndex !== 0 || uploading || aiActive) return;
+    if (duplicateConceptGroups(folders).length === 0) return;
+    mergedOnLoadRef.current = true;
+    void (async () => {
+      await mergeDuplicates(folders);
+    })();
+  }, [folders, stageIndex, uploading, aiActive, mergeDuplicates]);
 
   // ── 끊김 복구 — 이 브라우저가 발급한 사진 기억(localStorage 구독) + 서버 PENDING ──
   const rememberedRaw = useSyncExternalStore(
@@ -329,6 +368,7 @@ export default function StudioGalleryShellPage() {
     () => "",
   );
   const remembered = useMemo(() => parseRemembered(rememberedRaw), [rememberedRaw]);
+  const existingNames = useMemo(() => new Set((photos ?? []).map((p) => p.originalFileName)), [photos]);
   const recoverable = useMemo(
     () => (uploading || stageIndex !== 0 ? [] : recoverablePending(pendingPhotos, remembered, photosLoadedAt)),
     [uploading, stageIndex, pendingPhotos, remembered, photosLoadedAt],
@@ -384,8 +424,27 @@ export default function StudioGalleryShellPage() {
     setMoveOpen(false);
   }
   async function confirmDeletePhotos() {
-    await deletePhotos(galleryId, [...selected]);
+    const deleted = new Set(selected);
+    await deletePhotos(galleryId, [...deleted]);
+    // 사진이 다 빠져 비게 된 폴더는 함께 지운다 — 세부 폴더가 전부 비면 컨셉째, 일부면 그 세부 폴더만
+    let selectionGone = false;
+    for (const concept of folders ?? []) {
+      const touched = concept.details.filter((d) => d.photoIds.some((id) => deleted.has(id)));
+      if (touched.length === 0) continue;
+      const emptied = concept.details.filter((d) => d.photoIds.every((id) => deleted.has(id)));
+      if (emptied.length === concept.details.length) {
+        await deleteConceptFolder(galleryId, concept.id);
+        if ((folderSel.kind === "detail" || folderSel.kind === "concept") && folderSel.conceptId === concept.id)
+          selectionGone = true;
+      } else {
+        for (const detail of emptied) {
+          await deleteDetailFolder(galleryId, concept.id, detail.id);
+          if (folderSel.kind === "detail" && folderSel.detailId === detail.id) selectionGone = true;
+        }
+      }
+    }
     await Promise.all([refreshPhotos(), refreshFolders()]);
+    if (selectionGone) setFolderSel({ kind: "all" });
     setSelected(new Set());
     setDeletePhotosOpen(false);
   }
@@ -468,6 +527,7 @@ export default function StudioGalleryShellPage() {
     if (stageIndex === 0) {
       if (uploading) return { text: `올리는 중 ${run.done} / ${run.total}`, tone: "accent" };
       if (aiCategorizing) return { text: "폴더 만드는 중", tone: "accent" };
+      if (merging) return { text: "폴더 정리 중…", tone: "accent" };
       if (aiActive)
         return { text: `AI 분석 중 ${aiCounts?.scored ?? 0} / ${aiCounts?.expected ?? 0}`, tone: "accent" };
       if (aiFailed) return { text: "AI 정리 실패 · 다시 시도할 수 있어요", tone: "error" };
@@ -494,6 +554,25 @@ export default function StudioGalleryShellPage() {
       return next;
     });
   }
+  /** 지금 보고 있는 사진 전부 고르기 — 올리는 중인(PENDING) 자리는 제외 */
+  const selectAllVisible = useCallback(() => {
+    setSelected(new Set(visiblePhotos.filter((p) => p.status === "UPLOADED").map((p) => p.photoId)));
+  }, [visiblePhotos]);
+  // ⌘/Ctrl+A — 1단계 검토 화면에서, 입력란 · 모달이 아닐 때
+  const anyModalOpen =
+    uploadOpen || openConfirm || inviteTab !== null || extendOpen || quotaOpen || confirmKind !== null || folderModal !== null || moveOpen || deletePhotosOpen;
+  useEffect(() => {
+    if (inSelection || anyModalOpen || view !== "all") return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a") return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      e.preventDefault();
+      selectAllVisible();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [inSelection, anyModalOpen, view, selectAllVisible]);
   function changeView(next: ShellView) {
     setView(next);
     setSelected(new Set());
@@ -532,7 +611,7 @@ export default function StudioGalleryShellPage() {
   const showFolderColumn = stageIndex === 0 && allPhotos.length > 0 && view === "all";
   const headerCommon = {
     zoom,
-    onZoomChange: setZoom,
+    onZoomChange: writeZoom,
     sort,
     onSortChange: setSort,
     filter,
@@ -649,6 +728,7 @@ export default function StudioGalleryShellPage() {
   const bottomHint = (() => {
     if (stageIndex === 0) {
       if (analysis.error) return analysis.error;
+      if (merging) return "같은 이름의 컨셉 폴더를 하나로 합치고 있어요";
       if (uploadNotice) return uploadNotice;
       if (recoverable.length > 0)
         return `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중`;
@@ -974,6 +1054,8 @@ export default function StudioGalleryShellPage() {
 
       <ShellBottomBar
         selectionCount={selected.size}
+        visibleCount={visiblePhotos.filter((p) => p.status === "UPLOADED").length}
+        onSelectAll={selectAllVisible}
         onClearSelection={() => setSelected(new Set())}
         onMoveSelection={() => setMoveOpen(true)}
         onDeleteSelection={() => setDeletePhotosOpen(true)}
@@ -993,6 +1075,7 @@ export default function StudioGalleryShellPage() {
       {uploadOpen && (
         <UploadModal
           existingCount={photos?.length ?? 0}
+          existingNames={existingNames}
           planMaxPhotoCount={gallery?.planMaxPhotoCount ?? null}
           onClose={() => setUploadOpen(false)}
           onStart={(files) => {

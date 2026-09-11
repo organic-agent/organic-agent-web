@@ -271,7 +271,7 @@ export function DeletePhotosModal({
   return (
     <GalleryModalShell
       title={`${count}장을 삭제할까요?`}
-      desc="삭제한 사진은 갤러리와 폴더에서 바로 사라져요. 화면에서 되살릴 수는 없어요."
+      desc="삭제한 사진은 갤러리와 폴더에서 바로 사라져요. 사진이 다 빠져 비게 된 폴더는 함께 사라져요. 화면에서 되살릴 수는 없어요."
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >

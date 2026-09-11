@@ -29,8 +29,8 @@ import {
 type Entry = {
   key: string;
   file: File;
-  /** 제외 이유. null이면 올릴 수 있는 파일 */
-  excluded: "type" | "size" | null;
+  /** 제외 이유. null이면 올릴 수 있는 파일. duplicate = 갤러리에 같은 이름의 사진이 이미 있음(기본 건너뜀) */
+  excluded: "type" | "size" | "duplicate" | null;
 };
 
 const MAX_ROWS = 300;
@@ -41,17 +41,21 @@ function entryKey(file: File) {
 
 export function UploadModal({
   existingCount,
+  existingNames,
   planMaxPhotoCount,
   onClose,
   onStart,
 }: {
   /** 갤러리에 이미 있는 사진 수(PENDING 포함 — 서버가 상한을 셀 때 PENDING도 센다) */
   existingCount: number;
+  /** 갤러리에 이미 있는 사진의 원본 파일명 — 같은 이름은 기본으로 건너뛴다(같은 사진이 두 번 올라가는 것 방지) */
+  existingNames: Set<string>;
   planMaxPhotoCount: number | null;
   onClose: () => void;
   onStart: (files: File[]) => void;
 }) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [includeDuplicates, setIncludeDuplicates] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const dragDepthRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,16 +65,19 @@ export function UploadModal({
     let bytes = 0;
     let excludedType = 0;
     let excludedSize = 0;
+    let duplicates = 0;
     for (const entry of entries) {
       if (entry.excluded === "type") excludedType += 1;
       else if (entry.excluded === "size") excludedSize += 1;
+      else if (entry.excluded === "duplicate" && !includeDuplicates) duplicates += 1;
       else {
+        if (entry.excluded === "duplicate") duplicates += 1;
         valid += 1;
         bytes += entry.file.size;
       }
     }
-    return { valid, bytes, excludedType, excludedSize };
-  }, [entries]);
+    return { valid, bytes, excludedType, excludedSize, duplicates };
+  }, [entries, includeDuplicates]);
 
   const remaining = planMaxPhotoCount === null ? null : Math.max(0, planMaxPhotoCount - existingCount);
   const overPlan = remaining !== null && counts.valid > remaining;
@@ -86,7 +93,9 @@ export function UploadModal({
         ? "type"
         : file.size > UPLOAD_MAX_BYTES * 4 // 원본 상한은 서버 20MB지만 줄여 올리므로 아주 큰 파일만 미리 막는다
           ? "size"
-          : null;
+          : existingNames.has(file.name)
+            ? "duplicate"
+            : null;
       added.push({ key, file, excluded });
     }
     if (added.length === 0) return;
@@ -124,7 +133,9 @@ export function UploadModal({
   }
 
   function start() {
-    const files = entries.filter((e) => e.excluded === null).map((e) => e.file);
+    const files = entries
+      .filter((e) => e.excluded === null || (e.excluded === "duplicate" && includeDuplicates))
+      .map((e) => e.file);
     if (files.length === 0 || overPlan) return;
     onStart(files);
   }
@@ -140,7 +151,13 @@ export function UploadModal({
     <div onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
       <GalleryModalShell
         title="사진 업로드"
-        desc="올라오는 대로 AI가 컨셉 · 세부 폴더로 나눠요. 원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요."
+        desc={
+          <>
+            올라오는 대로 AI가 컨셉 · 세부 폴더로 나눠요.
+            <br />
+            원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요.
+          </>
+        }
         maxWidthClassName="max-w-140"
         onClose={onClose}
       >
@@ -170,9 +187,7 @@ export function UploadModal({
               <AddPhotoIcon size={36} />
             </span>
             <p className="type-content-m text-contents-light-bgd-default">여기에 사진을 끌어다 놓으세요</p>
-            <p className="type-content-xs text-contents-light-bgd-sub">
-              JPG · PNG · WebP · HEIC · 여러 장 한 번에 · 긴 변 2048로 줄여 올라가요
-            </p>
+            <p className="type-content-xs text-contents-light-bgd-sub">JPG · PNG · WebP · HEIC · 여러 장 한 번에</p>
             <span className="mt-3 inline-flex h-9 items-center rounded-(--radius-8) border border-border-default px-4 type-label-medium-s text-contents-light-bgd-default">
               폴더에서 사진 가져오기
             </span>
@@ -194,23 +209,37 @@ export function UploadModal({
                   >
                     <span
                       className={`flex shrink-0 ${
-                        entry.excluded ? "text-contents-light-bgd-disabled" : "text-contents-light-bgd-weakness"
+                        entry.excluded && !(entry.excluded === "duplicate" && includeDuplicates)
+                          ? "text-contents-light-bgd-disabled"
+                          : "text-contents-light-bgd-weakness"
                       }`}
                     >
                       <PhotoIcon size={18} />
                     </span>
                     <span
                       className={`min-w-0 flex-1 truncate ${
-                        entry.excluded ? "text-contents-light-bgd-disabled line-through" : "text-contents-light-bgd-default"
+                        entry.excluded && !(entry.excluded === "duplicate" && includeDuplicates)
+                          ? "text-contents-light-bgd-disabled line-through"
+                          : "text-contents-light-bgd-default"
                       }`}
                     >
                       {entry.file.name}
                     </span>
-                    {entry.excluded && (
+                    {entry.excluded === "duplicate" ? (
+                      <span
+                        className={`shrink-0 rounded-(--pill) px-1.5 py-px type-label-semibold-xs ${
+                          includeDuplicates
+                            ? "bg-surface-default-light text-contents-light-bgd-sub"
+                            : "bg-function-warning-background text-function-warning-default"
+                        }`}
+                      >
+                        {includeDuplicates ? "이미 있는 사진 · 그래도 올림" : "건너뜀 · 이미 있는 사진"}
+                      </span>
+                    ) : entry.excluded ? (
                       <span className="shrink-0 rounded-(--pill) bg-function-warning-background px-1.5 py-px type-label-semibold-xs text-function-warning-default">
                         {entry.excluded === "type" ? "제외 · 지원하지 않는 형식" : "제외 · 너무 큼"}
                       </span>
-                    )}
+                    ) : null}
                     <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness tabular-nums">
                       {formatBytes(entry.file.size)}
                     </span>
@@ -231,11 +260,27 @@ export function UploadModal({
                 )}
               </ul>
             </div>
-            <div className="mb-5 flex items-center justify-between px-1 type-content-xs text-contents-light-bgd-sub">
+            <div className="mb-5 flex items-center justify-between gap-3 px-1 type-content-xs text-contents-light-bgd-sub">
               <span className="tabular-nums">
                 {counts.valid}장 · {formatBytes(counts.bytes)}
               </span>
-              {excludedNote && <span className="shrink-0 pl-2">{excludedNote}</span>}
+              <span className="flex shrink-0 items-center gap-2 pl-2">
+                {excludedNote && <span>{excludedNote}</span>}
+                {counts.duplicates > 0 && (
+                  <>
+                    <span>
+                      {includeDuplicates ? "이미 있는 사진도 올림" : "이미 있는 사진 건너뜀"} {counts.duplicates}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIncludeDuplicates((v) => !v)}
+                      className="cursor-pointer text-contents-light-bgd-default underline underline-offset-2"
+                    >
+                      {includeDuplicates ? "건너뛰기" : "그래도 올리기"}
+                    </button>
+                  </>
+                )}
+              </span>
             </div>
             {overPlan && (
               <p role="alert" className="mb-4 rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
