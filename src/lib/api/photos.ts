@@ -140,6 +140,20 @@ export function getPhotoSummary(
   return api(`/api/v1/galleries/${galleryId}/photos/summary`);
 }
 
+/**
+ * 사진 전부 — 200장씩 끝까지 읽어 한 배열로(수천 장까지). 올리는 중에 읽으면 페이지 사이에 행이 끼어들어
+ * 같은 사진이 두 번 올 수 있어 id로 한 번만 담는다. 작가 셸 · 클라이언트 셸 공용.
+ */
+export async function listAllPhotos(galleryId: number): Promise<PhotoResponse[]> {
+  const byId = new Map<number, PhotoResponse>();
+  for (let page = 0; page < 50; page++) {
+    const res = await listPhotos(galleryId, page, 200);
+    for (const photo of res.contents) byId.set(photo.photoId, photo);
+    if (!res.hasNext) break;
+  }
+  return [...byId.values()];
+}
+
 /** 사진 목록 한 페이지. 담당 작가와 초대받은 부부가 함께 쓴다. */
 export function listPhotos(
   galleryId: number,

@@ -16,9 +16,9 @@ export default async function CoupleLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const collapsed = parseCollapsedCookie(
-    (await cookies()).get(SIDEBAR_COOKIE)?.value,
-  );
+  // 클라이언트는 기본 닫힘(2026-09-11 수민) — 쿠키가 있으면 그 값을 따른다
+  const raw = (await cookies()).get(SIDEBAR_COOKIE)?.value;
+  const collapsed = raw === undefined ? true : parseCollapsedCookie(raw);
   return (
     <SidebarProvider initialCollapsed={collapsed}>
       <AuthGuard>{children}</AuthGuard>

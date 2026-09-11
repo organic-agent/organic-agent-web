@@ -62,7 +62,8 @@ export function ShellBottomBar({
   onSelectAll?: () => void;
   onClearSelection: () => void;
   onMoveSelection: () => void;
-  onDeleteSelection: () => void;
+  /** 없으면 삭제 버튼을 두지 않는다(클라이언트 — 사진은 작가의 것) */
+  onDeleteSelection?: () => void;
   /** 선택이 없을 때 왼쪽 문구 */
   hint: ReactNode;
   /** 있으면 왼쪽 문구 대신 진행 막대(업로드 · AI 분석) */
@@ -91,14 +92,16 @@ export function ShellBottomBar({
               모두 선택 ({visibleCount})
             </ShellCta>
           )}
-          <button
-            type="button"
-            onClick={onDeleteSelection}
-            className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-4 type-label-medium-m text-function-error-default transition-colors duration-fast hover:bg-function-error-background"
-          >
-            <DeleteForeverIcon size={18} />
-            삭제
-          </button>
+          {onDeleteSelection && (
+            <button
+              type="button"
+              onClick={onDeleteSelection}
+              className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-4 type-label-medium-m text-function-error-default transition-colors duration-fast hover:bg-function-error-background"
+            >
+              <DeleteForeverIcon size={18} />
+              삭제
+            </button>
+          )}
         </div>
       </div>
     );
