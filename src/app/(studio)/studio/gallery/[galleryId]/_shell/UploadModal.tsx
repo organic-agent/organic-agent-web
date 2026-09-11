@@ -5,7 +5,8 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/UploadModal.tsx
  *
  * 옛 모달의 "고르면 즉시 올리기"와 다르다. 끌어다 놓거나 골라 목록에 담고, 버튼을 누르면
- * 모달은 닫히고 진행은 하단 바가 맡는다. 담는 순간 첫 묶음(100장)은 뒤에서 미리 줄여 두어
+ * 모달은 닫히고 진행은 하단 바가 맡는다. 고르는 자리는 하나 — 비었을 땐 중앙 드롭 존("폴더에서 사진 가져오기"),
+ * 담긴 뒤엔 하단 "폴더에서 더 가져오기"(2026-09-11 수민 피드백). 담는 순간 첫 묶음(100장)은 뒤에서 미리 줄여 두어
  * 버튼을 누른 즉시 첫 PUT이 나간다(전부 미리 줄이면 결과 blob이 GB 단위라 첫 묶음만).
  *
  * 담을 때 검사 둘: 형식(JPG · PNG · WebP · HEIC · HEIF 아니면 제외 표시), 플랜 장수 상한
@@ -173,7 +174,7 @@ export function UploadModal({
               JPG · PNG · WebP · HEIC · 여러 장 한 번에 · 긴 변 2048로 줄여 올라가요
             </p>
             <span className="mt-3 inline-flex h-9 items-center rounded-(--radius-8) border border-border-default px-4 type-label-medium-s text-contents-light-bgd-default">
-              또는 사진 고르기
+              폴더에서 사진 가져오기
             </span>
           </button>
         ) : (
@@ -245,14 +246,16 @@ export function UploadModal({
           </>
         )}
 
-        <div className="flex gap-2">
-          <Button kind="ghost" onClick={() => inputRef.current?.click()} className="flex-1">
-            {entries.length === 0 ? "사진 고르기" : "더 끌어다 놓거나 고르기"}
-          </Button>
-          <Button onClick={start} disabled={counts.valid === 0 || overPlan} className="flex-1">
-            {counts.valid > 0 ? `${counts.valid}장 업로드하기` : "업로드하기"}
-          </Button>
-        </div>
+        {entries.length > 0 && (
+          <div className="flex gap-2">
+            <Button kind="ghost" onClick={() => inputRef.current?.click()} className="flex-1">
+              폴더에서 더 가져오기
+            </Button>
+            <Button onClick={start} disabled={counts.valid === 0 || overPlan} className="flex-1">
+              {counts.valid > 0 ? `${counts.valid}장 업로드하기` : "업로드하기"}
+            </Button>
+          </div>
+        )}
       </GalleryModalShell>
     </div>
   );

@@ -71,6 +71,13 @@ import { GalleryInviteModal, type InviteTab } from "./_shell/GalleryInviteModal"
 import { OpenGalleryModal } from "./_shell/OpenGalleryModal";
 import { PhotoGrid } from "./_shell/PhotoGrid";
 import { RecoveryBanner } from "./_shell/RecoveryBanner";
+import {
+  markReviewed,
+  parseReviewed,
+  readReviewedRaw,
+  subscribeReviewed,
+  unmarkReviewed,
+} from "./_shell/reviewMemory";
 import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey } from "./_shell/ShellMainHeader";
 import { ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
@@ -293,6 +300,9 @@ export default function StudioGalleryShellPage() {
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
   const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
+  // "검토 완료"로 표시한 세부 폴더(브라우저 기억) — 서버 needsReview는 지울 수 없어 화면에서만 감춘다
+  const reviewedRaw = useSyncExternalStore(subscribeReviewed, () => readReviewedRaw(galleryId), () => "");
+  const reviewedIds = useMemo(() => new Set(parseReviewed(reviewedRaw)), [reviewedRaw]);
   // 서버의 세부 폴더 photoIds는 순서가 없고 휴지통 사진도 섞여 온다 — 살아 있는 사진만 남기고 업로드 순으로
   const folders = useMemo(() => {
     if (!rawFolders) return null;
@@ -306,10 +316,11 @@ export default function StudioGalleryShellPage() {
       ...concept,
       details: concept.details.map((detail) => ({
         ...detail,
+        needsReview: detail.needsReview && !reviewedIds.has(detail.id),
         photoIds: detail.photoIds.filter((id) => live.has(id)).sort(order),
       })),
     }));
-  }, [rawFolders, allPhotos]);
+  }, [rawFolders, allPhotos, reviewedIds]);
 
   // ── 끊김 복구 — 이 브라우저가 발급한 사진 기억(localStorage 구독) + 서버 PENDING ──
   const rememberedRaw = useSyncExternalStore(
@@ -359,8 +370,9 @@ export default function StudioGalleryShellPage() {
     await refreshFolders();
     // 보고 있던 폴더가 사라졌으면 모든 사진으로
     if (
-      folderSel.kind === "detail" &&
-      (folderSel.conceptId === target.concept.id || (target.kind === "detail" && folderSel.detailId === target.detail.id))
+      (folderSel.kind === "detail" || folderSel.kind === "concept") &&
+      (folderSel.conceptId === target.concept.id ||
+        (target.kind === "detail" && folderSel.kind === "detail" && folderSel.detailId === target.detail.id))
     )
       setFolderSel({ kind: "all" });
     setFolderModal(null);
@@ -415,6 +427,11 @@ export default function StudioGalleryShellPage() {
     if (folderSel.kind === "detail") {
       const ids = new Set(details.find((d) => d.id === folderSel.detailId)?.photoIds ?? []);
       list = list.filter((p) => ids.has(p.photoId));
+    } else if (folderSel.kind === "concept") {
+      const ids = new Set(
+        folders?.find((c) => c.id === folderSel.conceptId)?.details.flatMap((d) => d.photoIds) ?? [],
+      );
+      list = list.filter((p) => ids.has(p.photoId));
     } else if (folderSel.kind === "unsorted") {
       list = list.filter((p) => !sortedIds.has(p.photoId));
     }
@@ -424,12 +441,14 @@ export default function StudioGalleryShellPage() {
     if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
     else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
     return sorted;
-  }, [allPhotos, pendingPhotos, uploading, folderSel, details, sortedIds, filter, reviewIds, sort]);
+  }, [allPhotos, pendingPhotos, uploading, folderSel, folders, details, sortedIds, filter, reviewIds, sort]);
 
   const selectedDetail =
     folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
   const selectedConcept =
-    folderSel.kind === "detail" ? folders?.find((c) => c.id === folderSel.conceptId) ?? null : null;
+    folderSel.kind === "detail" || folderSel.kind === "concept"
+      ? folders?.find((c) => c.id === folderSel.conceptId) ?? null
+      : null;
 
   const offset = deadlineOffset(gallery?.selectionDeadline ?? null);
   const sub: SelectSub =
@@ -529,12 +548,33 @@ export default function StudioGalleryShellPage() {
           <ChevronRightIcon size={18} />
         </span>
         <span className="truncate">{selectedDetail.name}</span>
-        {selectedDetail.needsReview && <ReviewBadge />}
+        {selectedDetail.needsReview && (
+          <>
+            <ReviewBadge />
+            {stageIndex === 0 && (
+              <button
+                type="button"
+                onClick={() => markReviewed(galleryId, selectedDetail.id)}
+                className="ml-1 inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) border border-border-default px-2.5 type-label-medium-s font-medium text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
+              >
+                <CheckCircleIcon size={14} />
+                검토 완료
+              </button>
+            )}
+          </>
+        )}
         {inSelection && (
           <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
             {visiblePhotos.length}장 · 고른 사진 {visiblePhotos.filter((p) => pickedIds.has(p.photoId)).length}
           </small>
         )}
+      </>
+    ) : folderSel.kind === "concept" && selectedConcept ? (
+      <>
+        <span className="truncate">{selectedConcept.name}</span>
+        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
+          전체 · 세부 폴더 {selectedConcept.details.length}
+        </small>
       </>
     ) : folderSel.kind === "unsorted" ? (
       <>미분류</>
@@ -857,6 +897,9 @@ export default function StudioGalleryShellPage() {
             onDeleteDetail={(concept, detail) =>
               setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
             }
+            reviewedIds={reviewedIds}
+            onMarkReviewed={(detail) => markReviewed(galleryId, detail.id)}
+            onUnmarkReviewed={(detail) => unmarkReviewed(galleryId, detail.id)}
             pendingNote={
               folders && folders.length === 0 && (uploading || aiActive)
                 ? aiCategorizing
@@ -890,7 +933,7 @@ export default function StudioGalleryShellPage() {
               />
               {quotaBanner}
               {selectionBanner}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              <div className="scrollbar-slim flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {pickedPhotos.length === 0 ? (
                   selectedEmpty
                 ) : (
@@ -908,7 +951,7 @@ export default function StudioGalleryShellPage() {
               <ShellMainHeader {...headerCommon} title={allTitle} />
               {recoveryBanner}
               {quotaBanner}
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {visiblePhotos.length === 0 ? (
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
                     조건에 맞는 사진이 없어요

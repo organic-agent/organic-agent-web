@@ -6,22 +6,26 @@
  *
  * 세부 폴더의 needsReview는 "검토" 배지(서버가 지우는 방법이 없는 영구 배지), 어느 폴더에도 없는 사진은 맨 아래 "미분류".
  * 편집(1단계 보드 확정): 머리의 "컨셉 폴더 추가", 행에 마우스를 올리면 숫자 자리에 케밥 —
- * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 폴더 삭제. 이름 바꾸기는 서버 API가 없어 두지 않는다(백엔드 요청 항목).
- * 편집 핸들러를 안 주면 읽기 전용이다.
+ * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 검토 완료(배지 감춤, 브라우저 기억) · 폴더 삭제.
+ * 이름 바꾸기는 서버 API가 없어 두지 않는다(백엔드 요청 항목). 편집 핸들러를 안 주면 읽기 전용이다.
+ * 맨 위 "모든 사진" 행으로 폴더에서 빠져나오고, 컨셉 이름을 누르면 그 컨셉의 사진 전체를 본다(2026-09-11 피드백).
  */
 
 import { useEffect, useRef, useState } from "react";
 import {
+  CheckCircleIcon,
   CreateFolderIcon,
   DropdownIcon,
   FolderOffIcon,
   MoreVertIcon,
+  PhotoIcon,
   TrashIcon,
 } from "@/components/icons";
 import type { ConceptFolderResponse, DetailFolderResponse } from "@/lib/api/conceptFolders";
 
 export type FolderSelection =
   | { kind: "all" }
+  | { kind: "concept"; conceptId: number }
   | { kind: "detail"; conceptId: number; detailId: number }
   | { kind: "unsorted" };
 
@@ -55,6 +59,9 @@ export function FolderColumn({
   onCreateDetail,
   onDeleteConcept,
   onDeleteDetail,
+  reviewedIds,
+  onMarkReviewed,
+  onUnmarkReviewed,
 }: {
   /** null = 불러오는 중 */
   folders: ConceptFolderResponse[] | null;
@@ -68,6 +75,10 @@ export function FolderColumn({
   onCreateDetail?: (concept: ConceptFolderResponse) => void;
   onDeleteConcept?: (concept: ConceptFolderResponse) => void;
   onDeleteDetail?: (concept: ConceptFolderResponse, detail: DetailFolderResponse) => void;
+  /** 이 브라우저에서 "검토 완료"로 표시한 세부 폴더 id — 배지는 감춰져 있고 되살리기 메뉴가 뜬다 */
+  reviewedIds?: Set<number>;
+  onMarkReviewed?: (detail: DetailFolderResponse) => void;
+  onUnmarkReviewed?: (detail: DetailFolderResponse) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [menu, setMenu] = useState<MenuTarget | null>(null);
@@ -170,6 +181,41 @@ export function FolderColumn({
             세부 폴더 추가
           </button>
         )}
+        {target.kind === "detail" && target.detail.needsReview && onMarkReviewed && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenu(null);
+              onMarkReviewed(target.detail);
+            }}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
+          >
+            <span className="flex text-brand-secondary-dark">
+              <CheckCircleIcon size={16} />
+            </span>
+            검토 완료
+          </button>
+        )}
+        {target.kind === "detail" &&
+          !target.detail.needsReview &&
+          reviewedIds?.has(target.detail.id) &&
+          onUnmarkReviewed && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenu(null);
+                onUnmarkReviewed(target.detail);
+              }}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
+            >
+              <span className="flex text-contents-light-bgd-sub">
+                <CheckCircleIcon size={16} />
+              </span>
+              검토 표시 되살리기
+            </button>
+          )}
         {((target.kind === "concept" && onDeleteConcept) || (target.kind === "detail" && onDeleteDetail)) && (
           <button
             type="button"
@@ -192,7 +238,7 @@ export function FolderColumn({
   }
 
   return (
-    <div className="flex w-58 shrink-0 flex-col overflow-y-auto border-r border-divider-default bg-background-default-main px-3 py-4">
+    <div className="scrollbar-slim flex w-58 shrink-0 flex-col overflow-y-auto border-r border-divider-default bg-background-default-main px-3 py-4">
       <h2 className="mb-1.5 flex h-6 items-center justify-between px-1 type-label-semibold-xs text-contents-light-bgd-default">
         <span>컨셉 폴더</span>
         <span className="flex items-center gap-1">
@@ -239,26 +285,53 @@ export function FolderColumn({
         </p>
       ) : (
         <ul className="flex flex-col">
+          <li className="mb-1.5 border-b border-divider-default pb-1.5">
+            <button
+              type="button"
+              aria-current={selection.kind === "all" || undefined}
+              onClick={() => onSelect({ kind: "all" })}
+              className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
+                selection.kind === "all"
+                  ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
+                  : "text-contents-light-bgd-sub"
+              }`}
+            >
+              <span className="flex shrink-0 text-contents-light-bgd-weakness">
+                <PhotoIcon size={16} />
+              </span>
+              <span className="min-w-0 flex-1 truncate">모든 사진</span>
+              <span className="type-content-xs text-contents-light-bgd-weakness">{totalPhotos}</span>
+            </button>
+          </li>
           {folders.map((concept) => {
             const count = concept.details.reduce((n, d) => n + d.photoIds.length, 0);
             const closed = collapsed.has(concept.id);
+            const conceptSelected = selection.kind === "concept" && selection.conceptId === concept.id;
             const conceptTarget: MenuTarget = { kind: "concept", concept };
             return (
               <li key={concept.id}>
-                <div className="group relative flex items-center gap-1 rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness">
+                <div
+                  className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
+                    conceptSelected ? "bg-brand-secondary-background" : ""
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => toggleConcept(concept.id)}
                     aria-expanded={!closed}
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 px-1 py-1.5 text-left type-label-semibold-s text-contents-light-bgd-default"
+                    aria-label={closed ? `${concept.name} 펼치기` : `${concept.name} 접기`}
+                    className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness hover:bg-surface-default-light"
                   >
-                    <span
-                      className={`flex shrink-0 text-contents-light-bgd-weakness transition-transform duration-fast ${
-                        closed ? "-rotate-90" : ""
-                      }`}
-                    >
+                    <span className={`flex transition-transform duration-fast ${closed ? "-rotate-90" : ""}`}>
                       <DropdownIcon size={16} />
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-current={conceptSelected || undefined}
+                    onClick={() => onSelect({ kind: "concept", conceptId: concept.id })}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center py-1.5 pr-1 text-left type-label-semibold-s text-contents-light-bgd-default"
+                  >
                     <span className="min-w-0 flex-1 truncate">{concept.name}</span>
                   </button>
                   {renderTrailing(count, conceptTarget)}
