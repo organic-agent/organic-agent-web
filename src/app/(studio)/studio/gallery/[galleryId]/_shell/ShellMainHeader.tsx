@@ -37,6 +37,7 @@ export function ShellMainHeader({
   filter,
   onFilterChange,
   onSingleView,
+  sortable = true,
 }: {
   title: ReactNode;
   /** 0~100 — 타일 폭으로 바뀐다 */
@@ -47,6 +48,8 @@ export function ShellMainHeader({
   filter: FilterKey;
   onFilterChange: (filter: FilterKey) => void;
   onSingleView: () => void;
+  /** false면 정렬 · 필터 버튼을 숨긴다(선택한 사진 보기 — 고른 순 고정) */
+  sortable?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,7 +104,7 @@ export function ShellMainHeader({
           <IconButton icon={<SingleViewIcon size={18} />} aria-label="한 장 보기" onClick={onSingleView} />
         </div>
 
-        <div ref={menuRef} className="relative">
+        {sortable && <div ref={menuRef} className="relative">
           <button
             type="button"
             aria-haspopup="menu"
@@ -149,7 +152,7 @@ export function ShellMainHeader({
               ))}
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

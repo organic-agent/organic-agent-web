@@ -47,6 +47,11 @@ export type InviteAcceptResponse = {
 export type GalleryInviteResponse = {
   id: number;
   galleryId: number;
+  kind: InviteKind;
+  /** 정원 — 갤러리 초대는 2 */
+  maxUses: number;
+  /** 이 링크로 들어온 사람 수 */
+  usedCount: number;
   /** 예비 부부에게 그대로 전달하는 링크. 토큰이 아니라 완성된 URL이다. */
   inviteUrl: string;
   /** 지금 쓸 수 있는지 — 저장된 값이 아니라 조회 시점에 계산된다. */

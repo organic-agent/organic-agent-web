@@ -5,7 +5,8 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar.tsx
  *
  * 접으면 통째로 사라진다(상단 ≡로 여닫음). 단계 진행은 얇은 5칸 줄 + "n/5 단계명 · 다음".
- * 선택 사진은 클라이언트가 제출하기 전까지 잠김(WF: 제출 전 열람 불가).
+ * 선택한 사진은 1단계에선 잠김, 2단계부터 열려 "고른 수 / 고를 장수"를 보여준다(제출 전에도 열람 — 2026-09-11).
+ * 2단계부터는 폴더 트리(folderTree)가 내비 아래에 들어온다.
  */
 
 import type { ReactNode } from "react";
@@ -71,6 +72,9 @@ export function ShellSidebar({
   stageIndex,
   photoCount,
   selectedLocked,
+  selectedCount,
+  maxSelectable,
+  folderTree,
   view,
   onViewChange,
 }: {
@@ -78,8 +82,13 @@ export function ShellSidebar({
   status: StatusLine;
   stageIndex: number;
   photoCount: number;
-  /** 클라이언트 제출 전 — 선택 사진 항목 잠김 */
+  /** 1단계 — 선택한 사진 항목 잠김 */
   selectedLocked: boolean;
+  /** 클라이언트가 고른 장수 (2단계부터) */
+  selectedCount: number;
+  maxSelectable: number | null;
+  /** 2단계부터 내비 아래에 들어오는 폴더 트리 */
+  folderTree?: ReactNode;
   view: ShellView;
   onViewChange: (view: ShellView) => void;
 }) {
@@ -123,7 +132,7 @@ export function ShellSidebar({
           />
           <NavRow
             icon={<CheckCircleIcon size={18} />}
-            label="선택 사진"
+            label="선택한 사진"
             trailing={
               selectedLocked ? (
                 <span className="inline-flex items-center gap-0.5">
@@ -131,7 +140,12 @@ export function ShellSidebar({
                   셀렉 대기부터
                 </span>
               ) : (
-                "—"
+                <span className="font-semibold text-contents-light-bgd-default tabular-nums">
+                  {selectedCount}
+                  {maxSelectable !== null && (
+                    <span className="font-normal text-contents-light-bgd-weakness"> / {maxSelectable}</span>
+                  )}
+                </span>
               )
             }
             selected={view === "selected"}
@@ -141,12 +155,21 @@ export function ShellSidebar({
           <NavRow
             icon={<BrushIcon size={18} />}
             label="보정 사진"
-            trailing="—"
+            trailing={
+              <span className="inline-flex items-center gap-1.5">
+                <span className="rounded-(--pill) bg-surface-default-light px-1.5 py-px type-label-semibold-xs text-contents-light-bgd-weakness">
+                  대기 중
+                </span>
+                —
+              </span>
+            }
             selected={view === "retouch"}
             disabled
             onClick={() => onViewChange("retouch")}
           />
         </nav>
+
+        {folderTree}
       </div>
     </aside>
   );

@@ -6,7 +6,8 @@
  *
  * 줌은 타일 최소 폭(120~320px)으로 바뀐다. 가로세로 크기 값이 서버 사진 응답에 없어 지금은
  * 3:2 고정 비율로 자르고(object-cover), 높이 맞춤 정렬(justified)은 크기 값이 오면 바꾼다.
- * PENDING(올리는 중) 사진은 회색 자리. 클릭 = 선택 토글.
+ * PENDING(올리는 중) 사진은 회색 자리. selectable이면 클릭 = 작가 선택 토글.
+ * markedIds(클라이언트가 고른 사진)는 같은 선택 구조로 표시만 한다(2단계, 2026-09-11 결정).
  */
 
 import { PhotoIcon } from "@/components/icons";
@@ -34,11 +35,17 @@ export function PhotoGrid({
   zoom,
   selectedIds,
   onToggle,
+  markedIds,
+  selectable = true,
 }: {
   photos: PhotoResponse[];
   zoom: number;
   selectedIds: Set<number>;
   onToggle: (photoId: number) => void;
+  /** 표시만 하는 선택(클라이언트가 고른 사진) */
+  markedIds?: Set<number>;
+  /** false면 클릭해도 선택되지 않는다 */
+  selectable?: boolean;
 }) {
   return (
     <div
@@ -46,16 +53,18 @@ export function PhotoGrid({
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileWidthOf(zoom)}px, 1fr))` }}
     >
       {photos.map((photo) => {
-        const selected = selectedIds.has(photo.photoId);
+        const selected = selectedIds.has(photo.photoId) || (markedIds?.has(photo.photoId) ?? false);
         const pending = photo.viewUrl === null;
         return (
           <button
             key={photo.photoId}
             type="button"
-            aria-pressed={selected}
+            aria-pressed={selectable ? selected : undefined}
             aria-label={`${photo.originalFileName}${selected ? " 선택됨" : ""}`}
-            onClick={() => onToggle(photo.photoId)}
-            className={`group relative aspect-3/2 cursor-pointer overflow-hidden rounded-(--radius-8) bg-surface-default-light text-left ${
+            onClick={selectable ? () => onToggle(photo.photoId) : undefined}
+            className={`group relative aspect-3/2 overflow-hidden rounded-(--radius-8) bg-surface-default-light text-left ${
+              selectable ? "cursor-pointer" : "cursor-default"
+            } ${
               selected
                 ? "shadow-[inset_0_0_0_2px_var(--contents-light-bgd-default),inset_0_0_0_4px_var(--background-default-main)]"
                 : ""
@@ -75,7 +84,7 @@ export function PhotoGrid({
                 className="size-full object-cover"
               />
             )}
-            <Check selected={selected} />
+            {(selectable || selected) && <Check selected={selected} />}
           </button>
         );
       })}

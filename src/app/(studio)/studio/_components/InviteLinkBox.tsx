@@ -5,11 +5,11 @@
  * 위치: src/app/(studio)/studio/_components/InviteLinkBox.tsx
  *
  * 링크 박스 안 오른쪽에 복사 아이콘(인풋 그룹), 아래 한 줄 힌트 오른쪽에 재발급.
- * 팀원 초대 모달과 설정 › 멤버가 같이 쓴다. 상태는 useStudioInviteLink가 들고,
- * InviteLinkBox는 그리기만 한다 — 모달이 "대기" 행에 같은 링크 상태를 쓰기 때문.
+ * 팀원 초대(스튜디오)와 클라이언트 초대(갤러리)가 같은 상자를 쓴다 — 상태 훅만 다르다
+ * (useStudioInviteLink / 갤러리 셸의 useGalleryInviteLink). InviteLinkBox는 그리기만 한다.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckCircleIcon, CopyIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -20,12 +20,21 @@ import {
   type StudioInviteResponse,
 } from "@/lib/api/studios";
 
-export type InviteLinkState =
+/** 스튜디오·갤러리 초대 응답의 공통 부분 — 상자가 그리는 데 필요한 것만 */
+export type InviteLinkLike = {
+  inviteUrl: string;
+  usedCount: number;
+  expiresAt: string;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED" | "FULL" | "ALREADY_MEMBER";
+};
+
+export type InviteLinkState<L extends InviteLinkLike = InviteLinkLike> =
   | { kind: "loading" }
   | { kind: "none" }
-  | { kind: "ready"; link: StudioInviteResponse; daysLeft: number };
+  | { kind: "ready"; link: L; daysLeft: number };
 
-function toState(link: StudioInviteResponse | null): InviteLinkState {
+/** 응답 → 상자 상태. ACTIVE가 아니면 "없음"으로 본다(만료·폐기는 새로 발급) */
+export function toInviteLinkState<L extends InviteLinkLike>(link: L | null): InviteLinkState<L> {
   if (!link || link.status !== "ACTIVE") return { kind: "none" };
   const daysLeft = Math.max(
     0,
@@ -38,7 +47,7 @@ function toState(link: StudioInviteResponse | null): InviteLinkState {
 const displayUrl = (url: string) => url.replace(/^https?:\/\//, "");
 
 export function useStudioInviteLink(workspaceId: number) {
-  const [state, setState] = useState<InviteLinkState>({ kind: "loading" });
+  const [state, setState] = useState<InviteLinkState<StudioInviteResponse>>({ kind: "loading" });
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +56,7 @@ export function useStudioInviteLink(workspaceId: number) {
     (async () => {
       try {
         const link = await getStudioInviteLink(workspaceId);
-        if (!cancelled) setState(toState(link));
+        if (!cancelled) setState(toInviteLinkState(link));
       } catch {
         // 발급한 적 없는 스튜디오는 404 — "링크 만들기"로
         if (!cancelled) setState({ kind: "none" });
@@ -63,7 +72,7 @@ export function useStudioInviteLink(workspaceId: number) {
     setIssuing(true);
     setError(null);
     try {
-      setState(toState(await issueStudioInviteLink(workspaceId)));
+      setState(toInviteLinkState(await issueStudioInviteLink(workspaceId)));
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -83,7 +92,15 @@ export function InviteLinkBox({
   issue,
   issuing,
   error,
-}: ReturnType<typeof useStudioInviteLink>) {
+  hint = "7일 뒤 만료 · 받은 작가는 회원가입 후 바로 멤버가 돼요",
+}: {
+  state: InviteLinkState;
+  issue: () => Promise<void>;
+  issuing: boolean;
+  error: string | null;
+  /** 상자 아래 안내 — 두 줄이면 <br />로 끊어 준다 */
+  hint?: ReactNode;
+}) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const timer = useRef(0);
@@ -138,8 +155,8 @@ export function InviteLinkBox({
           />
         </div>
       )}
-      <p className="mt-2 flex items-center justify-between gap-3 type-content-xs text-contents-light-bgd-sub">
-        <span className="truncate">7일 뒤 만료 · 받은 작가는 회원가입 후 바로 멤버가 돼요</span>
+      <p className="mt-2 flex items-start justify-between gap-3 type-content-xs text-contents-light-bgd-sub">
+        <span className="min-w-0 leading-relaxed break-keep">{hint}</span>
         {state.kind === "ready" && (
           <button
             type="button"
