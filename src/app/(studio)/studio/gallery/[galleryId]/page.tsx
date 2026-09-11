@@ -6,7 +6,8 @@
  *
  * 상단 한 줄 · 사이드바(접힘 가능) · 폴더 열(1단계만) · 메인(헤더 + 그리드) · 하단 바(주 버튼).
  * B1 = 화면 구성: 갤러리 · 사진 · 폴더 · 선택 앨범은 읽고, 갤러리 열기 · 기간 연장 · 장수 바꾸기 ·
- * 초대 링크처럼 작은 쓰기만 한다. 업로드 · AI 분석 · 폴더 편집 · 사진 삭제는 B2 — 버튼은 자리만.
+ * 초대 링크처럼 작은 쓰기만 한다. B2 = 업로드(useUploadRun · UploadModal · 하단 진행 막대) · AI 분석 ·
+ * 폴더 편집 · 사진 삭제.
  * 셀렉 완료 → 보정 작업 전환은 서버 방법 확인 전이라 확인 모달까지만.
  *
  * 개발 서버 전용 장치(배포 빌드에서는 코드가 빠진다):
@@ -14,20 +15,26 @@
  *  - 사진 0장에서도 "갤러리 열기" 허용 — 업로드(B2)가 없어 만든 우회. **삭제 시점: B2 머지 뒤.**
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import {
   CheckCircleIcon,
   ChevronRightIcon,
+  CloudUploadIcon,
+  ErrorIcon,
+  PauseIcon,
   PersonAddIcon,
   PhotoIcon,
+  PlayIcon,
+  RefreshIcon,
   ScheduleIcon,
   UploadIcon,
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
+import { ANALYSIS_JOB_ALREADY_ACTIVE, requestAnalysis } from "@/lib/api/analysis";
 import { ApiError } from "@/lib/api/client";
 import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import {
@@ -53,7 +60,11 @@ import { ShellTopbar } from "./_shell/ShellTopbar";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
+import { UploadModal } from "./_shell/UploadModal";
+import { ProgressBar } from "./_shell/UploadProgress";
+import { describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
+import { useUploadRun } from "./_shell/useUploadRun";
 
 const DEV = process.env.NODE_ENV === "development";
 
@@ -111,6 +122,9 @@ export default function StudioGalleryShellPage() {
   const [extendOpen, setExtendOpen] = useState(false);
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<"retouch" | "asis" | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  /** 업로드가 끝난 뒤 하단 왼쪽에 잠시 보이는 문구(완료 · 오류) */
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
 
   // 갤러리 → 스튜디오(이름 · 내 역할) 순으로, 사진 · 폴더는 나란히
   useEffect(() => {
@@ -144,6 +158,46 @@ export default function StudioGalleryShellPage() {
     };
   }, [galleryId]);
 
+  // ── 조용한 재조회 — 업로드 · 분석 진행이 목록을 갈아 끼울 때(스크롤 유지, 로딩 화면 없음) ──
+  const refreshPhotos = useCallback(async () => {
+    try {
+      setPhotos(await listAllPhotos(galleryId));
+    } catch {
+      // 다음 갱신 때 다시
+    }
+  }, [galleryId]);
+
+  // ── 업로드 실행기 ──
+  // 큐가 비면 분석 잡을 요청한다 — 잡 없이는 폴더가 생기지 않는다. 진행 감시(폴링)는 3단계에서 붙는다.
+  const startAnalysis = useCallback(async () => {
+    try {
+      await requestAnalysis(galleryId);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === ANALYSIS_JOB_ALREADY_ACTIVE) return; // 도는 잡이 새 사진을 흡수한다
+      setUploadNotice(describeUploadError(err));
+    }
+  }, [galleryId]);
+  const {
+    run,
+    start: startUpload,
+    abort: abortUpload,
+    pause: pauseUpload,
+    resume: resumeUpload,
+    retryFailed,
+    reset: resetUpload,
+  } = useUploadRun(galleryId, {
+    onBatchUploaded: () => void refreshPhotos(),
+    onFinished: async ({ done, failed, aborted }) => {
+      await refreshPhotos();
+      if (aborted) setUploadNotice(`업로드를 중단했어요. ${done}장은 올라갔어요.`);
+      else if (failed === 0) setUploadNotice(`${done}장 업로드 완료 · AI가 폴더로 정리하고 있어요`);
+      if (done > 0) void startAnalysis();
+      if (failed === 0) resetUpload();
+    },
+  });
+  const uploading = run.phase === "running" || run.phase === "paused";
+  const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
+
   // ── 단계 ──
   const stageOverride = DEV ? Number(searchParams.get("stage")) : NaN;
   const stageIndex = gallery
@@ -172,7 +226,8 @@ export default function StudioGalleryShellPage() {
   }, [inSelection, galleryId, inviteTab]);
 
   // ── 파생값 ──
-  const allPhotos = useMemo(() => photos ?? [], [photos]);
+  const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
+  const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
   const details = useMemo(() => folders?.flatMap((c) => c.details) ?? [], [folders]);
   const sortedIds = useMemo(() => new Set(details.flatMap((d) => d.photoIds)), [details]);
   const reviewIds = useMemo(
@@ -191,7 +246,8 @@ export default function StudioGalleryShellPage() {
   const maxSelectable = gallery?.maxSelectablePhotoCount ?? null;
 
   const visiblePhotos = useMemo(() => {
-    let list = allPhotos;
+    // 올리는 동안은 PENDING도 회색 자리로 보여 준다(끝난 뒤 남은 PENDING은 복구 배너의 몫)
+    let list = uploading ? [...allPhotos, ...pendingPhotos] : allPhotos;
     if (folderSel.kind === "detail") {
       const ids = new Set(details.find((d) => d.id === folderSel.detailId)?.photoIds ?? []);
       list = list.filter((p) => ids.has(p.photoId));
@@ -204,7 +260,7 @@ export default function StudioGalleryShellPage() {
     if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
     else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
     return sorted;
-  }, [allPhotos, folderSel, details, sortedIds, filter, reviewIds, sort]);
+  }, [allPhotos, pendingPhotos, uploading, folderSel, details, sortedIds, filter, reviewIds, sort]);
 
   const selectedDetail =
     folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
@@ -227,6 +283,7 @@ export default function StudioGalleryShellPage() {
   const status: StatusLine = (() => {
     if (photos === null) return { text: "불러오는 중…", tone: "muted" };
     if (stageIndex === 0) {
+      if (uploading) return { text: `올리는 중 ${run.done} / ${run.total}`, tone: "accent" };
       if (allPhotos.length === 0) return { text: "사진 없음", tone: "muted" };
       if (!folders || folders.length === 0) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return reviewFolderCount > 0
@@ -284,7 +341,7 @@ export default function StudioGalleryShellPage() {
 
   const isOwner = studio?.role === "OWNER";
   // 개발 서버에서는 사진 0장이어도 열 수 있게 — 업로드(B2) 전 임시 우회. 삭제 시점: B2 머지 뒤.
-  const canOpen = gallery?.status === "DRAFT" && (allPhotos.length > 0 || DEV);
+  const canOpen = gallery?.status === "DRAFT" && !uploading && (allPhotos.length > 0 || DEV);
   const showFolderColumn = stageIndex === 0 && allPhotos.length > 0 && view === "all";
   const headerCommon = {
     zoom,
@@ -377,6 +434,7 @@ export default function StudioGalleryShellPage() {
   // 하단 바 — 단계 · 하위 상태별
   const bottomHint = (() => {
     if (stageIndex === 0) {
+      if (uploadNotice) return uploadNotice;
       if (allPhotos.length === 0) return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
       if (!folders || folders.length === 0) return "폴더는 업로드가 끝나면 AI가 만들어요";
       return reviewFolderCount > 0
@@ -410,19 +468,63 @@ export default function StudioGalleryShellPage() {
         </span>
       </span>
     ) : null;
+  // 업로드 진행 막대(하단 왼쪽) — 올리는 중 · 실패 남음
+  const uploadProgress = uploading ? (
+    <ProgressBar
+      icon={<CloudUploadIcon size={18} />}
+      title={`업로드 ${run.done} / ${run.total}`}
+      ratio={run.ratio}
+      sub={
+        [
+          run.phase === "paused" ? "일시정지" : formatEta(run.etaSeconds),
+          run.failed > 0 ? `${run.failed}장 실패` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined
+      }
+    />
+  ) : uploadFailedIdle ? (
+    <span className="flex min-w-0 items-center gap-2 type-content-s text-contents-light-bgd-default">
+      <span className="flex shrink-0 text-function-warning-default">
+        <ErrorIcon size={18} />
+      </span>
+      <span className="min-w-0 truncate">
+        <b className="font-semibold">{run.failed}장을 올리지 못했어요</b>
+        {run.error ? ` · ${run.error}` : " · 네트워크를 확인한 뒤 다시 올려 주세요"}
+      </span>
+    </span>
+  ) : null;
   const bottomActions =
     stageIndex === 0 ? (
-      <>
-        <ShellCta kind={allPhotos.length === 0 ? "primary" : "ghost"} onClick={showComingSoon}>
-          <UploadIcon size={18} />
-          사진 업로드
-        </ShellCta>
-        {(allPhotos.length > 0 || DEV) && (
-          <ShellCta disabled={!canOpen} onClick={() => setOpenConfirm(true)}>
-            갤러리 열기
+      uploading ? (
+        <>
+          <ShellCta kind="ghost" onClick={run.phase === "paused" ? resumeUpload : pauseUpload}>
+            {run.phase === "paused" ? <PlayIcon size={18} /> : <PauseIcon size={18} />}
+            {run.phase === "paused" ? "계속" : "일시정지"}
           </ShellCta>
-        )}
-      </>
+          <ShellCta kind="ghost" onClick={abortUpload}>
+            취소
+          </ShellCta>
+        </>
+      ) : (
+        <>
+          {uploadFailedIdle && (
+            <ShellCta kind="secondary" onClick={retryFailed}>
+              <RefreshIcon size={18} />
+              실패 {run.failed}장 다시 올리기
+            </ShellCta>
+          )}
+          <ShellCta kind={allPhotos.length === 0 ? "primary" : "ghost"} onClick={() => setUploadOpen(true)}>
+            <UploadIcon size={18} />
+            {allPhotos.length === 0 ? "사진 업로드" : "사진 더 올리기"}
+          </ShellCta>
+          {(allPhotos.length > 0 || DEV) && (
+            <ShellCta disabled={!canOpen} onClick={() => setOpenConfirm(true)}>
+              갤러리 열기
+            </ShellCta>
+          )}
+        </>
+      )
     ) : stageIndex === 1 ? (
       sub === "invite" ? (
         <ShellCta onClick={() => setInviteTab("client")}>
@@ -580,9 +682,23 @@ export default function StudioGalleryShellPage() {
         onMoveSelection={showComingSoon}
         onDeleteSelection={showComingSoon}
         hint={bottomHint}
+        progress={stageIndex === 0 ? uploadProgress : null}
         status={bottomStatus}
         actions={bottomActions}
       />
+
+      {uploadOpen && (
+        <UploadModal
+          existingCount={photos?.length ?? 0}
+          planMaxPhotoCount={gallery?.planMaxPhotoCount ?? null}
+          onClose={() => setUploadOpen(false)}
+          onStart={(files) => {
+            setUploadOpen(false);
+            setUploadNotice(null);
+            void startUpload(files);
+          }}
+        />
+      )}
 
       {openConfirm && gallery && (
         <OpenGalleryModal

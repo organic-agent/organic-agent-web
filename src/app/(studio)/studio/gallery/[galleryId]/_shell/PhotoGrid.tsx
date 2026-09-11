@@ -6,7 +6,8 @@
  *
  * 줌은 타일 최소 폭(120~320px)으로 바뀐다. 가로세로 크기 값이 서버 사진 응답에 없어 지금은
  * 3:2 고정 비율로 자르고(object-cover), 높이 맞춤 정렬(justified)은 크기 값이 오면 바꾼다.
- * PENDING(올리는 중) 사진은 회색 자리. selectable이면 클릭 = 작가 선택 토글.
+ * PENDING(올리는 중) 사진은 회색 자리. HEIC · HEIF는 임베더가 미리보기를 만들기 전(previewReady=false)엔
+ * 원본 URL이라 브라우저가 못 그리므로 "미리보기 준비 중" 자리. selectable이면 클릭 = 작가 선택 토글.
  * markedIds(클라이언트가 고른 사진)는 같은 선택 구조로 표시만 한다(2단계, 2026-09-11 결정).
  */
 
@@ -55,6 +56,8 @@ export function PhotoGrid({
       {photos.map((photo) => {
         const selected = selectedIds.has(photo.photoId) || (markedIds?.has(photo.photoId) ?? false);
         const pending = photo.viewUrl === null;
+        // 임베더가 파생 JPEG를 만들기 전의 HEIC · HEIF 원본은 <img>가 못 그린다
+        const preparing = !pending && !photo.previewReady && /hei[cf]/i.test(photo.contentType);
         return (
           <button
             key={photo.photoId}
@@ -70,9 +73,12 @@ export function PhotoGrid({
                 : ""
             }`}
           >
-            {pending ? (
+            {pending || preparing ? (
               <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
-                <PhotoIcon size={22} />
+                <span className="flex flex-col items-center gap-1">
+                  <PhotoIcon size={22} />
+                  {preparing && <span className="type-label-semibold-xs">미리보기 준비 중</span>}
+                </span>
               </span>
             ) : (
               // eslint-disable-next-line @next/next/no-img-element

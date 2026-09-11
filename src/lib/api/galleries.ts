@@ -34,6 +34,16 @@ export type GalleryResponse = {
   /** 계약한 보정 요청 횟수. null이면 제한이 없다. */
   maxRetouchRoundCount: number | null;
   createdAt: string | null;
+  /** 클라이언트가 폴더 확정(from-clusters)을 해야 고를 수 있는 갤러리인지. 새 갤러리는 true */
+  photoOrganizationRequired: boolean;
+  /** 클라이언트가 폴더를 확정한 시각. null이면 아직 — 확정 전엔 클라이언트가 고를 수 없다 */
+  foldersSavedAt: string | null;
+  retouchConfirmedAt: string | null;
+  archivedUntil: string | null;
+  /** 플랜 기간 끝. 지나면 업로드 · 편집이 403(GALLERY_403_6) */
+  planExpiresAt: string | null;
+  /** 플랜의 사진 상한. 발급 때 "지금 사진 + 올릴 사진"이 넘으면 409(GALLERY_409_3). null이면 제한 없음 */
+  planMaxPhotoCount: number | null;
 };
 
 export type CreateGalleryRequest = {
