@@ -96,7 +96,7 @@ export function ShellSidebar({
 
   return (
     <aside className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main">
-      <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-4.5 pb-3">
+      <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-4.5 pb-3">
         <div>
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>
           <p className={`mt-0.5 type-label-semibold-xs ${TONE_CLASS[status.tone]}`}>{status.text}</p>

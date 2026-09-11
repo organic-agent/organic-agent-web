@@ -79,11 +79,17 @@ export function ShellMainHeader({
       </h2>
 
       <div className="flex shrink-0 items-center gap-3">
-        <label className="flex items-center gap-2 type-content-xs text-contents-light-bgd-weakness">
+        <div className="flex items-center gap-1.5 type-content-xs text-contents-light-bgd-weakness">
           <span className="w-8 text-right tabular-nums">{zoom}%</span>
-          <span className="flex text-contents-light-bgd-weakness">
+          <button
+            type="button"
+            aria-label="사진 작게"
+            disabled={zoom <= 0}
+            onClick={() => onZoomChange(Math.max(0, zoom - 10))}
+            className="grid size-6 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness transition-colors duration-fast hover:bg-surface-default-light hover:text-contents-light-bgd-default disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+          >
             <ZoomOutIcon size={16} />
-          </span>
+          </button>
           <input
             type="range"
             min={0}
@@ -94,10 +100,16 @@ export function ShellMainHeader({
             aria-label="사진 크기"
             className="h-1 w-24 cursor-pointer appearance-none rounded-(--pill) bg-border-default accent-contents-light-bgd-default"
           />
-          <span className="flex text-contents-light-bgd-weakness">
+          <button
+            type="button"
+            aria-label="사진 크게"
+            disabled={zoom >= 100}
+            onClick={() => onZoomChange(Math.min(100, zoom + 10))}
+            className="grid size-6 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness transition-colors duration-fast hover:bg-surface-default-light hover:text-contents-light-bgd-default disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+          >
             <ZoomInIcon size={16} />
-          </span>
-        </label>
+          </button>
+        </div>
 
         <div className="flex gap-0.5" role="group" aria-label="보기">
           <IconButton icon={<GridViewIcon size={18} />} aria-label="그리드" selected />

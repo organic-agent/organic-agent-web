@@ -80,6 +80,16 @@ const ICONS = [
   ['FolderIcon', 'folder'],
   ['FolderOffIcon', 'folder_off'],
   ['SelectAllIcon', 'select_all'],
+  ['CloudUploadIcon', 'cloud_upload'],
+  ['CloudOffIcon', 'cloud_off'],
+  ['PauseIcon', 'pause'],
+  ['PlayIcon', 'play_arrow'],
+  ['AddPhotoIcon', 'add_photo_alternate'],
+  ['MoveToFolderIcon', 'drive_file_move'],
+  ['CreateFolderIcon', 'create_new_folder'],
+  ['MoreVertIcon', 'more_vert'],
+  ['RefreshIcon', 'refresh'],
+  ['ErrorIcon', 'error'],
 ];
 
 const paths = (symbol) => {

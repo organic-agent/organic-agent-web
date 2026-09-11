@@ -16,7 +16,8 @@ import { IconButton } from "@/components/ui/IconButton";
 
 type GalleryModalShellProps = {
   title: string;
-  desc?: string;
+  /** 설명 — 문자열 또는 <br />로 줄을 나눈 노드 */
+  desc?: ReactNode;
   maxWidthClassName?: string;
   paddingClassName?: string;
   onClose: () => void;
