@@ -88,6 +88,36 @@ export function forgetUploaded(galleryId: number, photoIds: number[]) {
   write(galleryId, kept);
 }
 
-export function clearRemembered(galleryId: number) {
-  write(galleryId, []);
+/* ── 올리는 중 심장 박동 — 다른 탭이 이 갤러리의 PENDING을 복구 대상으로 오해하지 않게 ── */
+
+const activeKeyOf = (galleryId: number) => `sel.upload.active.${galleryId}`;
+/** 이 시간 안에 박동이 있었으면 어느 탭인가가 올리는 중이다 */
+const ACTIVE_FRESH_MS = 20_000;
+
+export function touchUploadActive(galleryId: number) {
+  try {
+    window.localStorage.setItem(activeKeyOf(galleryId), String(Date.now()));
+  } catch {
+    // 저장소 불가 — 한 탭만 쓰는 경우엔 문제 없다
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+export function clearUploadActive(galleryId: number) {
+  try {
+    window.localStorage.removeItem(activeKeyOf(galleryId));
+  } catch {
+    // 무시
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+/** useSyncExternalStore 스냅샷 — "1"이면 어느 탭인가가 최근 20초 안에 올리는 중이라고 알렸다 */
+export function readUploadActiveRaw(galleryId: number): string {
+  try {
+    const at = Number(window.localStorage.getItem(activeKeyOf(galleryId)) ?? "");
+    return Number.isFinite(at) && at > 0 && Date.now() - at < ACTIVE_FRESH_MS ? "1" : "";
+  } catch {
+    return "";
+  }
 }

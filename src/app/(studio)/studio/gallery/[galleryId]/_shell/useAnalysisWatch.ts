@@ -94,9 +94,8 @@ export function useAnalysisWatch(
   const changedAtRef = useRef(0);
   const embeddedRef = useRef(-1);
   const autoRequestedRef = useRef(false);
-
-  /** 폴링을 지금 다시 깨운다(업로드 시작 · 끝) */
-  const wake = useCallback(() => setNonce((n) => n + 1), []);
+  /** 첫 폴링 — 들어왔을 때 이미 끝나 있던 잡은 "완료됨" 신호를 다시 보내지 않는다 */
+  const firstPollRef = useRef(true);
 
   /** 분석 잡 요청. 이미 도는 잡이 있으면 그 잡이 흡수(CATEGORIZING이면 끝난 뒤 한 번 더) */
   const request = useCallback(async () => {
@@ -140,12 +139,21 @@ export function useAnalysisWatch(
     if (!enabled) return;
     let cancelled = false;
     let timer: number | undefined;
+    let inFlight = false;
+
+    function schedule(ms: number) {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void poll(), ms);
+    }
 
     async function poll() {
+      if (cancelled || inFlight) return;
       if (document.visibilityState !== "visible") {
-        timer = window.setTimeout(() => void poll(), POLL_HIDDEN_MS);
+        schedule(POLL_HIDDEN_MS);
         return;
       }
+      inFlight = true;
       try {
         const [latest, latestSummary] = await Promise.all([
           getLatestAnalysis(galleryId),
@@ -169,6 +177,11 @@ export function useAnalysisWatch(
           if (previous >= 0) callbacksRef.current.onEmbeddedChange?.();
         }
 
+        if (latest && (latest.status === "DONE" || latest.status === "FAILED") && firstPollRef.current) {
+          // 들어왔을 때 이미 끝나 있던 잡 — 첫 로드가 폴더 · 사진을 읽었으니 다시 읽지 않는다
+          finishedJobsRef.current.add(latest.jobId);
+        }
+        firstPollRef.current = false;
         if (latest?.status === "DONE" && !finishedJobsRef.current.has(latest.jobId)) {
           finishedJobsRef.current.add(latest.jobId);
           callbacksRef.current.onDone?.(latest);
@@ -178,6 +191,7 @@ export function useAnalysisWatch(
           queuedRef.current = false;
           setQueued(false);
           await request();
+          schedule(POLL_FAST_MS); // 요청이 실패해도 폴링은 이어 간다
           return;
         }
 
@@ -193,6 +207,7 @@ export function useAnalysisWatch(
         if (needsJob && !autoRequestedRef.current) {
           autoRequestedRef.current = true;
           await request();
+          schedule(POLL_FAST_MS);
           return;
         }
 
@@ -203,22 +218,19 @@ export function useAnalysisWatch(
         const active = isAnalysisActive(latest);
         if (active || uploading || busyCounts) {
           if (now - changedAtRef.current > STALL_AFTER_MS) setStalled(true);
-          timer = window.setTimeout(
-            () => void poll(),
-            now - changedAtRef.current < FAST_WINDOW_MS ? POLL_FAST_MS : POLL_SLOW_MS,
-          );
+          schedule(now - changedAtRef.current < FAST_WINDOW_MS ? POLL_FAST_MS : POLL_SLOW_MS);
         }
       } catch {
-        if (!cancelled) timer = window.setTimeout(() => void poll(), POLL_ERROR_MS);
+        schedule(POLL_ERROR_MS);
+      } finally {
+        inFlight = false;
       }
     }
 
-    timer = window.setTimeout(() => void poll(), 100);
+    schedule(100);
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        if (timer) window.clearTimeout(timer);
-        timer = window.setTimeout(() => void poll(), 50);
-      }
+      // 요청이 진행 중이면 그 요청이 다음 차례를 잡는다 — 폴링 사슬이 둘로 갈라지지 않게
+      if (document.visibilityState === "visible" && !inFlight) schedule(50);
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -228,5 +240,5 @@ export function useAnalysisWatch(
     };
   }, [galleryId, enabled, uploading, nonce, request]);
 
-  return { job, summary, stalled, queued, error, request, materialize, wake };
+  return { job, summary, stalled, queued, error, request, materialize };
 }

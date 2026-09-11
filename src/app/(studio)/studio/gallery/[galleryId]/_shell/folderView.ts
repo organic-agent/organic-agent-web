@@ -41,7 +41,10 @@ export function normalizeFolders(
   }));
 }
 
-/** 같은 이름(공백 제외)의 컨셉 묶음 — 앞에 있는 것(sortOrder · id 작은 것)이 첫 원소 */
+/**
+ * 같은 이름(공백 제외)의 컨셉 묶음 — 첫 원소가 남길 것(sortOrder · id 작은 것), 나머지는 **AI가 덧붙인 것만**.
+ * 작가가 직접 만든(USER) 같은 이름 폴더는 의도일 수 있어 건드리지 않는다.
+ */
 export function duplicateConceptGroups(folders: ConceptFolderResponse[]): ConceptFolderResponse[][] {
   const byName = new Map<string, ConceptFolderResponse[]>();
   for (const concept of folders) {
@@ -50,7 +53,12 @@ export function duplicateConceptGroups(folders: ConceptFolderResponse[]): Concep
   }
   return [...byName.values()]
     .filter((group) => group.length > 1)
-    .map((group) => [...group].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id));
+    .map((group) => {
+      const sorted = [...group].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+      const [keeper, ...rest] = sorted;
+      return [keeper, ...rest.filter((c) => c.createdSource === "AI")];
+    })
+    .filter((group) => group.length > 1);
 }
 
 /**

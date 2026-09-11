@@ -24,6 +24,7 @@ import {
   formatBytes,
   isAcceptedUpload,
   prepareCached,
+  uploadContentType,
 } from "./uploadSupport";
 
 type Entry = {
@@ -89,9 +90,11 @@ export function UploadModal({
       const key = entryKey(file);
       if (seen.has(key)) continue;
       seen.add(key);
+      // JPG는 2048로 줄여 올라가므로 원본이 커도 되지만(80MB까지), PNG · WebP · HEIC는 원본 그대로라 서버 상한 20MB에서 막는다
+      const sizeLimit = uploadContentType(file) === "image/jpeg" ? UPLOAD_MAX_BYTES * 4 : UPLOAD_MAX_BYTES;
       const excluded: Entry["excluded"] = !isAcceptedUpload(file)
         ? "type"
-        : file.size > UPLOAD_MAX_BYTES * 4 // 원본 상한은 서버 20MB지만 줄여 올리므로 아주 큰 파일만 미리 막는다
+        : file.size > sizeLimit
           ? "size"
           : existingNames.has(file.name)
             ? "duplicate"

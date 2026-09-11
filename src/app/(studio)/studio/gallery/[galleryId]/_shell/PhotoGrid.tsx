@@ -5,7 +5,8 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid.tsx
  *
  * 줌은 기준 행 높이(80~220px)로 바뀐다. 한 줄에 사진을 비율대로 이어 붙이다가 폭을 넘기면 그 줄을
- * 폭에 맞춰 살짝 키우거나 줄인다. 마지막 줄은 기준 높이 그대로 왼쪽 정렬(빈 자리는 남긴다 — 2026-09-11 답).
+ * 폭에 맞춰 살짝 줄인다(넘긴 뒤 맞추므로 늘리는 일은 없다). 마지막 줄은 기준 높이 그대로 왼쪽 정렬
+ * (빈 자리는 남긴다 — 2026-09-11 답).
  * 가로세로 크기 값이 서버 사진 응답에 없어(백엔드 요청) 비율은 이미지가 로드될 때 재서 모듈 캐시에 둔다 —
  * 모르는 동안은 3:2로 두고 알게 되면 줄이 다시 흐른다. 서버가 width · height를 주면 그 값으로 캐시를 채우면 된다.
  *
@@ -20,13 +21,8 @@ import type { PhotoResponse } from "@/lib/api/photos";
 
 /** 줌 0~100 → 기준 행 높이(px) */
 export const rowHeightOf = (zoom: number) => Math.round(80 + (zoom / 100) * 140);
-/** 옛 호출부 호환 — 기준 타일 폭(3:2 기준) */
-export const tileWidthOf = (zoom: number) => Math.round(rowHeightOf(zoom) * 1.5);
-
 const GAP = 8;
 const DEFAULT_RATIO = 1.5;
-/** 한 줄에 한 장만 남아 폭에 맞추면 너무 커지는 것을 막는 상한 */
-const MAX_ROW_SCALE = 1.35;
 
 /** 사진 비율 캐시(가로/세로) — 폴더를 오가도, 다시 그려도 잊지 않는다 */
 const ratioCache = new Map<number, number>();
@@ -44,15 +40,16 @@ function layoutRows(photos: PhotoResponse[], width: number, rowHeight: number): 
     if (current.length === 0) return;
     const gaps = GAP * (current.length - 1);
     const natural = sum * rowHeight;
-    let scale = (width - gaps) / natural;
-    if (last) scale = Math.min(scale, 1);
-    scale = Math.min(scale, MAX_ROW_SCALE);
-    const height = Math.round(rowHeight * scale);
-    rows.push({
-      photos: current,
-      height,
-      widths: ratios.map((r) => Math.floor(r * height)),
-    });
+    const scale = Math.min(1, (width - gaps) / natural);
+    const exact = rowHeight * scale;
+    const height = Math.floor(exact);
+    // 폭은 반올림 전 높이로 재고, 마지막 장이 남은 폭을 가져가 줄이 넘치지 않게 한다
+    const widths = ratios.map((r) => Math.floor(r * exact));
+    if (!last && widths.length > 0) {
+      const others = widths.slice(0, -1).reduce((n, w) => n + w, 0);
+      widths[widths.length - 1] = Math.max(1, width - gaps - others);
+    }
+    rows.push({ photos: current, height, widths });
     current = [];
     ratios = [];
     sum = 0;

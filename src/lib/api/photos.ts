@@ -258,6 +258,9 @@ export function putToS3(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", uploadUrl);
+    // 멈춘 연결이 워커 자리를 영원히 붙들지 않게 — 2MB 안팎 한 장에 5분이면 넉넉하다
+    xhr.timeout = 5 * 60_000;
+    xhr.ontimeout = () => reject(new S3PutError(0, "S3 업로드 시간 초과"));
     xhr.setRequestHeader("Content-Type", contentType);
     if (crc32c) xhr.setRequestHeader("x-amz-checksum-crc32c", crc32c);
     xhr.upload.onprogress = (e) => {

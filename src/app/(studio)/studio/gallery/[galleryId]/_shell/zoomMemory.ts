@@ -20,6 +20,7 @@ export function readZoomRaw(): string {
 }
 
 export function parseZoom(raw: string): number {
+  if (!raw) return DEFAULT_ZOOM; // Number("")은 0이라 기본값 검사 앞에서 걸러야 한다
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 && n <= 100 ? Math.round(n) : DEFAULT_ZOOM;
 }

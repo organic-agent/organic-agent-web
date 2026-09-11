@@ -32,10 +32,15 @@ const HEADER_PROBE_BYTES = 256 * 1024;
 self.onmessage = async (event: MessageEvent<MasterResizeRequest>) => {
   const { id, file } = event.data;
   try {
-    const result =
-      file.type === "image/jpeg"
-        ? await resize(file)
-        : { blob: file as Blob, resized: false };
+    let result: { blob: Blob; resized: boolean } = { blob: file, resized: false };
+    if (file.type === "image/jpeg") {
+      try {
+        result = await resize(file);
+      } catch (error) {
+        // 헤더를 못 읽거나(.jpg인데 실제는 다른 형식) 디코드가 안 되면 원본을 그대로 올린다 — 임베더가 처리한다
+        console.warn(`리사이즈 건너뜀(원본 그대로): ${file.name}`, error);
+      }
+    }
     const crc = await crc32cOfBlob(result.blob);
     const response: MasterResizeResponse = {
       id,

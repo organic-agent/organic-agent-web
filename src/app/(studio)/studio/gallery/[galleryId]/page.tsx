@@ -92,6 +92,7 @@ import {
   forgetUploaded,
   parseRemembered,
   readRememberedRaw,
+  readUploadActiveRaw,
   subscribeRemembered,
 } from "./_shell/uploadMemory";
 import { matchRecoveryFiles, recoverablePending } from "./_shell/uploadRecovery";
@@ -208,15 +209,36 @@ export default function StudioGalleryShellPage() {
   }, [galleryId]);
 
   // ── 조용한 재조회 — 업로드 · 분석 진행이 목록을 갈아 끼울 때(스크롤 유지, 로딩 화면 없음) ──
+  // 한 번에 하나만 돌고(겹치면 끝난 뒤 한 번 더), 늦게 온 옛 응답이 새 목록을 덮지 않게 순번을 본다
+  const refreshSeqRef = useRef(0);
+  const refreshBusyRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
   const refreshPhotos = useCallback(async () => {
+    if (refreshBusyRef.current) {
+      refreshQueuedRef.current = true;
+      return;
+    }
+    refreshBusyRef.current = true;
     try {
-      const list = await listAllPhotos(galleryId);
-      setPhotos(list);
-      setPhotosLoadedAt(Date.now());
-    } catch {
-      // 다음 갱신 때 다시
+      do {
+        refreshQueuedRef.current = false;
+        const seq = ++refreshSeqRef.current;
+        try {
+          const list = await listAllPhotos(galleryId);
+          if (seq === refreshSeqRef.current) {
+            setPhotos(list);
+            setPhotosLoadedAt(Date.now());
+          }
+        } catch {
+          // 다음 갱신 때 다시
+        }
+      } while (refreshQueuedRef.current);
+    } finally {
+      refreshBusyRef.current = false;
     }
   }, [galleryId]);
+  // 임베딩 수가 늘 때마다(3초) 전체 목록을 다시 읽으면 수천 장에서 무겁다 — 10초에 한 번만
+  const lastEmbeddedRefreshRef = useRef(0);
   const refreshFolders = useCallback(async () => {
     try {
       setFolders(await listConceptFolders(galleryId));
@@ -284,7 +306,12 @@ export default function StudioGalleryShellPage() {
             );
         })();
       },
-      onEmbeddedChange: () => void refreshPhotos(),
+      onEmbeddedChange: () => {
+        const now = Date.now();
+        if (now - lastEmbeddedRefreshRef.current < 10_000) return;
+        lastEmbeddedRefreshRef.current = now;
+        void refreshPhotos();
+      },
     },
   );
   useEffect(() => {
@@ -368,10 +395,16 @@ export default function StudioGalleryShellPage() {
     () => "",
   );
   const remembered = useMemo(() => parseRemembered(rememberedRaw), [rememberedRaw]);
-  const existingNames = useMemo(() => new Set((photos ?? []).map((p) => p.originalFileName)), [photos]);
+  const existingNames = useMemo(() => new Set(allPhotos.map((p) => p.originalFileName)), [allPhotos]);
+  // 다른 탭이 이 갤러리를 올리는 중이면(심장 박동 20초 안) 그 탭의 PENDING을 복구 대상으로 삼지 않는다
+  const otherTabUploading =
+    useSyncExternalStore(subscribeRemembered, () => readUploadActiveRaw(galleryId), () => "") === "1";
   const recoverable = useMemo(
-    () => (uploading || stageIndex !== 0 ? [] : recoverablePending(pendingPhotos, remembered, photosLoadedAt)),
-    [uploading, stageIndex, pendingPhotos, remembered, photosLoadedAt],
+    () =>
+      uploading || otherTabUploading || stageIndex !== 0
+        ? []
+        : recoverablePending(pendingPhotos, remembered, photosLoadedAt),
+    [uploading, otherTabUploading, stageIndex, pendingPhotos, remembered, photosLoadedAt],
   );
   // 서버에서 이미 UPLOADED가 됐거나(스윕 보정) 지워진 사진의 기억은 정리 — 목록을 읽은 뒤 발급된 것은 건드리지 않는다
   useEffect(() => {
@@ -426,26 +459,35 @@ export default function StudioGalleryShellPage() {
   async function confirmDeletePhotos() {
     const deleted = new Set(selected);
     await deletePhotos(galleryId, [...deleted]);
-    // 사진이 다 빠져 비게 된 폴더는 함께 지운다 — 세부 폴더가 전부 비면 컨셉째, 일부면 그 세부 폴더만
+    // 사진이 다 빠져 비게 된 폴더는 함께 지운다 — 세부 폴더가 전부 비면 컨셉째, 일부면 그 세부 폴더만.
+    // 원래 비어 있던 폴더(작가가 만들어 둔 것)는 건드리지 않는다. 폴더 정리가 실패해도 사진 삭제는 이미 됐으니 화면은 갱신한다.
     let selectionGone = false;
-    for (const concept of folders ?? []) {
-      const touched = concept.details.filter((d) => d.photoIds.some((id) => deleted.has(id)));
-      if (touched.length === 0) continue;
-      const emptied = concept.details.filter((d) => d.photoIds.every((id) => deleted.has(id)));
-      if (emptied.length === concept.details.length) {
-        await deleteConceptFolder(galleryId, concept.id);
-        if ((folderSel.kind === "detail" || folderSel.kind === "concept") && folderSel.conceptId === concept.id)
-          selectionGone = true;
-      } else {
-        for (const detail of emptied) {
-          await deleteDetailFolder(galleryId, concept.id, detail.id);
-          if (folderSel.kind === "detail" && folderSel.detailId === detail.id) selectionGone = true;
+    let cleanupError: unknown = null;
+    try {
+      for (const concept of folders ?? []) {
+        const touched = concept.details.filter((d) => d.photoIds.some((id) => deleted.has(id)));
+        if (touched.length === 0) continue;
+        const emptied = touched.filter((d) => d.photoIds.every((id) => deleted.has(id)));
+        const stillFilled = concept.details.some((d) => d.photoIds.some((id) => !deleted.has(id)));
+        if (!stillFilled) {
+          await deleteConceptFolder(galleryId, concept.id);
+          if ((folderSel.kind === "detail" || folderSel.kind === "concept") && folderSel.conceptId === concept.id)
+            selectionGone = true;
+        } else {
+          for (const detail of emptied) {
+            await deleteDetailFolder(galleryId, concept.id, detail.id);
+            if (folderSel.kind === "detail" && folderSel.detailId === detail.id) selectionGone = true;
+          }
         }
       }
+    } catch (err) {
+      cleanupError = err;
+    } finally {
+      await Promise.all([refreshPhotos(), refreshFolders()]);
+      if (selectionGone) setFolderSel({ kind: "all" });
+      setSelected(new Set());
     }
-    await Promise.all([refreshPhotos(), refreshFolders()]);
-    if (selectionGone) setFolderSel({ kind: "all" });
-    setSelected(new Set());
+    if (cleanupError) throw cleanupError; // 모달이 문구를 보인다 — 사진은 지워졌고 폴더만 남은 상태
     setDeletePhotosOpen(false);
   }
   async function discardPending() {
@@ -856,7 +898,7 @@ export default function StudioGalleryShellPage() {
               실패 {run.failed}장 다시 올리기
             </ShellCta>
           )}
-          {aiFailed && (
+          {(aiFailed || analysis.error) && (
             <ShellCta kind="secondary" onClick={() => void analysis.request()}>
               <SparkleIcon size={18} />
               AI 정리 다시 시도
@@ -958,8 +1000,7 @@ export default function StudioGalleryShellPage() {
             view={view}
             onViewChange={(next) => {
               changeView(next);
-              if (next !== "all") setFolderSel({ kind: "all" });
-              else setFolderSel({ kind: "all" });
+              setFolderSel({ kind: "all" });
             }}
           />
         )}

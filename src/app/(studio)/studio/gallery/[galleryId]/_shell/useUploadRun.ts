@@ -34,14 +34,20 @@ import {
   UPLOAD_PUT_CONCURRENCY,
   UPLOAD_PUT_RETRY_MS,
 } from "@/lib/upload/masterSpec";
-import { forgetUploaded, rememberIssued } from "./uploadMemory";
+import { ApiError } from "@/lib/api/client";
+import { clearUploadActive, forgetUploaded, rememberIssued, touchUploadActive } from "./uploadMemory";
 import {
+  UPLOAD_MAX_BYTES,
   chunk,
   describeUploadError,
   prepareCached,
   releasePrepared,
   uploadContentType,
 } from "./uploadSupport";
+
+/** 다른 탭에 "이 갤러리를 올리는 중"이라고 알리는 심장 박동 주기 */
+const ACTIVE_HEARTBEAT_MS = 5000;
+const OVERSIZE_MESSAGE = "20MB를 넘는 사진은 올릴 수 없어요(JPG는 자동으로 줄어들지만 PNG · HEIC는 원본 그대로 올라가요).";
 
 export type UploadPhase = "idle" | "running" | "paused" | "finished";
 
@@ -142,8 +148,13 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
       let error: string | null = null;
       const startedAt = Date.now();
       let lastPublish = 0;
+      let finished = false;
+      // 다른 탭이 이 갤러리의 PENDING을 "못 올라온 사진"으로 오해하지 않게 살아 있다고 알린다
+      touchUploadActive(galleryId);
+      const heartbeat = window.setInterval(() => touchUploadActive(galleryId), ACTIVE_HEARTBEAT_MS);
 
       function publish(force = false) {
+        if (finished) return; // 마무리 뒤 늦게 도착한 진행 이벤트는 무시
         const now = Date.now();
         if (!force && now - lastPublish < PUBLISH_THROTTLE_MS) return;
         lastPublish = now;
@@ -189,10 +200,17 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         const ready: { file: File; prepared: PreparedFile }[] = [];
         batch.forEach((file, i) => {
           const item = prepared[i];
-          if (item) ready.push({ file, prepared: item });
-          else failedFiles.push(file);
+          if (!item) failedFiles.push(file);
+          else if (item.blob.size > UPLOAD_MAX_BYTES) {
+            // 서버는 묶음 전체를 거절한다(PHOTO_400_7) — 한 장 때문에 100장이 실패하지 않게 여기서 뺀다
+            failedFiles.push(file);
+            error = OVERSIZE_MESSAGE;
+          } else ready.push({ file, prepared: item });
         });
-        if (ready.length === 0) return [];
+        if (ready.length === 0) {
+          publish(true);
+          return [];
+        }
         let res;
         try {
           res = await issueUploadUrls(
@@ -231,7 +249,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
             fileName: job.file.name,
             size: job.file.size,
             contentType: job.contentType,
-            issuedAt: startedAt,
+            issuedAt: Date.now(),
           })),
         );
         return issued;
@@ -248,9 +266,16 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
           else failedFiles.push(item.file);
         });
         if (ready.length === 0) return [];
-        let res;
+        const toIssued = (item: ResumeItem, result: PreparedFile, uploadUrl: string): Issued => ({
+          file: item.file,
+          prepared: result,
+          photoId: item.photoId,
+          uploadUrl,
+          contentType: uploadContentType(item.file),
+        });
+        const issued: Issued[] = [];
         try {
-          res = await reissueUploadUrls(
+          const res = await reissueUploadUrls(
             galleryId,
             ready.map(({ item, prepared: result }) => ({
               photoId: item.photoId,
@@ -258,25 +283,51 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
               crc32c: result.crc32c,
             })),
           );
+          const byId = new Map(res.uploads.map((upload) => [upload.photoId, upload.uploadUrl]));
+          for (const { item, prepared: result } of ready) {
+            const uploadUrl = byId.get(item.photoId);
+            if (uploadUrl) issued.push(toIssued(item, result, uploadUrl));
+            else {
+              failedFiles.push(item.file);
+              failedIssuedRef.current.set(item.file, item.photoId);
+            }
+          }
+          return issued;
         } catch (err) {
-          for (const { item } of ready) failedFiles.push(item.file);
-          error = describeUploadError(err);
-          publish(true);
-          return [];
+          const alreadyUploadedMixed = err instanceof ApiError && err.code === "PHOTO_409_1";
+          if (!alreadyUploadedMixed) {
+            for (const { item } of ready) {
+              failedFiles.push(item.file);
+              failedIssuedRef.current.set(item.file, item.photoId); // 다음 다시 올리기도 재발급으로
+            }
+            error = describeUploadError(err);
+            publish(true);
+            return [];
+          }
         }
-        const byId = new Map(res.uploads.map((upload) => [upload.photoId, upload.uploadUrl]));
-        const issued: Issued[] = [];
+        // 묶음에 이미 올라간(UPLOADED) 사진이 섞여 전부 거절됐다 — PUT은 됐는데 응답만 잃은 사진이다.
+        // 한 장씩 다시 받아, 한 장짜리 409는 "이미 올라감"으로 세고 나머지는 이어 올린다.
         for (const { item, prepared: result } of ready) {
-          const uploadUrl = byId.get(item.photoId);
-          if (uploadUrl)
-            issued.push({
-              file: item.file,
-              prepared: result,
-              photoId: item.photoId,
-              uploadUrl,
-              contentType: uploadContentType(item.file),
-            });
-          else failedFiles.push(item.file);
+          if (controller.signal.aborted) break;
+          try {
+            const res = await reissueUploadUrls(galleryId, [
+              { photoId: item.photoId, contentLength: result.blob.size, crc32c: result.crc32c },
+            ]);
+            const uploadUrl = res.uploads[0]?.uploadUrl;
+            if (uploadUrl) issued.push(toIssued(item, result, uploadUrl));
+            else failedFiles.push(item.file);
+          } catch (single) {
+            if (single instanceof ApiError && single.code === "PHOTO_409_1") {
+              releasePrepared(item.file);
+              ratioByFile.set(item.file, 1);
+              completedIds.push(item.photoId); // 통보는 멱등 — 이미 UPLOADED여도 안전
+              done += 1;
+              publish(true);
+            } else {
+              failedFiles.push(item.file);
+              failedIssuedRef.current.set(item.file, item.photoId);
+            }
+          }
         }
         return issued;
       }
@@ -341,11 +392,13 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
       async function putAll(issued: Issued[]) {
         let cursor = 0;
         async function worker() {
-          while (cursor < issued.length && !controller.signal.aborted) {
+          while (!controller.signal.aborted) {
             await waitIfPaused();
             if (controller.signal.aborted) return;
-            const job = issued[cursor++];
-            if (job.prepared.resized) resized += 1;
+            // 일시정지 동안 여러 워커가 여기서 기다리다 함께 깨어난다 — 깨어난 뒤 다시 남은 일이 있는지 본다
+            const index = cursor++;
+            if (index >= issued.length) return;
+            const job = issued[index];
             try {
               await put(job);
             } catch {
@@ -360,6 +413,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
             ratioByFile.set(job.file, 1);
             completedIds.push(job.photoId);
             done += 1;
+            if (job.prepared.resized) resized += 1;
             publish(true);
             if (completedIds.length >= UPLOAD_COMPLETE_BATCH) await flushComplete();
           }
@@ -393,6 +447,9 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
       for (const file of files) if (!failedSet.has(file)) releasePrepared(file);
       for (const item of resume) if (!failedSet.has(item.file)) releasePrepared(item.file);
 
+      finished = true;
+      window.clearInterval(heartbeat);
+      clearUploadActive(galleryId);
       const aborted = controller.signal.aborted;
       lastFailedRef.current = failedFiles;
       runningRef.current = false;
