@@ -10,14 +10,10 @@
  * (useAnalysisWatch) · 끊김 복구(RecoveryBanner) · 검토 동작(FolderColumn 케밥 · FolderModals: 폴더 추가 · 삭제 ·
  * 사진 이동 · 사진 삭제=휴지통 이동). 이름 바꾸기는 서버 API가 없어 없다.
  * 셀렉 완료 → 보정 작업 전환은 서버 방법 확인 전이라 확인 모달까지만.
- *
- * 개발 서버 전용 장치(배포 빌드에서는 코드가 빠진다):
- *  - ?stage=N : 단계 화면 강제(1~5) — 레이아웃 확인용. C2 끝날 때 남길지 결정.
- *  - 사진 0장에서도 "갤러리 열기" 허용 — 업로드(B2)가 없어 만든 우회. **삭제 시점: B2 머지 뒤.**
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import {
@@ -102,8 +98,6 @@ import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "./_shell/zoomMemory";
 
-const DEV = process.env.NODE_ENV === "development";
-
 /** 사진 목록은 200장씩 — 전부 받아 한 화면에서 거른다 (수천 장까지) */
 async function listAllPhotos(galleryId: number): Promise<PhotoResponse[]> {
   // 올리는 중에 목록을 읽으면 페이지 사이에 행이 끼어들 수 있어 같은 사진이 두 번 올 수 있다 — id로 한 번만
@@ -137,7 +131,6 @@ type SelectSub = "invite" | "picking" | "submitted" | "overdue";
 export default function StudioGalleryShellPage() {
   const params = useParams<{ galleryId: string }>();
   const galleryId = Number(params.galleryId);
-  const searchParams = useSearchParams();
   const { collapsed } = useSidebar();
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
 
@@ -272,12 +265,7 @@ export default function StudioGalleryShellPage() {
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
   // ── 단계 ──
-  const stageOverride = DEV ? Number(searchParams.get("stage")) : NaN;
-  const stageIndex = gallery
-    ? Number.isInteger(stageOverride) && stageOverride >= 1 && stageOverride <= SHELL_STAGES.length
-      ? stageOverride - 1
-      : stageIndexOf(gallery)
-    : 0;
+  const stageIndex = gallery ? stageIndexOf(gallery) : 0;
   const inSelection = gallery !== null && stageIndex >= 1;
 
   // ── AI 분석 진행 감시(1단계) — 카운트(요약) + 잡 폴링, 완료 시 폴더 · 사진 재조회 ──
@@ -648,8 +636,7 @@ export default function StudioGalleryShellPage() {
   }
 
   const isOwner = studio?.role === "OWNER";
-  // 개발 서버에서는 사진 0장이어도 열 수 있게 — 업로드(B2) 전 임시 우회. 삭제 시점: B2 머지 뒤.
-  const canOpen = gallery?.status === "DRAFT" && !uploading && (allPhotos.length > 0 || DEV);
+  const canOpen = gallery?.status === "DRAFT" && !uploading && allPhotos.length > 0;
   const showFolderColumn = stageIndex === 0 && allPhotos.length > 0 && view === "all";
   const headerCommon = {
     zoom,
@@ -913,7 +900,7 @@ export default function StudioGalleryShellPage() {
             <UploadIcon size={18} />
             {allPhotos.length === 0 ? "사진 업로드" : "사진 더 올리기"}
           </ShellCta>
-          {(allPhotos.length > 0 || DEV) && (
+          {allPhotos.length > 0 && (
             <ShellCta disabled={!canOpen} onClick={() => setOpenConfirm(true)}>
               갤러리 열기
             </ShellCta>
