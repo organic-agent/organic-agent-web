@@ -25,12 +25,20 @@ export function ReviewBadge() {
   );
 }
 
+export type FolderPendingNote = {
+  /** 머리 오른쪽 짧은 상태 — "대기" · "만드는 중…" */
+  label: string;
+  /** 본문 안내 한두 문장 */
+  note: string;
+};
+
 export function FolderColumn({
   folders,
   totalPhotos,
   unsortedCount,
   selection,
   onSelect,
+  pendingNote = null,
 }: {
   /** null = 불러오는 중 */
   folders: ConceptFolderResponse[] | null;
@@ -38,6 +46,8 @@ export function FolderColumn({
   unsortedCount: number;
   selection: FolderSelection;
   onSelect: (selection: FolderSelection) => void;
+  /** 폴더가 아직 없을 때 AI 진행 상태(업로드 · 분석 중) — 없으면 기본 안내 */
+  pendingNote?: FolderPendingNote | null;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
@@ -58,8 +68,18 @@ export function FolderColumn({
     <div className="flex w-58 shrink-0 flex-col overflow-y-auto border-r border-divider-default bg-background-default-main px-3 py-4">
       <h2 className="mb-1.5 flex items-center justify-between px-1 type-label-semibold-xs text-contents-light-bgd-default">
         <span>컨셉 폴더</span>
-        <span className="font-normal text-contents-light-bgd-weakness">
-          {folders === null ? "…" : folders.length === 0 ? "없음" : `${folders.length} · ${sortedCount}장`}
+        <span
+          className={`font-normal ${
+            folders !== null && folders.length === 0 && pendingNote
+              ? "text-brand-secondary-dark"
+              : "text-contents-light-bgd-weakness"
+          }`}
+        >
+          {folders === null
+            ? "…"
+            : folders.length === 0
+              ? pendingNote?.label ?? "없음"
+              : `${folders.length} · ${sortedCount}장`}
         </span>
       </h2>
 
@@ -71,9 +91,11 @@ export function FolderColumn({
         </div>
       ) : folders.length === 0 ? (
         <p className="px-1 pt-1 type-content-xs leading-relaxed text-contents-light-bgd-weakness">
-          {totalPhotos === 0
-            ? "사진을 올리면 AI가 컨셉 · 세부 폴더로 나눠요"
-            : "폴더는 업로드가 끝나면 AI가 만들어요"}
+          {pendingNote
+            ? pendingNote.note
+            : totalPhotos === 0
+              ? "사진을 올리면 AI가 컨셉 · 세부 폴더로 나눠요"
+              : "폴더는 업로드가 끝나면 AI가 만들어요"}
         </p>
       ) : (
         <ul className="flex flex-col">

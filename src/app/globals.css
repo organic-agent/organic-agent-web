@@ -213,3 +213,15 @@
     }
   }
 }
+
+/* ─── 하단 바 진행 막대 — 비율을 셀 수 없는 진행(AI 폴더 만드는 중)은 조각이 오간다 ─── */
+@layer utilities {
+  @keyframes shell-indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
+}

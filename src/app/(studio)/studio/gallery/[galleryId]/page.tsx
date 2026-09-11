@@ -15,7 +15,7 @@
  *  - 사진 0장에서도 "갤러리 열기" 허용 — 업로드(B2)가 없어 만든 우회. **삭제 시점: B2 머지 뒤.**
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
@@ -30,11 +30,12 @@ import {
   PlayIcon,
   RefreshIcon,
   ScheduleIcon,
+  SparkleIcon,
   UploadIcon,
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
-import { ANALYSIS_JOB_ALREADY_ACTIVE, requestAnalysis } from "@/lib/api/analysis";
+import { isAnalysisActive } from "@/lib/api/analysis";
 import { ApiError } from "@/lib/api/client";
 import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import {
@@ -62,7 +63,8 @@ import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
 import { UploadModal } from "./_shell/UploadModal";
 import { ProgressBar } from "./_shell/UploadProgress";
-import { describeUploadError, formatEta } from "./_shell/uploadSupport";
+import { formatEta } from "./_shell/uploadSupport";
+import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
 
@@ -166,17 +168,17 @@ export default function StudioGalleryShellPage() {
       // 다음 갱신 때 다시
     }
   }, [galleryId]);
-
-  // ── 업로드 실행기 ──
-  // 큐가 비면 분석 잡을 요청한다 — 잡 없이는 폴더가 생기지 않는다. 진행 감시(폴링)는 3단계에서 붙는다.
-  const startAnalysis = useCallback(async () => {
+  const refreshFolders = useCallback(async () => {
     try {
-      await requestAnalysis(galleryId);
-    } catch (err) {
-      if (err instanceof ApiError && err.code === ANALYSIS_JOB_ALREADY_ACTIVE) return; // 도는 잡이 새 사진을 흡수한다
-      setUploadNotice(describeUploadError(err));
+      setFolders(await listConceptFolders(galleryId));
+    } catch {
+      // 다음 갱신 때 다시
     }
   }, [galleryId]);
+
+  // ── 업로드 실행기 ──
+  // 큐가 비면 분석 잡을 요청한다 — 잡 없이는 폴더가 생기지 않는다(감시 훅의 request, 아래에서 ref로 연결).
+  const requestAnalysisRef = useRef<() => Promise<void>>(async () => {});
   const {
     run,
     start: startUpload,
@@ -191,7 +193,7 @@ export default function StudioGalleryShellPage() {
       await refreshPhotos();
       if (aborted) setUploadNotice(`업로드를 중단했어요. ${done}장은 올라갔어요.`);
       else if (failed === 0) setUploadNotice(`${done}장 업로드 완료 · AI가 폴더로 정리하고 있어요`);
-      if (done > 0) void startAnalysis();
+      if (done > 0) void requestAnalysisRef.current();
       if (failed === 0) resetUpload();
     },
   });
@@ -206,6 +208,31 @@ export default function StudioGalleryShellPage() {
       : stageIndexOf(gallery)
     : 0;
   const inSelection = gallery !== null && stageIndex >= 1;
+
+  // ── AI 분석 진행 감시(1단계) — 카운트(요약) + 잡 폴링, 완료 시 폴더 · 사진 재조회 ──
+  const analysis = useAnalysisWatch(
+    galleryId,
+    {
+      enabled: stageIndex === 0 && gallery !== null && (uploading || (photos?.length ?? 0) > 0),
+      uploading,
+    },
+    {
+      onDone: () => {
+        void refreshFolders();
+        void refreshPhotos();
+        setUploadNotice(null);
+      },
+      onEmbeddedChange: () => void refreshPhotos(),
+    },
+  );
+  useEffect(() => {
+    requestAnalysisRef.current = analysis.request;
+  }, [analysis.request]);
+  const aiJob = analysis.job;
+  const aiActive = isAnalysisActive(aiJob);
+  const aiCategorizing = aiJob?.status === "CATEGORIZING";
+  const aiFailed = aiJob?.status === "FAILED" && !aiActive;
+  const aiCounts = analysisCounts(aiJob, analysis.summary);
 
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
   const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
@@ -284,6 +311,10 @@ export default function StudioGalleryShellPage() {
     if (photos === null) return { text: "불러오는 중…", tone: "muted" };
     if (stageIndex === 0) {
       if (uploading) return { text: `올리는 중 ${run.done} / ${run.total}`, tone: "accent" };
+      if (aiCategorizing) return { text: "폴더 만드는 중", tone: "accent" };
+      if (aiActive)
+        return { text: `AI 분석 중 ${aiCounts?.scored ?? 0} / ${aiCounts?.expected ?? 0}`, tone: "accent" };
+      if (aiFailed) return { text: "AI 정리 실패 · 다시 시도할 수 있어요", tone: "error" };
       if (allPhotos.length === 0) return { text: "사진 없음", tone: "muted" };
       if (!folders || folders.length === 0) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return reviewFolderCount > 0
@@ -376,6 +407,12 @@ export default function StudioGalleryShellPage() {
           <PhotoIcon size={18} />
         </span>
         모든 사진
+        {stageIndex === 0 && aiActive && (
+          <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+            <SparkleIcon size={12} />
+            {aiCategorizing ? "폴더 만드는 중" : "AI 분석 중"}
+          </span>
+        )}
         {inSelection && (
           <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
             {allPhotos.length}장{selectedCount > 0 && ` · 고른 사진 ${selectedCount}`}
@@ -434,6 +471,7 @@ export default function StudioGalleryShellPage() {
   // 하단 바 — 단계 · 하위 상태별
   const bottomHint = (() => {
     if (stageIndex === 0) {
+      if (analysis.error) return analysis.error;
       if (uploadNotice) return uploadNotice;
       if (allPhotos.length === 0) return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
       if (!folders || folders.length === 0) return "폴더는 업로드가 끝나면 AI가 만들어요";
@@ -494,6 +532,42 @@ export default function StudioGalleryShellPage() {
       </span>
     </span>
   ) : null;
+  const stalledNote = analysis.stalled ? "멈춘 것 같아요 · 서버가 다시 시도해요" : null;
+  const aiProgress =
+    stageIndex === 0 && !aiFailed && (aiActive || (uploading && aiCounts !== null && aiCounts.expected > 0)) ? (
+      aiCategorizing ? (
+        <ProgressBar
+          icon={<SparkleIcon size={18} />}
+          title="AI가 컨셉 · 세부 폴더로 나누고 있어요"
+          ratio={null}
+          indeterminate
+          sub={stalledNote ?? "끝나면 알림으로 알려 드려요"}
+        />
+      ) : (
+        <ProgressBar
+          icon={<SparkleIcon size={18} />}
+          title={`AI 분석 ${aiCounts?.scored ?? 0} / ${aiCounts?.expected ?? 0}`}
+          ratio={
+            aiCounts && aiCounts.expected > 0
+              ? (aiCounts.embedded + aiCounts.scored) / (2 * aiCounts.expected)
+              : null
+          }
+          sub={stalledNote ?? (aiCounts && aiCounts.embedded < aiCounts.expected ? "임베딩 · 점수" : "점수")}
+        />
+      )
+    ) : stageIndex === 0 && aiFailed && !uploading ? (
+      <span className="flex min-w-0 items-center gap-2 type-content-s text-contents-light-bgd-default">
+        <span className="flex shrink-0 text-function-warning-default">
+          <ErrorIcon size={18} />
+        </span>
+        <span className="min-w-0 truncate">
+          <b className="font-semibold">AI 정리에 실패했어요</b>
+          {aiJob?.error ? ` · ${aiJob.error}` : ""}
+        </span>
+      </span>
+    ) : null;
+  const aiCanMaterialize =
+    aiFailed && aiCounts !== null && aiCounts.expected > 0 && aiCounts.scored >= aiCounts.expected;
   const bottomActions =
     stageIndex === 0 ? (
       uploading ? (
@@ -512,6 +586,17 @@ export default function StudioGalleryShellPage() {
             <ShellCta kind="secondary" onClick={retryFailed}>
               <RefreshIcon size={18} />
               실패 {run.failed}장 다시 올리기
+            </ShellCta>
+          )}
+          {aiFailed && (
+            <ShellCta kind="secondary" onClick={() => void analysis.request()}>
+              <SparkleIcon size={18} />
+              AI 정리 다시 시도
+            </ShellCta>
+          )}
+          {aiCanMaterialize && (
+            <ShellCta kind="secondary" onClick={() => void analysis.materialize()}>
+              폴더 만들기
             </ShellCta>
           )}
           <ShellCta kind={allPhotos.length === 0 ? "primary" : "ghost"} onClick={() => setUploadOpen(true)}>
@@ -618,6 +703,16 @@ export default function StudioGalleryShellPage() {
             unsortedCount={unsortedCount}
             selection={folderSel}
             onSelect={changeFolder}
+            pendingNote={
+              folders && folders.length === 0 && (uploading || aiActive)
+                ? aiCategorizing
+                  ? { label: "만드는 중…", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요." }
+                  : {
+                      label: "대기",
+                      note: "폴더는 업로드가 끝나면 AI가 만들어요. 임베딩 · 점수는 올라오는 대로 매기고 있어요.",
+                    }
+                : null
+            }
           />
         )}
 
@@ -682,7 +777,14 @@ export default function StudioGalleryShellPage() {
         onMoveSelection={showComingSoon}
         onDeleteSelection={showComingSoon}
         hint={bottomHint}
-        progress={stageIndex === 0 ? uploadProgress : null}
+        progress={
+          stageIndex === 0 && (uploadProgress || aiProgress) ? (
+            <>
+              {uploadProgress}
+              {aiProgress}
+            </>
+          ) : null
+        }
         status={bottomStatus}
         actions={bottomActions}
       />
