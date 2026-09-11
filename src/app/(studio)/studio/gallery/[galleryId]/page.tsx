@@ -15,7 +15,7 @@
  *  - 사진 0장에서도 "갤러리 열기" 허용 — 업로드(B2)가 없어 만든 우회. **삭제 시점: B2 머지 뒤.**
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
@@ -45,7 +45,7 @@ import {
   type GalleryResponse,
 } from "@/lib/api/galleries";
 import { markNotificationsRead } from "@/lib/api/notifications";
-import { listPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { deletePhotos, listPhotos, type PhotoResponse } from "@/lib/api/photos";
 import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
 import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
@@ -54,6 +54,7 @@ import { FolderColumn, ReviewBadge, type FolderSelection } from "./_shell/Folder
 import { GalleryInviteModal, type InviteTab } from "./_shell/GalleryInviteModal";
 import { OpenGalleryModal } from "./_shell/OpenGalleryModal";
 import { PhotoGrid } from "./_shell/PhotoGrid";
+import { RecoveryBanner } from "./_shell/RecoveryBanner";
 import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey } from "./_shell/ShellMainHeader";
 import { ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
@@ -63,7 +64,14 @@ import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
 import { UploadModal } from "./_shell/UploadModal";
 import { ProgressBar } from "./_shell/UploadProgress";
-import { formatEta } from "./_shell/uploadSupport";
+import {
+  forgetUploaded,
+  parseRemembered,
+  readRememberedRaw,
+  subscribeRemembered,
+} from "./_shell/uploadMemory";
+import { matchRecoveryFiles, recoverablePending } from "./_shell/uploadRecovery";
+import { describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
@@ -125,6 +133,9 @@ export default function StudioGalleryShellPage() {
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<"retouch" | "asis" | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  /** 사진 목록을 마지막으로 읽은 시각 — 복구 대상 PENDING의 나이를 이 시각으로 잰다(렌더 중 시계를 읽지 않기 위해) */
+  const [photosLoadedAt, setPhotosLoadedAt] = useState(0);
+  const [discarding, setDiscarding] = useState(false);
   /** 업로드가 끝난 뒤 하단 왼쪽에 잠시 보이는 문구(완료 · 오류) */
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
 
@@ -145,6 +156,7 @@ export default function StudioGalleryShellPage() {
         if (cancelled) return;
         if (s.status === "fulfilled") setStudio(s.value);
         setPhotos(p.status === "fulfilled" ? p.value : []);
+        setPhotosLoadedAt(Date.now());
         setFolders(f.status === "fulfilled" ? f.value : []);
       } catch (err) {
         if (cancelled) return;
@@ -163,7 +175,9 @@ export default function StudioGalleryShellPage() {
   // ── 조용한 재조회 — 업로드 · 분석 진행이 목록을 갈아 끼울 때(스크롤 유지, 로딩 화면 없음) ──
   const refreshPhotos = useCallback(async () => {
     try {
-      setPhotos(await listAllPhotos(galleryId));
+      const list = await listAllPhotos(galleryId);
+      setPhotos(list);
+      setPhotosLoadedAt(Date.now());
     } catch {
       // 다음 갱신 때 다시
     }
@@ -255,6 +269,54 @@ export default function StudioGalleryShellPage() {
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
   const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
+
+  // ── 끊김 복구 — 이 브라우저가 발급한 사진 기억(localStorage 구독) + 서버 PENDING ──
+  const rememberedRaw = useSyncExternalStore(
+    subscribeRemembered,
+    () => readRememberedRaw(galleryId),
+    () => "",
+  );
+  const remembered = useMemo(() => parseRemembered(rememberedRaw), [rememberedRaw]);
+  const recoverable = useMemo(
+    () => (uploading || stageIndex !== 0 ? [] : recoverablePending(pendingPhotos, remembered, photosLoadedAt)),
+    [uploading, stageIndex, pendingPhotos, remembered, photosLoadedAt],
+  );
+  // 서버에서 이미 UPLOADED가 됐거나(스윕 보정) 지워진 사진의 기억은 정리 — 목록을 읽은 뒤 발급된 것은 건드리지 않는다
+  useEffect(() => {
+    if (uploading || photos === null) return;
+    const pendingIds = new Set(pendingPhotos.map((p) => p.photoId));
+    const stale = remembered
+      .filter((item) => !pendingIds.has(item.photoId) && item.issuedAt < photosLoadedAt)
+      .map((item) => item.photoId);
+    if (stale.length > 0) forgetUploaded(galleryId, stale);
+  }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
+
+  function onRecoveryFiles(files: File[]) {
+    const { resume, fresh } = matchRecoveryFiles(files, recoverable, remembered);
+    setUploadNotice(
+      resume.length === 0
+        ? "짝이 맞는 파일이 없어 새 사진으로 올려요"
+        : fresh.length > 0
+          ? `${resume.length}장은 이어서, ${fresh.length}장은 새로 올려요`
+          : null,
+    );
+    void startUpload(fresh, resume);
+  }
+  async function discardPending() {
+    if (discarding || recoverable.length === 0) return;
+    setDiscarding(true);
+    const ids = recoverable.map((p) => p.photoId);
+    try {
+      await deletePhotos(galleryId, ids);
+      forgetUploaded(galleryId, ids);
+    } catch (err) {
+      // 전부-아니면-거부(404) — 화면이 낡았다는 뜻이라 다시 읽는다
+      setUploadNotice(describeUploadError(err));
+    } finally {
+      await refreshPhotos();
+      setDiscarding(false);
+    }
+  }
   const details = useMemo(() => folders?.flatMap((c) => c.details) ?? [], [folders]);
   const sortedIds = useMemo(() => new Set(details.flatMap((d) => d.photoIds)), [details]);
   const reviewIds = useMemo(
@@ -473,6 +535,8 @@ export default function StudioGalleryShellPage() {
     if (stageIndex === 0) {
       if (analysis.error) return analysis.error;
       if (uploadNotice) return uploadNotice;
+      if (recoverable.length > 0)
+        return `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중`;
       if (allPhotos.length === 0) return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
       if (!folders || folders.length === 0) return "폴더는 업로드가 끝나면 AI가 만들어요";
       return reviewFolderCount > 0
@@ -532,6 +596,15 @@ export default function StudioGalleryShellPage() {
       </span>
     </span>
   ) : null;
+  const recoveryBanner =
+    recoverable.length > 0 ? (
+      <RecoveryBanner
+        count={recoverable.length}
+        onFiles={onRecoveryFiles}
+        onDiscard={() => void discardPending()}
+        discarding={discarding}
+      />
+    ) : null;
   const stalledNote = analysis.stalled ? "멈춘 것 같아요 · 서버가 다시 시도해요" : null;
   const aiProgress =
     stageIndex === 0 && !aiFailed && (aiActive || (uploading && aiCounts !== null && aiCounts.expected > 0)) ? (
@@ -745,10 +818,14 @@ export default function StudioGalleryShellPage() {
               </div>
             </>
           ) : allPhotos.length === 0 ? (
-            <EmptyUploadGuide />
+            <>
+              {recoveryBanner}
+              <EmptyUploadGuide />
+            </>
           ) : (
             <>
               <ShellMainHeader {...headerCommon} title={allTitle} />
+              {recoveryBanner}
               {quotaBanner}
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {visiblePhotos.length === 0 ? (
