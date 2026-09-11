@@ -74,6 +74,12 @@ const ICONS = [
   ['CopyIcon', 'content_copy'],
   ['PersonRemoveIcon', 'person_remove'],
   ['GroupIcon', 'group'],
+  ['ChevronRightIcon', 'chevron_right'],
+  ['ZoomOutIcon', 'zoom_out'],
+  ['SwapVertIcon', 'swap_vert'],
+  ['FolderIcon', 'folder'],
+  ['FolderOffIcon', 'folder_off'],
+  ['SelectAllIcon', 'select_all'],
 ];
 
 const paths = (symbol) => {

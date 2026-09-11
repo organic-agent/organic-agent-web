@@ -1,1709 +1,656 @@
 "use client";
 
 /**
- * 작가 — 갤러리 워크스페이스 (피그마 Photographer/Gallery-Sidebar 대응)
+ * 작가 — 갤러리 셸 v2 (구조 확정 2026-09-11 · 1단계 사진 업로드 · 2단계 셀렉 대기)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/page.tsx
  *
- * 부부 워크스페이스와 같은 뷰 4종(그리드 라지/스몰·비교·싱글)을 공유하되 껍데기가 다르다:
- * - 풀와이드 탑바: 사이드바 토글 + 로고(홈 복귀) + 뷰 전환 + 줌 | 전달 완료 버튼(조건부) + 알림 + 초대 + 프로필
- * - 사이드바: 갤러리명·상태 칩 + 상태 전환(열기/마감/재오픈) + 사진 업로드 + 자동 분류 + 필터 + 앨범
- * - 별점·선택은 부부의 것이라 전부 읽기 전용, 하단 툴바는 비교·싱글 뷰에서만
- * - 부부가 셀렉을 제출(SUBMITTED)하면 "선택 다시 열기"로 되돌릴 수 있다(작가 전용)
- * - 우측 레일: 댓글(부부 보정 요청 포함) · 정보(파일 정보만)
+ * 상단 한 줄 · 사이드바(접힘 가능) · 폴더 열(1단계만) · 메인(헤더 + 그리드) · 하단 바(주 버튼).
+ * B1 = 화면 구성: 갤러리 · 사진 · 폴더 · 선택 앨범은 읽고, 갤러리 열기 · 기간 연장 · 장수 바꾸기 ·
+ * 초대 링크처럼 작은 쓰기만 한다. 업로드 · AI 분석 · 폴더 편집 · 사진 삭제는 B2 — 버튼은 자리만.
+ * 셀렉 완료 → 보정 작업 전환은 서버 방법 확인 전이라 확인 모달까지만.
  *
- * 갤러리 메타·사진·선택 현황·별점은 서버가 진실이고,
- * 업로드·전달 데모 플래그만 아직 목업(07 보정에서 서버 전환)이다.
+ * 개발 서버 전용 장치(배포 빌드에서는 코드가 빠진다):
+ *  - ?stage=N : 단계 화면 강제(1~5) — 레이아웃 확인용. C2 끝날 때 남길지 결정.
+ *  - 사진 0장에서도 "갤러리 열기" 허용 — 업로드(B2)가 없어 만든 우회. **삭제 시점: B2 머지 뒤.**
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { AppRightRail } from "@/components/app/AppRightRail";
-import { AppToolbar } from "@/components/app/AppToolbar";
-import {
-  FilmstripChip,
-  useFilmstripOpen,
-} from "@/components/app/FilmstripChip";
-import { AssistPanel } from "@/components/app/AssistPanel";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
-import { NotificationBell } from "@/components/app/NotificationBell";
-import { InfoPanel } from "@/components/app/InfoPanel";
-import { ReactionPanel } from "@/components/app/ReactionPanel";
-import { ZoomSelect, type ZoomLevel } from "@/components/app/ZoomSelect";
-import { BrandLogo } from "@/components/BrandLogo";
-import { ComparePhotoCard } from "@/components/gallery/ComparePhotoCard";
-import { PhotoCell } from "@/components/gallery/PhotoCell";
-import { PhotoThumbnail } from "@/components/gallery/PhotoThumbnail";
+import { useSidebar } from "@/components/SidebarProvider";
 import {
-  CompareIcon,
-  DropdownIcon,
-  GridLargeIcon,
-  GridSmallIcon,
-  InfoIcon,
-  MenuIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  PersonAddIcon,
   PhotoIcon,
-  ReactionIcon,
-  ShareIcon,
-  SingleViewIcon,
-  SortIcon,
-  TrashIcon,
+  ScheduleIcon,
   UploadIcon,
 } from "@/components/icons";
-import { useSidebar } from "@/components/SidebarProvider";
-import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { Button } from "@/components/ui/Button";
-import { IconButton } from "@/components/ui/IconButton";
-import { MenuItem } from "@/components/ui/MenuItem";
-import { StarRating } from "@/components/ui/StarRating";
-import { GalleryStatusChip } from "@/components/photographer/GalleryStatusChip";
-import {
-  EMPTY_REACTION,
-  usePhotoReactions,
-  useRetouchRequests,
-} from "@/lib/couple";
+import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { ApiError } from "@/lib/api/client";
+import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import {
-  deletePhotos,
-  eraseTrashedPhotos,
-  restoreTrashedPhotos,
-} from "@/lib/api/photos";
-import { withdrawSelection } from "@/lib/api/selection";
-import {
-  deleteFolder,
-  deleteFolderGroup,
-  movePhotosToFolder,
-  removePhotoFromFolder,
-  renameFolder,
-  renameFolderGroup,
-} from "@/lib/api/folders";
-import { updateGallery, useGalleries } from "@/lib/galleries";
-import { AlbumTreeSection } from "./_components/AlbumTreeSection";
-import { ClusterStackCell } from "./_components/ClusterStackCell";
-import { DeleteFolderModal } from "./_components/DeleteFolderModal";
-import { GalleryDeliveryConfirmModal } from "./_components/GalleryDeliveryConfirmModal";
-import {
-  GalleryModalButtons,
-  GalleryModalShell,
-} from "@/app/(studio)/studio/_components/GalleryModalShell";
-import { GalleryInviteModal } from "./_components/GalleryInviteModal";
-import { PhotoContextMenu } from "./_components/PhotoContextMenu";
-import { SaveAlbumModal } from "./_components/SaveAlbumModal";
-import { SelectionActionBar } from "./_components/SelectionActionBar";
-import {
-  CloseGalleryConfirmModal,
-  OpenGalleryConfirmModal,
-  ReopenGalleryModal,
-} from "./_components/GalleryStatusModals";
-import { GalleryUploadModal } from "./_components/GalleryUploadModal";
-import { useClusterPreview } from "./_lib/useClusterPreview";
-import { useEmbeddingProgress } from "./_lib/useEmbeddingProgress";
-import { useFolderGroups } from "./_lib/useFolderGroups";
-import { useFolderPhotos } from "./_lib/useFolderPhotos";
-import { useGalleryDetail } from "./_lib/useGalleryDetail";
-import { useSelectionOverview } from "./_lib/useSelectionOverview";
-import { useTrashedPhotos } from "./_lib/useTrashedPhotos";
-import { useGalleryPhotos } from "@/lib/galleryPhotos";
+  getGallery,
+  listGalleryMembers,
+  type GalleryMemberResponse,
+  type GalleryResponse,
+} from "@/lib/api/galleries";
+import { markNotificationsRead } from "@/lib/api/notifications";
+import { listPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
+import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
+import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
+import { ExtendDeadlineModal } from "./_shell/ExtendDeadlineModal";
+import { FolderColumn, ReviewBadge, type FolderSelection } from "./_shell/FolderColumn";
+import { GalleryInviteModal, type InviteTab } from "./_shell/GalleryInviteModal";
+import { OpenGalleryModal } from "./_shell/OpenGalleryModal";
+import { PhotoGrid } from "./_shell/PhotoGrid";
+import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
+import { ShellMainHeader, type FilterKey, type SortKey } from "./_shell/ShellMainHeader";
+import { ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
+import { ShellTopbar } from "./_shell/ShellTopbar";
+import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
+import { StageConfirmModal } from "./_shell/StageConfirmModal";
+import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
+import { useSelectionWatch } from "./_shell/useSelectionWatch";
 
-// AI 연동 전 mock (시안 문구 — 부부 워크스페이스와 동일)
-const MOCK_ANALYSIS = [
-  { label: "피사체 선명도", value: "88점" },
-  { label: "눈 선명도", value: "100점" },
-  { label: "눈 뜨기", value: "좋음" },
-];
+const DEV = process.env.NODE_ENV === "development";
 
-/** 사이드바 필터: 모든 사진 / 부부 선택 사진 / 휴지통 / 특정 폴더("album:groupId:folderId") */
-type GalleryView = "all" | "selected" | "trash" | `album:${string}`;
-type ViewMode = "grid-large" | "grid-small" | "single" | "compare";
+/** 사진 목록은 200장씩 — 전부 받아 한 화면에서 거른다 (수천 장까지) */
+async function listAllPhotos(galleryId: number): Promise<PhotoResponse[]> {
+  const all: PhotoResponse[] = [];
+  for (let page = 0; page < 50; page++) {
+    const res = await listPhotos(galleryId, page, 200);
+    all.push(...res.contents);
+    if (!res.hasNext) break;
+  }
+  return all;
+}
 
-export default function PhotographerGalleryWorkspacePage() {
+function ddayLabel(deadline: string | null): string {
+  const offset = deadlineOffset(deadline);
+  if (offset === null) return "기한 없음";
+  if (offset < 0) return `D-${-offset}`;
+  if (offset === 0) return "D-day";
+  return `+${offset}일`;
+}
+
+function shortDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** 2단계 셀렉 대기의 하위 상태 */
+type SelectSub = "invite" | "picking" | "submitted" | "overdue";
+
+export default function StudioGalleryShellPage() {
   const params = useParams<{ galleryId: string }>();
-  // 갤러리 메타(제목·상태·마감일·계약 장수)는 서버가 진실
-  const { result, reload, replace } = useGalleryDetail(params.galleryId);
-  // 업로드·전달 데모 플래그는 아직 레거시 스토어 몫(04·07에서 서버 전환) — 없으면 감춘다
-  const galleries = useGalleries();
-  const legacy = galleries.find((g) => g.id === params.galleryId);
-  const { collapsed, toggle } = useSidebar();
-  // 정렬(별점 순)은 기획만 있고 미구현 — 준비 중 토스트로 안내 (부부 화면과 동일)
+  const galleryId = Number(params.galleryId);
+  const searchParams = useSearchParams();
+  const { collapsed } = useSidebar();
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
 
-  const [view, setView] = useState<GalleryView>("all");
-  const [mode, setMode] = useState<ViewMode>("grid-large");
-  const [currentPhotoId, setCurrentPhotoId] = useState<number | null>(null);
-  const [rightPanel, setRightPanel] = useState<"reaction" | "info" | null>(
-    null,
-  );
-  const [compareCount, setCompareCount] = useState<2 | 4>(2);
-  const [zoom, setZoom] = useState<ZoomLevel>(1);
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
-  // 상태 전환 다이얼로그 — DRAFT→열기 / OPEN→선택 마감 / CLOSED→재오픈
-  const [statusAction, setStatusAction] = useState<
-    "open" | "close" | "reopen" | null
-  >(null);
-  // 제출 되돌리기(withdraw) 확인 — 부부가 제출한 선택을 다시 연다
-  const [reopenSelectionOpen, setReopenSelectionOpen] = useState(false);
-  // 사진 휴지통 이동·완전 삭제 확인 (WES-266·267)
-  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false);
-  const [eraseConfirmOpen, setEraseConfirmOpen] = useState(false);
-  // 자동 분류(클러스터) 미리보기 — 켜짐·레벨은 훅이 소유, 묶기는 서버가 한다
-  const cluster = useClusterPreview(params.galleryId);
-  // 앨범(폴더) 목록 — 사이드바 트리의 데이터 원천, 저장 성공 시 재조회
-  const { result: folderGroupsResult, reload: reloadFolderGroups } =
-    useFolderGroups(params.galleryId);
-  // 미리보기에서 연 묶음 — null이면 접힌 스택 그리드
-  const [openClusterIndex, setOpenClusterIndex] = useState<number | null>(null);
-  const [saveAlbumOpen, setSaveAlbumOpen] = useState(false);
-  // 앨범 저장 완료 토스트 (하단 검정 pill — ComingSoonToast와 같은 문법)
-  const [savedToast, setSavedToast] = useState<string | null>(null);
-  const savedToastTimer = useRef(0);
-  useEffect(() => () => window.clearTimeout(savedToastTimer.current), []);
-  // 폴더 열람의 다중 선택(관리용) — 탐색기 문법(클릭·Shift·⌘), 표시는 딤.
-  // selectedIds(부부 셀렉)와 다른 것이라 pickedIds로 구분한다.
-  const [pickedIds, setPickedIds] = useState<number[]>([]);
-  const [lastSelIndex, setLastSelIndex] = useState<number | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  // 삭제 확인 대상 (앨범/폴더 공용)
-  const [deleteTarget, setDeleteTarget] = useState<{
-    kind: "group" | "folder";
-    groupId: number;
-    folderId?: number;
-    name: string;
-  } | null>(null);
-  // 사진 드래그 출발지 — 트리의 같은 앨범 다른 폴더가 드롭 대상이 된다
-  const [dragSource, setDragSource] = useState<{
-    groupId: number;
-    folderId: number;
-  } | null>(null);
+  const [gallery, setGallery] = useState<GalleryResponse | null>(null);
+  const [studio, setStudio] = useState<StudioResponse | null>(null);
+  const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
+  const [folders, setFolders] = useState<ConceptFolderResponse[] | null>(null);
+  const [members, setMembers] = useState<GalleryMemberResponse[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  function clearSelection() {
-    setPickedIds([]);
-    setLastSelIndex(null);
-    setCtxMenu(null);
+  const [view, setView] = useState<ShellView>("all");
+  const [folderSel, setFolderSel] = useState<FolderSelection>({ kind: "all" });
+  const [zoom, setZoom] = useState(40);
+  const [sort, setSort] = useState<SortKey>("uploaded");
+  const [filter, setFilter] = useState<FilterKey>("none");
+  const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [inviteTab, setInviteTab] = useState<InviteTab | null>(null);
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [quotaOpen, setQuotaOpen] = useState(false);
+  const [confirmKind, setConfirmKind] = useState<"retouch" | "asis" | null>(null);
+
+  // 갤러리 → 스튜디오(이름 · 내 역할) 순으로, 사진 · 폴더는 나란히
+  useEffect(() => {
+    if (!Number.isFinite(galleryId)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const g = await getGallery(galleryId);
+        if (cancelled) return;
+        setGallery(g);
+        const [s, p, f] = await Promise.allSettled([
+          fetchStudio(g.workspaceId),
+          listAllPhotos(galleryId),
+          listConceptFolders(galleryId),
+        ]);
+        if (cancelled) return;
+        if (s.status === "fulfilled") setStudio(s.value);
+        setPhotos(p.status === "fulfilled" ? p.value : []);
+        setFolders(f.status === "fulfilled" ? f.value : []);
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(
+          err instanceof ApiError && (err.status === 403 || err.status === 404)
+            ? "이 갤러리를 볼 수 없어요. 내 스튜디오의 갤러리가 아니거나 삭제됐어요."
+            : "갤러리를 불러오지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [galleryId]);
+
+  // ── 단계 ──
+  const stageOverride = DEV ? Number(searchParams.get("stage")) : NaN;
+  const stageIndex = gallery
+    ? Number.isInteger(stageOverride) && stageOverride >= 1 && stageOverride <= SHELL_STAGES.length
+      ? stageOverride - 1
+      : stageIndexOf(gallery)
+    : 0;
+  const inSelection = gallery !== null && stageIndex >= 1;
+
+  // 2단계부터: 선택 앨범(자동 갱신) · 멤버
+  const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
+  useEffect(() => {
+    if (!inSelection) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await listGalleryMembers(galleryId);
+        if (!cancelled) setMembers(list);
+      } catch {
+        if (!cancelled) setMembers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inSelection, galleryId, inviteTab]);
+
+  // ── 파생값 ──
+  const allPhotos = useMemo(() => photos ?? [], [photos]);
+  const details = useMemo(() => folders?.flatMap((c) => c.details) ?? [], [folders]);
+  const sortedIds = useMemo(() => new Set(details.flatMap((d) => d.photoIds)), [details]);
+  const reviewIds = useMemo(
+    () => new Set(details.filter((d) => d.needsReview).flatMap((d) => d.photoIds)),
+    [details],
+  );
+  const reviewFolderCount = details.filter((d) => d.needsReview).length;
+  const unsortedCount =
+    folders && folders.length > 0 ? allPhotos.filter((p) => !sortedIds.has(p.photoId)).length : 0;
+  const pickedIds = useMemo(
+    () => new Set(selection?.photos.map((s) => s.photo.photoId) ?? []),
+    [selection],
+  );
+  const pickedPhotos = useMemo(() => selection?.photos.map((s) => s.photo) ?? [], [selection]);
+  const selectedCount = selection?.selectedCount ?? pickedIds.size;
+  const maxSelectable = gallery?.maxSelectablePhotoCount ?? null;
+
+  const visiblePhotos = useMemo(() => {
+    let list = allPhotos;
+    if (folderSel.kind === "detail") {
+      const ids = new Set(details.find((d) => d.id === folderSel.detailId)?.photoIds ?? []);
+      list = list.filter((p) => ids.has(p.photoId));
+    } else if (folderSel.kind === "unsorted") {
+      list = list.filter((p) => !sortedIds.has(p.photoId));
+    }
+    if (filter === "review") list = list.filter((p) => reviewIds.has(p.photoId));
+    if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
+    const sorted = [...list];
+    if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
+    else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
+    return sorted;
+  }, [allPhotos, folderSel, details, sortedIds, filter, reviewIds, sort]);
+
+  const selectedDetail =
+    folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
+  const selectedConcept =
+    folderSel.kind === "detail" ? folders?.find((c) => c.id === folderSel.conceptId) ?? null : null;
+
+  const offset = deadlineOffset(gallery?.selectionDeadline ?? null);
+  const sub: SelectSub =
+    members !== null && members.length === 0
+      ? "invite"
+      : selection?.status === "SUBMITTED"
+        ? "submitted"
+        : offset !== null && offset > 0
+          ? "overdue"
+          : "picking";
+  const dd = ddayLabel(gallery?.selectionDeadline ?? null);
+  const countLabel = `${selectedCount}${maxSelectable !== null ? ` / ${maxSelectable}` : ""}`;
+
+  // 사이드바 상태줄 — 단계 안의 하위 상태
+  const status: StatusLine = (() => {
+    if (photos === null) return { text: "불러오는 중…", tone: "muted" };
+    if (stageIndex === 0) {
+      if (allPhotos.length === 0) return { text: "사진 없음", tone: "muted" };
+      if (!folders || folders.length === 0) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
+      return reviewFolderCount > 0
+        ? { text: `검토 중 · 폴더 ${details.length} · 확인 필요 ${reviewFolderCount}`, tone: "warning" }
+        : { text: `검토 중 · 폴더 ${details.length}`, tone: "accent" };
+    }
+    if (stageIndex === 1) {
+      if (sub === "invite") return { text: `초대 대기 · ${dd}`, tone: "muted" };
+      if (sub === "submitted") return { text: `제출됨 · ${countLabel} · ${shortDate(selection?.submittedAt ?? null)}`, tone: "accent" };
+      if (sub === "overdue") return { text: `마감 지남 · ${countLabel}`, tone: "warning" };
+      return { text: `고르는 중 ${countLabel} · ${dd}`, tone: "accent" };
+    }
+    return { text: `${allPhotos.length}장${maxSelectable !== null ? ` · 고를 장수 ${maxSelectable}` : ""}`, tone: "accent" };
+  })();
+
+  function toggleSelect(photoId: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  }
+  function changeView(next: ShellView) {
+    setView(next);
+    setSelected(new Set());
+  }
+  function changeFolder(next: FolderSelection) {
+    setFolderSel(next);
+    setView("all");
+    setSelected(new Set());
+  }
+  async function dismissQuotaRequest() {
+    if (!quotaRequest) return;
+    try {
+      await markNotificationsRead({ notificationIds: [quotaRequest.id] });
+    } catch {
+      // 다음 갱신 때 다시 보인다
+    }
+    reloadSelection();
   }
 
-  // 부부 선택 현황 — 서버(GET /photo-selection)가 진실, 작가는 관찰만
-  const { result: selectionResult, replace: replaceSelection } =
-    useSelectionOverview(params.galleryId);
-  const selection =
-    selectionResult?.kind === "ready" ? selectionResult.sel : null;
-  const selectedIds = useMemo(() => selection?.selectedIds ?? [], [selection]);
-  const retouchRequests = useRetouchRequests();
-  const reactions = usePhotoReactions();
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  // 사진은 서버가 진실 — viewUrl(서명 URL)로 그리고, TTL 만료 전 재조회한다
-  const {
-    result: photosResult,
-    reload: reloadPhotos,
-    refreshOnImageError,
-    silentRefresh: silentRefreshPhotos,
-  } = useGalleryPhotos(params.galleryId);
-  // 사진 분석(임베딩) — UI 없이 자동 실행·폴링, 진행분만큼 준비 중 셀이 실사진으로.
-  // 새로 분석된 사진은 클러스터에도 합류해야 하므로 미리보기도 조용히 재조회한다.
-  const { notifyUploaded: notifyEmbedding } = useEmbeddingProgress(
-    params.galleryId,
-    () => {
-      silentRefreshPhotos();
-      cluster.refresh();
-    },
-  );
-  const allPhotos = useMemo(
-    () => (photosResult?.kind === "ready" ? photosResult.photos : []),
-    [photosResult],
-  );
-  // 사진 휴지통 — 사이드바 개수와 휴지통 뷰가 함께 쓴다
-  const { result: trashResult, reload: reloadTrash } = useTrashedPhotos(
-    params.galleryId,
-  );
-  const trashedPhotos = useMemo(
-    () => (trashResult?.kind === "ready" ? trashResult.photos : []),
-    [trashResult],
-  );
-  // 휴지통 사진을 그리드 셀 모양에 맞춘다 (점수·포맷 없음, 항상 표시 가능)
-  const trashAsGalleryPhotos = useMemo(
-    () =>
-      trashedPhotos.map((p) => ({
-        id: p.id,
-        url: p.url,
-        preparing: false,
-        name: p.name,
-        format: "",
-        score: null,
-      })),
-    [trashedPhotos],
-  );
-  // 열람 중인 폴더 — view "album:groupId:folderId"에서 파싱
-  const folderView = useMemo(() => {
-    if (!view.startsWith("album:")) return null;
-    const [groupId, folderId] = view.slice("album:".length).split(":");
-    return { groupId: Number(groupId), folderId: Number(folderId) };
-  }, [view]);
-  const { result: folderPhotosResult, reload: reloadFolderPhotos } =
-    useFolderPhotos(params.galleryId, folderView);
-  // 다른 폴더의 지난 응답이 얹히지 않게 — 현재 폴더와 일치할 때만 사용
-  const activeFolderPhotos =
-    folderView &&
-    folderPhotosResult &&
-    folderPhotosResult.groupId === folderView.groupId &&
-    folderPhotosResult.folderId === folderView.folderId
-      ? folderPhotosResult
-      : null;
-  const folderGroupsReady =
-    folderGroupsResult?.kind === "ready" ? folderGroupsResult.groups : [];
-  const activeGroupMeta = folderView
-    ? folderGroupsReady.find((g) => g.groupId === folderView.groupId)
-    : undefined;
-  const activeFolderMeta = folderView
-    ? activeGroupMeta?.folders.find(
-        (f) => f.folderId === folderView.folderId,
-      )
-    : undefined;
-  // 이동 대상 — 같은 앨범의 다른 폴더들 (액션 바·우클릭·드래그가 공유)
-  const moveTargets =
-    folderView && activeGroupMeta
-      ? activeGroupMeta.folders
-          .filter((f) => f.folderId !== folderView.folderId)
-          .map((f) => ({ folderId: f.folderId, name: f.name }))
-      : [];
-
-  // 클러스터 미리보기 파생값 — 켜져 있고 조회가 끝났을 때만
-  const clusterReady =
-    cluster.enabled && cluster.result?.kind === "ready" ? cluster.result : null;
-  const clusterGroups = clusterReady?.groups ?? [];
-  const clusterSingles = clusterReady?.singles ?? [];
-  // 미리보기에서 연 묶음 — 재조회로 묶음 수가 줄면 자연히 접힌 화면으로 돌아간다
-  const openClusterGroup =
-    cluster.enabled && view === "all" && openClusterIndex !== null
-      ? clusterGroups[openClusterIndex]
-      : undefined;
-  // 접힌 미리보기(스택 그리드) 상태 — 싱글·비교의 이동 목록은 나머지 사진들
-  const collapsedPreview =
-    cluster.enabled && view === "all" && !openClusterGroup;
-  // "분석 중" 안내는 화면에 있는 사진 기준 — 서버 unclassified는 올리다 만
-  // PENDING 잔재까지 세서 실제보다 커질 수 있다
-  const preparingCount = allPhotos.filter((photo) => photo.preparing).length;
-
-  const photos =
-    view === "selected"
-      ? allPhotos.filter((photo) => selectedSet.has(photo.id))
-      : view === "trash"
-        ? trashAsGalleryPhotos
-        : folderView
-          ? activeFolderPhotos?.kind === "ready"
-            ? activeFolderPhotos.photos
-            : []
-          : openClusterGroup
-            ? openClusterGroup
-            : collapsedPreview && clusterReady
-              ? clusterSingles
-              : allPhotos;
-
-  const currentIndex = photos.findIndex((p) => p.id === currentPhotoId);
-  const currentPhoto = currentIndex >= 0 ? photos[currentIndex] : undefined;
-  // 필름스트립 접기 (C안: 헤더 칩으로 흡수 — localStorage에 기억, 부부 화면과 공유)
-  const { filmstripOpen, toggleFilmstrip } = useFilmstripOpen();
-
-  function openPhoto(photoId: number) {
-    setCurrentPhotoId(photoId);
-    setMode("single");
-  }
-
-  function movePhoto(delta: number) {
-    if (photos.length === 0) return;
-    const base = currentIndex >= 0 ? currentIndex : 0;
-    const next = Math.min(Math.max(base + delta, 0), photos.length - 1);
-    setCurrentPhotoId(photos[next].id);
-  }
-
-  // 단일·비교 보기에서 ←/→ 키로 사진 이동, F로 필름스트립 접기
-  useEffect(() => {
-    if (mode !== "single" && mode !== "compare") return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") movePhoto(-1);
-      if (e.key === "ArrowRight") movePhoto(1);
-      if (e.key === "f" || e.key === "F") toggleFilmstrip();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
-
-  // Esc — 관리 선택·우클릭 메뉴 해제
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      if (pickedIds.length > 0 || ctxMenu !== null) clearSelection();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
-
-  // ⌘A — 현재 그리드 전체 선택 (관리 선택이 있는 뷰: 모든 사진·폴더·휴지통)
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a") return;
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA"))
-        return;
-      if (mode !== "grid-large" && mode !== "grid-small") return;
-      const manageable =
-        view === "trash" ||
-        folderView !== null ||
-        (view === "all" && !cluster.enabled);
-      if (!manageable || photos.length === 0) return;
-      e.preventDefault();
-      setPickedIds(photos.map((p) => p.id));
-      setLastSelIndex(null);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
-
-  // 서버 조회 결과별 화면 — 로딩 / 권한 없음(403) / 없음(404) / 실패
-  if (result === null || result.kind !== "ready") {
-    const state =
-      result === null
-        ? {
-            title: "갤러리를 불러오는 중이에요",
-            desc: "잠시만 기다려 주세요.",
-            retry: false,
-          }
-        : result.kind === "forbidden"
-          ? {
-              title: "이 갤러리를 볼 권한이 없어요",
-              desc: "담당 작가의 갤러리만 열 수 있어요.",
-              retry: false,
-            }
-          : result.kind === "notFound"
-            ? {
-                title: "갤러리를 찾을 수 없어요",
-                desc: "휴지통으로 이동했거나 주소가 잘못됐을 수 있어요.",
-                retry: false,
-              }
-            : {
-                title: "갤러리를 불러오지 못했어요",
-                desc: "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-                retry: true,
-              };
+  // ── 오류 ──
+  if (loadError) {
     return (
       <div className="grid min-h-dvh place-items-center bg-background-default-main px-6">
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="type-title-m text-contents-light-bgd-default">{state.title}</h1>
-          <p className="type-content-m text-contents-light-bgd-sub">{state.desc}</p>
-          {result !== null && (
-            <div className="flex gap-2">
-              {state.retry && <Button onClick={reload}>다시 시도</Button>}
-              <Button kind={state.retry ? "ghost" : "primary"} href="/studio">
-                갤러리 목록으로
-              </Button>
-            </div>
+          <h1 className="type-title-m text-contents-light-bgd-default">갤러리를 열 수 없어요</h1>
+          <p className="type-content-m text-contents-light-bgd-sub">{loadError}</p>
+          <Button href="/studio">내 스튜디오로</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isOwner = studio?.role === "OWNER";
+  // 개발 서버에서는 사진 0장이어도 열 수 있게 — 업로드(B2) 전 임시 우회. 삭제 시점: B2 머지 뒤.
+  const canOpen = gallery?.status === "DRAFT" && (allPhotos.length > 0 || DEV);
+  const showFolderColumn = stageIndex === 0 && allPhotos.length > 0 && view === "all";
+  const headerCommon = {
+    zoom,
+    onZoomChange: setZoom,
+    sort,
+    onSortChange: setSort,
+    filter,
+    onFilterChange: setFilter,
+    onSingleView: showComingSoon,
+  };
+
+  const allTitle =
+    selectedDetail && selectedConcept ? (
+      <>
+        <span className="font-normal text-contents-light-bgd-weakness">{selectedConcept.name}</span>
+        <span className="flex text-contents-light-bgd-weakness">
+          <ChevronRightIcon size={18} />
+        </span>
+        <span className="truncate">{selectedDetail.name}</span>
+        {selectedDetail.needsReview && <ReviewBadge />}
+        {inSelection && (
+          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
+            {visiblePhotos.length}장 · 고른 사진 {visiblePhotos.filter((p) => pickedIds.has(p.photoId)).length}
+          </small>
+        )}
+      </>
+    ) : folderSel.kind === "unsorted" ? (
+      <>미분류</>
+    ) : (
+      <>
+        <span className="flex text-contents-light-bgd-weakness">
+          <PhotoIcon size={18} />
+        </span>
+        모든 사진
+        {inSelection && (
+          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
+            {allPhotos.length}장{selectedCount > 0 && ` · 고른 사진 ${selectedCount}`}
+          </small>
+        )}
+      </>
+    );
+
+  // 2단계 배너 — 장수 상향 요청 · 제출됨 · 마감 지남
+  const quotaBanner =
+    inSelection && quotaRequest ? (
+      <div className="mx-5 mb-2 flex flex-wrap items-center gap-3 rounded-(--radius-12) bg-brand-secondary-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
+        <span className="flex shrink-0 text-brand-secondary-dark">
+          <CheckCircleIcon size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="font-semibold">{quotaRequest.title}</b>
+          {quotaRequest.message && <> · {quotaRequest.message}</>}
+          {quotaRequest.createdAt && (
+            <span className="text-contents-light-bgd-weakness"> · {shortDate(quotaRequest.createdAt)}</span>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  const gallery = result.gallery;
-
-  // 하단 알림 토스트 — 저장·이름 변경의 성공/실패 공용
-  function notice(message: string) {
-    window.clearTimeout(savedToastTimer.current);
-    setSavedToast(message);
-    savedToastTimer.current = window.setTimeout(() => setSavedToast(null), 2400);
-  }
-
-  /** 선택 다시 열기(withdraw) — 담당 작가만. 부부가 이어서 고를 수 있게 된다 */
-  async function handleReopenSelection() {
-    try {
-      const res = await withdrawSelection(gallery.id);
-      replaceSelection(res);
-      setReopenSelectionOpen(false);
-      notice("선택이 다시 열렸어요 — 부부가 이어서 고를 수 있어요");
-    } catch (err) {
-      setReopenSelectionOpen(false);
-      notice(
-        err instanceof ApiError
-          ? err.message
-          : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-      );
-    }
-  }
-
-  async function handleRenameGroup(groupId: number, name: string) {
-    try {
-      await renameFolderGroup(gallery.id, groupId, name);
-      reloadFolderGroups();
-      notice("앨범 이름을 바꿨어요");
-    } catch (err) {
-      notice(
-        err instanceof ApiError
-          ? err.message
-          : "이름을 바꾸지 못했어요 — 네트워크를 확인해 주세요.",
-      );
-    }
-  }
-
-  async function handleRenameFolder(
-    groupId: number,
-    folderId: number,
-    name: string,
-  ) {
-    try {
-      await renameFolder(gallery.id, groupId, folderId, name);
-      reloadFolderGroups();
-      notice("폴더 이름을 바꿨어요");
-    } catch (err) {
-      notice(
-        err instanceof ApiError
-          ? err.message
-          : "이름을 바꾸지 못했어요 — 네트워크를 확인해 주세요.",
-      );
-    }
-  }
-
-  /** 폴더 열람 그리드 — 탐색기 문법: 클릭=한 장, Shift=범위, ⌘/Ctrl=추가·해제 */
-  function handleSelectClick(
-    e: React.MouseEvent,
-    photoId: number,
-    index: number,
-  ) {
-    setCurrentPhotoId(photoId);
-    if (e.shiftKey && lastSelIndex !== null) {
-      const from = Math.min(lastSelIndex, index);
-      const to = Math.max(lastSelIndex, index);
-      const range = photos.slice(from, to + 1).map((p) => p.id);
-      setPickedIds((prev) => Array.from(new Set([...prev, ...range])));
-      return;
-    }
-    if (e.metaKey || e.ctrlKey) {
-      setPickedIds((prev) =>
-        prev.includes(photoId)
-          ? prev.filter((id) => id !== photoId)
-          : [...prev, photoId],
-      );
-    } else {
-      // 같은 한 장을 다시 누르면 해제
-      setPickedIds((prev) =>
-        prev.length === 1 && prev[0] === photoId ? [] : [photoId],
-      );
-    }
-    setLastSelIndex(index);
-  }
-
-  async function handleMoveSelection(targetFolderId: number) {
-    if (!folderView || pickedIds.length === 0) return;
-    const count = pickedIds.length;
-    const target = activeGroupMeta?.folders.find(
-      (f) => f.folderId === targetFolderId,
-    );
-    try {
-      await movePhotosToFolder(gallery.id, folderView.groupId, folderView.folderId, {
-        targetFolderId,
-        photoIds: pickedIds,
-      });
-      notice(`${count}장을 '${target?.name ?? "폴더"}'(으)로 옮겼어요`);
-      clearSelection();
-      reloadFolderPhotos();
-      reloadFolderGroups();
-    } catch (err) {
-      notice(
-        err instanceof ApiError
-          ? err.message
-          : "옮기지 못했어요 — 네트워크를 확인해 주세요.",
-      );
-    }
-  }
-
-  async function handleRemoveSelection() {
-    if (!folderView || pickedIds.length === 0) return;
-    const count = pickedIds.length;
-    try {
-      // 제거는 장당 한 번 — 서버 계약이 단건 DELETE다
-      await Promise.all(
-        pickedIds.map((photoId) =>
-          removePhotoFromFolder(
-            gallery.id,
-            folderView.groupId,
-            folderView.folderId,
-            photoId,
-          ),
-        ),
-      );
-      notice(`${count}장을 폴더에서 뺐어요 — 사진 원본은 그대로예요`);
-    } catch (err) {
-      notice(
-        err instanceof ApiError
-          ? err.message
-          : "일부 사진을 빼지 못했어요 — 다시 시도해 주세요.",
-      );
-    }
-    clearSelection();
-    reloadFolderPhotos();
-    reloadFolderGroups();
-  }
-
-  /** 삭제 확정 — 실패 시 throw해 모달이 배너를 보여주게 둔다 */
-  async function handleDeleteTarget() {
-    if (!deleteTarget) return;
-    if (deleteTarget.kind === "group") {
-      await deleteFolderGroup(gallery.id, deleteTarget.groupId);
-    } else {
-      await deleteFolder(
-        gallery.id,
-        deleteTarget.groupId,
-        deleteTarget.folderId!,
-      );
-    }
-    // 열람 중이던 대상이 지워졌으면 모든 사진으로 복귀
-    if (
-      folderView &&
-      folderView.groupId === deleteTarget.groupId &&
-      (deleteTarget.kind === "group" ||
-        folderView.folderId === deleteTarget.folderId)
-    ) {
-      setView("all");
-    }
-    setDeleteTarget(null);
-    clearSelection();
-    reloadFolderGroups();
-    notice(
-      deleteTarget.kind === "group" ? "앨범을 삭제했어요" : "폴더를 삭제했어요",
-    );
-  }
-
-  const title =
-    view === "selected"
-      ? "선택 사진"
-      : view === "trash"
-        ? "휴지통"
-        : folderView
-          ? // 이름은 트리(목록)가 먼저 — 이름 변경 직후에도 새 이름이 바로 보인다
-            `${activeGroupMeta?.name ?? "앨범"} / ${activeFolderMeta?.name ?? (activeFolderPhotos?.kind === "ready" ? activeFolderPhotos.name : "폴더")}`
-          : "모든 사진";
-
-  /** 현재 그리드 전체 선택 — 액션 바·우클릭 메뉴의 "전체 선택" */
-  function selectAllInView() {
-    setPickedIds(photos.map((p) => p.id));
-    setLastSelIndex(null);
-    setCtxMenu(null);
-  }
-
-  /** 휴지통 이동 확정 — 전부-아니면-404: 낡은 화면이면 재조회로 푼다 */
-  async function handleTrashPicked() {
-    const ids = [...pickedIds];
-    setTrashConfirmOpen(false);
-    if (ids.length === 0) return;
-    try {
-      await deletePhotos(gallery.id, ids);
-      notice(`${ids.length}장을 휴지통으로 옮겼어요`);
-    } catch (err) {
-      if (!(err instanceof ApiError && err.status === 404)) {
-        notice(
-          err instanceof ApiError
-            ? err.message
-            : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-        );
-        return;
-      }
-      notice("화면이 최신이 아니었어요 — 목록을 다시 불러왔어요");
-    }
-    clearSelection();
-    silentRefreshPhotos();
-    cluster.refresh();
-    reloadFolderGroups();
-    if (folderView) reloadFolderPhotos();
-    reloadTrash();
-  }
-
-  /** 휴지통 복원 — 목록·클러스터로 돌아온다 */
-  async function handleRestorePicked() {
-    const ids = [...pickedIds];
-    if (ids.length === 0) return;
-    try {
-      await restoreTrashedPhotos(gallery.id, ids);
-      notice(`${ids.length}장을 복원했어요 — 모든 사진에 돌아왔어요`);
-    } catch (err) {
-      if (!(err instanceof ApiError && err.status === 404)) {
-        notice(
-          err instanceof ApiError
-            ? err.message
-            : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-        );
-        return;
-      }
-      notice("화면이 최신이 아니었어요 — 목록을 다시 불러왔어요");
-    }
-    clearSelection();
-    reloadTrash();
-    silentRefreshPhotos();
-    cluster.refresh();
-  }
-
-  /** 완전 삭제 확정 — 복구 불가라 빨간 재확인을 거친 뒤에만 온다 */
-  async function handleErasePicked() {
-    const ids = [...pickedIds];
-    setEraseConfirmOpen(false);
-    if (ids.length === 0) return;
-    try {
-      await eraseTrashedPhotos(gallery.id, ids);
-      notice(`${ids.length}장을 완전히 삭제했어요`);
-    } catch (err) {
-      if (!(err instanceof ApiError && err.status === 404)) {
-        notice(
-          err instanceof ApiError
-            ? err.message
-            : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-        );
-        return;
-      }
-      notice("화면이 최신이 아니었어요 — 목록을 다시 불러왔어요");
-    }
-    clearSelection();
-    reloadTrash();
-  }
-
-  // 비교 모드: 현재 위치부터 compareCount장 (부부 워크스페이스와 같은 계산)
-  const compareStart = Math.max(
-    0,
-    Math.min(
-      currentIndex >= 0 ? currentIndex : 0,
-      photos.length - compareCount,
-    ),
-  );
-  const comparePhotos = photos.slice(compareStart, compareStart + compareCount);
-  const compareImageWidth = `min(calc((100cqh - 36px) * 0.8), calc((100cqw - ${
-    (compareCount - 1) * 24
-  }px) / ${compareCount}))`;
-
-  // 그리드 공용 조각 — 일반 목록·폴더 열람이 같은 셀 그리드를 쓴다
-  const gridTemplateColumns = `repeat(auto-fill, ${Math.round(
-    (mode === "grid-small" ? 160 : 200) * zoom,
-  )}px)`;
-  const gridSkeleton = (
-    <div
-      className="grid w-full justify-center gap-2"
-      style={{ gridTemplateColumns }}
-    >
-      {Array.from({ length: 8 }, (_, i) => (
-        <div
-          key={i}
-          className="aspect-4/5 w-full rounded-(--radius-4) bg-surface-default-light"
-        />
-      ))}
-    </div>
-  );
-  // 모든 사진: 탐색기 문법(클릭=선택·더블클릭=크게 보기, #39) / 선택 사진 뷰: 열람만
-  const photoCellGrid = (
-    <div
-      className="grid w-full justify-center gap-2"
-      style={{ gridTemplateColumns }}
-    >
-      {photos.map((photo, index) => (
-        <div
-          key={photo.id}
-          onClick={(e) =>
-            view === "all"
-              ? handleSelectClick(e, photo.id, index)
-              : setCurrentPhotoId(photo.id)
-          }
-          onDoubleClick={() => openPhoto(photo.id)}
-          onContextMenu={(e) => {
-            if (view !== "all") return;
-            e.preventDefault();
-            if (!pickedIds.includes(photo.id)) {
-              setPickedIds([photo.id]);
-              setLastSelIndex(index);
-            }
-            setCtxMenu({ x: e.clientX, y: e.clientY });
-          }}
+        </span>
+        <button
+          type="button"
+          onClick={() => void dismissQuotaRequest()}
+          className="cursor-pointer type-content-xs text-contents-light-bgd-sub underline underline-offset-2"
         >
-          <PhotoCell
-            variant={mode === "grid-small" ? "small" : "large"}
-            focused={photo.id === currentPhoto?.id}
-            managed={view === "all" && pickedIds.includes(photo.id)}
-            name={photo.name}
-            format={photo.format}
-            label={photo.name}
-            imageUrl={photo.url}
-            preparing={photo.preparing}
-            onImageError={refreshOnImageError}
-          />
-        </div>
-      ))}
-    </div>
-  );
+          그대로 두기
+        </button>
+        <button
+          type="button"
+          onClick={() => setQuotaOpen(true)}
+          className="inline-flex h-8 cursor-pointer items-center rounded-(--radius-8) border border-brand-secondary-light px-3 type-label-medium-s text-brand-secondary-dark transition-colors duration-fast hover:bg-background-default-main"
+        >
+          장수 바꾸기
+        </button>
+      </div>
+    ) : null;
+  const selectionBanner =
+    inSelection && view === "selected" && sub === "submitted" ? (
+      <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-12) bg-brand-secondary-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
+        <span className="flex text-brand-secondary-dark">
+          <CheckCircleIcon size={18} />
+        </span>
+        <b className="font-semibold">클라이언트가 선택을 제출했어요</b> · {shortDate(selection?.submittedAt ?? null)}
+      </div>
+    ) : inSelection && view === "selected" && sub === "overdue" ? (
+      <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-12) bg-function-warning-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
+        <span className="flex text-function-warning-default">
+          <ScheduleIcon size={18} />
+        </span>
+        <b className="font-semibold">선택 마감이 지났는데 아직 제출되지 않았어요</b> · 클라이언트는 더 고를 수 없어요
+      </div>
+    ) : null;
 
-  // 뷰 전환 토글 — 그리드에선 헤더 우측, 싱글·비교에선 필름스트립 우측 (구글 포토식)
-  const viewToggles = (
-    <>
-      <IconButton
-        icon={<GridLargeIcon size={20} />}
-        selected={mode === "grid-large"}
-        onClick={() => setMode("grid-large")}
-        aria-label="큰 그리드 보기"
-      />
-      <IconButton
-        icon={<GridSmallIcon size={20} />}
-        selected={mode === "grid-small"}
-        onClick={() => setMode("grid-small")}
-        aria-label="작은 그리드 보기"
-      />
-      <IconButton
-        icon={<CompareIcon size={20} />}
-        selected={mode === "compare"}
-        onClick={() => setMode("compare")}
-        aria-label="비교 보기"
-      />
-      <IconButton
-        icon={<SingleViewIcon size={20} />}
-        selected={mode === "single"}
-        onClick={() => {
-          const target = currentPhoto?.id ?? photos[0]?.id ?? allPhotos[0]?.id;
-          if (target !== undefined) openPhoto(target);
-        }}
-        aria-label="한 장씩 보기"
-      />
-    </>
-  );
-
-  // 높이는 화면에 비례(clamp 64~96px)해 작은 화면에서 사진 몫을 지킨다
-  const filmstrip = (
-    <div className="flex h-[clamp(64px,12dvh,96px)] shrink-0 items-center gap-1 overflow-x-auto border-b border-divider-default bg-background-default-main px-3 py-2">
-      {collapsedPreview && clusterReady ? (
-        // 폴더 미리보기 — 스트립도 폴더(대표+장수 뱃지)와 나머지 사진으로.
-        // 폴더 칩을 누르면 그 폴더를 열고, 나머지는 그대로 이동한다.
+  // 하단 바 — 단계 · 하위 상태별
+  const bottomHint = (() => {
+    if (stageIndex === 0) {
+      if (allPhotos.length === 0) return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
+      if (!folders || folders.length === 0) return "폴더는 업로드가 끝나면 AI가 만들어요";
+      return reviewFolderCount > 0
+        ? `폴더와 사진을 확인하고 갤러리를 열어 주세요 · "검토"는 AI가 확신이 낮은 폴더예요 · 확인 필요 ${reviewFolderCount}`
+        : "폴더와 사진을 확인하고 갤러리를 열어 주세요";
+    }
+    if (stageIndex === 1) {
+      if (sub === "invite") return "초대 링크를 보내면 클라이언트가 고를 수 있어요";
+      if (sub === "submitted") return `제출 ${shortDate(selection?.submittedAt ?? null)} · 확인하면 보정 작업 단계로 넘어가요`;
+      if (sub === "overdue") return "기간을 연장하면 클라이언트가 이어서 고를 수 있어요";
+      return "클라이언트가 고르는 중이에요 · 제출하면 알림으로 알려 드려요";
+    }
+    return "이 단계 화면은 준비 중이에요";
+  })();
+  const lastPicked = pickedPhotos[pickedPhotos.length - 1];
+  const bottomStatus =
+    stageIndex === 1 && sub !== "invite" ? (
+      <span className="flex items-center gap-2.5 type-content-m text-contents-light-bgd-sub">
+        선택한 사진
+        <b className="type-title-s text-contents-light-bgd-default tabular-nums">{selectedCount}</b>
+        {maxSelectable !== null && <span className="tabular-nums">/ {maxSelectable}</span>}
+        <span
+          className={`size-11 overflow-hidden rounded-(--radius-8) border bg-surface-default-light ${
+            sub === "overdue" ? "border-function-warning-default" : "border-divider-default"
+          }`}
+        >
+          {lastPicked?.viewUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={lastPicked.viewUrl} alt="" className="size-full object-cover" />
+          )}
+        </span>
+      </span>
+    ) : null;
+  const bottomActions =
+    stageIndex === 0 ? (
+      <>
+        <ShellCta kind={allPhotos.length === 0 ? "primary" : "ghost"} onClick={showComingSoon}>
+          <UploadIcon size={18} />
+          사진 업로드
+        </ShellCta>
+        {(allPhotos.length > 0 || DEV) && (
+          <ShellCta disabled={!canOpen} onClick={() => setOpenConfirm(true)}>
+            갤러리 열기
+          </ShellCta>
+        )}
+      </>
+    ) : stageIndex === 1 ? (
+      sub === "invite" ? (
+        <ShellCta onClick={() => setInviteTab("client")}>
+          <PersonAddIcon size={18} />
+          클라이언트 초대
+        </ShellCta>
+      ) : sub === "submitted" ? (
         <>
-          {clusterGroups.map((group, index) => (
-            <PhotoThumbnail
-              key={`group-${group[0].id}`}
-              onClick={() => {
-                setOpenClusterIndex(index);
-                setCurrentPhotoId(group[0].id);
-              }}
-              label={`폴더 ${index + 1} — ${group.length}장`}
-              badge={`${group.length}장`}
-              imageUrl={group[0].url}
-              onImageError={refreshOnImageError}
-            />
-          ))}
-          {clusterSingles.map((photo) => (
-            <PhotoThumbnail
-              key={photo.id}
-              onClick={() => setCurrentPhotoId(photo.id)}
-              label={photo.name}
-              selected={photo.id === currentPhoto?.id}
-              imageUrl={photo.url}
-              preparing={photo.preparing}
-              onImageError={refreshOnImageError}
-            />
-          ))}
+          <ShellCta kind="secondary" onClick={() => setExtendOpen(true)}>
+            <ScheduleIcon size={18} />
+            기간 연장
+          </ShellCta>
+          <ShellCta onClick={() => setConfirmKind("retouch")}>선택 확인 → 보정 작업</ShellCta>
         </>
-      ) : (
-        photos.map((photo) => (
-          <PhotoThumbnail
-            key={photo.id}
-            onClick={() => setCurrentPhotoId(photo.id)}
-            label={photo.name}
-            selected={photo.id === currentPhoto?.id}
-            imageUrl={photo.url}
-            preparing={photo.preparing}
-            onImageError={refreshOnImageError}
-          />
-        ))
-      )}
-    </div>
-  );
+      ) : sub === "overdue" ? (
+        <>
+          <ShellCta kind="secondary" onClick={() => setConfirmKind("asis")}>
+            이대로 확인
+          </ShellCta>
+          <ShellCta onClick={() => setExtendOpen(true)}>
+            <ScheduleIcon size={18} />
+            기간 연장
+          </ShellCta>
+        </>
+      ) : null
+    ) : null;
 
-  // 콘텐츠 헤더 — 모든 뷰 공통. 도구가 항상 같은 자리에 있다 (부부 화면과 동일 구조).
-  // 뷰 4버튼은 클러스터 맨 오른쪽 고정, 뷰에 따라 생기는 줌은 그 왼쪽에 끼어 토글이 안 움직인다.
-  const contentHeader = (
-    <div className="flex w-full items-center justify-between gap-3">
-      <div className="flex items-center gap-2 text-contents-light-bgd-default">
-        <PhotoIcon size={20} />
-        <h2 className="type-content-m text-contents-light-bgd-default">{title}</h2>
+  const selectedEmpty =
+    sub === "invite" ? (
+      <div className="grid flex-1 place-items-center px-6 py-8">
+        <div className="flex w-full max-w-130 flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-border-default px-6 py-12 text-center">
+          <span className="grid size-14 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-default">
+            <PersonAddIcon size={28} />
+          </span>
+          <h3 className="mt-1 type-title-s text-contents-light-bgd-default">아직 아무도 들어오지 않았어요</h3>
+          <p className="type-content-s text-contents-light-bgd-sub">
+            초대 링크를 보내면 클라이언트가 회원가입 후 이 갤러리로 바로 들어와 고를 수 있어요.
+          </p>
+        </div>
       </div>
-      <div className="flex items-center gap-1">
-        {/* 별점 순 정렬 예정 — 구현 전까지 준비 중 안내 */}
-        <IconButton
-          icon={<SortIcon size={20} />}
-          onClick={showComingSoon}
-          aria-label="정렬"
-        />
-        {(mode === "grid-large" || mode === "grid-small") && (
-          <div className="mx-1">
-            <ZoomSelect value={zoom} onChange={setZoom} direction="down" />
-          </div>
-        )}
-        {(mode === "single" || mode === "compare") && (
-          <div className="mx-1">
-            <FilmstripChip
-              open={filmstripOpen}
-              position={(currentIndex >= 0 ? currentIndex : 0) + 1}
-              total={photos.length}
-              onToggle={toggleFilmstrip}
-            />
-          </div>
-        )}
-        {/* 휴지통은 열람 전용 목록 — 크게 보기·비교 진입을 두지 않는다(시안 확정) */}
-        {view !== "trash" && viewToggles}
-        <p className="ml-2 type-content-xs text-contents-light-bgd-sub">
-          {view === "trash"
-            ? `${photos.length}장 · 보관 기간이 지나면 자동으로 완전히 삭제됩니다`
-            : collapsedPreview && clusterReady
-              ? `폴더 ${clusterGroups.length}개 · 나머지 사진 ${clusterSingles.length}장`
-              : `${photos.length}/${allPhotos.length} 장의 사진`}
-        </p>
-      </div>
-    </div>
-  );
-
-  // 패널이 보여줄 사진 (단일 보기의 현재 사진, 그리드에선 목록 첫 사진)
-  const panelPhoto = currentPhoto ?? photos[0];
-  const panelFileInfo = panelPhoto
-    ? [
-        { label: "파일 이름", value: panelPhoto.name },
-        // 촬영 일시·크기는 사진 메타 API 확장 전까지 표기 보류
-        { label: "형식", value: panelPhoto.format || "-" },
-        {
-          label: "앨범",
-          value: folderView ? (activeGroupMeta?.name ?? "-") : "-",
-        },
-        {
-          label: "부부 별점",
-          value: `${panelPhoto.score ?? 0} / 5`,
-        },
-      ]
-    : [];
-  const panelReaction = panelPhoto
-    ? (reactions[panelPhoto.id] ?? EMPTY_REACTION)
-    : EMPTY_REACTION;
-  const reactionLikesLabel = panelReaction.likes.length
-    ? `${panelReaction.likes.length}명이 좋아해요`
-    : "아직 좋아요가 없어요";
-  const panelRetouch = panelPhoto
-    ? (retouchRequests[panelPhoto.id] ?? "").trim()
-    : "";
-  // 부부가 남긴 보정 요청을 댓글 목록 맨 위에 칩과 함께 합류시킨다
-  const reactionComments = [
-    ...(panelRetouch
-      ? [
-          {
-            initial: gallery.title.trim().slice(0, 1) || "부",
-            meta: gallery.title,
-            tag: "보정 요청",
-            text: panelRetouch,
-          },
-        ]
-      : []),
-    ...panelReaction.comments.map((comment) => ({
-      initial: comment.initial,
-      meta: `${comment.author} · ${comment.timeLabel}`,
-      text: comment.text,
-    })),
-  ];
-  const retouchCount = allPhotos.filter((photo) =>
-    (retouchRequests[photo.id] ?? "").trim(),
-  ).length;
+    ) : (
+      <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
+        아직 고른 사진이 없어요
+      </p>
+    );
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
-      {/* 풀와이드 탑바 (피그마 작가 워크스페이스 탑바) */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-divider-default bg-background-default-main px-3">
-        {/* 좌측은 내비(메뉴·로고)만 — 뷰 도구는 콘텐츠 영역으로 이동 (구글 포토식, 사용자 결정) */}
-        <div className="flex items-center gap-1">
-          <IconButton
-            icon={<MenuIcon size={20} />}
-            onClick={toggle}
-            aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-          />
-          <Link
-            href={`/studio/${gallery.workspaceId}`}
-            className="mx-2 flex items-center gap-2 text-contents-light-bgd-default"
-          >
-            <BrandLogo size={28} />
-            <b className="type-brand-wordmark">Easy Select</b>
-          </Link>
-        </div>
-        <div className="flex items-center gap-1">
-          {/* 핵심 CTA는 사이드바 소속이지만, 접혀 있을 땐 액션이 사라지지 않게 탑바로 폴백 */}
-          {collapsed && gallery.status === "DRAFT" && (
-            <Button
-              size="sm"
-              onClick={() => setStatusAction("open")}
-              className="mr-1"
-            >
-              갤러리 열기
-            </Button>
-          )}
-          {collapsed && legacy?.uploaded && !legacy.delivered && (
-            <Button
-              size="sm"
-              onClick={() => setDeliveryOpen(true)}
-              className="mr-1"
-            >
-              전달 완료로 표시
-            </Button>
-          )}
-          <NotificationBell />
-          <IconButton
-            icon={<ShareIcon size={20} />}
-            selected={inviteOpen}
-            onClick={() => setInviteOpen(true)}
-            aria-label="부부 초대"
-          />
-          <ProfileAvatarButton
-            current={{ kind: "STUDIO", workspaceId: gallery.workspaceId }}
-          />
-        </div>
-      </header>
+      <ShellTopbar
+        studioName={studio?.name ?? "스튜디오"}
+        studioHref={studio ? `/studio/${studio.galleryUrl}` : "/studio"}
+        workspaceId={gallery?.workspaceId ?? null}
+        stageLabel={gallery ? SHELL_STAGES[stageIndex] : "…"}
+        deadline={gallery?.selectionDeadline ?? null}
+        onInviteClick={studio ? () => setInviteTab("client") : undefined}
+      />
 
       <div className="flex min-h-0 flex-1">
-        {/* 작가 사이드바 — 커플명 + 업로드 + 자동 분류 + 필터 + 앨범 */}
         {!collapsed && (
-          <aside className="hidden w-70 shrink-0 flex-col border-r border-divider-default bg-background-default-main md:flex">
-            <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-5">
-              <h1 className="truncate type-title-m text-contents-light-bgd-default">
-                {gallery.title}
-              </h1>
-              <GalleryStatusChip gallery={gallery} className="shrink-0 px-0!" />
-            </div>
-            <div className="mx-5 h-px shrink-0 bg-divider-default" />
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
-              <div className="flex w-full flex-col gap-2">
-                {/* 상태 전환 — DRAFT의 핵심 CTA. 열어야 초대된 부부에게 보인다 */}
-                {gallery.status === "DRAFT" && (
-                  <Button
-                    onClick={() => setStatusAction("open")}
-                    className="w-full"
-                  >
-                    갤러리 열기
-                  </Button>
-                )}
-                <Button
-                  onClick={() => setUploadOpen(true)}
-                  icon={<UploadIcon />}
-                  className="w-full"
-                >
-                  사진 업로드
-                </Button>
-                {/* 상태 전환 보조 액션 — 아웃라인 스타일은 공용 Button에 없어 직접 그린다 */}
-                {gallery.status === "OPEN" && (
-                  <button
-                    type="button"
-                    onClick={() => setStatusAction("close")}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-                  >
-                    선택 마감
-                  </button>
-                )}
-                {gallery.status === "CLOSED" && (
-                  <button
-                    type="button"
-                    onClick={() => setStatusAction("reopen")}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-                  >
-                    재오픈
-                  </button>
-                )}
-                {/* 부부가 셀렉을 제출한 뒤에만 — 되돌릴지는 작가가 판단(서버 규칙) */}
-                {selection?.status === "SUBMITTED" && (
-                  <button
-                    type="button"
-                    onClick={() => setReopenSelectionOpen(true)}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-                  >
-                    선택 다시 열기
-                  </button>
-                )}
-                {/* 워크플로 종결 액션 — 업로드 아래에 배치 (사용자 결정).
-                    원래 조건은 부부의 셀렉 제출 후지만 BE 연동 전이라 업로드 후부터 노출.
-                    업로드·전달 플래그는 레거시 스토어 몫(04·07에서 서버 전환) */}
-                {legacy?.uploaded && !legacy.delivered && (
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryOpen(true)}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center rounded-(--pill) border border-border-default bg-background-default-main px-5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-                  >
-                    전달 완료로 표시
-                  </button>
-                )}
-              </div>
-
-              <AssistPanel
-                onOpenChange={(open) => {
-                  setOpenClusterIndex(null);
-                  cluster.setEnabled(open);
-                }}
-                levelIndex={cluster.levelIndex}
-                onLevelChange={(index) => {
-                  setOpenClusterIndex(null);
-                  cluster.setLevelIndex(index);
-                }}
-                summary={
-                  cluster.result === null
-                    ? null
-                    : cluster.result.kind === "error"
-                      ? "묶음을 불러오지 못했어요 — 잠시 후 다시 시도해 주세요"
-                      : `폴더 ${clusterGroups.length}개 · 나머지 사진 ${clusterSingles.length}장`
-                }
-                hint={
-                  clusterReady && preparingCount > 0
-                    ? `분석 중인 사진 ${preparingCount}장은 끝나는 대로 폴더에 담겨요`
-                    : undefined
-                }
-                onSave={() => setSaveAlbumOpen(true)}
-                saveDisabled={
-                  !clusterReady ||
-                  clusterGroups.length + clusterSingles.length === 0
-                }
-              />
-
-              <div className="h-px w-full shrink-0 bg-divider-default" />
-
-              <div className="flex w-full flex-col gap-1">
-                <MenuItem
-                  icon={<PhotoIcon size={20} />}
-                  label="모든 사진"
-                  count={allPhotos.length}
-                  selected={view === "all"}
-                  onClick={() => {
-                    clearSelection();
-                    setView("all");
-                  }}
+          <ShellSidebar
+            title={gallery?.title ?? "…"}
+            status={status}
+            stageIndex={stageIndex}
+            photoCount={allPhotos.length}
+            selectedLocked={stageIndex === 0}
+            selectedCount={selectedCount}
+            maxSelectable={maxSelectable}
+            folderTree={
+              inSelection && folders && folders.length > 0 ? (
+                <SidebarFolderTree
+                  folders={folders}
+                  pickedIds={pickedIds}
+                  selection={view === "all" ? folderSel : { kind: "all" }}
+                  onSelect={changeFolder}
                 />
-                <MenuItem
-                  icon={<PhotoIcon size={20} />}
-                  label="선택 사진"
-                  count={(() => {
-                    const max =
-                      selection?.max ?? gallery.maxSelectablePhotoCount;
-                    const count = selection?.selectedCount ?? 0;
-                    return max !== null ? `${count}/${max}` : count;
-                  })()}
-                  selected={view === "selected"}
-                  onClick={() => {
-                    clearSelection();
-                    setView("selected");
-                  }}
-                />
-              </div>
-
-              <div className="h-px w-full shrink-0 bg-divider-default" />
-
-              <AlbumTreeSection
-                result={folderGroupsResult}
-                activeKey={
-                  folderView
-                    ? `${folderView.groupId}:${folderView.folderId}`
-                    : null
-                }
-                dragContext={dragSource}
-                onSelectFolder={(groupId, folderId) => {
-                  setOpenClusterIndex(null);
-                  clearSelection();
-                  setView(`album:${groupId}:${folderId}`);
-                }}
-                onRenameGroup={(groupId, name) =>
-                  void handleRenameGroup(groupId, name)
-                }
-                onRenameFolder={(groupId, folderId, name) =>
-                  void handleRenameFolder(groupId, folderId, name)
-                }
-                onDeleteGroup={(groupId, name) =>
-                  setDeleteTarget({ kind: "group", groupId, name })
-                }
-                onDeleteFolder={(groupId, folderId, name) =>
-                  setDeleteTarget({ kind: "folder", groupId, folderId, name })
-                }
-                onDropPhotos={(folderId) => void handleMoveSelection(folderId)}
-              />
-
-              <div className="h-px w-full shrink-0 bg-divider-default" />
-
-              {/* 휴지통 진입점 — 트리 맨 아래 고정, 지운 게 있을 때만 개수 (시안 확정) */}
-              <MenuItem
-                icon={<TrashIcon size={20} />}
-                label="휴지통"
-                count={trashedPhotos.length > 0 ? trashedPhotos.length : undefined}
-                selected={view === "trash"}
-                onClick={() => {
-                  clearSelection();
-                  setOpenClusterIndex(null);
-                  setView("trash");
-                }}
-              />
-            </div>
-          </aside>
+              ) : undefined
+            }
+            view={view}
+            onViewChange={(next) => {
+              changeView(next);
+              if (next !== "all") setFolderSel({ kind: "all" });
+              else setFolderSel({ kind: "all" });
+            }}
+          />
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1">
-            {mode === "single" ? (
-              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="px-4 pt-4 pb-3">{contentHeader}</div>
-                {filmstripOpen && filmstrip}
-                <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background-inverse-sub p-3">
-                  {currentPhoto ? (
-                    currentPhoto.preparing ? (
-                      // 파생 JPEG 준비 전 — 물결 + 아이콘 (그리드 셀과 동일 문법)
-                      <div
-                        aria-label={`${currentPhoto.name} — 미리보기 준비 중`}
-                        className="relative aspect-4/5 h-full overflow-hidden rounded-(--radius-4) bg-surface-default-light"
-                      >
-                        <span className="shimmer-sweep" />
-                        <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <path d="M21 15l-5-5L5 21" />
-                          </svg>
-                        </span>
-                      </div>
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={currentPhoto.url ?? undefined}
-                        alt={currentPhoto.name}
-                        onError={refreshOnImageError}
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    )
-                  ) : (
-                    <p className="type-content-m text-contents-dark-bgd-default">
-                      표시할 사진이 없어요.
-                    </p>
-                  )}
-                </div>
-              </main>
-            ) : mode === "compare" ? (
-              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="px-4 pt-4 pb-3">{contentHeader}</div>
-                {filmstripOpen && filmstrip}
-                <div className="flex shrink-0 items-center justify-end bg-background-default-main px-4 py-1">
-                  <button
-                    type="button"
-                    onClick={() => setCompareCount(compareCount === 2 ? 4 : 2)}
-                    className="flex cursor-pointer items-center gap-1 type-content-m text-contents-light-bgd-default"
-                  >
-                    {compareCount}장 보기
-                    <DropdownIcon size={16} />
-                  </button>
-                </div>
-                {/* 비교 스테이지 — 작가는 관찰만: 선택 테두리·별점 모두 읽기 전용 */}
-                <div className="flex min-h-0 flex-1 items-center justify-center gap-6 bg-background-default-main p-3 [container-type:size]">
-                  {comparePhotos.length === 0 ? (
-                    <p className="type-content-m text-contents-light-bgd-sub">
-                      비교할 사진이 없어요.
-                    </p>
-                  ) : (
-                    comparePhotos.map((photo) => (
-                      <ComparePhotoCard
-                        key={photo.id}
-                        imageWidth={compareImageWidth}
-                        label={photo.name}
-                        selected={selectedSet.has(photo.id)}
-                        rating={photo.score ?? 0}
-                        imageUrl={photo.url}
-                        preparing={photo.preparing}
-                        onImageError={refreshOnImageError}
-                      />
-                    ))
-                  )}
-                </div>
-              </main>
-            ) : (
-              <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-                {/* 헤더는 스크롤 영역 밖 — 뷰 전환·스크롤에도 도구 위치 고정 */}
-                <div className="px-4 pt-4 pb-3">{contentHeader}</div>
-                {/* 클러스터 미리보기 보조 줄 — 펼침: 돌아가기, 접힘: 안내 캡션 */}
-                {cluster.enabled && view === "all" && openClusterGroup && (
-                  <div className="flex items-baseline gap-2 px-4 pb-2">
-                    <button
-                      type="button"
-                      onClick={() => setOpenClusterIndex(null)}
-                      className="cursor-pointer type-label-medium-m text-contents-light-bgd-default hover:underline"
-                    >
-                      ← 미리보기로
-                    </button>
-                    <span className="type-content-xs text-contents-light-bgd-sub">
-                      폴더 {(openClusterIndex ?? 0) + 1} ·{" "}
-                      {openClusterGroup.length}장
+        {showFolderColumn && (
+          <FolderColumn
+            folders={folders}
+            totalPhotos={allPhotos.length}
+            unsortedCount={unsortedCount}
+            selection={folderSel}
+            onSelect={changeFolder}
+          />
+        )}
+
+        <main className="flex min-w-0 flex-1 flex-col">
+          {photos === null ? (
+            <div className="flex-1" aria-busy="true" />
+          ) : view === "selected" && inSelection ? (
+            <>
+              <ShellMainHeader
+                {...headerCommon}
+                sortable={false}
+                title={
+                  <>
+                    <span className="flex text-contents-light-bgd-weakness">
+                      <CheckCircleIcon size={18} />
                     </span>
-                  </div>
+                    선택한 사진
+                    <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{countLabel}</small>
+                  </>
+                }
+              />
+              {quotaBanner}
+              {selectionBanner}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                {pickedPhotos.length === 0 ? (
+                  selectedEmpty
+                ) : (
+                  <PhotoGrid photos={pickedPhotos} zoom={zoom} selectedIds={selected} onToggle={() => {}} selectable={false} />
                 )}
-                {cluster.enabled &&
-                  view === "all" &&
-                  !openClusterGroup &&
-                  clusterReady &&
-                  clusterGroups.length > 0 && (
-                    <p className="px-4 pb-2 type-content-xs text-contents-light-bgd-sub">
-                      겹친 카드가 폴더예요 — 누르면 안의 사진만 보여요
-                    </p>
-                  )}
-                <div
-                  className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 scrollbar-gutter-stable"
-                  onClick={(e) => {
-                    // 빈 곳 클릭 — 선택 해제 (탐색기 문법)
-                    if (e.target === e.currentTarget) clearSelection();
-                  }}
-                >
-                {collapsedPreview ? (
-                  cluster.result === null ? (
-                    gridSkeleton
-                  ) : cluster.result.kind === "error" ? (
-                    <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <p className="type-content-m text-contents-light-bgd-sub">
-                        묶음을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
-                        시도해 주세요.
-                      </p>
-                      <Button size="sm" onClick={cluster.retry}>
-                        다시 불러오기
-                      </Button>
-                    </div>
-                  ) : clusterGroups.length + clusterSingles.length === 0 ? (
-                    <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
-                      묶을 사진이 아직 없어요 — 업로드한 사진의 분석이 끝나면
-                      여기에 묶여요.
-                    </p>
-                  ) : (
-                    <div
-                      className="grid w-full justify-center gap-2"
-                      style={{ gridTemplateColumns }}
-                    >
-                      {clusterGroups.map((group, index) => (
-                        <ClusterStackCell
-                          key={group[0].id}
-                          photos={group}
-                          onOpen={() => setOpenClusterIndex(index)}
-                          onImageError={refreshOnImageError}
-                        />
-                      ))}
-                      {clusterSingles.map((photo) => (
-                        <PhotoCell
-                          key={photo.id}
-                          onClick={() => setCurrentPhotoId(photo.id)}
-                          variant={mode === "grid-small" ? "small" : "large"}
-                          focused={photo.id === currentPhoto?.id}
-                          name={photo.name}
-                          format={photo.format}
-                          label={photo.name}
-                          imageUrl={photo.url}
-                          preparing={photo.preparing}
-                          onImageError={refreshOnImageError}
-                        />
-                      ))}
-                    </div>
-                  )
-                ) : folderView ? (
-                  // 폴더 열람 — 목록·오류·빈 상태를 폴더 기준으로
-                  activeFolderPhotos === null ? (
-                    gridSkeleton
-                  ) : activeFolderPhotos.kind === "error" ? (
-                    <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <p className="type-content-m text-contents-light-bgd-sub">
-                        폴더를 불러오지 못했어요. 네트워크를 확인한 뒤 다시
-                        시도해 주세요.
-                      </p>
-                      <Button size="sm" onClick={reloadFolderPhotos}>
-                        다시 불러오기
-                      </Button>
-                    </div>
-                  ) : photos.length === 0 ? (
-                    <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
-                      폴더가 비어 있어요.
-                    </p>
-                  ) : (
-                    // 폴더 열람 전용 그리드 — 탐색기식 선택·우클릭·드래그를 셀 래퍼가 받는다
-                    <div
-                      className="grid w-full justify-center gap-2"
-                      style={{ gridTemplateColumns }}
-                    >
-                      {photos.map((photo, index) => (
-                        <div
-                          key={photo.id}
-                          draggable={pickedIds.includes(photo.id)}
-                          onDragStart={(e) => {
-                            if (!folderView) return;
-                            e.dataTransfer.effectAllowed = "move";
-                            e.dataTransfer.setData("text/plain", "");
-                            setDragSource({
-                              groupId: folderView.groupId,
-                              folderId: folderView.folderId,
-                            });
-                          }}
-                          onDragEnd={() => setDragSource(null)}
-                          onClick={(e) =>
-                            handleSelectClick(e, photo.id, index)
-                          }
-                          onDoubleClick={() => openPhoto(photo.id)}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            if (!pickedIds.includes(photo.id)) {
-                              setPickedIds([photo.id]);
-                              setLastSelIndex(index);
-                            }
-                            setCtxMenu({ x: e.clientX, y: e.clientY });
-                          }}
-                        >
-                          <PhotoCell
-                            variant={mode === "grid-small" ? "small" : "large"}
-                            focused={photo.id === currentPhoto?.id}
-                            name={photo.name}
-                            format={photo.format}
-                            label={photo.name}
-                            imageUrl={photo.url}
-                            preparing={photo.preparing}
-                            managed={pickedIds.includes(photo.id)}
-                            onImageError={refreshOnImageError}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : view === "trash" ? (
-                  // 휴지통 — 반투명 셀 그리드, 클릭=선택·우클릭=메뉴 (크게 보기 없음)
-                  trashResult === null ? (
-                    gridSkeleton
-                  ) : trashResult.kind === "error" ? (
-                    <div className="flex flex-col items-center gap-3 py-16 text-center">
-                      <p className="type-content-m text-contents-light-bgd-sub">
-                        휴지통을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
-                        시도해 주세요.
-                      </p>
-                      <Button size="sm" onClick={reloadTrash}>
-                        다시 불러오기
-                      </Button>
-                    </div>
-                  ) : photos.length === 0 ? (
-                    <div className="py-16 text-center">
-                      <p className="type-content-m text-contents-light-bgd-sub">
-                        휴지통이 비어 있어요.
-                      </p>
-                      <p className="mt-1 type-content-xs text-contents-light-bgd-weakness">
-                        지운 사진은 여기서 복원할 수 있습니다.
-                      </p>
-                    </div>
-                  ) : (
-                    <div
-                      className="grid w-full justify-center gap-2"
-                      style={{ gridTemplateColumns }}
-                    >
-                      {photos.map((photo, index) => (
-                        <div
-                          key={photo.id}
-                          className="opacity-60"
-                          onClick={(e) => handleSelectClick(e, photo.id, index)}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            if (!pickedIds.includes(photo.id)) {
-                              setPickedIds([photo.id]);
-                              setLastSelIndex(index);
-                            }
-                            setCtxMenu({ x: e.clientX, y: e.clientY });
-                          }}
-                        >
-                          <PhotoCell
-                            variant={mode === "grid-small" ? "small" : "large"}
-                            managed={pickedIds.includes(photo.id)}
-                            name={photo.name}
-                            format={photo.format}
-                            label={photo.name}
-                            imageUrl={photo.url}
-                            onImageError={reloadTrash}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : photosResult === null ? (
-                  gridSkeleton
-                ) : photosResult.kind === "error" ? (
-                  <div className="flex flex-col items-center gap-3 py-16 text-center">
-                    <p className="type-content-m text-contents-light-bgd-sub">
-                      사진을 불러오지 못했어요. 네트워크를 확인한 뒤 다시
-                      시도해 주세요.
-                    </p>
-                    <Button size="sm" onClick={reloadPhotos}>
-                      다시 불러오기
-                    </Button>
-                  </div>
-                ) : photos.length === 0 ? (
-                  <p className="py-16 text-center type-content-m text-contents-light-bgd-sub">
-                    아직 사진이 없어요 — 사진 업로드로 시작해 보세요.
+              </div>
+            </>
+          ) : allPhotos.length === 0 ? (
+            <EmptyUploadGuide />
+          ) : (
+            <>
+              <ShellMainHeader {...headerCommon} title={allTitle} />
+              {quotaBanner}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {visiblePhotos.length === 0 ? (
+                  <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
+                    조건에 맞는 사진이 없어요
                   </p>
                 ) : (
-                  photoCellGrid
+                  <PhotoGrid
+                    photos={visiblePhotos}
+                    zoom={zoom}
+                    selectedIds={selected}
+                    onToggle={toggleSelect}
+                    markedIds={inSelection ? pickedIds : undefined}
+                    selectable={!inSelection}
+                  />
                 )}
-                </div>
-                {pickedIds.length > 0 &&
-                  (folderView ? (
-                    <SelectionActionBar
-                      count={pickedIds.length}
-                      targets={moveTargets}
-                      onMove={(folderId) => void handleMoveSelection(folderId)}
-                      onRemove={() => void handleRemoveSelection()}
-                      onSelectAll={selectAllInView}
-                      onTrash={() => setTrashConfirmOpen(true)}
-                    />
-                  ) : view === "trash" ? (
-                    <SelectionActionBar
-                      count={pickedIds.length}
-                      onSelectAll={selectAllInView}
-                      onRestore={() => void handleRestorePicked()}
-                      onErase={() => setEraseConfirmOpen(true)}
-                    />
-                  ) : view === "all" && !cluster.enabled ? (
-                    <SelectionActionBar
-                      count={pickedIds.length}
-                      onSelectAll={selectAllInView}
-                      onTrash={() => setTrashConfirmOpen(true)}
-                    />
-                  ) : null)}
-              </main>
-            )}
-
-            {rightPanel === "reaction" && (
-              <ReactionPanel
-                likesLabel={reactionLikesLabel}
-                comments={reactionComments}
-              />
-            )}
-            {rightPanel === "info" && panelPhoto && (
-              <InfoPanel analysis={MOCK_ANALYSIS} fileInfo={panelFileInfo} />
-            )}
-          </div>
-
-          {/* 하단 툴바 — 비교·싱글 뷰 전용 (그리드 줌은 탑바로 이동, 사용자 결정) */}
-          {(mode === "single" || mode === "compare") && (
-            <AppToolbar
-              left={
-                <span className="type-content-xs text-contents-light-bgd-sub">
-                  {currentPhoto
-                    ? `${currentIndex + 1} / ${photos.length}`
-                    : `${photos.length} / ${allPhotos.length}`}
-                </span>
-              }
-              center={
-                <StarRating value={currentPhoto?.score ?? 0} />
-              }
-            />
+              </div>
+            </>
           )}
-        </div>
-
-        <AppRightRail>
-          <IconButton
-            icon={<ReactionIcon size={20} />}
-            selected={rightPanel === "reaction"}
-            onClick={() =>
-              setRightPanel(rightPanel === "reaction" ? null : "reaction")
-            }
-            aria-label="댓글 패널"
-          />
-          <IconButton
-            icon={<InfoIcon size={20} />}
-            selected={rightPanel === "info"}
-            onClick={() => setRightPanel(rightPanel === "info" ? null : "info")}
-            aria-label="정보 패널"
-          />
-        </AppRightRail>
+        </main>
       </div>
 
-      {uploadOpen && (
-        <GalleryUploadModal
-          galleryId={gallery.id}
-          onClose={() => setUploadOpen(false)}
-          onUploaded={() => {
-            // 방금 올린 사진이 바로 그리드에 보이게 (UPLOADED = 준비 중 셀)
-            reloadPhotos();
-            // 분석 자동 실행 + 진행 폴링 재가동 (#24)
-            notifyEmbedding();
-            // 전달 CTA 데모 플래그 — 전달 흐름(07) 서버 전환 전까지 레거시 유지
-            if (legacy) {
-              updateGallery(legacy.id, {
-                uploaded: true,
-                total: allPhotos.length,
-              });
-            }
+      <ShellBottomBar
+        selectionCount={selected.size}
+        onClearSelection={() => setSelected(new Set())}
+        onMoveSelection={showComingSoon}
+        onDeleteSelection={showComingSoon}
+        hint={bottomHint}
+        status={bottomStatus}
+        actions={bottomActions}
+      />
+
+      {openConfirm && gallery && (
+        <OpenGalleryModal
+          gallery={gallery}
+          photoCount={allPhotos.length}
+          folderCount={details.length}
+          reviewCount={reviewFolderCount}
+          onClose={() => setOpenConfirm(false)}
+          onOpened={(updated) => {
+            setGallery(updated);
+            setOpenConfirm(false);
           }}
         />
       )}
-      {inviteOpen && (
+      {inviteTab && gallery && studio && (
         <GalleryInviteModal
           galleryId={gallery.id}
-          onClose={() => setInviteOpen(false)}
+          galleryTitle={gallery.title}
+          workspaceId={gallery.workspaceId}
+          studioName={studio.name}
+          canInviteStudio={isOwner}
+          initialTab={inviteTab}
+          onClose={() => setInviteTab(null)}
+          onManageMembers={() => {
+            window.location.assign(
+              `/settings?studio=${gallery.workspaceId}&tab=members&from=${encodeURIComponent(`/studio/gallery/${gallery.id}`)}`,
+            );
+          }}
         />
       )}
-      {deliveryOpen && (
-        <GalleryDeliveryConfirmModal
-          selectedCount={selection?.selectedCount ?? 0}
-          target={selection?.max ?? gallery.maxSelectablePhotoCount ?? 0}
-          retouchCount={retouchCount}
-          selectionSubmitted={selection?.status === "SUBMITTED"}
-          onClose={() => setDeliveryOpen(false)}
+      {extendOpen && gallery && (
+        <ExtendDeadlineModal
+          gallery={gallery}
+          selectedCount={selectedCount}
+          submitted={selection?.status === "SUBMITTED"}
+          onClose={() => setExtendOpen(false)}
+          onDone={(updated) => {
+            setGallery(updated);
+            setExtendOpen(false);
+            reloadSelection();
+          }}
+        />
+      )}
+      {quotaOpen && gallery && (
+        <ChangeQuotaModal
+          gallery={gallery}
+          selectedCount={selectedCount}
+          requestMessage={quotaRequest ? `${quotaRequest.title}${quotaRequest.message ? ` · ${quotaRequest.message}` : ""}` : null}
+          onClose={() => setQuotaOpen(false)}
+          onDone={(updated) => {
+            setGallery(updated);
+            setQuotaOpen(false);
+            void dismissQuotaRequest();
+          }}
+        />
+      )}
+      {confirmKind && (
+        <StageConfirmModal
+          kind={confirmKind}
+          selectedCount={selectedCount}
+          maxCount={maxSelectable}
+          retouchCount={null}
+          onClose={() => setConfirmKind(null)}
           onConfirm={() => {
-            if (legacy) updateGallery(legacy.id, { delivered: true });
-            setDeliveryOpen(false);
+            setConfirmKind(null);
+            showComingSoon();
           }}
         />
-      )}
-      {/* 휴지통 이동 확인 — 복원 가능한 이동이라 검정 확인 버튼 (시안 확정 문구) */}
-      {trashConfirmOpen && (
-        <GalleryModalShell
-          title={`사진 ${pickedIds.length}장을 휴지통으로 옮길까요?`}
-          desc="휴지통에서 복원할 수 있습니다. 보관 기간이 지나면 자동으로 완전히 삭제됩니다."
-          onClose={() => setTrashConfirmOpen(false)}
-        >
-          <p className="mb-6 type-content-xs text-contents-light-bgd-weakness">
-            선택 앨범·폴더·자동 분류에서도 함께 사라집니다.
-          </p>
-          <GalleryModalButtons
-            onClose={() => setTrashConfirmOpen(false)}
-            onConfirm={() => void handleTrashPicked()}
-            confirmLabel="휴지통으로 이동"
-          />
-        </GalleryModalShell>
-      )}
-      {/* 완전 삭제 재확인 — 복구 불가, 유일한 빨간 버튼 */}
-      {eraseConfirmOpen && (
-        <GalleryModalShell
-          title={`${pickedIds.length}장을 완전히 삭제할까요?`}
-          desc="원본까지 삭제되고 복구할 수 없습니다."
-          onClose={() => setEraseConfirmOpen(false)}
-        >
-          <GalleryModalButtons
-            onClose={() => setEraseConfirmOpen(false)}
-            onConfirm={() => void handleErasePicked()}
-            confirmLabel="완전 삭제"
-            confirmVariant="danger"
-          />
-        </GalleryModalShell>
-      )}
-      {/* 선택 다시 열기 확인 — 이미 보정에 들어갔을 수 있어 최종 판단은 작가 몫 */}
-      {reopenSelectionOpen && (
-        <GalleryModalShell
-          title="부부 선택을 다시 열까요?"
-          desc="다시 열면 부부가 이어서 고를 수 있어요. 이미 보정을 시작했다면 열기 전에 부부와 한번 확인해 주세요."
-          onClose={() => setReopenSelectionOpen(false)}
-        >
-          <GalleryModalButtons
-            onClose={() => setReopenSelectionOpen(false)}
-            onConfirm={() => void handleReopenSelection()}
-            confirmLabel="선택 다시 열기"
-          />
-        </GalleryModalShell>
-      )}
-      {statusAction === "open" && (
-        <OpenGalleryConfirmModal
-          gallery={gallery}
-          onClose={() => setStatusAction(null)}
-          onDone={(updated) => {
-            replace(updated);
-            setStatusAction(null);
-          }}
-        />
-      )}
-      {statusAction === "close" && (
-        <CloseGalleryConfirmModal
-          gallery={gallery}
-          onClose={() => setStatusAction(null)}
-          onDone={(updated) => {
-            replace(updated);
-            setStatusAction(null);
-          }}
-        />
-      )}
-      {statusAction === "reopen" && (
-        <ReopenGalleryModal
-          gallery={gallery}
-          onClose={() => setStatusAction(null)}
-          onDone={(updated) => {
-            replace(updated);
-            setStatusAction(null);
-          }}
-        />
-      )}
-      {saveAlbumOpen && clusterReady && (
-        <SaveAlbumModal
-          galleryId={gallery.id}
-          groups={clusterGroups}
-          singles={clusterSingles}
-          existingNames={
-            folderGroupsResult?.kind === "ready"
-              ? folderGroupsResult.groups.map((g) => g.name)
-              : []
-          }
-          onClose={() => setSaveAlbumOpen(false)}
-          onSaved={(group) => {
-            setSaveAlbumOpen(false);
-            reloadFolderGroups();
-            notice(`앨범 '${group.name}'에 저장했어요`);
-          }}
-        />
-      )}
-      {ctxMenu && pickedIds.length > 0 && (
-        <PhotoContextMenu
-          x={ctxMenu.x}
-          y={ctxMenu.y}
-          count={pickedIds.length}
-          targets={folderView ? moveTargets : []}
-          onMove={
-            folderView
-              ? (folderId) => {
-                  setCtxMenu(null);
-                  void handleMoveSelection(folderId);
-                }
-              : undefined
-          }
-          onRemove={
-            folderView
-              ? () => {
-                  setCtxMenu(null);
-                  void handleRemoveSelection();
-                }
-              : undefined
-          }
-          onSelectAll={selectAllInView}
-          onTrash={
-            view === "trash"
-              ? undefined
-              : () => {
-                  setCtxMenu(null);
-                  setTrashConfirmOpen(true);
-                }
-          }
-          onRestore={
-            view === "trash"
-              ? () => {
-                  setCtxMenu(null);
-                  void handleRestorePicked();
-                }
-              : undefined
-          }
-          onErase={
-            view === "trash"
-              ? () => {
-                  setCtxMenu(null);
-                  setEraseConfirmOpen(true);
-                }
-              : undefined
-          }
-          onClose={() => setCtxMenu(null)}
-        />
-      )}
-      {deleteTarget && (
-        <DeleteFolderModal
-          kind={deleteTarget.kind}
-          name={deleteTarget.name}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDeleteTarget}
-        />
-      )}
-      {savedToast && (
-        <div
-          role="status"
-          className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-surface-inverse-medium bg-background-inverse-main px-5 py-3 type-label-medium-m text-contents-dark-bgd-default shadow-(--shadow-hover)"
-        >
-          {savedToast}
-        </div>
       )}
       {comingSoonToast}
     </div>

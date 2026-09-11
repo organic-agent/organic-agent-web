@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 팀원(작가) 초대 모달 — 스튜디오 홈 상단바 초대 버튼 (와이어프레임 10 작가 탭 · 보드 V1 + I2)
+ * 팀원(작가) 초대 — 모달(스튜디오 홈)과 본문(갤러리 초대 모달의 작가 탭이 같이 씀)
  * 위치: src/app/(studio)/studio/_components/StudioInviteModal.tsx
  *
  * 초대 링크(InviteLinkBox) + 멤버 목록(이름 · 역할, 초대 링크 대기 행) + 하단 "멤버 관리"
@@ -33,14 +33,13 @@ export function sortStudioMembers(members: StudioMemberResponse[]) {
   );
 }
 
-export function StudioInviteModal({
+/** 모달 본문 — 링크 · 멤버 · 하단 버튼. 홈 모달과 갤러리 초대 모달의 작가 탭이 같이 쓴다 */
+export function StudioInviteBody({
   workspaceId,
-  studioName,
   onClose,
   onManageMembers,
 }: {
   workspaceId: number;
-  studioName: string;
   onClose: () => void;
   /** 하단 "멤버 관리" — 설정의 멤버 화면으로 */
   onManageMembers: () => void;
@@ -69,12 +68,7 @@ export function StudioInviteModal({
   const link = invite.state;
 
   return (
-    <GalleryModalShell
-      title="팀원 초대"
-      desc={studioName}
-      maxWidthClassName="max-w-[460px]"
-      onClose={onClose}
-    >
+    <>
       <InviteLinkBox {...invite} />
 
       <div className="my-4 h-px bg-divider-default" />
@@ -133,6 +127,29 @@ export function StudioInviteModal({
           닫기
         </Button>
       </div>
+    </>
+  );
+}
+
+export function StudioInviteModal({
+  workspaceId,
+  studioName,
+  onClose,
+  onManageMembers,
+}: {
+  workspaceId: number;
+  studioName: string;
+  onClose: () => void;
+  onManageMembers: () => void;
+}) {
+  return (
+    <GalleryModalShell
+      title="팀원 초대"
+      desc={studioName}
+      maxWidthClassName="max-w-[460px]"
+      onClose={onClose}
+    >
+      <StudioInviteBody workspaceId={workspaceId} onClose={onClose} onManageMembers={onManageMembers} />
     </GalleryModalShell>
   );
 }
