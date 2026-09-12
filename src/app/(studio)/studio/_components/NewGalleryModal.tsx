@@ -69,6 +69,7 @@ export function NewGalleryModal({
         maxSelectablePhotoCount: form.target.trim()
           ? Number(form.target)
           : null,
+        maxRetouchRoundCount: form.rounds.trim() ? Number(form.rounds) : null,
         shootType: "CEREMONY",
       });
       consumeTicket(workspaceId);
