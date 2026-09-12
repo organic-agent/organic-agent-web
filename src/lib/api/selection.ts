@@ -9,8 +9,11 @@
  * 작가만 할 수 있다.
  */
 
-import { api } from "@/lib/api/client";
+import { baseUrl } from "@/lib/api/baseUrl";
+import { api, ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
+import type { RetouchRequestItem } from "@/lib/api/retouch";
+import { getAccessToken } from "@/lib/auth/tokenStore";
 
 export type SelectedPhotoResponse = {
   /** 담은 컷의 원본 사진 — 보정본으로 담았어도 원본 정보가 실린다 */
@@ -78,13 +81,55 @@ export function deselectPhoto(
   );
 }
 
-/** 제출 — 부부만. 이후 담기·빼기가 잠긴다. 한 장도 없으면 400. */
+/**
+ * 제출(작가에게 전달) — 부부만. 이후 담기·빼기가 잠긴다(409). 계약 장수를 **정확히** 채워야 한다
+ * (미달·초과 SELECTION_400_7, 빈 선택 SELECTION_400_6). 선택된 사진은 모두 보정 대상이고 requests에
+ * 사진별 전체 문장·점 주석을 동봉한다 — 선택 제출과 첫 보정 요청이 한 트랜잭션으로 저장된다.
+ */
 export function submitSelection(
   galleryId: number,
+  requests: RetouchRequestItem[] = [],
 ): Promise<PhotoSelectionResponse> {
   return api(`/api/v1/galleries/${galleryId}/photo-selection/submit`, {
     method: "POST",
+    body: { requests },
   });
+}
+
+/** 계약 장수 상향 요청 — 스튜디오 초대 클라이언트만. 작가가 장수를 바꾸면 알림으로 돌아온다. */
+export function requestSelectionIncrease(
+  galleryId: number,
+  requestedCount: number,
+  message: string | null,
+): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/max-selectable-increase-request`, {
+    method: "POST",
+    body: { requestedCount, message: message?.trim() ? message.trim() : null },
+  });
+}
+
+/**
+ * 선택 목록 + 보정 요청서 CSV(UTF-8 BOM, 컬럼 photo_id · filename · request · point_requests).
+ * api()는 JSON만 다루므로 직접 받아 Blob으로 돌려준다. 계약 장수를 채운 뒤에만 내려받을 수 있다.
+ */
+export async function downloadSelectionCsv(galleryId: number): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${baseUrl()}/api/v1/galleries/${galleryId}/photo-selection/export`, { headers });
+  if (!res.ok) {
+    let code = "UNKNOWN";
+    let message = `요청이 실패했습니다 (HTTP ${res.status})`;
+    try {
+      const body = (await res.json()) as { code?: unknown; message?: unknown };
+      if (typeof body.code === "string") code = body.code;
+      if (typeof body.message === "string") message = body.message;
+    } catch {
+      // JSON이 아닌 실패
+    }
+    throw new ApiError(res.status, code, message);
+  }
+  return res.blob();
 }
 
 /** 제출 취소(선택 다시 열기) — 담당 작가만. 부부가 다시 고를 수 있게 된다. */

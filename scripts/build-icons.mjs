@@ -90,6 +90,10 @@ const ICONS = [
   ['MoreVertIcon', 'more_vert'],
   ['RefreshIcon', 'refresh'],
   ['ErrorIcon', 'error'],
+  ['ChevronLeftIcon', 'chevron_left'],
+  ['EditNoteIcon', 'edit_note'],
+  ['PlaylistAddCheckIcon', 'playlist_add_check'],
+  ['DownloadIcon', 'download'],
 ];
 
 const paths = (symbol) => {

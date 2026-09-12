@@ -76,7 +76,7 @@ import {
   unmarkReviewed,
 } from "./_shell/reviewMemory";
 import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
-import { ShellMainHeader, type FilterKey, type SortKey } from "./_shell/ShellMainHeader";
+import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "./_shell/ShellMainHeader";
 import { ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
 import { ShellTopbar } from "./_shell/ShellTopbar";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
@@ -514,10 +514,7 @@ export default function StudioGalleryShellPage() {
     }
     if (filter === "review") list = list.filter((p) => reviewIds.has(p.photoId));
     if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
-    const sorted = [...list];
-    if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
-    else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
-    return sorted;
+    return sortPhotos(list, sort);
   }, [allPhotos, pendingPhotos, uploading, folderSel, folders, details, sortedIds, filter, reviewIds, sort]);
 
   const selectedDetail =

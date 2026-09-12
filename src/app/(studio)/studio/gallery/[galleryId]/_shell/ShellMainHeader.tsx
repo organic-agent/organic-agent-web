@@ -18,11 +18,21 @@ import {
   ZoomOutIcon,
 } from "@/components/icons";
 import { IconButton } from "@/components/ui/IconButton";
+import type { PhotoResponse } from "@/lib/api/photos";
 
-export type SortKey = "uploaded" | "name";
+export type SortKey = "uploaded" | "name" | "score";
 export type FilterKey = "none" | "review" | "unsorted";
 
-const SORT_LABEL: Record<SortKey, string> = { uploaded: "업로드 순", name: "이름 순" };
+const SORT_LABEL: Record<SortKey, string> = { uploaded: "업로드 순", name: "이름 순", score: "별점 순" };
+
+/** 정렬 — 별점 순은 높은 점수부터, 같은 점수 · 없음은 업로드 순. 작가 · 클라이언트 그리드 공용 */
+export function sortPhotos(list: PhotoResponse[], sort: SortKey): PhotoResponse[] {
+  const sorted = [...list];
+  if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
+  else if (sort === "score") sorted.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.displayOrder - b.displayOrder || a.photoId - b.photoId);
+  else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
+  return sorted;
+}
 const FILTER_LABEL: Record<Exclude<FilterKey, "none">, string> = {
   review: "검토 필요만",
   unsorted: "미분류만",
@@ -38,6 +48,9 @@ export function ShellMainHeader({
   onFilterChange,
   onSingleView,
   sortable = true,
+  showFilters = true,
+  leading,
+  coachKey,
 }: {
   title: ReactNode;
   /** 0~100 — 타일 폭으로 바뀐다 */
@@ -50,6 +63,12 @@ export function ShellMainHeader({
   onSingleView: () => void;
   /** false면 정렬 · 필터 버튼을 숨긴다(선택한 사진 보기 — 고른 순 고정) */
   sortable?: boolean;
+  /** false면 정렬 메뉴에서 필터(검토 필요만 · 미분류만)를 뺀다 — 클라이언트 셀렉 */
+  showFilters?: boolean;
+  /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
+  leading?: ReactNode;
+  /** 보기 토글(한 장 보기)에 붙는 코치마크 대상 이름 */
+  coachKey?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -79,6 +98,7 @@ export function ShellMainHeader({
       </h2>
 
       <div className="flex shrink-0 items-center gap-3">
+        {leading}
         <div className="flex items-center gap-1.5 type-content-xs text-contents-light-bgd-weakness">
           <span className="w-8 text-right tabular-nums">{zoom}%</span>
           <button
@@ -111,7 +131,7 @@ export function ShellMainHeader({
           </button>
         </div>
 
-        <div className="flex gap-0.5" role="group" aria-label="보기">
+        <div className="flex gap-0.5" role="group" aria-label="보기" data-coach={coachKey}>
           <IconButton icon={<GridViewIcon size={18} />} aria-label="그리드" selected />
           <IconButton icon={<SingleViewIcon size={18} />} aria-label="한 장 보기" onClick={onSingleView} />
         </div>
@@ -149,19 +169,23 @@ export function ShellMainHeader({
                 />
               ))}
               <MenuRow label="촬영 순" trailing="준비 중" disabled onClick={() => {}} />
-              <div className="my-1 h-px bg-divider-default" />
-              <p className="px-2.5 pt-0.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">필터</p>
-              {(Object.keys(FILTER_LABEL) as Exclude<FilterKey, "none">[]).map((key) => (
-                <MenuRow
-                  key={key}
-                  label={FILTER_LABEL[key]}
-                  checked={filter === key}
-                  onClick={() => {
-                    onFilterChange(filter === key ? "none" : key);
-                    setMenuOpen(false);
-                  }}
-                />
-              ))}
+              {showFilters && (
+                <>
+                  <div className="my-1 h-px bg-divider-default" />
+                  <p className="px-2.5 pt-0.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">필터</p>
+                  {(Object.keys(FILTER_LABEL) as Exclude<FilterKey, "none">[]).map((key) => (
+                    <MenuRow
+                      key={key}
+                      label={FILTER_LABEL[key]}
+                      checked={filter === key}
+                      onClick={() => {
+                        onFilterChange(filter === key ? "none" : key);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>}
