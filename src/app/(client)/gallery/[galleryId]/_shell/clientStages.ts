@@ -1,50 +1,87 @@
 /**
- * 갤러리 단계(클라이언트 관점) — 4단계 이름과 서버 상태 매핑
+ * 갤러리 단계(클라이언트 관점) — 단계 이름과 서버 상태 매핑
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/clientStages.ts
  *
- * 1 컨셉 분류 → 2 사진 셀렉 → 3 보정 요청 → 4 보정 검토 (2026-09-11). 작가 5단계와 대응:
- * 작가 "셀렉 대기" ↔ 클라이언트 컨셉 분류 · 사진 셀렉, 작가 "보정 작업" ↔ 보정 요청 · 검토.
- * 갤러리가 아직 열리지 않았으면(DRAFT) 단계 밖 "준비 중"(대기). 컨셉 분류인지 사진 셀렉인지는
- * 서버 stage가 아니라 **폴더 확정 여부**(photoOrganizationRequired · foldersSavedAt)로 가른다 —
- * 확정 전엔 선택 API가 거절된다.
+ * 1 컨셉 분류 → 2 셀렉 & 보정 요청 → 3 보정 검토 → (4 앨범 구성) → 완료 (2026-09-12 확정).
+ * 앨범을 만드는 갤러리만 "앨범 구성" 칸이 있다 — 서버 응답에 그 값이 아직 없어(⑥ 갭 9) 지금은 늘 4칸이다.
+ * 보정 요청은 2단계 안(싱글뷰 점 찍기)에서 하고 셀렉 제출에 실려 간다. 2↔3 반복(보정 횟수만큼)은
+ * 3단계 안 상태줄이 말한다. 갤러리가 아직 열리지 않았으면(DRAFT) 단계 밖 "준비 중"(대기).
+ * 컨셉 분류인지 셀렉인지는 서버 stage가 아니라 **폴더 확정 여부**(photoOrganizationRequired ·
+ * foldersSavedAt)로 가른다 — 확정 전엔 선택 API가 거절된다.
  */
 
 import type { GalleryResponse } from "@/lib/api/galleries";
 
-export const CLIENT_STAGES = ["컨셉 분류", "사진 셀렉", "보정 요청", "보정 검토"] as const;
+const STAGES_WITH_ALBUM = ["컨셉 분류", "셀렉 & 보정 요청", "보정 검토", "앨범 구성", "완료"] as const;
+const STAGES_NO_ALBUM = ["컨셉 분류", "셀렉 & 보정 요청", "보정 검토", "완료"] as const;
 
-export type ClientPhase = "wait" | "sort" | "select" | "retouch" | "review" | "done";
+export type ClientPhase =
+  /** 작가가 아직 갤러리를 열지 않음(DRAFT) */
+  | "wait"
+  /** 1 컨셉 분류 — 폴더 확정 전 */
+  | "sort"
+  /** 2 셀렉 & 보정 요청 — 고르는 중 */
+  | "select"
+  /** 2 → 3 사이 — 전달했고 작가가 확인 중(SELECTION_COMPLETED) */
+  | "submitted"
+  /** 3 보정 검토 — 작가가 보정 중이거나 결과가 도착함(RETOUCH · DELIVERY) */
+  | "review"
+  /** 4 앨범 구성 — 앨범 갤러리만 */
+  | "album"
+  /** 완료(ARCHIVED) */
+  | "done";
+
+/** 앨범을 만드는 갤러리인지 — 서버 필드가 생기면 여기만 바꾼다 */
+export function hasAlbum(gallery: GalleryResponse): boolean {
+  void gallery; // 서버가 앨범 여부를 주면 이 값으로 가른다
+  return false;
+}
+
+/** 이 갤러리의 단계 이름 목록(앨범 여부에 따라 4칸 · 5칸) */
+export function clientStagesOf(gallery: GalleryResponse | null): readonly string[] {
+  return gallery && hasAlbum(gallery) ? STAGES_WITH_ALBUM : STAGES_NO_ALBUM;
+}
 
 export function clientPhaseOf(gallery: GalleryResponse): ClientPhase {
   if (gallery.status === "DRAFT") return "wait";
-  if (gallery.stage === "ARCHIVED") return "done";
-  if (gallery.stage === "RETOUCH" || gallery.stage === "DELIVERY") {
-    // 작가가 결과를 보내 검토할 게 있는지는 보정 API가 말한다 — 지금은 요청 단계로 본다(WES-313에서 갈라짐)
-    return "retouch";
+  switch (gallery.stage) {
+    case "ARCHIVED":
+      return "done";
+    case "DELIVERY":
+      // 전달 단계와 앨범 단계의 대응은 백엔드 확인 항목 — 지금은 앨범 갤러리면 앨범, 아니면 보정 검토로 본다
+      return hasAlbum(gallery) ? "album" : "review";
+    case "RETOUCH":
+      return "review";
+    case "SELECTION_COMPLETED":
+      return "submitted";
+    default: {
+      const needsFolders = gallery.photoOrganizationRequired && gallery.foldersSavedAt === null;
+      return needsFolders ? "sort" : "select";
+    }
   }
-  const needsFolders = gallery.photoOrganizationRequired && gallery.foldersSavedAt === null;
-  return needsFolders ? "sort" : "select";
 }
 
-/** 0부터 시작하는 단계 번호 — 대기(wait)는 0(컨셉 분류 자리), 완료는 마지막 */
-export function clientStageIndexOf(phase: ClientPhase): number {
+/** 0부터 시작하는 단계 번호 — 대기(wait)는 0(컨셉 분류 자리), 전달함은 보정 검토 칸, 완료는 마지막 */
+export function clientStageIndexOf(phase: ClientPhase, gallery: GalleryResponse | null): number {
+  const stages = clientStagesOf(gallery);
   switch (phase) {
     case "wait":
     case "sort":
       return 0;
     case "select":
       return 1;
-    case "retouch":
-      return 2;
+    case "submitted":
     case "review":
-      return 3;
+      return 2;
+    case "album":
+      return stages.length === 5 ? 3 : 2;
     case "done":
-      return 3;
+      return stages.length - 1;
   }
 }
 
-export function clientStageLabelOf(phase: ClientPhase): string {
+/** 상단 칩 · 사이드바 상태줄에 쓰는 단계 이름 */
+export function clientStageLabelOf(phase: ClientPhase, gallery: GalleryResponse | null): string {
   if (phase === "wait") return "준비 중";
-  if (phase === "done") return "작업 완료";
-  return CLIENT_STAGES[clientStageIndexOf(phase)];
+  return clientStagesOf(gallery)[clientStageIndexOf(phase, gallery)];
 }

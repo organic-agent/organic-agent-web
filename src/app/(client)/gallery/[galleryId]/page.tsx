@@ -9,8 +9,8 @@
  * (사이드바 + 컨셉 폴더 열 + 그리드)이다.
  *
  * 단계(clientStages): 대기(DRAFT — 서버가 사진 · 폴더를 주지 않아 안내 카드만) → 컨셉 분류(폴더 확정 전 —
- * 사진 옮기기 · 폴더 추가 · 삭제 · 검토 완료 · 폴더 확정) → 사진 셀렉(WES-312) → 보정 요청 · 검토(WES-313).
- * 셀렉 이후 화면은 이 PR에서 그리드 읽기 전용 자리만 둔다.
+ * 사진 옮기기 · 폴더 추가 · 삭제 · 검토 완료 · 폴더 확정) → 셀렉 & 보정 요청(WES-312) → 보정 검토(WES-313)
+ * → (앨범 구성) → 완료.
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -57,7 +57,7 @@ import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
 import { WaitCard } from "./_shell/WaitCard";
-import { clientPhaseOf, clientStageLabelOf } from "./_shell/clientStages";
+import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf } from "./_shell/clientStages";
 
 function ddayLabel(deadline: string | null): string {
   const offset = deadlineOffset(deadline);
@@ -264,7 +264,7 @@ export default function ClientGalleryPage() {
         : { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
     }
     if (phase === "select") return { text: `고르는 중 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
-    return { text: clientStageLabelOf(phase ?? "done"), tone: "accent" };
+    return { text: clientStageLabelOf(phase ?? "done", gallery), tone: "accent" };
   })();
   const bottomHint = (() => {
     if (notice) return notice;
@@ -362,7 +362,7 @@ export default function ClientGalleryPage() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
-        stageLabel={phase ? clientStageLabelOf(phase) : "…"}
+        stageLabel={phase ? clientStageLabelOf(phase, gallery) : "…"}
         deadline={gallery?.selectionDeadline ?? null}
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
@@ -373,6 +373,8 @@ export default function ClientGalleryPage() {
             title={gallery?.title ?? "…"}
             status={status}
             phase={phase ?? "wait"}
+            stages={clientStagesOf(gallery)}
+            stageIndex={clientStageIndexOf(phase ?? "wait", gallery)}
             photoCount={opened && photos !== null ? allPhotos.length : null}
             selectedCount={0}
             maxSelectable={gallery?.maxSelectablePhotoCount ?? null}

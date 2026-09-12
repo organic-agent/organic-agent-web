@@ -1,16 +1,17 @@
 "use client";
 
 /**
- * 클라이언트 갤러리 사이드바 — 제목 · 상태줄 · 단계 진행(4칸) · 사진 내비 (기본 접힘, ≡로 여닫음)
+ * 클라이언트 갤러리 사이드바 — 제목 · 상태줄 · 단계 진행(4 · 5칸) · 사진 내비
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ClientSidebar.tsx
  *
  * 작가 셸 사이드바와 같은 문법. 1단계(컨셉 분류)에서는 폴더가 폴더 열(3열)에 있으니 트리를 두지 않고,
- * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다.
+ * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다. 단계 이름 · 칸 수는 clientStages가 정한다
+ * (앨범 갤러리만 5칸).
  */
 
 import type { ReactNode } from "react";
 import { BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon } from "@/components/icons";
-import { CLIENT_STAGES, type ClientPhase, clientStageIndexOf } from "./clientStages";
+import type { ClientPhase } from "./clientStages";
 
 export type ClientView = "all" | "selected" | "retouch";
 
@@ -70,6 +71,8 @@ export function ClientSidebar({
   title,
   status,
   phase,
+  stages,
+  stageIndex,
   photoCount,
   selectedCount,
   maxSelectable,
@@ -80,6 +83,10 @@ export function ClientSidebar({
   title: string;
   status: StatusLine;
   phase: ClientPhase;
+  /** 이 갤러리의 단계 이름(4 · 5칸) */
+  stages: readonly string[];
+  /** 지금 단계(0부터) */
+  stageIndex: number;
   photoCount: number | null;
   selectedCount: number;
   maxSelectable: number | null;
@@ -88,9 +95,9 @@ export function ClientSidebar({
   /** 2단계부터 내비 아래 폴더 트리 */
   folderTree?: ReactNode;
 }) {
-  const index = clientStageIndexOf(phase);
+  const index = stageIndex;
   const waiting = phase === "wait";
-  const next = CLIENT_STAGES[index + 1];
+  const next = stages[index + 1];
   const selectionOpen = phase !== "wait" && phase !== "sort";
 
   return (
@@ -102,9 +109,9 @@ export function ClientSidebar({
         </div>
 
         {!waiting && (
-          <div className="flex flex-col gap-1.5" aria-label={`${CLIENT_STAGES.length}단계 중 ${index + 1}단계`}>
+          <div className="flex flex-col gap-1.5" aria-label={`${stages.length}단계 중 ${index + 1}단계`}>
             <div className="flex gap-1" aria-hidden>
-              {CLIENT_STAGES.map((name, i) => (
+              {stages.map((name, i) => (
                 <span
                   key={name}
                   className={`h-0.5 flex-1 rounded-(--pill) ${i <= index ? "bg-brand-secondary-default" : "bg-divider-default"}`}
@@ -113,7 +120,7 @@ export function ClientSidebar({
             </div>
             <p className="type-content-xs text-contents-light-bgd-weakness">
               <span className="font-semibold text-contents-light-bgd-default">
-                {index + 1}/{CLIENT_STAGES.length} {CLIENT_STAGES[index]}
+                {index + 1}/{stages.length} {stages[index]}
               </span>
               {next && <> · 다음 {next}</>}
             </p>
