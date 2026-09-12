@@ -80,6 +80,8 @@ export function ClientSidebar({
   onViewChange,
   folderTree,
   tabs,
+  retouchCount,
+  extra,
 }: {
   title: string;
   status: StatusLine;
@@ -97,6 +99,10 @@ export function ClientSidebar({
   folderTree?: ReactNode;
   /** 2단계부터 — 내비 아래 "폴더 | 공유" 탭. 공유는 C6 게스트에서 채운다 */
   tabs?: { tab: "folder" | "share"; onTabChange: (tab: "folder" | "share") => void; folder: ReactNode; share: ReactNode };
+  /** 3단계부터 — 보정 대상 장수. 없으면 잠김 */
+  retouchCount?: number | null;
+  /** 내비 아래(회차 목록) — 작가 사이드바와 같은 형식 */
+  extra?: ReactNode;
 }) {
   const index = stageIndex;
   const waiting = phase === "wait";
@@ -161,12 +167,19 @@ export function ClientSidebar({
           <NavRow
             icon={<BrushIcon size={18} />}
             label="보정 사진"
-            trailing={<LockedNote>셀렉 뒤</LockedNote>}
+            trailing={
+              retouchCount !== undefined && retouchCount !== null ? (
+                <span className="font-semibold text-contents-light-bgd-default tabular-nums">{retouchCount}</span>
+              ) : (
+                <LockedNote>셀렉 뒤</LockedNote>
+              )
+            }
             selected={view === "retouch"}
-            disabled
+            disabled={retouchCount === undefined || retouchCount === null}
             onClick={() => onViewChange("retouch")}
           />
         </nav>
+        {extra}
 
         {tabs && (
           <div role="tablist" aria-label="사이드바 탭" className="flex rounded-(--radius-8) bg-surface-default-medium p-0.75">

@@ -7,7 +7,7 @@
  * 보정 자체는 작가 컴퓨터의 원본으로 해야 하므로 ZIP은 "어떤 사진에 무엇을 해야 하는지" 대조용이다.
  */
 
-import type { RetouchItem } from "./RetouchStage";
+import type { RetouchItem } from "./roundItems";
 
 function csvCell(v: string | number | null): string {
   const s = v === null ? "" : String(v);
