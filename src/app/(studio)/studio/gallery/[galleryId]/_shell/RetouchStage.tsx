@@ -31,7 +31,6 @@ import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
 import { ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
-import { stageIndexOf } from "./stages";
 import { ProgressBar } from "./UploadProgress";
 import { type ResultAssignment, useResultUpload } from "./useResultUpload";
 import { useRetouchOverview, useRetouchRoundDetail } from "./useRetouchOverview";
@@ -71,6 +70,7 @@ export function RetouchStage({
   photos,
   folders,
   selection,
+  stageIndex,
   sidebarOpen,
   onGalleryUpdated,
   onWithdrawn,
@@ -82,6 +82,8 @@ export function RetouchStage({
   photos: PhotoResponse[];
   folders: ConceptFolderResponse[] | null;
   selection: PhotoSelectionResponse | null;
+  /** 페이지가 정한 단계 번호(제출됐으면 stage가 셀렉 대기여도 2) */
+  stageIndex: number;
   sidebarOpen: boolean;
   /** 횟수 · 닫기처럼 갤러리 응답이 바로 오는 변경 */
   onGalleryUpdated: (gallery: GalleryResponse) => void;
@@ -158,8 +160,8 @@ export function RetouchStage({
   const archived = gallery.stage === "ARCHIVED";
   const requested = activeSummary?.status === "REQUESTED";
   const sentWaiting = !archived && activeSummary?.status === "COMPLETED" && activeSummary.roundNo === latestRound?.roundNo;
-  const canWithdraw = requested && resultCount === 0 && gallery.stage === "SELECTION_COMPLETED" && activeRoundNo === 1;
-  const stageIndex = stageIndexOf(gallery);
+  // 되돌리기는 결과 업로드를 시작하기 전(stage가 RETOUCH · DELIVERY로 넘어가기 전) 1차에만
+  const canWithdraw = requested && resultCount === 0 && activeRoundNo === 1 && gallery.stage !== "RETOUCH" && gallery.stage !== "DELIVERY";
   const canUpload = requested && !archived && !upload.state.running;
   const usedRounds = rounds.filter((r) => r.status !== "DRAFTING").length;
 

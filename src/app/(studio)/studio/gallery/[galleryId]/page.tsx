@@ -253,15 +253,16 @@ export default function StudioGalleryShellPage() {
   const uploading = run.phase === "running" || run.phase === "paused";
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
-  // ── 단계 ──
-  const stageIndex = gallery ? stageIndexOf(gallery) : 0;
-  const inSelection = gallery !== null && stageIndex >= 1;
+  // ── 단계 ── 서버 stage가 정본이지만, 선택 앨범이 제출됐으면(SUBMITTED) stage가 아직 셀렉 대기여도 3단계로 본다
+  // (전달되는 순간 1차 회차가 생기고 "선택 확인" 전용 API는 없다 — 2026-09-12)
+  const baseStageIndex = gallery ? stageIndexOf(gallery) : 0;
+  const inSelection = gallery !== null && baseStageIndex >= 1;
 
   // ── AI 분석 진행 감시(1단계) — 카운트(요약) + 잡 폴링, 완료 시 폴더 · 사진 재조회 ──
   const analysis = useAnalysisWatch(
     galleryId,
     {
-      enabled: stageIndex === 0 && gallery !== null && (uploading || (photos?.length ?? 0) > 0),
+      enabled: baseStageIndex === 0 && gallery !== null && (uploading || (photos?.length ?? 0) > 0),
       uploading,
     },
     {
@@ -302,6 +303,7 @@ export default function StudioGalleryShellPage() {
 
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
   const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
+  const stageIndex = selection?.status === "SUBMITTED" && baseStageIndex === 1 ? 2 : baseStageIndex;
   useEffect(() => {
     if (!inSelection) return;
     let cancelled = false;
@@ -957,6 +959,7 @@ export default function StudioGalleryShellPage() {
           photos={allPhotos}
           folders={folders}
           selection={selection}
+          stageIndex={stageIndex}
           sidebarOpen={!collapsed}
           onGalleryUpdated={setGallery}
           onWithdrawn={(updated) => {
