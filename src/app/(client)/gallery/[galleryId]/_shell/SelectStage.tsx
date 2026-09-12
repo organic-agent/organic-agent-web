@@ -6,10 +6,11 @@
  *
  * 폴더 확정 뒤에는 폴더 열이 사라지고 2열이다: 사이드바(기본 열림 — 폴더 | 공유 탭, 체크박스 트리) + 그리드.
  * 그리드에 레일 · 우측 패널은 없고 정보 · AI · 보정 요청은 싱글뷰에서 한다.
- * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다.
+ * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
+ * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { CheckCircleIcon, ChevronRightIcon, PhotoIcon } from "@/components/icons";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
@@ -19,13 +20,10 @@ import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
-import { getPhotoSelection, type PhotoSelectionResponse } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
-
-/** 선택 앨범 다시 읽는 간격 — 함께 고르는 사람의 변경을 따라간다(화면이 보일 때만) */
-const SELECTION_POLL_MS = 15_000;
+import { useSelectionSync } from "./useSelectionSync";
 
 function ddayLabel(deadline: string | null): string {
   const offset = deadlineOffset(deadline);
@@ -54,56 +52,37 @@ export function SelectStage({
   folders: ConceptFolderResponse[] | null;
   sidebarOpen: boolean;
 }) {
-  const [selection, setSelection] = useState<PhotoSelectionResponse | null>(null);
+  const editable = phase === "select";
+  const maxSelectable = gallery.maxSelectablePhotoCount;
+  const { selection, pickedIds, toggle, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
+  const [currentId, setCurrentId] = useState<number | null>(null);
   const [view, setView] = useState<ClientView>("all");
   const [tab, setTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sort, setSort] = useState<SortKey>("uploaded");
   const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
 
-  // ── 선택 앨범: 처음 · 주기 · 탭이 다시 보일 때 ──
-  useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    async function load() {
-      try {
-        const next = await getPhotoSelection(galleryId);
-        if (!cancelled) setSelection(next);
-      } catch {
-        // 다음 주기에 다시
-      }
-    }
-    function schedule() {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(async () => {
-        if (document.visibilityState === "visible") await load();
-        if (!cancelled) schedule();
-      }, SELECTION_POLL_MS);
-    }
-    function onVisible() {
-      if (document.visibilityState === "visible") void load();
-    }
-    void load();
-    schedule();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [galleryId]);
-
   // ── 파생값 ──
-  const pickedIds = useMemo(() => new Set(selection?.photos.map((s) => s.photo.photoId) ?? []), [selection]);
-  const pickedPhotos = useMemo(() => selection?.photos.map((s) => s.photo) ?? [], [selection]);
-  const selectedCount = selection?.selectedCount ?? pickedIds.size;
-  const maxSelectable = gallery.maxSelectablePhotoCount;
+  const photoById = useMemo(() => new Map(photos.map((p) => [p.photoId, p])), [photos]);
+  // 고른 사진 — 화면(local)이 정본, 서버 응답의 보정본 정보는 아직 안 쓴다
+  const pickedPhotos = useMemo(
+    () => [...pickedIds].map((id) => photoById.get(id)).filter((p): p is PhotoResponse => p !== undefined),
+    [pickedIds, photoById],
+  );
+  const selectedCount = pickedIds.size;
+  const full = maxSelectable !== null && selectedCount >= maxSelectable;
   const details = useMemo(() => folders?.flatMap((c) => c.details) ?? [], [folders]);
   const sortedIds = useMemo(() => new Set(details.flatMap((d) => d.photoIds)), [details]);
   const unsortedIds = useMemo(
     () => new Set(photos.filter((p) => !sortedIds.has(p.photoId)).map((p) => p.photoId)),
     [photos, sortedIds],
   );
+  /** 사진 → "컨셉 / 세부" (호버 캡션) */
+  const folderNameOf = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of folders ?? []) for (const d of c.details) for (const id of d.photoIds) map.set(id, `${c.name} / ${d.name}`);
+    return (photo: PhotoResponse) => map.get(photo.photoId) ?? (unsortedIds.has(photo.photoId) ? "미분류" : null);
+  }, [folders, unsortedIds]);
   const visiblePhotos = useMemo(() => {
     let list = photos;
     if (!isAllFilter(filter)) {
@@ -191,6 +170,10 @@ export function SelectStage({
   })();
 
   const gridPhotos = view === "selected" ? pickedPhotos : visiblePhotos;
+  function openPhoto(photoId: number) {
+    setCurrentId(photoId);
+    // 싱글뷰는 4단계에서 연다
+  }
 
   return (
     <>
@@ -263,7 +246,18 @@ export function SelectStage({
                     {view === "selected" ? "아직 고른 사진이 없어요" : "조건에 맞는 사진이 없어요"}
                   </p>
                 ) : (
-                  <PhotoGrid photos={gridPhotos} zoom={zoom} selectedIds={new Set()} onToggle={() => {}} markedIds={pickedIds} selectable={false} />
+                  <PhotoGrid
+                    photos={gridPhotos}
+                    zoom={zoom}
+                    selectedIds={pickedIds}
+                    onToggle={toggle}
+                    selectable={editable}
+                    markStyle="check"
+                    currentId={currentId}
+                    showScore
+                    onOpen={openPhoto}
+                    captionOf={folderNameOf}
+                  />
                 )}
               </div>
             </>
@@ -276,15 +270,35 @@ export function SelectStage({
         onClearSelection={() => {}}
         onMoveSelection={() => {}}
         hint={
-          phase === "select"
-            ? "사진을 누르면 선택돼요 · 돋보기로 한 장씩 보며 별점과 보정 요청"
-            : status.text
+          notice ? (
+            <button type="button" onClick={clearNotice} className="cursor-pointer text-left text-function-warning-default">
+              {notice}
+            </button>
+          ) : phase === "select" ? (
+            selectedCount === 0
+              ? "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
+              : `마감 ${ddayLabel(gallery.selectionDeadline)}`
+          ) : (
+            status.text
+          )
         }
         status={
           <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
             선택한 사진
-            <b className="type-label-semibold-l text-contents-light-bgd-default tabular-nums">{selectedCount}</b>
+            <b className={`type-label-semibold-l tabular-nums ${full ? "text-function-warning-default" : "text-contents-light-bgd-default"}`}>
+              {selectedCount}
+            </b>
             {maxSelectable !== null && <span className="text-contents-light-bgd-weakness">/ {maxSelectable}</span>}
+            {pickedPhotos.length > 0 && (
+              <span className="ml-1 flex" aria-hidden>
+                {pickedPhotos.slice(-3).map((p) => (
+                  <span key={p.photoId} className="-ml-2 size-6.5 overflow-hidden rounded-(--radius-4) border-2 border-background-default-main bg-surface-default-light first:ml-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {p.viewUrl && <img src={p.viewUrl} alt="" className="size-full object-cover" />}
+                  </span>
+                ))}
+              </span>
+            )}
           </span>
         }
         actions={null}
