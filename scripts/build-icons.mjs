@@ -94,6 +94,7 @@ const ICONS = [
   ['EditNoteIcon', 'edit_note'],
   ['PlaylistAddCheckIcon', 'playlist_add_check'],
   ['DownloadIcon', 'download'],
+  ['HourglassIcon', 'hourglass_top'],
 ];
 
 const paths = (symbol) => {
