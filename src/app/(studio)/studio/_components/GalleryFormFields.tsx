@@ -2,9 +2,9 @@
  * 작가 — 갤러리 폼 필드
  * 위치: src/app/(studio)/studio/_components/GalleryFormFields.tsx
  *
- * 새 갤러리 모달과 갤러리 수정 모달이 같이 쓰는 입력 묶음. 개인 갤러리 온보딩과 같은
- * 세 필드·같은 문구(갤러리 이름 · 선택 마감 · 고를 장수)이고, 선택 입력의 힌트가 서버 null의
- * 의미를 그대로 말해준다. 폼 상태는 부모가 소유하고, 여기서는 표시와 변경 이벤트만 맡는다.
+ * 새 갤러리 모달과 갤러리 수정 모달이 같이 쓰는 입력 묶음. 네 필드(갤러리 이름 · 선택 마감 ·
+ * 고를 장수 · 보정 횟수)이고, 선택 입력의 힌트가 서버 null의 의미를 그대로 말해준다.
+ * 폼 상태는 부모가 소유하고, 여기서는 표시와 변경 이벤트만 맡는다.
  */
 
 import { useId } from "react";
@@ -12,6 +12,7 @@ import { TextField } from "@/components/ui/TextField";
 import {
   type GalleryFormValues,
   isPastDueDate,
+  isRoundsValid,
 } from "../../_lib/galleryForm";
 
 type Props = {
@@ -75,6 +76,7 @@ export function GalleryFormFields({ values, onChange, mode = "create" }: Props) 
   const targetValid =
     values.target.trim() === "" ||
     (Number.isInteger(targetNumber) && targetNumber >= 1);
+  const roundsValid = isRoundsValid(values.rounds);
 
   return (
     <div className="mb-6 flex flex-col gap-5">
@@ -132,6 +134,31 @@ export function GalleryFormFields({ values, onChange, mode = "create" }: Props) 
           </FieldHint>
         ) : (
           <FieldHint tone="critical">1 이상의 정수를 입력해 주세요</FieldHint>
+        )}
+      </div>
+
+      <div>
+        <FieldLabel htmlFor={`${id}-rounds`} optional>
+          보정 횟수
+        </FieldLabel>
+        <TextField
+          id={`${id}-rounds`}
+          type="number"
+          min={1}
+          value={values.rounds}
+          onChange={(v) => update("rounds", v)}
+          placeholder="예: 3"
+          error={!roundsValid}
+          className="h-12 px-4"
+        />
+        {roundsValid ? (
+          <FieldHint>
+            {mode === "edit"
+              ? "비우면 제한이 없어져요. 이미 쓴 회차보다 적게는 안 돼요"
+              : "비우면 제한 없음 · 클라이언트가 다시 요청할 수 있는 회차 수"}
+          </FieldHint>
+        ) : (
+          <FieldHint tone="critical">1 이상 20 이하의 정수를 입력해 주세요</FieldHint>
         )}
       </div>
     </div>

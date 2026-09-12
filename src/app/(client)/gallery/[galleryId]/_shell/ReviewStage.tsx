@@ -18,16 +18,20 @@ import { BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, Ho
 import { BeforeAfter } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/BeforeAfter";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { hasMemo, normalizeRoundItems, type RetouchItem } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/roundItems";
+import { saveBlob } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/retouchDownload";
 import { RoundList } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RoundList";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { useRetouchOverview, useRetouchRoundDetail } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useRetouchOverview";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
+import { ApiError } from "@/lib/api/client";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
+import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
+import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
@@ -106,6 +110,21 @@ export function ReviewStage({
   const selectedIds = useMemo(() => new Set(items.map((it) => it.photo.photoId)), [items]);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds: selectedIds, inviteOpen, onInviteClose });
   const itemById = useMemo(() => new Map(items.map((it) => [it.photo.photoId, it])), [items]);
+  // 선택 목록 CSV — "선택한 사진" 보기에서(전달한 뒤에도 남는 기록, 2단계에서 옮겨 옴)
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvNotice, setCsvNotice] = useState<string | null>(null);
+  async function downloadCsv() {
+    if (csvBusy) return;
+    setCsvBusy(true);
+    setCsvNotice(null);
+    try {
+      saveBlob(await downloadSelectionCsv(galleryId), `${gallery.title} 선택 목록.csv`);
+    } catch (err) {
+      setCsvNotice(err instanceof ApiError ? err.message : "내려받지 못했어요 · 다시 시도해 주세요");
+    } finally {
+      setCsvBusy(false);
+    }
+  }
   const memoCount = items.filter(hasMemo).length;
 
   // ── 하위 상태 ──
@@ -295,17 +314,19 @@ export function ReviewStage({
             }}
             extra={
               overview && rounds.length > 0 ? (
-                <RoundList
-                  rounds={rounds}
-                  activeRoundNo={activeRoundNo}
-                  remaining={remaining}
-                  maxRounds={maxRounds}
-                  onSelect={(n) => {
-                    setSelectedRoundNo(n);
-                    setView("retouch");
-                    setCurrentId(null);
-                  }}
-                />
+                <div data-coach="rounds">
+                  <RoundList
+                    rounds={rounds}
+                    activeRoundNo={activeRoundNo}
+                    remaining={remaining}
+                    maxRounds={maxRounds}
+                    onSelect={(n) => {
+                      setSelectedRoundNo(n);
+                      setView("retouch");
+                      setCurrentId(null);
+                    }}
+                  />
+                </div>
               ) : undefined
             }
             tabs={{
@@ -350,7 +371,7 @@ export function ReviewStage({
                   <span className="min-w-0 flex-1">{banner.text}</span>
                 </div>
               )}
-              <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+              <div data-coach="results" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {gridPhotos.length === 0 ? (
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{view === "retouch" ? "보정 회차가 아직 없어요" : "사진이 없어요"}</p>
                 ) : (
@@ -384,7 +405,17 @@ export function ReviewStage({
         selectionCount={0}
         onClearSelection={() => {}}
         onMoveSelection={() => {}}
-        hint={picking ? `고칠 사진을 담고 요청을 적은 뒤 보내요${remaining !== null ? ` · 남은 횟수 ${remaining} 중 1을 써요` : ""}` : bottomHint}
+        hint={
+          csvNotice ? (
+            <button type="button" onClick={() => setCsvNotice(null)} className="cursor-pointer text-left text-function-warning-default">
+              {csvNotice}
+            </button>
+          ) : picking ? (
+            `고칠 사진을 담고 요청을 적은 뒤 보내요${remaining !== null ? ` · 남은 횟수 ${remaining} 중 1을 써요` : ""}`
+          ) : (
+            bottomHint
+          )
+        }
         status={
           picking ? (
             <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
@@ -395,7 +426,14 @@ export function ReviewStage({
           ) : undefined
         }
         actions={
-          picking ? (
+          <>
+          {view === "selected" && !picking && (
+            <ShellCta kind="outline" disabled={csvBusy || items.length === 0} onClick={() => void downloadCsv()}>
+              <DownloadIcon size={18} />
+              {csvBusy ? "내려받는 중…" : "선택 목록 (CSV)"}
+            </ShellCta>
+          )}
+          {picking ? (
             <>
               <ShellCta kind="ghost" onClick={stopPicking}>
                 취소
@@ -410,13 +448,15 @@ export function ReviewStage({
                 <DownloadIcon size={18} />
                 보정본 내려받기
               </ShellCta>
-              <span title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
+              <span data-coach="rerequest" title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
                 <ShellCta kind="outline" disabled={!canReRequest} onClick={startPicking}>
                   <EditNoteIcon size={18} />
                   다시 요청하기{remaining !== null ? ` (${remaining})` : ""}
                 </ShellCta>
               </span>
-              <ShellCta onClick={() => setConfirmOpen(true)}>이대로 확정</ShellCta>
+              <span data-coach="confirm" className="inline-flex">
+                <ShellCta onClick={() => setConfirmOpen(true)}>이대로 확정</ShellCta>
+              </span>
             </>
           ) : archived ? (
             <>
@@ -434,11 +474,13 @@ export function ReviewStage({
               <DownloadIcon size={18} />
               {roundLabel} 보정본 내려받기
             </ShellCta>
-          ) : null
+          ) : null}
+          </>
         }
       />
 
       {sharing.modals}
+      <ClientReviewCoachMarks ready={overview !== null && resultArrived && isLatest && !archived && !picking && !lightboxOpen && !confirmOpen && !downloadOpen} />
       {downloadOpen && activeRoundNo !== null && (
         <ResultsDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}

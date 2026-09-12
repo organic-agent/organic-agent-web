@@ -14,11 +14,11 @@
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
- * 전달한 뒤(submitted)는 읽기 전용 + 배너 + CSV 내려받기.
+ * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, EditNoteIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, EditNoteIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
@@ -30,7 +30,6 @@ import type { GalleryResponse } from "@/lib/api/galleries";
 import { ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
-import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
@@ -182,10 +181,6 @@ export function SelectStage({
 
   // ── 상태줄 · 제목 ──
   const status: StatusLine = (() => {
-    if (phase === "submitted") return { text: "작가에게 전달했어요 · 작가가 확인 중", tone: "muted" };
-    if (phase === "review") return { text: "보정 검토 · 작가가 보정하고 있어요", tone: "accent" };
-    if (phase === "album") return { text: "앨범 구성", tone: "accent" };
-    if (phase === "done") return { text: "작업이 끝났어요", tone: "muted" };
     if (selection === null) return { text: "불러오는 중…", tone: "muted" };
     const count = maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`;
     return { text: `${count} 선택했어요 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
@@ -279,24 +274,6 @@ export function SelectStage({
         ? `${maxSelectable}장을 채우면 전달할 수 있어요 (지금 ${selectedCount}장)`
         : `${maxSelectable}장까지만 전달할 수 있어요 (지금 ${selectedCount}장)`
       : null;
-  const [downloading, setDownloading] = useState(false);
-  async function downloadCsv() {
-    if (downloading) return;
-    setDownloading(true);
-    try {
-      const blob = await downloadSelectionCsv(galleryId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${gallery.title} 선택 목록.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      setLocalNotice(err instanceof ApiError ? err.message : "내려받지 못했어요 · 다시 시도해 주세요");
-    } finally {
-      setDownloading(false);
-    }
-  }
 
   // ── 싱글뷰 ──
   const currentIndex = currentId === null ? -1 : gridPhotos.findIndex((p) => p.photoId === currentId);
@@ -435,14 +412,6 @@ export function SelectStage({
                 }}
               />
               <div data-coach="pick" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
-                {phase === "submitted" && (
-                  <div className="mx-5 mt-1 mb-3 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
-                    <span className="text-brand-secondary-default">
-                      <CheckCircleIcon size={18} />
-                    </span>
-                    작가에게 전달했어요. 작가가 확인하면 보정이 시작돼요 — 다시 고치려면 작가에게 요청해 주세요.
-                  </div>
-                )}
                 {showAiGroup && (
                   <div className="px-5 pt-1 pb-3">
                     <div className="mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2 type-content-s text-contents-light-bgd-default">
@@ -580,14 +549,10 @@ export function SelectStage({
             <button type="button" onClick={clearNotices} className="cursor-pointer text-left text-function-warning-default">
               {shownNotice}
             </button>
-          ) : phase === "select" ? (
-            selectedCount === 0
-              ? "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
-              : `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
-          ) : phase === "submitted" ? (
-            "작가가 확인하고 보정을 시작해요 · 선택 목록은 CSV로 내려받을 수 있어요"
+          ) : selectedCount === 0 ? (
+            "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
           ) : (
-            status.text
+            `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
           )
         }
         status={
@@ -610,9 +575,8 @@ export function SelectStage({
           </span>
         }
         actions={
-          phase === "select" ? (
-            <>
-              {increasePending ? (
+          <>
+            {increasePending ? (
                 <span className="inline-flex h-10 items-center gap-1.5 rounded-(--radius-8) border border-border-default px-3 type-label-medium-s text-contents-light-bgd-sub">
                   <AddPhotoIcon size={16} />
                   {increasePending.requestedCount}장 요청함 · 작가 확인 중
@@ -623,24 +587,12 @@ export function SelectStage({
                   선택 장수 추가 요청
                 </ShellCta>
               )}
-              <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
-                <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
-                  작가에게 전달하기
-                </ShellCta>
-              </span>
-            </>
-          ) : phase === "submitted" || phase === "review" || phase === "album" || phase === "done" ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
-                <CheckCircleIcon size={16} />
-                전달 완료 · {selectedCount}장
-              </span>
-              <ShellCta kind="outline" disabled={downloading} onClick={() => void downloadCsv()}>
-                <DownloadIcon size={18} />
-                {downloading ? "내려받는 중…" : "선택 목록 내려받기 (CSV)"}
+            <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
+              <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
+                작가에게 전달하기
               </ShellCta>
-            </>
-          ) : null
+            </span>
+          </>
         }
       />
 
