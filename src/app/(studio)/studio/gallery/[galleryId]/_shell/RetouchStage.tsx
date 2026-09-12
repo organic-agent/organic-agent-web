@@ -12,15 +12,21 @@
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
-import { BrushIcon, CheckCircleIcon, CompareIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
+import { ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
+import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
+import { ApiError } from "@/lib/api/client";
+import { closeGallery } from "@/lib/api/galleries";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchPoint, RetouchRoundSummaryResponse } from "@/lib/api/retouch";
 import type { PhotoSelectionResponse } from "@/lib/api/selection";
 import { BeforeAfter } from "./BeforeAfter";
+import { ChangeRoundsModal } from "./ChangeRoundsModal";
+import { ExtendDeadlineModal } from "./ExtendDeadlineModal";
 import { PhotoGrid } from "./PhotoGrid";
 import { ResultUploadModal } from "./ResultUploadModal";
+import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
 import { ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
@@ -65,6 +71,9 @@ export function RetouchStage({
   folders,
   selection,
   sidebarOpen,
+  onGalleryUpdated,
+  onWithdrawn,
+  refreshGallery,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -73,11 +82,18 @@ export function RetouchStage({
   folders: ConceptFolderResponse[] | null;
   selection: PhotoSelectionResponse | null;
   sidebarOpen: boolean;
+  /** 횟수 · 닫기처럼 갤러리 응답이 바로 오는 변경 */
+  onGalleryUpdated: (gallery: GalleryResponse) => void;
+  /** 다시 고르게 하기 뒤 — 갤러리는 셀렉 대기로 돌아가고 선택 앨범도 다시 읽어야 한다 */
+  onWithdrawn: (gallery: GalleryResponse) => void;
+  /** 보내기 뒤 stage(DELIVERY)를 다시 읽는다 */
+  refreshGallery: () => Promise<void>;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
   const [detailNonce, setDetailNonce] = useState(0);
   const [uploadOpen, setUploadOpen] = useState<{ presetPhotoId: number | null } | null>(null);
+  const [modal, setModal] = useState<"send" | "withdraw" | "rounds" | "close" | null>(null);
   const [compareMode, setCompareMode] = useState<"slider" | "side">("slider");
   const [view, setView] = useState<ShellView>("retouch");
   const [filter, setFilter] = useState<Filter>("all");
@@ -141,8 +157,10 @@ export function RetouchStage({
   const archived = gallery.stage === "ARCHIVED";
   const requested = activeSummary?.status === "REQUESTED";
   const sentWaiting = !archived && activeSummary?.status === "COMPLETED" && activeSummary.roundNo === latestRound?.roundNo;
+  const canWithdraw = requested && resultCount === 0 && gallery.stage === "SELECTION_COMPLETED" && activeRoundNo === 1;
   const stageIndex = stageIndexOf(gallery);
   const canUpload = requested && !archived && !upload.state.running;
+  const usedRounds = rounds.filter((r) => r.status !== "DRAFTING").length;
 
   // ── 폴더 이름 · 그리드 목록 ──
   const folderNameOf = useMemo(() => {
@@ -316,6 +334,7 @@ export function RetouchStage({
                     setView("retouch");
                     setCurrentId(null);
                   }}
+                  onChangeRounds={archived ? undefined : () => setModal("rounds")}
                 />
               ) : undefined
             }
@@ -461,21 +480,103 @@ export function RetouchStage({
           ) : undefined
         }
         actions={
-          canUpload ? (
+          archived ? (
+            <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
+              <CheckCircleIcon size={16} />
+              작업 완료 · 보관됨
+            </span>
+          ) : sentWaiting ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-function-info-background px-3 py-1.5 type-label-semibold-s text-function-info-default">
+                <HourglassIcon size={16} />
+                {roundLabel} 보냄 · 확인 중
+              </span>
+              <ShellCta kind="outline" onClick={() => setModal("close")}>
+                <ArchiveIcon size={18} />
+                갤러리 마무리
+              </ShellCta>
+            </>
+          ) : canUpload ? (
             resultCount === 0 ? (
+              <>
+                {canWithdraw && (
+                  <ShellCta kind="outline" onClick={() => setModal("withdraw")}>
+                    <ScheduleIcon size={18} />
+                    다시 고르게 하기
+                  </ShellCta>
+                )}
+                <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                  <UploadIcon size={18} />
+                  결과 올리기
+                </ShellCta>
+              </>
+            ) : allDone ? (
+              <>
+                <ShellCta kind="secondary" onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                  <UploadIcon size={18} />
+                  결과 바꾸기
+                </ShellCta>
+                <ShellCta onClick={() => setModal("send")}>{roundLabel} 보정 보내기</ShellCta>
+              </>
+            ) : (
               <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
                 <UploadIcon size={18} />
-                결과 올리기
-              </ShellCta>
-            ) : (
-              <ShellCta kind={allDone ? "secondary" : "primary"} onClick={() => setUploadOpen({ presetPhotoId: null })}>
-                <UploadIcon size={18} />
-                {allDone ? "결과 바꾸기" : "결과 더 올리기"}
+                결과 더 올리기
               </ShellCta>
             )
           ) : null
         }
       />
+
+      {modal === "send" && activeRoundNo !== null && (
+        <SendRoundModal
+          galleryId={galleryId}
+          roundNo={activeRoundNo}
+          photoCount={items.length}
+          remainingAfter={remaining}
+          onClose={() => setModal(null)}
+          onSent={() => {
+            setModal(null);
+            reloadOverview();
+            void refreshGallery();
+          }}
+        />
+      )}
+      {modal === "withdraw" && (
+        <ExtendDeadlineModal
+          gallery={gallery}
+          selectedCount={selection?.selectedCount ?? items.length}
+          submitted
+          onClose={() => setModal(null)}
+          onDone={(updated) => {
+            setModal(null);
+            onWithdrawn(updated);
+          }}
+        />
+      )}
+      {modal === "rounds" && (
+        <ChangeRoundsModal
+          gallery={gallery}
+          usedRounds={usedRounds}
+          onClose={() => setModal(null)}
+          onDone={(updated) => {
+            setModal(null);
+            onGalleryUpdated(updated);
+            reloadOverview();
+          }}
+        />
+      )}
+      {modal === "close" && (
+        <CloseGalleryModal
+          galleryId={galleryId}
+          roundCount={usedRounds}
+          onClose={() => setModal(null)}
+          onDone={(updated) => {
+            setModal(null);
+            onGalleryUpdated(updated);
+          }}
+        />
+      )}
 
       <input
         ref={slotInputRef}
@@ -600,12 +701,14 @@ function RoundList({
   remaining,
   maxRounds,
   onSelect,
+  onChangeRounds,
 }: {
   rounds: RetouchRoundSummaryResponse[];
   activeRoundNo: number | null;
   remaining: number | null;
   maxRounds: number | null;
   onSelect: (roundNo: number) => void;
+  onChangeRounds?: () => void;
 }) {
   const tag: Record<RetouchRoundSummaryResponse["status"], { label: string; cls: string }> = {
     DRAFTING: { label: "작성 중", cls: "bg-surface-default-light text-contents-light-bgd-weakness" },
@@ -635,11 +738,14 @@ function RoundList({
           </button>
         );
       })}
-      {maxRounds !== null && (
-        <p className="px-3.5 pt-1 type-content-xs text-contents-light-bgd-weakness">
-          남은 횟수 {remaining ?? "—"} / {maxRounds}
-        </p>
-      )}
+      <p className="flex items-center gap-2 px-3.5 pt-1 type-content-xs text-contents-light-bgd-weakness">
+        {maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}
+        {onChangeRounds && (
+          <button type="button" onClick={onChangeRounds} className="cursor-pointer text-brand-secondary-dark underline underline-offset-2">
+            횟수 바꾸기
+          </button>
+        )}
+      </p>
     </div>
   );
 }
@@ -733,5 +839,42 @@ function ResultSlot({ item, enabled, onPick }: { item: RetouchItem; enabled: boo
       </button>
       {!item.hasResult && <p className="type-content-xs text-contents-light-bgd-weakness">여러 장은 하단 &ldquo;결과 올리기&rdquo;에서 파일명으로 한꺼번에 맞춰요.</p>}
     </div>
+  );
+}
+
+/** 갤러리 마무리(종료 · 보관) — 클라이언트가 확정도 재요청도 하지 않을 때 작가가 닫는다 */
+function CloseGalleryModal({ galleryId, roundCount, onClose, onDone }: { galleryId: number; roundCount: number; onClose: () => void; onDone: (gallery: GalleryResponse) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function confirm() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      onDone(await closeGallery(galleryId));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+      setBusy(false);
+    }
+  }
+  return (
+    <GalleryModalShell
+      title="이 갤러리를 마무리할까요?"
+      desc={
+        <>
+          보정 {roundCount}회를 보냈고 클라이언트의 확정 · 재요청이 없어요. 마무리하면 갤러리가 <b className="text-contents-light-bgd-default">보관 상태</b>가 되어 열람만 할 수 있어요.
+          다시 열어야 하면 &ldquo;재오픈&rdquo;으로 마감을 새로 정해 열 수 있어요.
+        </>
+      }
+      maxWidthClassName="max-w-105"
+      onClose={onClose}
+    >
+      {error && (
+        <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
+          {error}
+        </p>
+      )}
+      <GalleryModalButtons onClose={onClose} onConfirm={() => void confirm()} confirmLabel={busy ? "마무리하는 중…" : "마무리(보관)"} disabled={busy} />
+    </GalleryModalShell>
   );
 }

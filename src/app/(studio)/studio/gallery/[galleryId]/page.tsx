@@ -958,6 +958,18 @@ export default function StudioGalleryShellPage() {
           folders={folders}
           selection={selection}
           sidebarOpen={!collapsed}
+          onGalleryUpdated={setGallery}
+          onWithdrawn={(updated) => {
+            setGallery(updated);
+            reloadSelection();
+          }}
+          refreshGallery={async () => {
+            try {
+              setGallery(await getGallery(galleryId));
+            } catch {
+              // 다음 갱신 때
+            }
+          }}
         />
       ) : (
         <>
