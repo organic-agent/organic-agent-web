@@ -10,19 +10,23 @@
  * 하위 상태: 요청 도착(결과 0) → 올리는 중 → 다 올라옴 → 보냄(DELIVERY, 클라이언트 확인 중) → 다음 회차 요청 → 확정(ARCHIVED).
  */
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
-import { BrushIcon, CheckCircleIcon, CompareIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, SparkleIcon } from "@/components/icons";
+import { BrushIcon, CheckCircleIcon, CompareIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchPoint, RetouchRoundSummaryResponse } from "@/lib/api/retouch";
 import type { PhotoSelectionResponse } from "@/lib/api/selection";
+import { BeforeAfter } from "./BeforeAfter";
 import { PhotoGrid } from "./PhotoGrid";
-import { ShellBottomBar } from "./ShellBottomBar";
+import { ResultUploadModal } from "./ResultUploadModal";
+import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
 import { ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
 import { stageIndexOf } from "./stages";
+import { ProgressBar } from "./UploadProgress";
+import { type ResultAssignment, useResultUpload } from "./useResultUpload";
 import { useRetouchOverview, useRetouchRoundDetail } from "./useRetouchOverview";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "./zoomMemory";
 
@@ -70,9 +74,11 @@ export function RetouchStage({
   selection: PhotoSelectionResponse | null;
   sidebarOpen: boolean;
 }) {
-  const { overview, error: overviewError } = useRetouchOverview(galleryId, true);
+  const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
-  const [detailNonce] = useState(0);
+  const [detailNonce, setDetailNonce] = useState(0);
+  const [uploadOpen, setUploadOpen] = useState<{ presetPhotoId: number | null } | null>(null);
+  const [compareMode, setCompareMode] = useState<"slider" | "side">("slider");
   const [view, setView] = useState<ShellView>("retouch");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<SortKey>("noResultFirst");
@@ -90,6 +96,20 @@ export function RetouchStage({
   const activeRoundNo = selectedRoundNo ?? currentRound?.roundNo ?? latestRound?.roundNo ?? null;
   const activeSummary = rounds.find((r) => r.roundNo === activeRoundNo) ?? null;
   const detail = useRetouchRoundDetail(galleryId, activeRoundNo, detailNonce + (overview ? 1 : 0));
+  const upload = useResultUpload(galleryId, activeRoundNo, () => {
+    reloadOverview();
+    setDetailNonce((n) => n + 1);
+  });
+  const slotInputRef = useRef<HTMLInputElement>(null);
+  const slotTargetRef = useRef<number | null>(null);
+  function pickResultFor(photoId: number) {
+    slotTargetRef.current = photoId;
+    slotInputRef.current?.click();
+  }
+  function startUpload(assignments: ResultAssignment[]) {
+    setUploadOpen(null);
+    void upload.run(assignments);
+  }
   const items = useMemo<RetouchItem[]>(() => {
     const resultUrlById = new Map(detail?.roundNo === activeRoundNo ? detail.photos.map((p) => [p.photo.photoId, p.resultUrl]) : []);
     if (currentRound && currentRound.roundNo === activeRoundNo)
@@ -122,6 +142,7 @@ export function RetouchStage({
   const requested = activeSummary?.status === "REQUESTED";
   const sentWaiting = !archived && activeSummary?.status === "COMPLETED" && activeSummary.roundNo === latestRound?.roundNo;
   const stageIndex = stageIndexOf(gallery);
+  const canUpload = requested && !archived && !upload.state.running;
 
   // ── 폴더 이름 · 그리드 목록 ──
   const folderNameOf = useMemo(() => {
@@ -401,7 +422,35 @@ export function RetouchStage({
         selectionCount={0}
         onClearSelection={() => {}}
         onMoveSelection={() => {}}
-        hint={bottomHint}
+        hint={
+          upload.state.failed.length > 0 ? (
+            <span className="inline-flex flex-wrap items-center gap-2 text-function-error-default">
+              {upload.state.failed.length}장을 올리지 못했어요 · {upload.state.failed[0].reason}
+              <button type="button" onClick={() => void upload.run(upload.state.failed.map((f) => ({ file: f.file, photoId: f.photoId })))} className="cursor-pointer underline underline-offset-2">
+                다시 올리기
+              </button>
+              <button type="button" onClick={upload.clearFailed} className="cursor-pointer text-contents-light-bgd-weakness underline underline-offset-2">
+                닫기
+              </button>
+            </span>
+          ) : (
+            bottomHint
+          )
+        }
+        progress={
+          upload.state.running ? (
+            <ProgressBar
+              icon={<UploadIcon size={18} />}
+              title={`결과 업로드 ${upload.state.done} / ${upload.state.total}`}
+              ratio={upload.state.total ? upload.state.done / upload.state.total : null}
+              sub={
+                <button type="button" onClick={upload.cancel} className="cursor-pointer underline underline-offset-2">
+                  중단
+                </button>
+              }
+            />
+          ) : undefined
+        }
         status={
           requested ? (
             <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
@@ -411,8 +460,45 @@ export function RetouchStage({
             </span>
           ) : undefined
         }
-        actions={null}
+        actions={
+          canUpload ? (
+            resultCount === 0 ? (
+              <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                <UploadIcon size={18} />
+                결과 올리기
+              </ShellCta>
+            ) : (
+              <ShellCta kind={allDone ? "secondary" : "primary"} onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                <UploadIcon size={18} />
+                {allDone ? "결과 바꾸기" : "결과 더 올리기"}
+              </ShellCta>
+            )
+          ) : null
+        }
       />
+
+      <input
+        ref={slotInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          const photoId = slotTargetRef.current;
+          e.target.value = "";
+          if (file && photoId !== null) void upload.run([{ file, photoId }]);
+        }}
+      />
+      {uploadOpen && activeRoundNo !== null && (
+        <ResultUploadModal
+          galleryId={galleryId}
+          roundNo={activeRoundNo}
+          items={items}
+          presetPhotoId={uploadOpen.presetPhotoId}
+          onClose={() => setUploadOpen(null)}
+          onStart={startUpload}
+        />
+      )}
 
       {lightboxOpen && currentPhoto && (
         <Lightbox
@@ -422,6 +508,11 @@ export function RetouchStage({
           caption={[folderNameOf(currentPhoto), currentItem ? (hasMemo(currentItem) ? "메모 있음" : "기본 보정") : null].filter(Boolean).join(" · ") || null}
           tab={currentItem ? tab : "none"}
           tabs={currentItem ? TABS : []}
+          photoNode={
+            currentItem && tab === "compare" && currentItem.resultUrl && currentPhoto.viewUrl ? (
+              <BeforeAfter before={currentPhoto.viewUrl} after={currentItem.resultUrl} afterLabel={`${roundLabel} 결과`} mode={compareMode} />
+            ) : undefined
+          }
           onTabChange={(next) => setTab(next as Tab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
@@ -461,9 +552,34 @@ export function RetouchStage({
           panel={
             currentItem ? (
               tab === "request" ? (
-                <RequestPanel item={currentItem} showAnnotation={showAnnotation} onToggleAnnotation={() => setShowAnnotation((v) => !v)} />
+                <>
+                  <RequestPanel item={currentItem} showAnnotation={showAnnotation} onToggleAnnotation={() => setShowAnnotation((v) => !v)} />
+                  <ResultSlot item={currentItem} enabled={canUpload} onPick={() => pickResultFor(currentItem.photo.photoId)} />
+                </>
               ) : tab === "compare" ? (
-                <p className="type-content-s text-contents-light-bgd-sub">전/후 비교는 다음 단계에서 열려요.</p>
+                <>
+                  {currentItem.resultUrl ? (
+                    <div className="flex rounded-(--radius-8) bg-surface-default-medium p-0.75" role="tablist" aria-label="비교 방식">
+                      {(["slider", "side"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          role="tab"
+                          aria-selected={compareMode === m}
+                          onClick={() => setCompareMode(m)}
+                          className={`flex-1 cursor-pointer rounded-(--radius-4) py-1.5 type-label-medium-s transition-colors duration-fast ${
+                            compareMode === m ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-contents-light-bgd-weakness"
+                          }`}
+                        >
+                          {m === "slider" ? "슬라이더" : "나란히"}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="type-content-s text-contents-light-bgd-sub">아직 결과가 없어요. 아래에서 올리면 바로 비교할 수 있어요.</p>
+                  )}
+                  <ResultSlot item={currentItem} enabled={canUpload} onPick={() => pickResultFor(currentItem.photo.photoId)} />
+                </>
               ) : (
                 <InfoPanel item={currentItem} folderName={folderNameOf(currentPhoto)} />
               )
@@ -596,5 +712,26 @@ function InfoPanel({ item, folderName }: { item: RetouchItem; folderName: string
         </div>
       ))}
     </dl>
+  );
+}
+
+/** 싱글뷰 패널 아래 — 이 사진의 결과 올리기 · 바꾸기 */
+function ResultSlot({ item, enabled, onPick }: { item: RetouchItem; enabled: boolean; onPick: () => void }) {
+  return (
+    <div className={`mt-auto flex flex-col gap-1.5 rounded-(--radius-8) border p-3 ${item.hasResult ? "border-function-success-default/40 bg-function-success-background" : "border-dashed border-border-default"}`}>
+      <p className={`inline-flex items-center gap-1 type-label-semibold-s ${item.hasResult ? "text-function-success-default" : "text-contents-light-bgd-default"}`}>
+        {item.hasResult ? <CheckCircleIcon size={16} /> : <UploadIcon size={16} />}
+        {item.hasResult ? "결과 올라옴" : "이 사진의 결과"}
+      </p>
+      <button
+        type="button"
+        disabled={!enabled}
+        onClick={onPick}
+        className="h-8 cursor-pointer rounded-(--radius-8) border border-border-default type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
+      >
+        {item.hasResult ? "결과 바꾸기" : "결과 파일 고르기"}
+      </button>
+      {!item.hasResult && <p className="type-content-xs text-contents-light-bgd-weakness">여러 장은 하단 &ldquo;결과 올리기&rdquo;에서 파일명으로 한꺼번에 맞춰요.</p>}
+    </div>
   );
 }
