@@ -8,6 +8,8 @@
  * 그리드에 레일 · 우측 패널은 없고 정보 · AI · 보정 요청은 싱글뷰에서 한다.
  * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
+ * 싱글뷰(Lightbox)는 돋보기 · 더블클릭 · 헤더 "한 장 보기"로 열고, 닫으면 그 사진으로 스크롤한다.
+ * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
  */
 
 import { useMemo, useState, useSyncExternalStore } from "react";
@@ -19,10 +21,15 @@ import { ShellMainHeader, type SortKey } from "@/app/(studio)/studio/gallery/[ga
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
+import { ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
+import { countView } from "./clientMemory";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
+import { Lightbox, type LightboxTab } from "./Lightbox";
+import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { useSelectionSync } from "./useSelectionSync";
 
 function ddayLabel(deadline: string | null): string {
@@ -56,14 +63,23 @@ export function SelectStage({
   const maxSelectable = gallery.maxSelectablePhotoCount;
   const { selection, pickedIds, toggle, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
   const [currentId, setCurrentId] = useState<number | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [tab, setTab] = useState<LightboxTab>("none");
+  const [scrollToId, setScrollToId] = useState<number | null>(null);
+  /** 별점 낙관적 갱신 — 서버 답이 오기 전에 화면부터 */
+  const [scoreOverrides, setScoreOverrides] = useState<Map<number, number | null>>(() => new Map());
   const [view, setView] = useState<ClientView>("all");
-  const [tab, setTab] = useState<"folder" | "share">("folder");
+  const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sort, setSort] = useState<SortKey>("uploaded");
   const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
 
   // ── 파생값 ──
-  const photoById = useMemo(() => new Map(photos.map((p) => [p.photoId, p])), [photos]);
+  const scoredPhotos = useMemo(
+    () => (scoreOverrides.size === 0 ? photos : photos.map((p) => (scoreOverrides.has(p.photoId) ? { ...p, score: scoreOverrides.get(p.photoId) ?? null } : p))),
+    [photos, scoreOverrides],
+  );
+  const photoById = useMemo(() => new Map(scoredPhotos.map((p) => [p.photoId, p])), [scoredPhotos]);
   // 고른 사진 — 화면(local)이 정본, 서버 응답의 보정본 정보는 아직 안 쓴다
   const pickedPhotos = useMemo(
     () => [...pickedIds].map((id) => photoById.get(id)).filter((p): p is PhotoResponse => p !== undefined),
@@ -84,7 +100,7 @@ export function SelectStage({
     return (photo: PhotoResponse) => map.get(photo.photoId) ?? (unsortedIds.has(photo.photoId) ? "미분류" : null);
   }, [folders, unsortedIds]);
   const visiblePhotos = useMemo(() => {
-    let list = photos;
+    let list = scoredPhotos;
     if (!isAllFilter(filter)) {
       const ids = new Set<number>();
       for (const d of details) if (filter.detailIds.has(d.id)) for (const id of d.photoIds) ids.add(id);
@@ -95,7 +111,7 @@ export function SelectStage({
     if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
     else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
     return sorted;
-  }, [photos, filter, details, unsortedIds, sort]);
+  }, [scoredPhotos, filter, details, unsortedIds, sort]);
 
   // ── 폴더 필터 ──
   function focusFolder(key: FolderKey) {
@@ -170,9 +186,45 @@ export function SelectStage({
   })();
 
   const gridPhotos = view === "selected" ? pickedPhotos : visiblePhotos;
+
+  // ── 싱글뷰 ──
+  const currentIndex = currentId === null ? -1 : gridPhotos.findIndex((p) => p.photoId === currentId);
+  const currentPhoto = currentIndex >= 0 ? gridPhotos[currentIndex] : null;
   function openPhoto(photoId: number) {
     setCurrentId(photoId);
-    // 싱글뷰는 4단계에서 연다
+    setScrollToId(null);
+    setLightboxOpen(true);
+    countView(galleryId, photoId);
+  }
+  function closeLightbox() {
+    setLightboxOpen(false);
+    setTab("none");
+    setScrollToId(currentId);
+  }
+  function step(delta: number) {
+    if (gridPhotos.length === 0) return;
+    const base = currentIndex >= 0 ? currentIndex : 0;
+    const next = gridPhotos[(base + delta + gridPhotos.length) % gridPhotos.length];
+    setCurrentId(next.photoId);
+    countView(galleryId, next.photoId);
+  }
+  async function rate(photoId: number, score: number | null) {
+    if (!editable) return;
+    const before = photoById.get(photoId)?.score ?? null;
+    setScoreOverrides((prev) => new Map(prev).set(photoId, score));
+    try {
+      if (score === null) await clearPhotoRating(galleryId, photoId);
+      else await ratePhoto(galleryId, photoId, score);
+    } catch (err) {
+      setScoreOverrides((prev) => new Map(prev).set(photoId, before));
+      setLocalNotice(err instanceof ApiError ? err.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
+    }
+  }
+  const [localNotice, setLocalNotice] = useState<string | null>(null);
+  const shownNotice = notice ?? localNotice;
+  function clearNotices() {
+    clearNotice();
+    setLocalNotice(null);
   }
 
   return (
@@ -194,8 +246,8 @@ export function SelectStage({
               if (next !== "all") setFilter(ALL_FILTER);
             }}
             tabs={{
-              tab,
-              onTabChange: setTab,
+              tab: sideTab,
+              onTabChange: setSideTab,
               folder:
                 folders && folders.length > 0 ? (
                   <ClientFolderTree
@@ -238,7 +290,9 @@ export function SelectStage({
                 onFilterChange={() => {}}
                 showFilters={false}
                 sortable={view === "all"}
-                onSingleView={() => {}}
+                onSingleView={() => {
+                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
+                }}
               />
               <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {gridPhotos.length === 0 ? (
@@ -257,6 +311,7 @@ export function SelectStage({
                     showScore
                     onOpen={openPhoto}
                     captionOf={folderNameOf}
+                    scrollToId={scrollToId}
                   />
                 )}
               </div>
@@ -270,9 +325,9 @@ export function SelectStage({
         onClearSelection={() => {}}
         onMoveSelection={() => {}}
         hint={
-          notice ? (
-            <button type="button" onClick={clearNotice} className="cursor-pointer text-left text-function-warning-default">
-              {notice}
+          shownNotice ? (
+            <button type="button" onClick={clearNotices} className="cursor-pointer text-left text-function-warning-default">
+              {shownNotice}
             </button>
           ) : phase === "select" ? (
             selectedCount === 0
@@ -303,6 +358,41 @@ export function SelectStage({
         }
         actions={null}
       />
+
+      {lightboxOpen && currentPhoto && (
+        <Lightbox
+          photo={currentPhoto}
+          index={currentIndex}
+          total={gridPhotos.length}
+          caption={folderNameOf(currentPhoto)}
+          picked={pickedIds.has(currentPhoto.photoId)}
+          editable={editable}
+          score={currentPhoto.score}
+          tab={tab}
+          onTabChange={setTab}
+          onClose={closeLightbox}
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          onTogglePick={() => toggle(currentPhoto.photoId)}
+          onRate={(score) => void rate(currentPhoto.photoId, score)}
+          panel={
+            tab === "info" ? (
+              <PhotoInfoPanel
+                galleryId={galleryId}
+                photo={currentPhoto}
+                folderName={folderNameOf(currentPhoto)}
+                score={currentPhoto.score}
+                editable={editable}
+                onRate={(score) => void rate(currentPhoto.photoId, score)}
+              />
+            ) : tab === "ai" ? (
+              <p className="type-content-s text-contents-light-bgd-sub">AI 추천은 다음 단계에서 열려요.</p>
+            ) : (
+              <p className="type-content-s text-contents-light-bgd-sub">보정 요청은 다음 단계에서 열려요.</p>
+            )
+          }
+        />
+      )}
     </>
   );
 }
