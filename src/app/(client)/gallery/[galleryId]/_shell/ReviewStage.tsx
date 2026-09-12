@@ -31,6 +31,7 @@ import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
 import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
+import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
@@ -313,17 +314,19 @@ export function ReviewStage({
             }}
             extra={
               overview && rounds.length > 0 ? (
-                <RoundList
-                  rounds={rounds}
-                  activeRoundNo={activeRoundNo}
-                  remaining={remaining}
-                  maxRounds={maxRounds}
-                  onSelect={(n) => {
-                    setSelectedRoundNo(n);
-                    setView("retouch");
-                    setCurrentId(null);
-                  }}
-                />
+                <div data-coach="rounds">
+                  <RoundList
+                    rounds={rounds}
+                    activeRoundNo={activeRoundNo}
+                    remaining={remaining}
+                    maxRounds={maxRounds}
+                    onSelect={(n) => {
+                      setSelectedRoundNo(n);
+                      setView("retouch");
+                      setCurrentId(null);
+                    }}
+                  />
+                </div>
               ) : undefined
             }
             tabs={{
@@ -368,7 +371,7 @@ export function ReviewStage({
                   <span className="min-w-0 flex-1">{banner.text}</span>
                 </div>
               )}
-              <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+              <div data-coach="results" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {gridPhotos.length === 0 ? (
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{view === "retouch" ? "보정 회차가 아직 없어요" : "사진이 없어요"}</p>
                 ) : (
@@ -445,13 +448,15 @@ export function ReviewStage({
                 <DownloadIcon size={18} />
                 보정본 내려받기
               </ShellCta>
-              <span title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
+              <span data-coach="rerequest" title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
                 <ShellCta kind="outline" disabled={!canReRequest} onClick={startPicking}>
                   <EditNoteIcon size={18} />
                   다시 요청하기{remaining !== null ? ` (${remaining})` : ""}
                 </ShellCta>
               </span>
-              <ShellCta onClick={() => setConfirmOpen(true)}>이대로 확정</ShellCta>
+              <span data-coach="confirm" className="inline-flex">
+                <ShellCta onClick={() => setConfirmOpen(true)}>이대로 확정</ShellCta>
+              </span>
             </>
           ) : archived ? (
             <>
@@ -475,6 +480,7 @@ export function ReviewStage({
       />
 
       {sharing.modals}
+      <ClientReviewCoachMarks ready={overview !== null && resultArrived && isLatest && !archived && !picking && !lightboxOpen && !confirmOpen && !downloadOpen} />
       {downloadOpen && activeRoundNo !== null && (
         <ResultsDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}
