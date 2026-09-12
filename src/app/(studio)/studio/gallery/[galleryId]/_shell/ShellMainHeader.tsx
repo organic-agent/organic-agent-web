@@ -5,7 +5,8 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader.tsx
  *
  * 장수는 사이드바가 보여주고 여기서는 보는 방법만 다룬다. 촬영 순은 사진에 촬영 시각이 없어
- * 준비 중(백엔드 요청). 한 장 보기는 B1 뒤.
+ * 준비 중(백엔드 요청). 정렬 · 필터 항목은 기본(업로드 · 이름 · 별점 / 검토 · 미분류)이고, 화면이 다른 항목을
+ * 쓰면(보정 작업: 결과 없는 것 먼저 · 메모 있는 것만) customSort · customFilter로 같은 버튼 · 메뉴에 바꿔 끼운다.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -22,6 +23,8 @@ import type { PhotoResponse } from "@/lib/api/photos";
 
 export type SortKey = "uploaded" | "name" | "score";
 export type FilterKey = "none" | "review" | "unsorted";
+export type MenuOption = { key: string; label: string; trailing?: string };
+export type CustomMenu = { value: string; options: MenuOption[]; onChange: (key: string) => void };
 
 const SORT_LABEL: Record<SortKey, string> = { uploaded: "업로드 순", name: "이름 순", score: "별점 순" };
 
@@ -51,6 +54,8 @@ export function ShellMainHeader({
   showFilters = true,
   leading,
   coachKey,
+  customSort,
+  customFilter,
 }: {
   title: ReactNode;
   /** 0~100 — 타일 폭으로 바뀐다 */
@@ -69,6 +74,10 @@ export function ShellMainHeader({
   leading?: ReactNode;
   /** 보기 토글(한 장 보기)에 붙는 코치마크 대상 이름 */
   coachKey?: string;
+  /** 기본 정렬 항목 대신 쓸 것 — 같은 버튼 · 메뉴 모양 */
+  customSort?: CustomMenu;
+  /** 기본 필터 항목 대신 쓸 것 — value "none"이면 필터 없음 */
+  customFilter?: CustomMenu;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -89,7 +98,14 @@ export function ShellMainHeader({
     };
   }, [menuOpen]);
 
-  const buttonLabel = filter === "none" ? SORT_LABEL[sort] : FILTER_LABEL[filter];
+  const filterActive = customFilter ? customFilter.value !== "none" : filter !== "none";
+  const buttonLabel = customFilter && customFilter.value !== "none"
+    ? customFilter.options.find((o) => o.key === customFilter.value)?.label ?? ""
+    : !customFilter && filter !== "none"
+      ? FILTER_LABEL[filter]
+      : customSort
+        ? customSort.options.find((o) => o.key === customSort.value)?.label ?? ""
+        : SORT_LABEL[sort];
 
   return (
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-5">
@@ -143,7 +159,7 @@ export function ShellMainHeader({
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
             className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-surface-default-light px-3 type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-medium ${
-              filter !== "none" ? "font-semibold" : ""
+              filterActive ? "font-semibold" : ""
             }`}
           >
             {buttonLabel}
@@ -157,34 +173,66 @@ export function ShellMainHeader({
               className="absolute top-full right-0 z-20 mt-1 flex w-44 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover)"
             >
               <p className="px-2.5 pt-1.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">정렬</p>
-              {(Object.keys(SORT_LABEL) as SortKey[]).map((key) => (
-                <MenuRow
-                  key={key}
-                  label={SORT_LABEL[key]}
-                  checked={sort === key}
-                  onClick={() => {
-                    onSortChange(key);
-                    setMenuOpen(false);
-                  }}
-                />
-              ))}
-              <MenuRow label="촬영 순" trailing="준비 중" disabled onClick={() => {}} />
-              {showFilters && (
+              {customSort
+                ? customSort.options.map((o) => (
+                    <MenuRow
+                      key={o.key}
+                      label={o.label}
+                      trailing={o.trailing}
+                      checked={customSort.value === o.key}
+                      onClick={() => {
+                        customSort.onChange(o.key);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  ))
+                : (Object.keys(SORT_LABEL) as SortKey[]).map((key) => (
+                    <MenuRow
+                      key={key}
+                      label={SORT_LABEL[key]}
+                      checked={sort === key}
+                      onClick={() => {
+                        onSortChange(key);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  ))}
+              {!customSort && <MenuRow label="촬영 순" trailing="준비 중" disabled onClick={() => {}} />}
+              {customFilter ? (
                 <>
                   <div className="my-1 h-px bg-divider-default" />
                   <p className="px-2.5 pt-0.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">필터</p>
-                  {(Object.keys(FILTER_LABEL) as Exclude<FilterKey, "none">[]).map((key) => (
+                  {customFilter.options.map((o) => (
                     <MenuRow
-                      key={key}
-                      label={FILTER_LABEL[key]}
-                      checked={filter === key}
+                      key={o.key}
+                      label={o.label}
+                      trailing={o.trailing}
+                      checked={customFilter.value === o.key}
                       onClick={() => {
-                        onFilterChange(filter === key ? "none" : key);
+                        customFilter.onChange(customFilter.value === o.key ? "none" : o.key);
                         setMenuOpen(false);
                       }}
                     />
                   ))}
                 </>
+              ) : (
+                showFilters && (
+                  <>
+                    <div className="my-1 h-px bg-divider-default" />
+                    <p className="px-2.5 pt-0.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">필터</p>
+                    {(Object.keys(FILTER_LABEL) as Exclude<FilterKey, "none">[]).map((key) => (
+                      <MenuRow
+                        key={key}
+                        label={FILTER_LABEL[key]}
+                        checked={filter === key}
+                        onClick={() => {
+                          onFilterChange(filter === key ? "none" : key);
+                          setMenuOpen(false);
+                        }}
+                      />
+                    ))}
+                  </>
+                )
               )}
             </div>
           )}

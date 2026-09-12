@@ -18,7 +18,8 @@
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, EditNoteIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
@@ -38,13 +39,19 @@ import { countView } from "./clientMemory";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
-import { Lightbox, type LightboxTab } from "./Lightbox";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { useAiRecommendations } from "./useAiRecommendations";
 import { useSelectionSync } from "./useSelectionSync";
+
+type LightboxTab = "none" | "info" | "ai" | "memo";
+const LIGHTBOX_TABS: LightboxTabDef[] = [
+  { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
+  { key: "ai", label: "AI", icon: <SparkleIcon size={18} /> },
+  { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
+];
 
 function ddayLabel(deadline: string | null): string {
   const offset = deadlineOffset(deadline);
@@ -685,16 +692,31 @@ export function SelectStage({
           index={currentIndex}
           total={gridPhotos.length}
           caption={folderNameOf(currentPhoto)}
-          picked={pickedIds.has(currentPhoto.photoId)}
-          editable={editable}
-          score={currentPhoto.score}
           tab={tab}
-          onTabChange={setTab}
+          tabs={LIGHTBOX_TABS}
+          onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
           onNext={() => step(1)}
-          onTogglePick={() => requestToggle(currentPhoto.photoId)}
-          onRate={(score) => void rate(currentPhoto.photoId, score)}
+          middle={
+            <SelectionControls
+              picked={pickedIds.has(currentPhoto.photoId)}
+              editable={editable}
+              score={currentPhoto.score}
+              onTogglePick={() => requestToggle(currentPhoto.photoId)}
+              onRate={(score) => void rate(currentPhoto.photoId, score)}
+            />
+          }
+          onKeyDown={(e) => {
+            if (!editable) return false;
+            if (/^[1-5]$/.test(e.key)) void rate(currentPhoto.photoId, Number(e.key));
+            else if (e.key === "0") void rate(currentPhoto.photoId, null);
+            else if (e.key === " ") {
+              e.preventDefault();
+              requestToggle(currentPhoto.photoId);
+            } else return false;
+            return true;
+          }}
           overlay={
             tab === "memo" ? (
               <RetouchPins
@@ -824,6 +846,62 @@ function AiPanel({
         {folderRecs.length > 0 ? "이 폴더에서 다시 추천" : "이 폴더에서 추천 받기"}
       </button>
       <p className="type-content-xs text-contents-light-bgd-weakness">추천은 폴더 단위예요. 최종 선택은 직접 고른 사진만 인정돼요.</p>
+    </>
+  );
+}
+
+/** 싱글뷰 하단 컨트롤 가운데 칸 — ★★★★★ | 선택 / 선택됨 (클라이언트 전용) */
+function SelectionControls({
+  picked,
+  editable,
+  score,
+  onTogglePick,
+  onRate,
+}: {
+  picked: boolean;
+  editable: boolean;
+  score: number | null;
+  onTogglePick: () => void;
+  onRate: (score: number | null) => void;
+}) {
+  return (
+    <>
+      <div role="radiogroup" aria-label="별점" className="flex items-center gap-0.5 px-1">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const on = score !== null && n <= score;
+          return (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={score === n}
+              aria-label={`별점 ${n}`}
+              disabled={!editable}
+              onClick={() => onRate(score === n ? null : n)}
+              className={`grid size-7 place-items-center rounded-full transition-colors duration-fast ${editable ? "cursor-pointer hover:bg-white/15" : "cursor-default"} ${on ? "text-white" : "text-white/35"}`}
+            >
+              {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
+            </button>
+          );
+        })}
+      </div>
+      <Sep />
+      <button
+        type="button"
+        aria-pressed={picked}
+        disabled={!editable}
+        onClick={onTogglePick}
+        className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s transition-colors duration-fast ${
+          picked ? "bg-brand-secondary-default text-white" : "bg-white/15 text-white hover:bg-white/25"
+        } ${editable ? "cursor-pointer" : "cursor-default"}`}
+      >
+        {picked && (
+          <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 8.5 6.5 11.5 12.5 5" />
+          </svg>
+        )}
+        {picked ? "선택됨" : "선택"}
+      </button>
     </>
   );
 }

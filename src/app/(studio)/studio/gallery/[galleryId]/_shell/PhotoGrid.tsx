@@ -19,7 +19,7 @@
  * markedIds(표시만 하는 선택)는 작가가 클라이언트의 선택을 볼 때 쓴다.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PhotoIcon, SparkleIcon, StarFillIcon, ZoomInIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -134,6 +134,7 @@ export function PhotoGrid({
   aiIds,
   toggleOn = "tile",
   onTileClick,
+  overlayOf,
 }: {
   photos: PhotoResponse[];
   /** 0~100 — 기준 행 높이로 바뀐다 */
@@ -162,6 +163,8 @@ export function PhotoGrid({
   toggleOn?: "tile" | "check";
   /** toggleOn="check"일 때 타일 클릭(현재 사진으로) */
   onTileClick?: (photoId: number) => void;
+  /** 타일 위에 더 얹을 것(보정 작업의 메모 · 결과 배지 · 점) — 줄이 낮으면 부모가 알아서 줄인다 */
+  overlayOf?: (photo: PhotoResponse, detailed: boolean) => ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -286,6 +289,7 @@ export function PhotoGrid({
                 ) : (
                   (selectable || selected) && <Check selected={selected} filled={markStyle === "check"} />
                 )}
+                {overlayOf?.(photo, detailed)}
                 {aiIds?.has(photo.photoId) && (
                   <span aria-label="AI 추천" className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-brand-secondary-default text-white">
                     <SparkleIcon size={12} />

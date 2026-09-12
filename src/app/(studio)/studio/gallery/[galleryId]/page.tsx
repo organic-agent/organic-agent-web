@@ -83,6 +83,7 @@ import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
 import { UploadModal } from "./_shell/UploadModal";
+import { RetouchStage } from "./_shell/RetouchStage";
 import { ProgressBar } from "./_shell/UploadProgress";
 import {
   forgetUploaded,
@@ -252,15 +253,16 @@ export default function StudioGalleryShellPage() {
   const uploading = run.phase === "running" || run.phase === "paused";
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
-  // ── 단계 ──
-  const stageIndex = gallery ? stageIndexOf(gallery) : 0;
-  const inSelection = gallery !== null && stageIndex >= 1;
+  // ── 단계 ── 서버 stage가 정본이지만, 선택 앨범이 제출됐으면(SUBMITTED) stage가 아직 셀렉 대기여도 3단계로 본다
+  // (전달되는 순간 1차 회차가 생기고 "선택 확인" 전용 API는 없다 — 2026-09-12)
+  const baseStageIndex = gallery ? stageIndexOf(gallery) : 0;
+  const inSelection = gallery !== null && baseStageIndex >= 1;
 
   // ── AI 분석 진행 감시(1단계) — 카운트(요약) + 잡 폴링, 완료 시 폴더 · 사진 재조회 ──
   const analysis = useAnalysisWatch(
     galleryId,
     {
-      enabled: stageIndex === 0 && gallery !== null && (uploading || (photos?.length ?? 0) > 0),
+      enabled: baseStageIndex === 0 && gallery !== null && (uploading || (photos?.length ?? 0) > 0),
       uploading,
     },
     {
@@ -301,6 +303,7 @@ export default function StudioGalleryShellPage() {
 
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
   const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
+  const stageIndex = selection?.status === "SUBMITTED" && baseStageIndex === 1 ? 2 : baseStageIndex;
   useEffect(() => {
     if (!inSelection) return;
     let cancelled = false;
@@ -949,141 +952,167 @@ export default function StudioGalleryShellPage() {
         onInviteClick={studio ? () => setInviteTab("client") : undefined}
       />
 
-      <div className="flex min-h-0 flex-1">
-        {!collapsed && (
-          <ShellSidebar
-            title={gallery?.title ?? "…"}
-            status={status}
-            stageIndex={stageIndex}
-            photoCount={allPhotos.length}
-            selectedLocked={stageIndex === 0}
-            selectedCount={selectedCount}
-            maxSelectable={maxSelectable}
-            folderTree={
-              inSelection && folders && folders.length > 0 ? (
-                <SidebarFolderTree
-                  folders={folders}
-                  pickedIds={pickedIds}
-                  selection={view === "all" ? folderSel : { kind: "all" }}
-                  onSelect={changeFolder}
-                />
-              ) : undefined
+      {stageIndex >= 2 && gallery && photos !== null ? (
+        <RetouchStage
+          galleryId={galleryId}
+          gallery={gallery}
+          photos={allPhotos}
+          folders={folders}
+          selection={selection}
+          stageIndex={stageIndex}
+          sidebarOpen={!collapsed}
+          onGalleryUpdated={setGallery}
+          onWithdrawn={(updated) => {
+            setGallery(updated);
+            reloadSelection();
+          }}
+          refreshGallery={async () => {
+            try {
+              setGallery(await getGallery(galleryId));
+            } catch {
+              // 다음 갱신 때
             }
-            view={view}
-            onViewChange={(next) => {
-              changeView(next);
-              setFolderSel({ kind: "all" });
-            }}
-          />
-        )}
-
-        {showFolderColumn && (
-          <FolderColumn
-            folders={folders}
-            totalPhotos={allPhotos.length}
-            unsortedCount={unsortedCount}
-            selection={folderSel}
-            onSelect={changeFolder}
-            onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
-            onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
-            onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
-            onDeleteDetail={(concept, detail) =>
-              setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
-            }
-            reviewedIds={reviewedIds}
-            onMarkReviewed={(detail) => markReviewed(galleryId, detail.id)}
-            onUnmarkReviewed={(detail) => unmarkReviewed(galleryId, detail.id)}
-            pendingNote={
-              folders && folders.length === 0 && (uploading || aiActive)
-                ? aiCategorizing
-                  ? { label: "만드는 중…", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요." }
-                  : {
-                      label: "대기",
-                      note: "폴더는 업로드가 끝나면 AI가 만들어요. 임베딩 · 점수는 올라오는 대로 매기고 있어요.",
-                    }
-                : null
-            }
-          />
-        )}
-
-        <main className="flex min-w-0 flex-1 flex-col">
-          {photos === null ? (
-            <div className="flex-1" aria-busy="true" />
-          ) : view === "selected" && inSelection ? (
-            <>
-              <ShellMainHeader
-                {...headerCommon}
-                sortable={false}
-                title={
-                  <>
-                    <span className="flex text-contents-light-bgd-weakness">
-                      <CheckCircleIcon size={18} />
-                    </span>
-                    선택한 사진
-                    <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{countLabel}</small>
-                  </>
-                }
-              />
-              {quotaBanner}
-              {selectionBanner}
-              <div className="scrollbar-slim flex min-h-0 flex-1 flex-col overflow-y-auto">
-                {pickedPhotos.length === 0 ? (
-                  selectedEmpty
-                ) : (
-                  <PhotoGrid photos={pickedPhotos} zoom={zoom} selectedIds={selected} onToggle={() => {}} selectable={false} />
-                )}
-              </div>
-            </>
-          ) : allPhotos.length === 0 ? (
-            <>
-              {recoveryBanner}
-              <EmptyUploadGuide />
-            </>
-          ) : (
-            <>
-              <ShellMainHeader {...headerCommon} title={allTitle} />
-              {recoveryBanner}
-              {quotaBanner}
-              <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
-                {visiblePhotos.length === 0 ? (
-                  <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
-                    조건에 맞는 사진이 없어요
-                  </p>
-                ) : (
-                  <PhotoGrid
-                    photos={visiblePhotos}
-                    zoom={zoom}
-                    selectedIds={selected}
-                    onToggle={toggleSelect}
-                    markedIds={inSelection ? pickedIds : undefined}
-                    selectable={!inSelection}
+          }}
+        />
+      ) : (
+        <>
+        <div className="flex min-h-0 flex-1">
+          {!collapsed && (
+            <ShellSidebar
+              title={gallery?.title ?? "…"}
+              status={status}
+              stageIndex={stageIndex}
+              photoCount={allPhotos.length}
+              selectedLocked={stageIndex === 0}
+              selectedCount={selectedCount}
+              maxSelectable={maxSelectable}
+              folderTree={
+                inSelection && folders && folders.length > 0 ? (
+                  <SidebarFolderTree
+                    folders={folders}
+                    pickedIds={pickedIds}
+                    selection={view === "all" ? folderSel : { kind: "all" }}
+                    onSelect={changeFolder}
                   />
-                )}
-              </div>
-            </>
+                ) : undefined
+              }
+              view={view}
+              onViewChange={(next) => {
+                changeView(next);
+                setFolderSel({ kind: "all" });
+              }}
+            />
           )}
-        </main>
-      </div>
 
-      <ShellBottomBar
-        selectionCount={selected.size}
-        visibleCount={visiblePhotos.filter((p) => p.status === "UPLOADED").length}
-        onSelectAll={selectAllVisible}
-        onClearSelection={() => setSelected(new Set())}
-        onMoveSelection={() => setMoveOpen(true)}
-        onDeleteSelection={() => setDeletePhotosOpen(true)}
-        hint={bottomHint}
-        progress={
-          stageIndex === 0 && (uploadProgress || aiProgress) ? (
-            <>
-              {uploadProgress}
-              {aiProgress}
-            </>
-          ) : null
-        }
-        status={bottomStatus}
-        actions={bottomActions}
-      />
+          {showFolderColumn && (
+            <FolderColumn
+              folders={folders}
+              totalPhotos={allPhotos.length}
+              unsortedCount={unsortedCount}
+              selection={folderSel}
+              onSelect={changeFolder}
+              onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
+              onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
+              onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
+              onDeleteDetail={(concept, detail) =>
+                setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
+              }
+              reviewedIds={reviewedIds}
+              onMarkReviewed={(detail) => markReviewed(galleryId, detail.id)}
+              onUnmarkReviewed={(detail) => unmarkReviewed(galleryId, detail.id)}
+              pendingNote={
+                folders && folders.length === 0 && (uploading || aiActive)
+                  ? aiCategorizing
+                    ? { label: "만드는 중…", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요." }
+                    : {
+                        label: "대기",
+                        note: "폴더는 업로드가 끝나면 AI가 만들어요. 임베딩 · 점수는 올라오는 대로 매기고 있어요.",
+                      }
+                  : null
+              }
+            />
+          )}
+
+          <main className="flex min-w-0 flex-1 flex-col">
+            {photos === null ? (
+              <div className="flex-1" aria-busy="true" />
+            ) : view === "selected" && inSelection ? (
+              <>
+                <ShellMainHeader
+                  {...headerCommon}
+                  sortable={false}
+                  title={
+                    <>
+                      <span className="flex text-contents-light-bgd-weakness">
+                        <CheckCircleIcon size={18} />
+                      </span>
+                      선택한 사진
+                      <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{countLabel}</small>
+                    </>
+                  }
+                />
+                {quotaBanner}
+                {selectionBanner}
+                <div className="scrollbar-slim flex min-h-0 flex-1 flex-col overflow-y-auto">
+                  {pickedPhotos.length === 0 ? (
+                    selectedEmpty
+                  ) : (
+                    <PhotoGrid photos={pickedPhotos} zoom={zoom} selectedIds={selected} onToggle={() => {}} selectable={false} />
+                  )}
+                </div>
+              </>
+            ) : allPhotos.length === 0 ? (
+              <>
+                {recoveryBanner}
+                <EmptyUploadGuide />
+              </>
+            ) : (
+              <>
+                <ShellMainHeader {...headerCommon} title={allTitle} />
+                {recoveryBanner}
+                {quotaBanner}
+                <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+                  {visiblePhotos.length === 0 ? (
+                    <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
+                      조건에 맞는 사진이 없어요
+                    </p>
+                  ) : (
+                    <PhotoGrid
+                      photos={visiblePhotos}
+                      zoom={zoom}
+                      selectedIds={selected}
+                      onToggle={toggleSelect}
+                      markedIds={inSelection ? pickedIds : undefined}
+                      selectable={!inSelection}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </main>
+        </div>
+
+        <ShellBottomBar
+          selectionCount={selected.size}
+          visibleCount={visiblePhotos.filter((p) => p.status === "UPLOADED").length}
+          onSelectAll={selectAllVisible}
+          onClearSelection={() => setSelected(new Set())}
+          onMoveSelection={() => setMoveOpen(true)}
+          onDeleteSelection={() => setDeletePhotosOpen(true)}
+          hint={bottomHint}
+          progress={
+            stageIndex === 0 && (uploadProgress || aiProgress) ? (
+              <>
+                {uploadProgress}
+                {aiProgress}
+              </>
+            ) : null
+          }
+          status={bottomStatus}
+          actions={bottomActions}
+        />
+        </>
+      )}
 
       {uploadOpen && (
         <UploadModal
