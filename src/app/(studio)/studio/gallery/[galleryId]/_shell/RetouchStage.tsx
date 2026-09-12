@@ -6,7 +6,7 @@
  *
  * 클라이언트가 전달하면(SELECTION_COMPLETED) 선택한 사진 전부로 1차 회차(REQUESTED)가 생긴다 — 요청 메모(문장 · 점)는 일부에만.
  * 메모 없는 사진도 기본 보정 대상이라 결과를 올려야 회차를 보낼 수 있다(서버 규칙). 구조는 클라이언트 2단계와 같다:
- * justified 그리드 + 배지(메모 · 결과 · 점) + 어두운 라이트박스(하단 한 줄: 이전 · 결과 상태 · 다음 | 요청 · 전/후 · 정보).
+ * justified 그리드 + 배지(메모 · 결과 ✓만 — "결과 없음"은 표시하지 않음 · 점) + 어두운 라이트박스(하단 한 줄: 이전 · 결과 상태 · 다음 | 요청 · 전/후 · 정보).
  * 하위 상태: 요청 도착(결과 0) → 올리는 중 → 다 올라옴 → 보냄(DELIVERY, 클라이언트 확인 중) → 다음 회차 요청 → 확정(ARCHIVED).
  */
 
@@ -47,7 +47,7 @@ export type RetouchItem = {
 };
 export const hasMemo = (it: RetouchItem) => !!it.requestText?.trim() || it.points.length > 0;
 
-type Filter = "all" | "memo" | "noResult";
+type Filter = "none" | "memo" | "noResult";
 type SortKey = "noResultFirst" | "memoFirst" | "name";
 type Tab = "none" | "request" | "compare" | "info";
 
@@ -99,7 +99,7 @@ export function RetouchStage({
   const [modal, setModal] = useState<"send" | "withdraw" | "rounds" | "close" | "download" | null>(null);
   const [compareMode, setCompareMode] = useState<"slider" | "side">("slider");
   const [view, setView] = useState<ShellView>("retouch");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("none");
   const [sort, setSort] = useState<SortKey>("noResultFirst");
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -285,13 +285,11 @@ export function RetouchStage({
             메모
           </span>
         )}
-        <span
-          className={`absolute top-2 right-2 inline-flex h-4.5 items-center rounded-(--pill) px-1.5 type-label-semibold-xs text-white ${
-            it.hasResult ? "bg-function-success-default" : "bg-black/55"
-          }`}
-        >
-          {it.hasResult ? "결과 ✓" : detailed ? "결과 없음" : "—"}
-        </span>
+        {it.hasResult && (
+          <span className="absolute top-2 right-2 inline-flex h-4.5 items-center rounded-(--pill) bg-function-success-default px-1.5 type-label-semibold-xs text-white">
+            결과 ✓
+          </span>
+        )}
         {detailed &&
           it.points.map((pt, i) => (
             <span
@@ -357,7 +355,24 @@ export function RetouchStage({
                 onSortChange={() => {}}
                 filter="none"
                 onFilterChange={() => {}}
-                sortable={false}
+                sortable={view === "retouch"}
+                customSort={{
+                  value: sort,
+                  options: [
+                    { key: "noResultFirst", label: "결과 없음 먼저" },
+                    { key: "memoFirst", label: "메모 먼저" },
+                    { key: "name", label: "파일명 순" },
+                  ],
+                  onChange: (key) => setSort(key as SortKey),
+                }}
+                customFilter={{
+                  value: filter,
+                  options: [
+                    { key: "memo", label: "메모 있음", trailing: String(memoCount) },
+                    { key: "noResult", label: "결과 없음", trailing: String(items.length - resultCount) },
+                  ],
+                  onChange: (key) => setFilter(key as Filter),
+                }}
                 onSingleView={() => {
                   if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
                 }}
@@ -370,43 +385,6 @@ export function RetouchStage({
                 >
                   <span className={banner.tone === "warn" ? "text-function-warning-default" : banner.tone === "info" ? "text-function-info-default" : "text-brand-secondary-default"}>{banner.icon}</span>
                   <span className="min-w-0 flex-1">{banner.text}</span>
-                </div>
-              )}
-              {view === "retouch" && items.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 px-5 pb-2.5">
-                  {(
-                    [
-                      ["all", `전부 ${items.length}`],
-                      ["memo", `요청 메모 있는 ${memoCount}`],
-                      ["noResult", `결과 없는 ${items.length - resultCount}`],
-                    ] as [Filter, string][]
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={filter === key}
-                      onClick={() => setFilter(key)}
-                      className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) border px-2.5 type-label-medium-xs transition-colors duration-fast ${
-                        filter === key
-                          ? "border-brand-secondary-default bg-brand-secondary-background font-semibold text-brand-secondary-dark"
-                          : "border-border-default text-contents-light-bgd-sub hover:bg-surface-default-lightness"
-                      }`}
-                    >
-                      {key === "memo" && <EditNoteIcon size={13} />}
-                      {label}
-                    </button>
-                  ))}
-                  <span className="flex-1" />
-                  <select
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value as SortKey)}
-                    aria-label="정렬"
-                    className="h-7 cursor-pointer rounded-(--radius-8) bg-surface-default-light px-2 type-content-xs text-contents-light-bgd-default focus:outline-none"
-                  >
-                    <option value="noResultFirst">결과 없는 것 먼저</option>
-                    <option value="memoFirst">메모 있는 것 먼저</option>
-                    <option value="name">파일명 순</option>
-                  </select>
                 </div>
               )}
               <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
