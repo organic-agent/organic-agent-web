@@ -374,7 +374,7 @@ export default function ClientGalleryPage() {
       />
 
       {reviewing && gallery && phase ? (
-        <ReviewStage galleryId={galleryId} gallery={gallery} phase={phase} photos={allPhotos} folders={folders} sidebarOpen={!collapsed} />
+        <ReviewStage galleryId={galleryId} gallery={gallery} phase={phase} photos={allPhotos} folders={folders} sidebarOpen={!collapsed} reloadGallery={reloadGallery} />
       ) : selecting && gallery && phase ? (
         <SelectStage
           galleryId={galleryId}

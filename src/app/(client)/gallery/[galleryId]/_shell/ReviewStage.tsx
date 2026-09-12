@@ -29,6 +29,7 @@ import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
+import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
@@ -56,6 +57,7 @@ export function ReviewStage({
   photos,
   folders,
   sidebarOpen,
+  reloadGallery,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -63,11 +65,14 @@ export function ReviewStage({
   photos: PhotoResponse[];
   folders: ConceptFolderResponse[] | null;
   sidebarOpen: boolean;
+  /** 확정 뒤 갤러리 단계(ARCHIVED)를 다시 읽는다 */
+  reloadGallery: () => void;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(() => new Set());
   const [reModalOpen, setReModalOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const draftsRaw = useSyncExternalStore(retouchDraftStore.subscribe, () => retouchDraftStore.readRaw(galleryId), () => "");
   const drafts = useMemo(() => retouchDraftStore.parse(draftsRaw), [draftsRaw]);
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
@@ -395,10 +400,31 @@ export function ReviewStage({
                   다시 요청하기{remaining !== null ? ` (${remaining})` : ""}
                 </ShellCta>
               </span>
+              <ShellCta onClick={() => setConfirmOpen(true)}>이대로 확정</ShellCta>
             </>
+          ) : archived ? (
+            <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
+              <CheckCircleIcon size={16} />
+              확정 완료 · {items.length}장
+            </span>
           ) : null
         }
       />
+
+      {confirmOpen && (
+        <ConfirmRetouchModal
+          galleryId={galleryId}
+          photoCount={items.length}
+          roundCount={rounds.length}
+          remaining={remaining}
+          onClose={() => setConfirmOpen(false)}
+          onConfirmed={() => {
+            setConfirmOpen(false);
+            reloadOverview();
+            reloadGallery();
+          }}
+        />
+      )}
 
       {reModalOpen && (
         <SendReRequestModal
