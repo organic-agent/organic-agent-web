@@ -8,6 +8,7 @@
  * 그리드에 레일 · 우측 패널은 없고 정보 · AI · 보정 요청은 싱글뷰에서 한다.
  * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
+ * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 돋보기 · 더블클릭 · 헤더 "한 장 보기"로 열고, 닫으면 그 사진으로 스크롤한다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
@@ -32,6 +33,7 @@ import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
+import { DeselectConfirmModal } from "./DeselectConfirmModal";
 import { countView } from "./clientMemory";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
@@ -77,6 +79,13 @@ export function SelectStage({
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
   const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
+  const [deselectId, setDeselectId] = useState<number | null>(null);
+  /** 담기는 바로, 빼기는 확인 뒤 */
+  function requestToggle(photoId: number) {
+    if (!editable) return;
+    if (pickedIds.has(photoId)) setDeselectId(photoId);
+    else toggle(photoId);
+  }
   const [increaseOpen, setIncreaseOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const increaseRaw = useSyncExternalStore(increaseStore.subscribe, () => increaseStore.readRaw(galleryId), () => "");
@@ -477,7 +486,9 @@ export function SelectStage({
                         photos={aiPhotos}
                         zoom={Math.min(100, zoom + 15)}
                         selectedIds={pickedIds}
-                        onToggle={toggle}
+                        onToggle={requestToggle}
+                        toggleOn="check"
+                        onTileClick={setCurrentId}
                         selectable={editable}
                         markStyle="check"
                         currentId={currentId}
@@ -515,7 +526,9 @@ export function SelectStage({
                         photos={g.photos}
                         zoom={zoom}
                         selectedIds={pickedIds}
-                        onToggle={toggle}
+                        onToggle={requestToggle}
+                        toggleOn="check"
+                        onTileClick={setCurrentId}
                         selectable={editable}
                         markStyle="check"
                         currentId={currentId}
@@ -531,7 +544,9 @@ export function SelectStage({
                     photos={restPhotos}
                     zoom={zoom}
                     selectedIds={pickedIds}
-                    onToggle={toggle}
+                    onToggle={requestToggle}
+                    toggleOn="check"
+                    onTileClick={setCurrentId}
                     selectable={editable}
                     markStyle="check"
                     currentId={currentId}
@@ -622,6 +637,16 @@ export function SelectStage({
 
       <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} />
 
+      {deselectId !== null && photoById.get(deselectId) && (
+        <DeselectConfirmModal
+          photo={photoById.get(deselectId)!}
+          onClose={() => setDeselectId(null)}
+          onConfirm={() => {
+            toggle(deselectId);
+            setDeselectId(null);
+          }}
+        />
+      )}
       {increaseOpen && (
         <IncreaseRequestModal
           galleryId={galleryId}
@@ -668,7 +693,7 @@ export function SelectStage({
           onClose={closeLightbox}
           onPrev={() => step(-1)}
           onNext={() => step(1)}
-          onTogglePick={() => toggle(currentPhoto.photoId)}
+          onTogglePick={() => requestToggle(currentPhoto.photoId)}
           onRate={(score) => void rate(currentPhoto.photoId, score)}
           overlay={
             tab === "memo" ? (

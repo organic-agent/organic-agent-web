@@ -7,7 +7,7 @@
  * 하단 컨트롤: 이전 · ★★★★★ · 다음 | 선택 / 선택됨 ✓ | 정보 · AI · 보정 요청 (· 패널 닫기) — 2026-09-12 확정.
  * 패널이 열리면 사진이 왼쪽으로 붙고(분할) 닫으면 가운데 가득. 키보드: ← → 넘기기, 1~5 별점, 0 별점 지우기,
  * Space 선택, Esc는 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다.
- * 사진 위 오버레이(보정 요청 점)와 사진 클릭은 부모가 넘긴다.
+ * 사진 위 오버레이(보정 요청 점)와 사진 클릭은 부모가 넘긴다. 사진 · 컨트롤 · 패널 밖의 빈 곳을 누르면 닫힌다.
  */
 
 import { useEffect, type ReactNode } from "react";
@@ -105,10 +105,10 @@ export function Lightbox({
   return (
     <div role="dialog" aria-modal="true" aria-label={`${photo.originalFileName} 한 장 보기`} className="fixed inset-0 z-40 flex bg-black/75 p-7 backdrop-blur-[2px]">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "" : "justify-center"}`}>
-        {/* 사진 무대 */}
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="relative flex min-h-0 flex-1 items-center justify-center">
+      <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "" : "justify-center"}`} onClick={(e) => e.target === e.currentTarget && onClose()}>
+        {/* 사진 무대 — 사진 밖 빈 곳을 누르면 닫힌다 */}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" onClick={(e) => e.target === e.currentTarget && onClose()}>
+          <div className="relative flex min-h-0 flex-1 items-center justify-center" onClick={(e) => e.target === e.currentTarget && onClose()}>
             <div
               className={`relative max-h-full max-w-full ${onPhotoClick ? "cursor-crosshair" : ""}`}
               onClick={
