@@ -14,7 +14,7 @@
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
-import { BrushIcon, CheckCircleIcon, CompareIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, SparkleIcon } from "@/components/icons";
+import { BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, SparkleIcon } from "@/components/icons";
 import { BeforeAfter } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/BeforeAfter";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { hasMemo, normalizeRoundItems, type RetouchItem } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/roundItems";
@@ -30,6 +30,7 @@ import type { RetouchRequestItem } from "@/lib/api/retouch";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
+import { ResultsDownloadModal } from "./ResultsDownloadModal";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
@@ -73,6 +74,7 @@ export function ReviewStage({
   const [picked, setPicked] = useState<Set<number>>(() => new Set());
   const [reModalOpen, setReModalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const draftsRaw = useSyncExternalStore(retouchDraftStore.subscribe, () => retouchDraftStore.readRaw(galleryId), () => "");
   const drafts = useMemo(() => retouchDraftStore.parse(draftsRaw), [draftsRaw]);
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
@@ -93,6 +95,7 @@ export function ReviewStage({
   const activeSummary = rounds.find((r) => r.roundNo === activeRoundNo) ?? null;
   const detail = useRetouchRoundDetail(galleryId, activeRoundNo, overview ? 1 : 0);
   const items = useMemo<RetouchItem[]>(() => normalizeRoundItems(currentRound, detail, activeRoundNo), [currentRound, detail, activeRoundNo]);
+  const resultCount = items.filter((it) => it.resultUrl).length;
   const itemById = useMemo(() => new Map(items.map((it) => [it.photo.photoId, it])), [items]);
   const memoCount = items.filter(hasMemo).length;
 
@@ -394,6 +397,10 @@ export function ReviewStage({
             </>
           ) : resultArrived && isLatest && !archived ? (
             <>
+              <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
+                <DownloadIcon size={18} />
+                보정본 내려받기
+              </ShellCta>
               <span title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
                 <ShellCta kind="outline" disabled={!canReRequest} onClick={startPicking}>
                   <EditNoteIcon size={18} />
@@ -403,14 +410,28 @@ export function ReviewStage({
               <ShellCta onClick={() => setConfirmOpen(true)}>이대로 확정</ShellCta>
             </>
           ) : archived ? (
-            <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
-              <CheckCircleIcon size={16} />
-              확정 완료 · {items.length}장
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
+                <CheckCircleIcon size={16} />
+                확정 완료 · {items.length}장
+              </span>
+              <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
+                <DownloadIcon size={18} />
+                보정본 내려받기 (ZIP)
+              </ShellCta>
+            </>
+          ) : resultArrived && !isLatest ? (
+            <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
+              <DownloadIcon size={18} />
+              {roundLabel} 보정본 내려받기
+            </ShellCta>
           ) : null
         }
       />
 
+      {downloadOpen && activeRoundNo !== null && (
+        <ResultsDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
+      )}
       {confirmOpen && (
         <ConfirmRetouchModal
           galleryId={galleryId}
