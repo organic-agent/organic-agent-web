@@ -18,11 +18,21 @@ import {
   ZoomOutIcon,
 } from "@/components/icons";
 import { IconButton } from "@/components/ui/IconButton";
+import type { PhotoResponse } from "@/lib/api/photos";
 
-export type SortKey = "uploaded" | "name";
+export type SortKey = "uploaded" | "name" | "score";
 export type FilterKey = "none" | "review" | "unsorted";
 
-const SORT_LABEL: Record<SortKey, string> = { uploaded: "업로드 순", name: "이름 순" };
+const SORT_LABEL: Record<SortKey, string> = { uploaded: "업로드 순", name: "이름 순", score: "별점 순" };
+
+/** 정렬 — 별점 순은 높은 점수부터, 같은 점수 · 없음은 업로드 순. 작가 · 클라이언트 그리드 공용 */
+export function sortPhotos(list: PhotoResponse[], sort: SortKey): PhotoResponse[] {
+  const sorted = [...list];
+  if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
+  else if (sort === "score") sorted.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.displayOrder - b.displayOrder || a.photoId - b.photoId);
+  else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
+  return sorted;
+}
 const FILTER_LABEL: Record<Exclude<FilterKey, "none">, string> = {
   review: "검토 필요만",
   unsorted: "미분류만",

@@ -12,27 +12,33 @@
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
+ * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
+ * 전달한 뒤(submitted)는 읽기 전용 + 배너 + CSV 내려받기.
  */
 
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { CheckCircleIcon, ChevronRightIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon } from "@/components/icons";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
-import { ShellBottomBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
-import { ShellMainHeader, type SortKey } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
+import { ShellMainHeader, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import { ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
+import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { countView } from "./clientMemory";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
+import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
+import { IncreaseRequestModal } from "./IncreaseRequestModal";
 import { Lightbox, type LightboxTab } from "./Lightbox";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
-import { countDrafts, draftOf, newPointId, retouchDraftStore, writeDraft } from "./retouchDraft";
+import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
+import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { useAiRecommendations } from "./useAiRecommendations";
 import { useSelectionSync } from "./useSelectionSync";
@@ -53,6 +59,7 @@ export function SelectStage({
   photosLoaded,
   folders,
   sidebarOpen,
+  reloadGallery,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -63,10 +70,23 @@ export function SelectStage({
   /** 정규화된 컨셉 폴더(null = 아직) */
   folders: ConceptFolderResponse[] | null;
   sidebarOpen: boolean;
+  /** 전달한 뒤 갤러리 단계를 다시 읽는다 */
+  reloadGallery: () => void;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
-  const { selection, pickedIds, toggle, pickMany, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
+  const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
+  const [increaseOpen, setIncreaseOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const increaseRaw = useSyncExternalStore(increaseStore.subscribe, () => increaseStore.readRaw(galleryId), () => "");
+  const increasePending = useMemo(() => {
+    void increaseRaw;
+    return readIncreaseRequest(galleryId);
+  }, [increaseRaw, galleryId]);
+  // 작가가 장수를 바꿨으면(요청 당시와 다름) "요청함" 기억을 지운다
+  useEffect(() => {
+    if (increasePending && increasePending.maxAtRequest !== maxSelectable) writeIncreaseRequest(galleryId, null);
+  }, [increasePending, maxSelectable, galleryId]);
   const ai = useAiRecommendations(galleryId);
   const { current: aiCurrent, byPhotoId: aiByPhotoId } = ai;
   const [currentId, setCurrentId] = useState<number | null>(null);
@@ -117,10 +137,7 @@ export function SelectStage({
       if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
       list = list.filter((p) => ids.has(p.photoId));
     }
-    const sorted = [...list];
-    if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
-    else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
-    return sorted;
+    return sortPhotos(list, sort);
   }, [scoredPhotos, filter, details, unsortedIds, sort]);
 
   // ── 폴더 필터 ──
@@ -214,6 +231,48 @@ export function SelectStage({
   };
   const scopeLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? "모든 사진" : "보는 폴더";
   const aiUnpicked = aiPhotos.filter((p) => !pickedIds.has(p.photoId));
+  /** 별점 순이면 점수별 그룹(5 → 1 → 없음) */
+  const scoreGroups = useMemo(() => {
+    if (sort !== "score" || view !== "all") return null;
+    const groups: { score: number | null; photos: PhotoResponse[] }[] = [];
+    for (const sc of [5, 4, 3, 2, 1]) {
+      const ps = restPhotos.filter((p) => p.score === sc);
+      if (ps.length > 0) groups.push({ score: sc, photos: ps });
+    }
+    const none = restPhotos.filter((p) => !p.score);
+    if (none.length > 0) groups.push({ score: null, photos: none });
+    return groups;
+  }, [sort, view, restPhotos]);
+
+  // ── 전달하기 ──
+  const ratedCount = scoredPhotos.filter((p) => p.score !== null).length;
+  const requests = useMemo(() => toRequestItems(drafts, pickedIds), [drafts, pickedIds]);
+  const unpickedDraftCount = draftCount.photos - requests.length;
+  const canSubmit = editable && selectedCount > 0 && (maxSelectable === null || selectedCount === maxSelectable);
+  const submitHint =
+    editable && maxSelectable !== null && selectedCount !== maxSelectable
+      ? selectedCount < maxSelectable
+        ? `${maxSelectable}장을 채우면 전달할 수 있어요 (지금 ${selectedCount}장)`
+        : `${maxSelectable}장까지만 전달할 수 있어요 (지금 ${selectedCount}장)`
+      : null;
+  const [downloading, setDownloading] = useState(false);
+  async function downloadCsv() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const blob = await downloadSelectionCsv(galleryId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${gallery.title} 선택 목록.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setLocalNotice(err instanceof ApiError ? err.message : "내려받지 못했어요 · 다시 시도해 주세요");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   // ── 싱글뷰 ──
   const currentIndex = currentId === null ? -1 : gridPhotos.findIndex((p) => p.photoId === currentId);
@@ -355,6 +414,14 @@ export function SelectStage({
                 }}
               />
               <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+                {phase === "submitted" && (
+                  <div className="mx-5 mt-1 mb-3 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+                    <span className="text-brand-secondary-default">
+                      <CheckCircleIcon size={18} />
+                    </span>
+                    작가에게 전달했어요. 작가가 확인하면 보정이 시작돼요 — 다시 고치려면 작가에게 요청해 주세요.
+                  </div>
+                )}
                 {showAiGroup && (
                   <div className="px-5 pt-1 pb-3">
                     <div className="mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2 type-content-s text-contents-light-bgd-default">
@@ -428,7 +495,35 @@ export function SelectStage({
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
                     {view === "selected" ? "아직 고른 사진이 없어요" : "조건에 맞는 사진이 없어요"}
                   </p>
-                ) : restPhotos.length === 0 ? null : (
+                ) : restPhotos.length === 0 ? null : scoreGroups ? (
+                  scoreGroups.map((g) => (
+                    <div key={g.score ?? "none"} className="pt-1">
+                      <p className="flex items-center gap-0.5 px-5 pb-2 type-content-xs text-contents-light-bgd-weakness">
+                        {g.score !== null ? (
+                          <span className="flex text-brand-secondary-default" aria-label={`별점 ${g.score}`}>
+                            {[1, 2, 3, 4, 5].map((n) => (n <= g.score! ? <StarFillIcon key={n} size={14} /> : <StarIcon key={n} size={14} className="text-border-default" />))}
+                          </span>
+                        ) : (
+                          <span className="type-label-semibold-xs text-contents-light-bgd-sub">별점 없음</span>
+                        )}
+                        <span className="ml-2">{g.photos.length}장</span>
+                      </p>
+                      <PhotoGrid
+                        photos={g.photos}
+                        zoom={zoom}
+                        selectedIds={pickedIds}
+                        onToggle={toggle}
+                        selectable={editable}
+                        markStyle="check"
+                        currentId={currentId}
+                        showScore={false}
+                        onOpen={openPhoto}
+                        captionOf={folderNameOf}
+                        scrollToId={scrollToId}
+                      />
+                    </div>
+                  ))
+                ) : (
                   <PhotoGrid
                     photos={restPhotos}
                     zoom={zoom}
@@ -461,7 +556,9 @@ export function SelectStage({
           ) : phase === "select" ? (
             selectedCount === 0
               ? "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
-              : `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}`
+              : `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
+          ) : phase === "submitted" ? (
+            "작가가 확인하고 보정을 시작해요 · 선택 목록은 CSV로 내려받을 수 있어요"
           ) : (
             status.text
           )
@@ -485,8 +582,72 @@ export function SelectStage({
             )}
           </span>
         }
-        actions={null}
+        actions={
+          phase === "select" ? (
+            <>
+              {increasePending ? (
+                <span className="inline-flex h-10 items-center gap-1.5 rounded-(--radius-8) border border-border-default px-3 type-label-medium-s text-contents-light-bgd-sub">
+                  <AddPhotoIcon size={16} />
+                  {increasePending.requestedCount}장 요청함 · 작가 확인 중
+                </span>
+              ) : (
+                <ShellCta kind="outline" onClick={() => setIncreaseOpen(true)}>
+                  <AddPhotoIcon size={18} />
+                  선택 장수 추가 요청
+                </ShellCta>
+              )}
+              <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
+                <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
+                  작가에게 전달하기
+                </ShellCta>
+              </span>
+            </>
+          ) : phase === "submitted" || phase === "review" || phase === "album" || phase === "done" ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
+                <CheckCircleIcon size={16} />
+                전달 완료 · {selectedCount}장
+              </span>
+              <ShellCta kind="outline" disabled={downloading} onClick={() => void downloadCsv()}>
+                <DownloadIcon size={18} />
+                {downloading ? "내려받는 중…" : "선택 목록 내려받기 (CSV)"}
+              </ShellCta>
+            </>
+          ) : null
+        }
       />
+
+      {increaseOpen && (
+        <IncreaseRequestModal
+          galleryId={galleryId}
+          currentMax={maxSelectable}
+          selectedCount={selectedCount}
+          onClose={() => setIncreaseOpen(false)}
+          onRequested={(count) => {
+            setIncreaseOpen(false);
+            setLocalNotice(`${count}장으로 늘려 달라고 요청했어요 · 작가가 정하면 알림이 와요`);
+          }}
+        />
+      )}
+      {submitOpen && (
+        <SubmitSelectionModal
+          galleryId={galleryId}
+          selectedCount={selectedCount}
+          maxSelectable={maxSelectable}
+          requests={requests}
+          unpickedDraftCount={unpickedDraftCount}
+          ratedCount={ratedCount}
+          onClose={() => setSubmitOpen(false)}
+          onSubmitted={() => {
+            setSubmitOpen(false);
+            // 전달된 초안은 서버가 가졌으니 지운다(안 고른 사진의 초안은 남긴다)
+            for (const id of pickedIds) writeDraft(galleryId, id, null);
+            setLocalNotice("작가에게 전달했어요");
+            void refreshSelection();
+            reloadGallery();
+          }}
+        />
+      )}
 
       {lightboxOpen && currentPhoto && (
         <Lightbox

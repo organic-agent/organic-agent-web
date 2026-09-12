@@ -37,7 +37,7 @@ import {
   unmarkReviewed,
 } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/reviewMemory";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
-import { ShellMainHeader, type FilterKey, type SortKey } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import { ApiError } from "@/lib/api/client";
@@ -183,10 +183,7 @@ export default function ClientGalleryPage() {
     }
     if (filter === "review") list = list.filter((p) => reviewIds.has(p.photoId));
     if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
-    const sorted = [...list];
-    if (sort === "name") sorted.sort((a, b) => a.originalFileName.localeCompare(b.originalFileName, "ko"));
-    else sorted.sort((a, b) => a.displayOrder - b.displayOrder || a.photoId - b.photoId);
-    return sorted;
+    return sortPhotos(list, sort);
   }, [allPhotos, folderSel, folders, details, sortedIds, filter, reviewIds, sort]);
 
   const selectedDetail =
@@ -383,6 +380,7 @@ export default function ClientGalleryPage() {
           photosLoaded={photos !== null}
           folders={folders}
           sidebarOpen={!collapsed}
+          reloadGallery={reloadGallery}
         />
       ) : (
         <>
