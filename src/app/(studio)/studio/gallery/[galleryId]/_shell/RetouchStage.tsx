@@ -19,13 +19,15 @@ import { closeGallery } from "@/lib/api/galleries";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
-import type { RetouchPoint, RetouchRoundSummaryResponse } from "@/lib/api/retouch";
+import type { RetouchRoundSummaryResponse } from "@/lib/api/retouch";
 import type { PhotoSelectionResponse } from "@/lib/api/selection";
 import { BeforeAfter } from "./BeforeAfter";
 import { ChangeRoundsModal } from "./ChangeRoundsModal";
 import { ExtendDeadlineModal } from "./ExtendDeadlineModal";
 import { PhotoGrid } from "./PhotoGrid";
 import { ResultUploadModal } from "./ResultUploadModal";
+import { hasMemo, normalizeRoundItems, type RetouchItem } from "./roundItems";
+import { RoundList } from "./RoundList";
 import { RetouchDownloadModal } from "./RetouchDownloadModal";
 import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
@@ -36,16 +38,7 @@ import { type ResultAssignment, useResultUpload } from "./useResultUpload";
 import { useRetouchOverview, useRetouchRoundDetail } from "./useRetouchOverview";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "./zoomMemory";
 
-/** 회차 항목 — 진행 중 회차(overview)와 지난 회차(detail)를 한 모양으로 */
-export type RetouchItem = {
-  photo: PhotoResponse;
-  requestText: string | null;
-  points: RetouchPoint[];
-  annotationUrl: string | null;
-  hasResult: boolean;
-  resultUrl: string | null;
-};
-export const hasMemo = (it: RetouchItem) => !!it.requestText?.trim() || it.points.length > 0;
+export { hasMemo, type RetouchItem } from "./roundItems";
 
 type Filter = "none" | "memo" | "noResult";
 type SortKey = "noResultFirst" | "memoFirst" | "name";
@@ -129,28 +122,7 @@ export function RetouchStage({
     setUploadOpen(null);
     void upload.run(assignments);
   }
-  const items = useMemo<RetouchItem[]>(() => {
-    const resultUrlById = new Map(detail?.roundNo === activeRoundNo ? detail.photos.map((p) => [p.photo.photoId, p.resultUrl]) : []);
-    if (currentRound && currentRound.roundNo === activeRoundNo)
-      return currentRound.photos.map((p) => ({
-        photo: p.photo,
-        requestText: p.requestText,
-        points: p.points,
-        annotationUrl: p.annotationUrl,
-        hasResult: p.hasResult,
-        resultUrl: resultUrlById.get(p.photo.photoId) ?? null,
-      }));
-    if (detail && detail.roundNo === activeRoundNo)
-      return detail.photos.map((p) => ({
-        photo: p.photo,
-        requestText: p.requestText,
-        points: p.points,
-        annotationUrl: p.annotationUrl,
-        hasResult: p.resultUrl !== null,
-        resultUrl: p.resultUrl,
-      }));
-    return [];
-  }, [currentRound, detail, activeRoundNo]);
+  const items = useMemo<RetouchItem[]>(() => normalizeRoundItems(currentRound, detail, activeRoundNo), [currentRound, detail, activeRoundNo]);
   const itemById = useMemo(() => new Map(items.map((it) => [it.photo.photoId, it])), [items]);
   const resultCount = items.filter((it) => it.hasResult).length;
   const memoCount = items.filter(hasMemo).length;
@@ -686,62 +658,6 @@ export function RetouchStage({
         />
       )}
     </>
-  );
-}
-
-/** 사이드바 — 회차 목록 · 남은 횟수 */
-function RoundList({
-  rounds,
-  activeRoundNo,
-  remaining,
-  maxRounds,
-  onSelect,
-  onChangeRounds,
-}: {
-  rounds: RetouchRoundSummaryResponse[];
-  activeRoundNo: number | null;
-  remaining: number | null;
-  maxRounds: number | null;
-  onSelect: (roundNo: number) => void;
-  onChangeRounds?: () => void;
-}) {
-  const tag: Record<RetouchRoundSummaryResponse["status"], { label: string; cls: string }> = {
-    DRAFTING: { label: "작성 중", cls: "bg-surface-default-light text-contents-light-bgd-weakness" },
-    REQUESTED: { label: "요청 중", cls: "bg-function-warning-background text-function-warning-default" },
-    COMPLETED: { label: "완료", cls: "bg-brand-secondary-background text-brand-secondary-dark" },
-  };
-  return (
-    <div className="flex flex-col gap-0.5">
-      <p className="flex items-center gap-1.5 px-2.5 pt-1 pb-1 type-label-semibold-xs text-contents-light-bgd-weakness after:h-px after:flex-1 after:bg-divider-default after:content-['']">회차</p>
-      {rounds.map((r) => {
-        const active = r.roundNo === activeRoundNo;
-        return (
-          <button
-            key={r.roundNo}
-            type="button"
-            aria-current={active || undefined}
-            onClick={() => onSelect(r.roundNo)}
-            className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) py-1.5 pr-2.5 pl-3.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
-              active
-                ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-default before:content-['']"
-                : "text-contents-light-bgd-sub"
-            }`}
-          >
-            {r.roundNo}차 보정
-            <span className="type-content-xs text-contents-light-bgd-weakness">{r.photoCount}장</span>
-            <span className={`ml-auto rounded-(--pill) px-1.5 py-px type-label-semibold-xs ${tag[r.status].cls}`}>{tag[r.status].label}</span>
-          </button>
-        );
-      })}
-      <p className="flex items-center gap-2 px-3.5 pt-1 type-content-xs text-contents-light-bgd-weakness">
-        {maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}
-        {onChangeRounds && (
-          <button type="button" onClick={onChangeRounds} className="cursor-pointer text-brand-secondary-dark underline underline-offset-2">
-            횟수 바꾸기
-          </button>
-        )}
-      </p>
-    </div>
   );
 }
 

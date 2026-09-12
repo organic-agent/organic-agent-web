@@ -155,3 +155,16 @@ export function sendRetouchRound(galleryId: number, roundNo: number): Promise<Re
 export function changeMaxRetouchRoundCount(galleryId: number, maxRetouchRoundCount: number | null): Promise<import("@/lib/api/galleries").GalleryResponse> {
   return api(`/api/v1/galleries/${galleryId}/max-retouch-round-count`, { method: "PATCH", body: { maxRetouchRoundCount } });
 }
+
+/**
+ * 선택 사진의 N차 보정 요청 제출(스튜디오 갤러리 · 부부) — 지난 회차가 보내진 뒤, 남은 횟수 안에서.
+ * requests의 photoId는 선택 앨범의 사진이어야 한다(아니면 거절). 새 회차가 REQUESTED로 생기고 작가에게 알림.
+ */
+export function submitRoundRequests(galleryId: number, roundNo: number, requests: RetouchRequestItem[]): Promise<RetouchOverviewResponse> {
+  return api(`/api/v1/galleries/${galleryId}/retouch/rounds/${roundNo}/requests`, { method: "POST", body: { requests } });
+}
+
+/** 클라이언트 보정 확정 — 최신 회차를 작가가 보낸 뒤에만. 갤러리는 읽기 전용 보관(ARCHIVED) */
+export function confirmRetouch(galleryId: number): Promise<RetouchOverviewResponse> {
+  return api(`/api/v1/galleries/${galleryId}/retouch/confirm`, { method: "POST" });
+}

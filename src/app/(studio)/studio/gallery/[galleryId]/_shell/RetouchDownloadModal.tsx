@@ -10,7 +10,7 @@
 import { useRef, useState } from "react";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { DocIcon, FolderIcon } from "@/components/icons";
-import { hasMemo, type RetouchItem } from "./RetouchStage";
+import { hasMemo, type RetouchItem } from "./roundItems";
 import { buildRequestCsv, buildRetouchZip, saveBlob } from "./retouchDownload";
 
 type Kind = "csv" | "zip";

@@ -14,7 +14,7 @@ import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_c
 import { CloudUploadIcon, ErrorIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
 import { matchRetouchResults, type ResultMatch } from "@/lib/api/retouch";
-import type { RetouchItem } from "./RetouchStage";
+import type { RetouchItem } from "./roundItems";
 import type { ResultAssignment } from "./useResultUpload";
 
 type Row = { file: File; match: ResultMatch | null; photoId: number | null };

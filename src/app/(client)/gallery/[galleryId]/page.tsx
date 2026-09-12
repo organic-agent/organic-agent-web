@@ -56,6 +56,7 @@ import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
+import { ReviewStage } from "./_shell/ReviewStage";
 import { SelectStage } from "./_shell/SelectStage";
 import { WaitCard } from "./_shell/WaitCard";
 import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf } from "./_shell/clientStages";
@@ -76,8 +77,9 @@ export default function ClientGalleryPage() {
   const { result: galleryResult, reload: reloadGallery } = useInvitedGallery(params.galleryId);
   const gallery = galleryResult?.kind === "ready" ? galleryResult.gallery : null;
   const phase = gallery ? clientPhaseOf(gallery) : null;
-  /** 폴더 확정 뒤(셀렉 · 전달함 · 보정 검토 · 앨범 · 완료) — SelectStage가 그린다 */
+  /** 폴더 확정 뒤 — 셀렉은 SelectStage, 전달한 뒤(보정 중 · 검토 · 앨범 · 완료)는 ReviewStage가 그린다 */
   const selecting = phase !== null && phase !== "wait" && phase !== "sort";
+  const reviewing = phase === "submitted" || phase === "review" || phase === "album" || phase === "done";
   // 사이드바 기본값: 1단계 닫힘 · 2단계부터 열림. 사용자가 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다
   useEffect(() => {
     if (selecting && !hasPreference && collapsed) setCollapsed(false);
@@ -103,6 +105,8 @@ export default function ClientGalleryPage() {
   >(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  /** 상단 "게스트 초대" — 2단계부터(공유폴더 · 링크는 SelectStage · ReviewStage의 useGuestSharing이 그린다) */
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   // ── 사진 · 폴더 (열린 뒤에만 — DRAFT는 서버가 클라이언트에게 주지 않는다) ──
   const opened = gallery !== null && phase !== "wait";
@@ -368,10 +372,14 @@ export default function ClientGalleryPage() {
       <ShellTopbar
         stageLabel={phase ? clientStageLabelOf(phase, gallery) : "…"}
         deadline={gallery?.selectionDeadline ?? null}
+        onInviteClick={selecting ? () => setInviteOpen(true) : undefined}
+        inviteLabel="게스트 초대"
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
 
-      {selecting && gallery && phase ? (
+      {reviewing && gallery && phase ? (
+        <ReviewStage galleryId={galleryId} gallery={gallery} phase={phase} photos={allPhotos} folders={folders} sidebarOpen={!collapsed} reloadGallery={reloadGallery} inviteOpen={inviteOpen} onInviteClose={() => setInviteOpen(false)} />
+      ) : selecting && gallery && phase ? (
         <SelectStage
           galleryId={galleryId}
           gallery={gallery}
@@ -381,6 +389,8 @@ export default function ClientGalleryPage() {
           folders={folders}
           sidebarOpen={!collapsed}
           reloadGallery={reloadGallery}
+          inviteOpen={inviteOpen}
+          onInviteClose={() => setInviteOpen(false)}
         />
       ) : (
         <>

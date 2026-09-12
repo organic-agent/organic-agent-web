@@ -7,7 +7,7 @@
  * 보정 자체는 작가 컴퓨터의 원본으로 해야 하므로 ZIP은 "어떤 사진에 무엇을 해야 하는지" 대조용이다.
  */
 
-import type { RetouchItem } from "./RetouchStage";
+import type { RetouchItem } from "./roundItems";
 
 function csvCell(v: string | number | null): string {
   const s = v === null ? "" : String(v);
@@ -66,4 +66,37 @@ export async function buildRetouchZip(
   }
   const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
   return { blob, missing };
+}
+
+/** 이름 · URL 목록을 ZIP으로(보정본 내려받기 등) — 진행은 onProgress(받은 수). 못 받은 것은 건너뛰고 이름을 돌려준다 */
+export async function zipFiles(
+  entries: { name: string; url: string | null }[],
+  extra: { name: string; text: string }[],
+  onProgress: (done: number) => void,
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; missing: string[] }> {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  for (const e of extra) zip.file(e.name, e.text);
+  const missing: string[] = [];
+  const used = new Set<string>();
+  let done = 0;
+  for (const entry of entries) {
+    if (signal?.aborted) throw new DOMException("중단", "AbortError");
+    let name = entry.name;
+    if (used.has(name)) name = name.replace(/(\.[^.]+)?$/, `_${done + 1}$1`);
+    used.add(name);
+    try {
+      if (!entry.url) throw new Error("no url");
+      const res = await fetch(entry.url, { signal });
+      if (!res.ok) throw new Error(String(res.status));
+      zip.file(name, await res.blob());
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      missing.push(entry.name);
+    }
+    done++;
+    onProgress(done);
+  }
+  return { blob: await zip.generateAsync({ type: "blob", compression: "STORE" }), missing };
 }

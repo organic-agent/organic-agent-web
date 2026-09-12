@@ -34,6 +34,7 @@ export function ShellTopbar({
   stageLabel,
   deadline,
   onInviteClick,
+  inviteLabel = "클라이언트 초대",
   notificationHrefFor,
 }: {
   /** 없으면 로고만(클라이언트 셸) */
@@ -44,6 +45,8 @@ export function ShellTopbar({
   deadline: string | null;
   /** 소유자가 아니면 주지 않는다 — 버튼 숨김 */
   onInviteClick?: () => void;
+  /** 초대 버튼 이름 — 클라이언트 셸은 "게스트 초대" */
+  inviteLabel?: string;
   /** 알림 행을 눌렀을 때 갈 주소 — 클라이언트는 /gallery/{id} */
   notificationHrefFor?: (n: UserNotificationResponse) => string | null;
 }) {
@@ -87,7 +90,7 @@ export function ShellTopbar({
         {onInviteClick && (
           <IconButton
             icon={<PersonAddIcon size={20} />}
-            aria-label="클라이언트 초대"
+            aria-label={inviteLabel}
             onClick={onInviteClick}
           />
         )}
