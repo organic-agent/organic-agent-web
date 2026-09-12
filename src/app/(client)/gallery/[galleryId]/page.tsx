@@ -105,6 +105,8 @@ export default function ClientGalleryPage() {
   >(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  /** 상단 "게스트 초대" — 2단계부터(공유폴더 · 링크는 SelectStage · ReviewStage의 useGuestSharing이 그린다) */
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   // ── 사진 · 폴더 (열린 뒤에만 — DRAFT는 서버가 클라이언트에게 주지 않는다) ──
   const opened = gallery !== null && phase !== "wait";
@@ -370,11 +372,13 @@ export default function ClientGalleryPage() {
       <ShellTopbar
         stageLabel={phase ? clientStageLabelOf(phase, gallery) : "…"}
         deadline={gallery?.selectionDeadline ?? null}
+        onInviteClick={selecting ? () => setInviteOpen(true) : undefined}
+        inviteLabel="게스트 초대"
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
 
       {reviewing && gallery && phase ? (
-        <ReviewStage galleryId={galleryId} gallery={gallery} phase={phase} photos={allPhotos} folders={folders} sidebarOpen={!collapsed} reloadGallery={reloadGallery} />
+        <ReviewStage galleryId={galleryId} gallery={gallery} phase={phase} photos={allPhotos} folders={folders} sidebarOpen={!collapsed} reloadGallery={reloadGallery} inviteOpen={inviteOpen} onInviteClose={() => setInviteOpen(false)} />
       ) : selecting && gallery && phase ? (
         <SelectStage
           galleryId={galleryId}
@@ -385,6 +389,8 @@ export default function ClientGalleryPage() {
           folders={folders}
           sidebarOpen={!collapsed}
           reloadGallery={reloadGallery}
+          inviteOpen={inviteOpen}
+          onInviteClose={() => setInviteOpen(false)}
         />
       ) : (
         <>

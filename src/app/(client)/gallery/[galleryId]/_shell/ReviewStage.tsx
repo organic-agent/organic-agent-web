@@ -36,6 +36,7 @@ import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { SendReRequestModal } from "./SendReRequestModal";
+import { useGuestSharing } from "./useGuestSharing";
 
 type Tab = "none" | "compare" | "request" | "info";
 const TABS: LightboxTabDef[] = [
@@ -59,6 +60,8 @@ export function ReviewStage({
   folders,
   sidebarOpen,
   reloadGallery,
+  inviteOpen,
+  onInviteClose,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -68,6 +71,9 @@ export function ReviewStage({
   sidebarOpen: boolean;
   /** 확정 뒤 갤러리 단계(ARCHIVED)를 다시 읽는다 */
   reloadGallery: () => void;
+  /** 상단 "게스트 초대" 버튼 */
+  inviteOpen: boolean;
+  onInviteClose: () => void;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [picking, setPicking] = useState(false);
@@ -96,6 +102,9 @@ export function ReviewStage({
   const detail = useRetouchRoundDetail(galleryId, activeRoundNo, overview ? 1 : 0);
   const items = useMemo<RetouchItem[]>(() => normalizeRoundItems(currentRound, detail, activeRoundNo), [currentRound, detail, activeRoundNo]);
   const resultCount = items.filter((it) => it.resultUrl).length;
+  /** 선택한 사진 = 보정 대상 전부(서버가 제출한 사진 모두를 회차에 넣는다) */
+  const selectedIds = useMemo(() => new Set(items.map((it) => it.photo.photoId)), [items]);
+  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds: selectedIds, inviteOpen, onInviteClose });
   const itemById = useMemo(() => new Map(items.map((it) => [it.photo.photoId, it])), [items]);
   const memoCount = items.filter(hasMemo).length;
 
@@ -304,11 +313,11 @@ export function ReviewStage({
               onTabChange: setSideTab,
               folder:
                 folders && folders.length > 0 ? (
-                  <ClientFolderTree folders={folders} pickedIds={new Set(items.map((it) => it.photo.photoId))} unsortedIds={new Set()} filter={ALL_FILTER} onFocus={() => {}} onToggle={() => {}} />
+                  <ClientFolderTree folders={folders} pickedIds={selectedIds} unsortedIds={new Set()} filter={ALL_FILTER} onFocus={() => {}} onToggle={() => {}} />
                 ) : (
                   <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요.</p>
                 ),
-              share: <p className="px-2 type-content-xs text-contents-light-bgd-weakness">공유폴더는 곧 열려요.</p>,
+              share: sharing.shareTab,
             }}
           />
         )}
@@ -429,6 +438,7 @@ export function ReviewStage({
         }
       />
 
+      {sharing.modals}
       {downloadOpen && activeRoundNo !== null && (
         <ResultsDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}

@@ -44,6 +44,7 @@ import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, wr
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { useAiRecommendations } from "./useAiRecommendations";
+import { useGuestSharing } from "./useGuestSharing";
 import { useSelectionSync } from "./useSelectionSync";
 
 type LightboxTab = "none" | "info" | "ai" | "memo";
@@ -70,6 +71,8 @@ export function SelectStage({
   folders,
   sidebarOpen,
   reloadGallery,
+  inviteOpen,
+  onInviteClose,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -82,11 +85,15 @@ export function SelectStage({
   sidebarOpen: boolean;
   /** 전달한 뒤 갤러리 단계를 다시 읽는다 */
   reloadGallery: () => void;
+  /** 상단 "게스트 초대" 버튼 */
+  inviteOpen: boolean;
+  onInviteClose: () => void;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
   const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
   const [deselectId, setDeselectId] = useState<number | null>(null);
+  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose });
   /** 담기는 바로, 빼기는 확인 뒤 */
   function requestToggle(photoId: number) {
     if (!editable) return;
@@ -376,12 +383,7 @@ export function SelectStage({
                 ) : (
                   <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요 — 모든 사진에서 고르면 돼요.</p>
                 ),
-              share: (
-                <div className="flex flex-col gap-2 rounded-(--radius-12) border border-dashed border-border-default p-3 type-content-xs text-contents-light-bgd-weakness">
-                  <p className="type-label-semibold-s text-contents-light-bgd-default">게스트와 함께 보기</p>
-                  <p className="leading-relaxed">고른 사진을 공유폴더로 묶어 링크로 보내고, 좋아요 · 댓글로 반응을 받는 기능이 곧 열려요.</p>
-                </div>
-              ),
+              share: sharing.shareTab,
             }}
           />
         )}
@@ -654,6 +656,7 @@ export function SelectStage({
           }}
         />
       )}
+      {sharing.modals}
       {increaseOpen && (
         <IncreaseRequestModal
           galleryId={galleryId}
