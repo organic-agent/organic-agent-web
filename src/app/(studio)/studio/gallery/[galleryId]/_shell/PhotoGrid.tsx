@@ -18,7 +18,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PhotoIcon, StarFillIcon, ZoomInIcon } from "@/components/icons";
+import { PhotoIcon, SparkleIcon, StarFillIcon, ZoomInIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
 /** 줌 0~100 → 기준 행 높이(px) */
@@ -100,6 +100,7 @@ export function PhotoGrid({
   onOpen,
   captionOf,
   scrollToId = null,
+  aiIds,
 }: {
   photos: PhotoResponse[];
   /** 0~100 — 기준 행 높이로 바뀐다 */
@@ -122,6 +123,8 @@ export function PhotoGrid({
   captionOf?: (photo: PhotoResponse) => string | null;
   /** 이 사진이 보이도록 스크롤(싱글뷰에서 돌아왔을 때) — 값이 바뀔 때 한 번 */
   scrollToId?: number | null;
+  /** AI 추천 사진 — 오른쪽 위 ✦ 배지 */
+  aiIds?: ReadonlySet<number>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -230,6 +233,11 @@ export function PhotoGrid({
                   </span>
                 )}
                 {(selectable || selected) && <Check selected={selected} filled={markStyle === "check"} />}
+                {aiIds?.has(photo.photoId) && (
+                  <span aria-label="AI 추천" className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-brand-secondary-default text-white">
+                    <SparkleIcon size={12} />
+                  </span>
+                )}
                 {showScore && photo.score !== null && detailed && (
                   <span
                     aria-hidden
