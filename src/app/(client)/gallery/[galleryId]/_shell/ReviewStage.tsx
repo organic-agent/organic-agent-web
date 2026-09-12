@@ -8,6 +8,8 @@
  * 부품(RoundList · roundItems · BeforeAfter · Lightbox)을 쓴다. 클라이언트에겐 결과가 회차를 보낸 뒤에만 보이므로
  * 진행 중 회차는 "보정 중", 마지막 회차가 COMPLETED이면 "결과 도착" — 이때 그리드 타일은 결과 사진으로 바뀐다(2026-09-12 확정).
  * 회차는 사이드바 보정 사진 아래 작가와 같은 형식.
+ * 다시 요청: "다시 요청하기" → 담기 모드(체크) → 싱글뷰 요청 탭에서 결과 사진 위에 점 · 문장(2단계 패널 재사용, 초안은 브라우저)
+ * → "n차 요청 보내기"(rounds/{n}/requests, 남은 횟수 1 소진) → 보정 중.
  */
 
 import { useMemo, useState, useSyncExternalStore } from "react";
@@ -17,17 +19,21 @@ import { BeforeAfter } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/Be
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { hasMemo, normalizeRoundItems, type RetouchItem } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/roundItems";
 import { RoundList } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RoundList";
-import { ShellBottomBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
+import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { useRetouchOverview, useRetouchRoundDetail } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useRetouchOverview";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
+import type { RetouchRequestItem } from "@/lib/api/retouch";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
+import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
+import { RetouchPanel, RetouchPins } from "./RetouchPanel";
+import { SendReRequestModal } from "./SendReRequestModal";
 
 type Tab = "none" | "compare" | "request" | "info";
 const TABS: LightboxTabDef[] = [
@@ -58,7 +64,12 @@ export function ReviewStage({
   folders: ConceptFolderResponse[] | null;
   sidebarOpen: boolean;
 }) {
-  const { overview, error: overviewError } = useRetouchOverview(galleryId, true);
+  const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(() => new Set());
+  const [reModalOpen, setReModalOpen] = useState(false);
+  const draftsRaw = useSyncExternalStore(retouchDraftStore.subscribe, () => retouchDraftStore.readRaw(galleryId), () => "");
+  const drafts = useMemo(() => retouchDraftStore.parse(draftsRaw), [draftsRaw]);
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
   const [view, setView] = useState<ClientView>("retouch");
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
@@ -88,6 +99,45 @@ export function ReviewStage({
   const remaining = overview?.remainingRoundCount ?? null;
   const maxRounds = overview?.maxRetouchRoundCount ?? gallery.maxRetouchRoundCount;
   const roundLabel = activeRoundNo !== null ? `${activeRoundNo}차` : "";
+  const canReRequest = resultArrived && isLatest && !archived && (remaining === null || remaining > 0);
+  const nextRoundNo = (latest?.roundNo ?? 0) + 1;
+
+  // ── 다시 요청 담기 ──
+  function togglePick(photoId: number) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  }
+  function startPicking() {
+    setPicking(true);
+    setView("retouch");
+  }
+  function stopPicking() {
+    setPicking(false);
+    setPicked(new Set());
+  }
+  function addPoint(photoId: number, x: number, y: number) {
+    const d = draftOf(drafts, photoId);
+    writeDraft(galleryId, photoId, { ...d, points: [...d.points, { id: newPointId(), x, y, text: "", refinedText: null, useRefinedText: false }] });
+    setPicked((prev) => (prev.has(photoId) ? prev : new Set(prev).add(photoId)));
+  }
+  function removePoint(photoId: number, id: string) {
+    const d = draftOf(drafts, photoId);
+    writeDraft(galleryId, photoId, { ...d, points: d.points.filter((pt) => pt.id !== id) });
+  }
+  const pickedDraftCount = useMemo(() => {
+    const only: Record<string, (typeof drafts)[string]> = {};
+    for (const id of picked) if (drafts[String(id)]) only[String(id)] = drafts[String(id)];
+    return countDrafts(only);
+  }, [drafts, picked]);
+  /** 보낼 본문 — 담은 사진 전부(메모 없는 사진은 빈 요청으로) */
+  const reRequests = useMemo<RetouchRequestItem[]>(() => {
+    const withMemo = new Map(toRequestItems(drafts, picked).map((r) => [r.photoId, r]));
+    return [...picked].map((photoId) => withMemo.get(photoId) ?? { photoId, requestText: null, annotationKey: null, points: [] });
+  }, [drafts, picked]);
 
   // ── 그리드 사진: 결과가 왔으면 결과 사진으로(원본 id 유지) ──
   const folderNameOf = useMemo(() => {
@@ -133,6 +183,7 @@ export function ReviewStage({
     if (!overview) return null;
     if (archived) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정이 확정됐어요</b> · 갤러리는 보관됐고 보정본은 언제든 내려받을 수 있어요</> };
     if (waiting) return { tone: "info" as const, icon: <HourglassIcon size={18} />, text: <><b className="font-semibold">작가가 {roundLabel} 보정을 하고 있어요</b>{memoCount > 0 ? ` · 요청 ${memoCount}장` : ""} · 결과가 오면 알림으로 알려 드려요</> };
+    if (picking) return { tone: "ok" as const, icon: <EditNoteIcon size={18} />, text: <><b className="font-semibold">다시 고칠 사진을 체크하고</b>, 한 장 보기의 요청 탭에서 결과 사진 위에 점을 찍어 적어 주세요</> };
     if (resultArrived && isLatest) return { tone: "ok" as const, icon: <BrushIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 보정 결과 {items.length}장이 도착했어요</b> · {shortDate(activeSummary?.completedAt ?? null)} · 전/후로 확인하고 더 고칠 곳이 있으면 다시 요청하세요{remaining !== null ? `(남은 ${remaining}회)` : ""}</> };
     return null;
   })();
@@ -289,9 +340,10 @@ export function ReviewStage({
                   <PhotoGrid
                     photos={gridPhotos}
                     zoom={zoom}
-                    selectedIds={new Set()}
-                    onToggle={() => {}}
-                    selectable={false}
+                    selectedIds={picked}
+                    onToggle={togglePick}
+                    selectable={picking && view === "retouch"}
+                    markStyle="check"
                     currentId={currentId}
                     onOpen={openPhoto}
                     onTileClick={setCurrentId}
@@ -311,7 +363,60 @@ export function ReviewStage({
         </main>
       </div>
 
-      <ShellBottomBar selectionCount={0} onClearSelection={() => {}} onMoveSelection={() => {}} hint={bottomHint} actions={null} />
+      <ShellBottomBar
+        selectionCount={0}
+        onClearSelection={() => {}}
+        onMoveSelection={() => {}}
+        hint={picking ? `고칠 사진을 담고 요청을 적은 뒤 보내요${remaining !== null ? ` · 남은 횟수 ${remaining} 중 1을 써요` : ""}` : bottomHint}
+        status={
+          picking ? (
+            <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
+              담은 사진
+              <b className="type-label-semibold-l text-contents-light-bgd-default tabular-nums">{picked.size}</b>
+              {pickedDraftCount.points > 0 && <span className="text-contents-light-bgd-weakness">· 점 {pickedDraftCount.points}개</span>}
+            </span>
+          ) : undefined
+        }
+        actions={
+          picking ? (
+            <>
+              <ShellCta kind="ghost" onClick={stopPicking}>
+                취소
+              </ShellCta>
+              <ShellCta disabled={picked.size === 0} onClick={() => setReModalOpen(true)}>
+                {nextRoundNo}차 요청 보내기
+              </ShellCta>
+            </>
+          ) : resultArrived && isLatest && !archived ? (
+            <>
+              <span title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
+                <ShellCta kind="outline" disabled={!canReRequest} onClick={startPicking}>
+                  <EditNoteIcon size={18} />
+                  다시 요청하기{remaining !== null ? ` (${remaining})` : ""}
+                </ShellCta>
+              </span>
+            </>
+          ) : null
+        }
+      />
+
+      {reModalOpen && (
+        <SendReRequestModal
+          galleryId={galleryId}
+          roundNo={nextRoundNo}
+          requests={reRequests}
+          pickedCount={picked.size}
+          remaining={remaining}
+          onClose={() => setReModalOpen(false)}
+          onSent={() => {
+            setReModalOpen(false);
+            for (const id of picked) writeDraft(galleryId, id, null);
+            stopPicking();
+            setSelectedRoundNo(null);
+            reloadOverview();
+          }}
+        />
+      )}
 
       {lightboxOpen && currentPhoto && (
         <Lightbox
@@ -320,13 +425,25 @@ export function ReviewStage({
           total={gridPhotos.length}
           caption={[folderNameOf(currentPhoto), currentItem ? (hasMemo(currentItem) ? "내 요청 있음" : "요청 메모 없음") : null].filter(Boolean).join(" · ") || null}
           tab={currentItem ? tab : "none"}
-          tabs={currentItem ? TABS : []}
+          tabs={currentItem ? (picking ? TABS.map((t) => (t.key === "request" ? { ...t, label: "다시 요청" } : t)) : TABS) : []}
           onTabChange={(next) => setTab(next as Tab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
           onNext={() => step(1)}
           middle={
-            currentItem ? (
+            currentItem && picking ? (
+              <button
+                type="button"
+                aria-pressed={picked.has(currentItem.photo.photoId)}
+                onClick={() => togglePick(currentItem.photo.photoId)}
+                className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s transition-colors duration-fast ${
+                  picked.has(currentItem.photo.photoId) ? "bg-brand-secondary-default text-white" : "bg-white/15 text-white hover:bg-white/25"
+                }`}
+              >
+                <EditNoteIcon size={14} />
+                {picked.has(currentItem.photo.photoId) ? "다시 요청" : "담기"}
+              </button>
+            ) : currentItem ? (
               <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${currentItem.resultUrl ? "bg-function-success-default text-white" : "bg-white/15 text-white/85"}`}>
                 {currentItem.resultUrl ? <CheckCircleIcon size={14} /> : <HourglassIcon size={14} />}
                 {currentItem.resultUrl ? `${roundLabel} 결과` : "보정 중"}
@@ -341,8 +458,11 @@ export function ReviewStage({
                   <img src={currentItem.resultUrl} alt={currentItem.photo.originalFileName} draggable={false} className={`block max-h-[calc(100dvh-56px)] max-w-full object-contain ${tab !== "none" ? "rounded-l-(--radius-12)" : "rounded-(--radius-12)"}`} />
               : undefined
           }
+          onPhotoClick={picking && currentItem && tab === "request" ? (x, y) => addPoint(currentItem.photo.photoId, x, y) : undefined}
           overlay={
-            currentItem && tab === "request" && !currentItem.resultUrl ? (
+            currentItem && tab === "request" && picking ? (
+              <RetouchPins points={draftOf(drafts, currentItem.photo.photoId).points} onRemove={(id) => removePoint(currentItem.photo.photoId, id)} />
+            ) : currentItem && tab === "request" && !currentItem.resultUrl ? (
               <>
                 {currentItem.points.map((pt, i) => (
                   <span
@@ -384,7 +504,18 @@ export function ReviewStage({
                   <p className="type-content-s text-contents-light-bgd-sub">아직 결과가 없어요. 작가가 보정을 마치면 여기서 전/후를 비교할 수 있어요.</p>
                 )
               ) : tab === "request" ? (
-                <MyRequestPanel item={currentItem} roundLabel={roundLabel} />
+                picking ? (
+                  <>
+                    {!picked.has(currentItem.photo.photoId) && (
+                      <p className="rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
+                        아직 담지 않은 사진이에요. 점을 찍으면 자동으로 담겨요.
+                      </p>
+                    )}
+                    <RetouchPanel galleryId={galleryId} photoId={currentItem.photo.photoId} picked={picked.has(currentItem.photo.photoId)} editable />
+                  </>
+                ) : (
+                  <MyRequestPanel item={currentItem} roundLabel={roundLabel} />
+                )
               ) : (
                 <PhotoInfoPanel galleryId={galleryId} photo={currentItem.photo} folderName={folderNameOf(currentItem.photo)} score={currentItem.photo.score} editable={false} onRate={() => {}} />
               )
