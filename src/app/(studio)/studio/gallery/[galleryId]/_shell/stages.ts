@@ -3,8 +3,9 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/stages.ts
  *
  * 1 사진 업로드 → 2 셀렉 대기 → 3 보정 작업 → 4 앨범 구성 → 5 작업 완료 (2026-09-11 A안).
- * 서버 6단계 중 SELECTION_IN_PROGRESS · SELECTION_COMPLETED는 둘 다 "셀렉 대기"로 접는다 —
- * 작가에게 셀렉 완료 확인은 보정 작업의 첫 할 일이라서. 단계 안의 하위 상태는 사이드바 상태줄이 맡는다.
+ * 클라이언트가 전달하면(SELECTION_COMPLETED) 그 순간 1차 보정 회차가 만들어지므로 작가에겐 곧 "보정 작업"이다
+ * (2026-09-12 — "선택 확인" 전용 API 없음, 결과 업로드 URL 발급 때 서버 stage가 RETOUCH로 바뀐다).
+ * 단계 안의 하위 상태는 사이드바 상태줄이 맡는다.
  * 앨범 작업 여부 필드가 아직 없어 지금은 5칸 고정(앨범 미선택 시 4칸은 백엔드 뒤).
  */
 
@@ -21,7 +22,7 @@ export const SHELL_STAGES = [
 const INDEX_OF: Record<GalleryStage, number> = {
   UPLOAD: 0,
   SELECTION_IN_PROGRESS: 1,
-  SELECTION_COMPLETED: 1,
+  SELECTION_COMPLETED: 2,
   RETOUCH: 2,
   DELIVERY: 3,
   ARCHIVED: 4,

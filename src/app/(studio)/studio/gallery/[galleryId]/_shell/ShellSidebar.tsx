@@ -6,7 +6,8 @@
  *
  * 접으면 통째로 사라진다(상단 ≡로 여닫음). 단계 진행은 얇은 5칸 줄 + "n/5 단계명 · 다음".
  * 선택한 사진은 1단계에선 잠김, 2단계부터 열려 "고른 수 / 고를 장수"를 보여준다(제출 전에도 열람 — 2026-09-11).
- * 2단계부터는 폴더 트리(folderTree)가 내비 아래에 들어온다.
+ * 2단계부터는 폴더 트리(folderTree)가 내비 아래에 들어온다. 3단계부터 "보정 사진" 행이 열리고(retouchCount),
+ * 회차 목록(extra)이 내비 아래에 들어온다.
  */
 
 import type { ReactNode } from "react";
@@ -77,6 +78,8 @@ export function ShellSidebar({
   folderTree,
   view,
   onViewChange,
+  retouchCount,
+  extra,
 }: {
   title: string;
   status: StatusLine;
@@ -91,6 +94,10 @@ export function ShellSidebar({
   folderTree?: ReactNode;
   view: ShellView;
   onViewChange: (view: ShellView) => void;
+  /** 3단계부터 — 보정 대상 장수. 없으면(1 · 2단계) 잠김 */
+  retouchCount?: number | null;
+  /** 내비 아래 · 폴더 트리 위(회차 목록) */
+  extra?: ReactNode;
 }) {
   const next = SHELL_STAGES[stageIndex + 1];
 
@@ -156,19 +163,24 @@ export function ShellSidebar({
             icon={<BrushIcon size={18} />}
             label="보정 사진"
             trailing={
-              <span className="inline-flex items-center gap-1.5">
-                <span className="rounded-(--pill) bg-surface-default-light px-1.5 py-px type-label-semibold-xs text-contents-light-bgd-weakness">
-                  대기 중
+              retouchCount !== undefined && retouchCount !== null ? (
+                <span className="font-semibold text-contents-light-bgd-default tabular-nums">{retouchCount}</span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="rounded-(--pill) bg-surface-default-light px-1.5 py-px type-label-semibold-xs text-contents-light-bgd-weakness">
+                    대기 중
+                  </span>
+                  —
                 </span>
-                —
-              </span>
+              )
             }
             selected={view === "retouch"}
-            disabled
+            disabled={retouchCount === undefined || retouchCount === null}
             onClick={() => onViewChange("retouch")}
           />
         </nav>
 
+        {extra}
         {folderTree}
       </div>
     </aside>
