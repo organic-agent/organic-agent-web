@@ -50,6 +50,7 @@ export function ShellMainHeader({
   sortable = true,
   showFilters = true,
   leading,
+  coachKey,
 }: {
   title: ReactNode;
   /** 0~100 — 타일 폭으로 바뀐다 */
@@ -66,6 +67,8 @@ export function ShellMainHeader({
   showFilters?: boolean;
   /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
   leading?: ReactNode;
+  /** 보기 토글(한 장 보기)에 붙는 코치마크 대상 이름 */
+  coachKey?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -128,7 +131,7 @@ export function ShellMainHeader({
           </button>
         </div>
 
-        <div className="flex gap-0.5" role="group" aria-label="보기">
+        <div className="flex gap-0.5" role="group" aria-label="보기" data-coach={coachKey}>
           <IconButton icon={<GridViewIcon size={18} />} aria-label="그리드" selected />
           <IconButton icon={<SingleViewIcon size={18} />} aria-label="한 장 보기" onClick={onSingleView} />
         </div>

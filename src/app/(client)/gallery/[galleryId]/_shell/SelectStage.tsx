@@ -30,6 +30,7 @@ import type { PhotoResponse } from "@/lib/api/photos";
 import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
 import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
+import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { countView } from "./clientMemory";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
@@ -384,6 +385,7 @@ export function SelectStage({
                   view === "all" ? (
                     <button
                       type="button"
+                      data-coach="ai"
                       aria-pressed={aiPhotos.length > 0}
                       disabled={!editable || aiBusy}
                       onClick={() => void ai.request(focusedDetail?.id ?? null)}
@@ -408,12 +410,13 @@ export function SelectStage({
                 filter="none"
                 onFilterChange={() => {}}
                 showFilters={false}
+                coachKey="single"
                 sortable={view === "all"}
                 onSingleView={() => {
                   if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
                 }}
               />
-              <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+              <div data-coach="pick" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {phase === "submitted" && (
                   <div className="mx-5 mt-1 mb-3 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
                     <span className="text-brand-secondary-default">
@@ -616,6 +619,8 @@ export function SelectStage({
           ) : null
         }
       />
+
+      <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} />
 
       {increaseOpen && (
         <IncreaseRequestModal
