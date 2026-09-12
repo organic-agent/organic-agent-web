@@ -12,7 +12,7 @@
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
-import { ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
+import { ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ApiError } from "@/lib/api/client";
 import { closeGallery } from "@/lib/api/galleries";
@@ -26,6 +26,7 @@ import { ChangeRoundsModal } from "./ChangeRoundsModal";
 import { ExtendDeadlineModal } from "./ExtendDeadlineModal";
 import { PhotoGrid } from "./PhotoGrid";
 import { ResultUploadModal } from "./ResultUploadModal";
+import { RetouchDownloadModal } from "./RetouchDownloadModal";
 import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
@@ -93,7 +94,7 @@ export function RetouchStage({
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
   const [detailNonce, setDetailNonce] = useState(0);
   const [uploadOpen, setUploadOpen] = useState<{ presetPhotoId: number | null } | null>(null);
-  const [modal, setModal] = useState<"send" | "withdraw" | "rounds" | "close" | null>(null);
+  const [modal, setModal] = useState<"send" | "withdraw" | "rounds" | "close" | "download" | null>(null);
   const [compareMode, setCompareMode] = useState<"slider" | "side">("slider");
   const [view, setView] = useState<ShellView>("retouch");
   const [filter, setFilter] = useState<Filter>("all");
@@ -499,6 +500,10 @@ export function RetouchStage({
           ) : canUpload ? (
             resultCount === 0 ? (
               <>
+                <ShellCta kind="outline" onClick={() => setModal("download")}>
+                  <DownloadIcon size={18} />
+                  내려받기
+                </ShellCta>
                 {canWithdraw && (
                   <ShellCta kind="outline" onClick={() => setModal("withdraw")}>
                     <ScheduleIcon size={18} />
@@ -519,14 +524,24 @@ export function RetouchStage({
                 <ShellCta onClick={() => setModal("send")}>{roundLabel} 보정 보내기</ShellCta>
               </>
             ) : (
-              <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
-                <UploadIcon size={18} />
-                결과 더 올리기
-              </ShellCta>
+              <>
+                <ShellCta kind="outline" onClick={() => setModal("download")}>
+                  <DownloadIcon size={18} />
+                  내려받기
+                </ShellCta>
+                <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                  <UploadIcon size={18} />
+                  결과 더 올리기
+                </ShellCta>
+              </>
             )
           ) : null
         }
       />
+
+      {modal === "download" && activeRoundNo !== null && (
+        <RetouchDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setModal(null)} />
+      )}
 
       {modal === "send" && activeRoundNo !== null && (
         <SendRoundModal
