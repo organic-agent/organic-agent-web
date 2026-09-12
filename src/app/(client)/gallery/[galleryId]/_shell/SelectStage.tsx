@@ -10,6 +10,7 @@
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 싱글뷰(Lightbox)는 돋보기 · 더블클릭 · 헤더 "한 장 보기"로 열고, 닫으면 그 사진으로 스크롤한다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
+ * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  */
 
 import { useMemo, useState, useSyncExternalStore } from "react";
@@ -30,6 +31,8 @@ import { countView } from "./clientMemory";
 import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
 import { Lightbox, type LightboxTab } from "./Lightbox";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
+import { countDrafts, draftOf, newPointId, retouchDraftStore, writeDraft } from "./retouchDraft";
+import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { useSelectionSync } from "./useSelectionSync";
 
 function ddayLabel(deadline: string | null): string {
@@ -73,6 +76,9 @@ export function SelectStage({
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sort, setSort] = useState<SortKey>("uploaded");
   const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
+  const draftsRaw = useSyncExternalStore(retouchDraftStore.subscribe, () => retouchDraftStore.readRaw(galleryId), () => "");
+  const drafts = useMemo(() => retouchDraftStore.parse(draftsRaw), [draftsRaw]);
+  const draftCount = useMemo(() => countDrafts(drafts), [drafts]);
 
   // ── 파생값 ──
   const scoredPhotos = useMemo(
@@ -220,6 +226,17 @@ export function SelectStage({
       setLocalNotice(err instanceof ApiError ? err.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
     }
   }
+  function addPoint(photoId: number, x: number, y: number) {
+    const d = draftOf(drafts, photoId);
+    writeDraft(galleryId, photoId, {
+      ...d,
+      points: [...d.points, { id: newPointId(), x, y, text: "", refinedText: null, useRefinedText: false }],
+    });
+  }
+  function removePoint(photoId: number, id: string) {
+    const d = draftOf(drafts, photoId);
+    writeDraft(galleryId, photoId, { ...d, points: d.points.filter((pt) => pt.id !== id) });
+  }
   const [localNotice, setLocalNotice] = useState<string | null>(null);
   const shownNotice = notice ?? localNotice;
   function clearNotices() {
@@ -332,7 +349,7 @@ export function SelectStage({
           ) : phase === "select" ? (
             selectedCount === 0
               ? "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
-              : `마감 ${ddayLabel(gallery.selectionDeadline)}`
+              : `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}`
           ) : (
             status.text
           )
@@ -375,6 +392,15 @@ export function SelectStage({
           onNext={() => step(1)}
           onTogglePick={() => toggle(currentPhoto.photoId)}
           onRate={(score) => void rate(currentPhoto.photoId, score)}
+          overlay={
+            tab === "memo" ? (
+              <RetouchPins
+                points={draftOf(drafts, currentPhoto.photoId).points}
+                onRemove={editable ? (id) => removePoint(currentPhoto.photoId, id) : undefined}
+              />
+            ) : undefined
+          }
+          onPhotoClick={tab === "memo" && editable ? (x, y) => addPoint(currentPhoto.photoId, x, y) : undefined}
           panel={
             tab === "info" ? (
               <PhotoInfoPanel
@@ -388,7 +414,7 @@ export function SelectStage({
             ) : tab === "ai" ? (
               <p className="type-content-s text-contents-light-bgd-sub">AI 추천은 다음 단계에서 열려요.</p>
             ) : (
-              <p className="type-content-s text-contents-light-bgd-sub">보정 요청은 다음 단계에서 열려요.</p>
+              <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} />
             )
           }
         />

@@ -8,14 +8,14 @@
  * reviewMemory와 같은 구독 방식(useSyncExternalStore) — raw 문자열을 읽고 바뀔 때만 파싱한다.
  */
 
-type RecordStore<T> = {
+export type RecordStore<T> = {
   readRaw: (galleryId: number) => string;
   parse: (raw: string) => Record<string, T>;
   subscribe: (onChange: () => void) => () => void;
   write: (galleryId: number, next: Record<string, T>) => void;
 };
 
-function createRecordStore<T>(prefix: string, isValue: (v: unknown) => v is T): RecordStore<T> {
+export function createRecordStore<T>(prefix: string, isValue: (v: unknown) => v is T): RecordStore<T> {
   const changeEvent = `${prefix}.change`;
   const keyOf = (galleryId: number) => `${prefix}.${galleryId}`;
   return {
