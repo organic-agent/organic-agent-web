@@ -79,6 +79,7 @@ export function ClientSidebar({
   view,
   onViewChange,
   folderTree,
+  tabs,
 }: {
   title: string;
   status: StatusLine;
@@ -92,8 +93,10 @@ export function ClientSidebar({
   maxSelectable: number | null;
   view: ClientView;
   onViewChange: (view: ClientView) => void;
-  /** 2단계부터 내비 아래 폴더 트리 */
+  /** 내비 아래 폴더 트리(탭 없이) */
   folderTree?: ReactNode;
+  /** 2단계부터 — 내비 아래 "폴더 | 공유" 탭. 공유는 C6 게스트에서 채운다 */
+  tabs?: { tab: "folder" | "share"; onTabChange: (tab: "folder" | "share") => void; folder: ReactNode; share: ReactNode };
 }) {
   const index = stageIndex;
   const waiting = phase === "wait";
@@ -165,7 +168,27 @@ export function ClientSidebar({
           />
         </nav>
 
-        {folderTree}
+        {tabs && (
+          <div role="tablist" aria-label="사이드바 탭" className="flex rounded-(--radius-8) bg-surface-default-medium p-0.75">
+            {(["folder", "share"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tabs.tab === key}
+                onClick={() => tabs.onTabChange(key)}
+                className={`flex-1 cursor-pointer rounded-(--radius-4) py-1.5 type-label-medium-s transition-colors duration-fast ${
+                  tabs.tab === key
+                    ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,.08)]"
+                    : "text-contents-light-bgd-weakness hover:text-contents-light-bgd-sub"
+                }`}
+              >
+                {key === "folder" ? "폴더" : "공유"}
+              </button>
+            ))}
+          </div>
+        )}
+        {tabs ? (tabs.tab === "folder" ? tabs.folder : tabs.share) : folderTree}
       </div>
     </aside>
   );

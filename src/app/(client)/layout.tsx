@@ -16,11 +16,12 @@ export default async function CoupleLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // 클라이언트는 기본 닫힘(2026-09-11 수민) — 쿠키가 있으면 그 값을 따른다
+  // 클라이언트는 1단계 닫힘 · 2단계부터 열림이 기본(2026-09-12) — 쿠키가 있으면 그 값을 따른다.
+  // 쿠키가 없으면 닫힘으로 그리고, 페이지가 단계를 알게 되면 hasPreference=false를 보고 2단계 기본값(열림)을 적용한다.
   const raw = (await cookies()).get(SIDEBAR_COOKIE)?.value;
   const collapsed = raw === undefined ? true : parseCollapsedCookie(raw);
   return (
-    <SidebarProvider initialCollapsed={collapsed}>
+    <SidebarProvider initialCollapsed={collapsed} initialHasPreference={raw !== undefined}>
       <AuthGuard>{children}</AuthGuard>
     </SidebarProvider>
   );

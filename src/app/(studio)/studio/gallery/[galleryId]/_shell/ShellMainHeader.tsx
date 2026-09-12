@@ -38,6 +38,8 @@ export function ShellMainHeader({
   onFilterChange,
   onSingleView,
   sortable = true,
+  showFilters = true,
+  leading,
 }: {
   title: ReactNode;
   /** 0~100 — 타일 폭으로 바뀐다 */
@@ -50,6 +52,10 @@ export function ShellMainHeader({
   onSingleView: () => void;
   /** false면 정렬 · 필터 버튼을 숨긴다(선택한 사진 보기 — 고른 순 고정) */
   sortable?: boolean;
+  /** false면 정렬 메뉴에서 필터(검토 필요만 · 미분류만)를 뺀다 — 클라이언트 셀렉 */
+  showFilters?: boolean;
+  /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
+  leading?: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -79,6 +85,7 @@ export function ShellMainHeader({
       </h2>
 
       <div className="flex shrink-0 items-center gap-3">
+        {leading}
         <div className="flex items-center gap-1.5 type-content-xs text-contents-light-bgd-weakness">
           <span className="w-8 text-right tabular-nums">{zoom}%</span>
           <button
@@ -149,19 +156,23 @@ export function ShellMainHeader({
                 />
               ))}
               <MenuRow label="촬영 순" trailing="준비 중" disabled onClick={() => {}} />
-              <div className="my-1 h-px bg-divider-default" />
-              <p className="px-2.5 pt-0.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">필터</p>
-              {(Object.keys(FILTER_LABEL) as Exclude<FilterKey, "none">[]).map((key) => (
-                <MenuRow
-                  key={key}
-                  label={FILTER_LABEL[key]}
-                  checked={filter === key}
-                  onClick={() => {
-                    onFilterChange(filter === key ? "none" : key);
-                    setMenuOpen(false);
-                  }}
-                />
-              ))}
+              {showFilters && (
+                <>
+                  <div className="my-1 h-px bg-divider-default" />
+                  <p className="px-2.5 pt-0.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">필터</p>
+                  {(Object.keys(FILTER_LABEL) as Exclude<FilterKey, "none">[]).map((key) => (
+                    <MenuRow
+                      key={key}
+                      label={FILTER_LABEL[key]}
+                      checked={filter === key}
+                      onClick={() => {
+                        onFilterChange(filter === key ? "none" : key);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>}
