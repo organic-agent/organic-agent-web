@@ -42,7 +42,10 @@ type MenuTarget =
 
 export function ReviewBadge() {
   return (
-    <span className="ml-1.5 rounded-(--pill) bg-function-warning-background px-1.5 py-px type-label-semibold-xs text-function-warning-default">
+    <span
+      data-coach="review"
+      className="ml-1.5 rounded-(--pill) bg-function-warning-background px-1.5 py-px type-label-semibold-xs text-function-warning-default"
+    >
       검토
     </span>
   );
@@ -381,6 +384,7 @@ export function FolderColumn({
             <button
               type="button"
               aria-current={selection.kind === "unsorted" || undefined}
+              data-coach="unsorted"
               onClick={() => onSelect({ kind: "unsorted" })}
               className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
                 selection.kind === "unsorted"

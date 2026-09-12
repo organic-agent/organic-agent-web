@@ -50,7 +50,7 @@ import {
   type GalleryResponse,
 } from "@/lib/api/galleries";
 import { markNotificationsRead } from "@/lib/api/notifications";
-import { deletePhotos, listPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
 import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
 import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
@@ -97,18 +97,6 @@ import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "./_shell/zoomMemory";
-
-/** 사진 목록은 200장씩 — 전부 받아 한 화면에서 거른다 (수천 장까지) */
-async function listAllPhotos(galleryId: number): Promise<PhotoResponse[]> {
-  // 올리는 중에 목록을 읽으면 페이지 사이에 행이 끼어들 수 있어 같은 사진이 두 번 올 수 있다 — id로 한 번만
-  const byId = new Map<number, PhotoResponse>();
-  for (let page = 0; page < 50; page++) {
-    const res = await listPhotos(galleryId, page, 200);
-    for (const photo of res.contents) byId.set(photo.photoId, photo);
-    if (!res.hasNext) break;
-  }
-  return [...byId.values()];
-}
 
 function ddayLabel(deadline: string | null): string {
   const offset = deadlineOffset(deadline);

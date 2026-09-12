@@ -6,11 +6,13 @@
  *
  * 좌: 사이드바 토글(≡) · 로고(랜딩) | 스튜디오명(홈) / 중앙: D-day 칩 + 현재 단계명 /
  * 우: 클라이언트 초대(소유자만) · 알림 · 프로필. D-day는 선택 마감 기준.
+ * 클라이언트 셸도 같이 쓴다 — studioName을 주지 않으면 로고만(2026-09-11 수민), 알림 링크는 hrefFor로.
  */
 
 import Link from "next/link";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { NotificationBell } from "@/components/app/NotificationBell";
+import type { UserNotificationResponse } from "@/lib/api/notifications";
 import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { BrandLogo } from "@/components/BrandLogo";
 import { MenuIcon, PersonAddIcon, ScheduleIcon } from "@/components/icons";
@@ -28,18 +30,22 @@ function ddayLabel(deadline: string | null): string {
 export function ShellTopbar({
   studioName,
   studioHref,
-  workspaceId,
+  workspaceId = null,
   stageLabel,
   deadline,
   onInviteClick,
+  notificationHrefFor,
 }: {
-  studioName: string;
-  studioHref: string;
-  workspaceId: number | null;
+  /** 없으면 로고만(클라이언트 셸) */
+  studioName?: string;
+  studioHref?: string;
+  workspaceId?: number | null;
   stageLabel: string;
   deadline: string | null;
   /** 소유자가 아니면 주지 않는다 — 버튼 숨김 */
   onInviteClick?: () => void;
+  /** 알림 행을 눌렀을 때 갈 주소 — 클라이언트는 /gallery/{id} */
+  notificationHrefFor?: (n: UserNotificationResponse) => string | null;
 }) {
   const { collapsed, toggle } = useSidebar();
 
@@ -56,13 +62,17 @@ export function ShellTopbar({
           <BrandLogo size={26} />
           <b className="type-brand-wordmark">Easy Select</b>
         </Link>
-        <span aria-hidden className="mx-2 h-4.5 w-px bg-border-default" />
-        <Link
-          href={studioHref}
-          className="truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-secondary-dark"
-        >
-          {studioName}
-        </Link>
+        {studioName && studioHref && (
+          <>
+            <span aria-hidden className="mx-2 h-4.5 w-px bg-border-default" />
+            <Link
+              href={studioHref}
+              className="truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-secondary-dark"
+            >
+              {studioName}
+            </Link>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-2 whitespace-nowrap type-content-m text-contents-light-bgd-default">
@@ -81,7 +91,7 @@ export function ShellTopbar({
             onClick={onInviteClick}
           />
         )}
-        <NotificationBell />
+        <NotificationBell hrefFor={notificationHrefFor} />
         <ProfileAvatarButton
           current={workspaceId !== null ? { kind: "STUDIO", workspaceId } : undefined}
         />

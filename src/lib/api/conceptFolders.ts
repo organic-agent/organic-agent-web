@@ -94,6 +94,15 @@ export function moveCategoryPhotos(
 }
 
 /**
+ * 폴더 확정 — 클라이언트가 컨셉 › 세부 폴더 구조를 확정한다(POST /folders/from-clusters). **클라이언트만 · 1회.**
+ * 확정 전엔 사진 선택 API가 거절되고(PHOTO_ORGANIZATION_REQUIRED), 확정하면 갤러리가 SELECTION_IN_PROGRESS가 된다.
+ * 두 번째 호출은 409 GALLERY_409_2. 작가(스튜디오 멤버)는 403.
+ */
+export function confirmFolders(galleryId: number): Promise<ConceptFolderResponse[]> {
+  return api(`/api/v1/galleries/${galleryId}/folders/from-clusters`, { method: "POST" });
+}
+
+/**
  * AI 분석 결과로 폴더 만들기 — **수동 폴백 전용**. 정상 경로에서는 잡이 DONE으로 닫히기 전에
  * 서버가 스스로 만든다. 잡이 FAILED로 끝났는데 분류까지는 끝난 경우에만 버튼으로 부른다.
  * 실패: 409 CATEGORY_409_2(분류 결과 없음) · 409 CATEGORY_409_3(새로 넣을 사진 없음).
