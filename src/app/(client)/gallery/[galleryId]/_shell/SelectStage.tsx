@@ -18,12 +18,12 @@
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, EditNoteIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
-import { ShellMainHeader, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { type CustomMenu, ShellMainHeader, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
@@ -122,6 +122,37 @@ export function SelectStage({
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sort, setSort] = useState<SortKey>("uploaded");
+  // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산), 정렬 목록에 "하객 좋아요순"
+  const [guestOn, setGuestOn] = useState(false);
+  const [guestSort, setGuestSort] = useState(false);
+  const likesByPhoto = sharing.reactions.likesByPhoto;
+  const guestSortMenu: CustomMenu = {
+    value: guestSort ? "guest" : sort,
+    options: [
+      { key: "guest", label: "하객 좋아요순" },
+      { key: "uploaded", label: "업로드 순" },
+      { key: "name", label: "이름 순" },
+      { key: "score", label: "별점 순" },
+    ],
+    onChange: (key) => {
+      if (key === "guest") setGuestSort(true);
+      else {
+        setGuestSort(false);
+        setSort(key as SortKey);
+      }
+    },
+  };
+  const guestOverlay = guestOn
+    ? (photo: PhotoResponse) => {
+        const n = likesByPhoto.get(photo.photoId) ?? 0;
+        return n > 0 ? (
+          <span className="absolute right-2 bottom-2 inline-flex h-6 items-center gap-1 rounded-(--pill) bg-black/60 px-2 type-label-semibold-xs text-white tabular-nums">
+            <HeartFillIcon size={13} />
+            {n}
+          </span>
+        ) : null;
+      }
+    : undefined;
   const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
   const draftsRaw = useSyncExternalStore(retouchDraftStore.subscribe, () => retouchDraftStore.readRaw(galleryId), () => "");
   const drafts = useMemo(() => retouchDraftStore.parse(draftsRaw), [draftsRaw]);
@@ -160,8 +191,9 @@ export function SelectStage({
       if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
       list = list.filter((p) => ids.has(p.photoId));
     }
+    if (guestOn && guestSort) return [...sortPhotos(list, "uploaded")].sort((a, b) => (likesByPhoto.get(b.photoId) ?? 0) - (likesByPhoto.get(a.photoId) ?? 0));
     return sortPhotos(list, sort);
-  }, [scoredPhotos, filter, details, unsortedIds, sort]);
+  }, [scoredPhotos, filter, details, unsortedIds, sort, guestOn, guestSort, likesByPhoto]);
 
   // ── 폴더 필터 ──
   function focusFolder(key: FolderKey) {
@@ -342,6 +374,7 @@ export function SelectStage({
             view={view}
             onViewChange={(next) => {
               setView(next);
+              sharing.closeReactions();
               if (next !== "all") setFilter(ALL_FILTER);
             }}
             tabs={{
@@ -365,6 +398,7 @@ export function SelectStage({
           />
         )}
 
+        {sharing.reactionsOpen ? sharing.reactionsView : (
         <main className="flex min-w-0 flex-1 flex-col">
           {!photosLoaded ? (
             <div className="flex-1" aria-busy="true" />
@@ -377,7 +411,8 @@ export function SelectStage({
               <ShellMainHeader
                 title={title}
                 leading={
-                  view === "all" ? (
+                  <>
+                  {view === "all" && (
                     <button
                       type="button"
                       data-coach="ai"
@@ -396,7 +431,22 @@ export function SelectStage({
                       </span>
                       AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}
                     </button>
-                  ) : undefined
+                  )}
+                  <button
+                    type="button"
+                    aria-pressed={guestOn}
+                    onClick={() => setGuestOn((v) => !v)}
+                    title="공유폴더에서 온 하객 좋아요를 타일에 겹쳐 봐요"
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 type-content-s transition-colors duration-fast ${
+                      guestOn ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
+                    }`}
+                  >
+                    <span className={guestOn ? "text-brand-secondary-default" : "text-contents-light-bgd-sub"}>
+                      <GroupIcon size={18} />
+                    </span>
+                    하객 반응
+                  </button>
+                  </>
                 }
                 zoom={zoom}
                 onZoomChange={writeZoom}
@@ -407,6 +457,7 @@ export function SelectStage({
                 showFilters={false}
                 coachKey="single"
                 sortable={view === "all"}
+                customSort={guestOn ? guestSortMenu : undefined}
                 onSingleView={() => {
                   if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
                 }}
@@ -474,6 +525,7 @@ export function SelectStage({
                         onOpen={openPhoto}
                         captionOf={aiReasonOf}
                         aiIds={aiIds}
+                        overlayOf={guestOverlay}
                       />
                     )}
                     {aiPhotos.length > 0 && restPhotos.length > 0 && (
@@ -514,6 +566,7 @@ export function SelectStage({
                         onOpen={openPhoto}
                         captionOf={folderNameOf}
                         scrollToId={scrollToId}
+                        overlayOf={guestOverlay}
                       />
                     </div>
                   ))
@@ -532,12 +585,14 @@ export function SelectStage({
                     onOpen={openPhoto}
                     captionOf={folderNameOf}
                     scrollToId={scrollToId}
+                    overlayOf={guestOverlay}
                   />
                 )}
               </div>
             </>
           )}
         </main>
+        )}
       </div>
 
       <ShellBottomBar

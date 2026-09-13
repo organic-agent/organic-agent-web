@@ -32,6 +32,7 @@ export function Lightbox({
   panel,
   overlay,
   photoNode,
+  panelTitle,
   onPhotoClick,
   onClose,
   onPrev,
@@ -55,6 +56,8 @@ export function Lightbox({
   overlay?: ReactNode;
   /** 사진 대신 그릴 것(전/후 비교) — 있으면 photo.viewUrl 대신 이것을 그린다 */
   photoNode?: ReactNode;
+  /** 패널 머리에 파일명 대신 쓸 것(게스트 — 파일명은 의미가 없다) */
+  panelTitle?: string;
   /** 사진 위 클릭 — 0~1 비율 좌표 */
   onPhotoClick?: (x: number, y: number) => void;
   onClose: () => void;
@@ -170,8 +173,8 @@ export function Lightbox({
         {open && (
           <aside className="flex w-82.5 shrink-0 flex-col self-stretch overflow-hidden rounded-r-(--radius-12) bg-background-default-main">
             <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-divider-default px-4 type-label-semibold-m text-contents-light-bgd-default">
-              <span className="truncate">{photo.originalFileName}</span>
-              <span className="shrink-0 type-content-xs font-normal text-contents-light-bgd-weakness">· {title}</span>
+              <span className="truncate">{panelTitle ?? photo.originalFileName}</span>
+              {panelTitle === undefined && <span className="shrink-0 type-content-xs font-normal text-contents-light-bgd-weakness">· {title}</span>}
               <button
                 type="button"
                 onClick={() => onTabChange("none")}

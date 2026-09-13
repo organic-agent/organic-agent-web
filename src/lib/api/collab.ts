@@ -9,6 +9,7 @@
  */
 
 import { api } from "@/lib/api/client";
+import type { CollabCommentPageResponse, CollabCommentResponse } from "@/lib/api/collabGuest";
 import type { PhotoResponse } from "@/lib/api/photos";
 
 export type CollabSessionResponse = {
@@ -99,6 +100,20 @@ export function republishCollabSession(galleryId: number, sessionId: number): Pr
 
 export function addCollabPhotos(galleryId: number, sessionId: number, photoIds: number[]): Promise<CollabSessionResponse> {
   return api(`/api/v1/galleries/${galleryId}/collab-sessions/${sessionId}/photos`, { method: "POST", body: { photoIds } });
+}
+
+/** 부부가 읽는 사진별 하객 댓글(최신순으로 옴) */
+export function listSessionPhotoComments(galleryId: number, sessionId: number, photoId: number, page = 0, size = 50): Promise<CollabCommentPageResponse> {
+  return api(`/api/v1/galleries/${galleryId}/collab-sessions/${sessionId}/photos/${photoId}/comments?page=${page}&size=${size}`);
+}
+export async function listAllSessionPhotoComments(galleryId: number, sessionId: number, photoId: number): Promise<CollabCommentResponse[]> {
+  const out: CollabCommentResponse[] = [];
+  for (let page = 0; page < 20; page++) {
+    const res = await listSessionPhotoComments(galleryId, sessionId, photoId, page, 50);
+    out.push(...res.contents);
+    if (!res.hasNext) break;
+  }
+  return out;
 }
 
 /** 공유폴더의 사진 전부(200장씩 끝까지) — 반응 수 포함. 묶음 링크를 만들 때 사진 id를 모은다 */
