@@ -311,6 +311,7 @@ export function ReviewStage({
             onViewChange={(next) => {
               setView(next);
               setCurrentId(null);
+              sharing.closeReactions();
             }}
             extra={
               overview && rounds.length > 0 ? (
@@ -343,6 +344,7 @@ export function ReviewStage({
           />
         )}
 
+        {sharing.reactionsOpen ? sharing.reactionsView : (
         <main className="flex min-w-0 flex-1 flex-col">
           {!overview && !overviewError ? (
             <div className="flex-1" aria-busy="true" />
@@ -399,6 +401,7 @@ export function ReviewStage({
             </>
           )}
         </main>
+        )}
       </div>
 
       <ShellBottomBar

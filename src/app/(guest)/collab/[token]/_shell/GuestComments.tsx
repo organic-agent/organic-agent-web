@@ -115,31 +115,7 @@ export function GuestComments({
         ) : list && list.length === 0 ? (
           <p className="py-8 text-center type-content-s text-contents-light-bgd-weakness">{writable ? "첫 댓글을 남겨 보세요" : "댓글이 없어요"}</p>
         ) : (
-          list?.map((c) => (
-            <div key={c.commentId} className="group -mx-2 flex gap-2.5 rounded-(--radius-8) px-2 py-1 hover:bg-surface-default-lightness">
-              <Avatar initial={guestInitial(c.nickname)} className={c.mine ? "bg-brand-primary-default text-contents-dark-bgd-default" : "bg-brand-secondary-background text-brand-secondary-dark"} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-1.5">
-                  <b className="truncate type-label-semibold-s text-contents-light-bgd-default">
-                    {c.nickname}
-                    {c.mine && <span className="font-normal text-contents-light-bgd-weakness"> (나)</span>}
-                  </b>
-                  <small className="shrink-0 type-content-xs text-contents-light-bgd-weakness">{relativeTime(c.createdAt)}</small>
-                  {c.mine && writable && (
-                    <button
-                      type="button"
-                      aria-label="댓글 삭제"
-                      onClick={() => setDeleting(c)}
-                      className="ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-surface-default-medium hover:text-function-error-default focus-visible:opacity-100"
-                    >
-                      <TrashIcon size={16} />
-                    </button>
-                  )}
-                </div>
-                <p className="mt-0.5 type-content-s break-words whitespace-pre-wrap text-contents-light-bgd-default">{c.content}</p>
-              </div>
-            </div>
-          ))
+          list?.map((c) => <CommentItem key={c.commentId} comment={c} onDelete={c.mine && writable ? () => setDeleting(c) : undefined} />)
         )}
         {error && (
           <p role="alert" className="type-content-xs text-function-error-default">
@@ -189,6 +165,35 @@ export function GuestComments({
           <GalleryModalButtons onClose={() => setDeleting(null)} onConfirm={() => void confirmDelete()} confirmLabel={busyDelete ? "지우는 중…" : "삭제"} confirmVariant="danger" disabled={busyDelete} />
         </GalleryModalShell>
       )}
+    </div>
+  );
+}
+
+/** 댓글 한 줄 — 게스트 패널과 부부의 반응 보기(읽기만)가 같이 쓴다. onDelete가 있으면 호버 때 휴지통 */
+export function CommentItem({ comment: c, onDelete }: { comment: CollabCommentResponse; onDelete?: () => void }) {
+  return (
+    <div className="group -mx-2 flex gap-2.5 rounded-(--radius-8) px-2 py-1 hover:bg-surface-default-lightness">
+      <Avatar initial={guestInitial(c.nickname)} className={c.mine ? "bg-brand-primary-default text-contents-dark-bgd-default" : "bg-brand-secondary-background text-brand-secondary-dark"} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-1.5">
+          <b className="truncate type-label-semibold-s text-contents-light-bgd-default">
+            {c.nickname}
+            {c.mine && <span className="font-normal text-contents-light-bgd-weakness"> (나)</span>}
+          </b>
+          <small className="shrink-0 type-content-xs text-contents-light-bgd-weakness">{relativeTime(c.createdAt)}</small>
+          {onDelete && (
+            <button
+              type="button"
+              aria-label="댓글 삭제"
+              onClick={onDelete}
+              className="ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-surface-default-medium hover:text-function-error-default focus-visible:opacity-100"
+            >
+              <TrashIcon size={16} />
+            </button>
+          )}
+        </div>
+        <p className="mt-0.5 type-content-s break-words whitespace-pre-wrap text-contents-light-bgd-default">{c.content}</p>
+      </div>
     </div>
   );
 }
