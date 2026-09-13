@@ -63,6 +63,9 @@ export type CollabCommentPageResponse = {
   contents: CollabCommentResponse[];
 };
 
+/** 이름을 다시 받아야 하는 실패 — 토큰이 없거나(보관 잃음) 틀림 */
+export const isGuestNotIdentified = (err: unknown) => err instanceof ApiError && err.code === "COLLAB_401_1";
+
 /** 만료 · 폐기 · 없음 — 화면 분기용 */
 export type GuestLinkProblem = "expired" | "revoked" | "notFound" | "notReady";
 export function guestLinkProblemOf(err: unknown): GuestLinkProblem | null {
@@ -83,7 +86,8 @@ async function guestApi<T>(path: string, options: GuestOptions = {}): Promise<T>
   try {
     return await api<T>(path, { method: options.method, body: options.body, headers });
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
+    // 로그인 토큰이 죽어서 난 401만 다시 — 게스트 미식별(COLLAB_401_1)은 그대로 던진다(화면이 이름을 다시 받는다)
+    if (err instanceof ApiError && err.status === 401 && !err.code.startsWith("COLLAB")) {
       return api<T>(path, { method: options.method, body: options.body, headers, auth: false });
     }
     throw err;

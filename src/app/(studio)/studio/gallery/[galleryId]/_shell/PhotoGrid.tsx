@@ -254,7 +254,7 @@ export function PhotoGrid({
                 }}
                 style={{ width: row.widths[i], height: row.height }}
                 className={`group relative shrink-0 overflow-hidden rounded-(--radius-8) bg-surface-default-light text-left ${
-                  selectable && !checkOnly ? "cursor-pointer" : onOpen ? "cursor-zoom-in" : "cursor-default"
+                  tileClick ? "cursor-pointer" : onOpen ? "cursor-zoom-in" : "cursor-default"
                 } ${line}`}
               >
                 {pending || preparing ? (

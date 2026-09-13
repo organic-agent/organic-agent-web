@@ -26,7 +26,7 @@ import { ALL_ALBUMS, AlbumGrid } from "./_shell/AlbumGrid";
 import { GoneCard, LandingCard } from "./_shell/LandingCard";
 import { GuestTopbar } from "./_shell/GuestTopbar";
 import { NameModal } from "./_shell/NameModal";
-import { parseGuest, readGuestRaw, useStoredGuest, writeGuest } from "./_shell/guestMemory";
+import { parseGuest, readGuestRaw, useStoredGuest, useStoredGuests, writeGuest } from "./_shell/guestMemory";
 import { displayTitleOf } from "./_shell/guestView";
 
 type LandingState = { kind: "loading" } | { kind: "ready"; landing: CollabLandingResponse } | { kind: "problem"; problem: GuestLinkProblem } | { kind: "error" };
@@ -73,6 +73,19 @@ export default function GuestCollabPage() {
   const landing = state.kind === "ready" ? state.landing : null;
   const albums = useMemo(() => landing?.albums ?? [], [landing]);
   const multi = albums.length > 1;
+  const albumTokens = useMemo(() => (albums.length > 0 ? albums.map((a) => a.collabToken) : [token]), [albums, token]);
+  const storedGuests = useStoredGuests(albumTokens);
+  const guestTokenOf = (t: string) => storedGuests.get(t)?.guestToken ?? null;
+  /** 좋아요 · 댓글 수를 사진 목록에 반영(낙관적) */
+  function patchPhoto(t: string, photoId: number, patch: (p: CollabPhotoResponse) => CollabPhotoResponse) {
+    setPhotos((prev) => {
+      const list = prev?.byToken.get(t);
+      if (!prev || !list) return prev;
+      const byToken = new Map(prev.byToken);
+      byToken.set(t, list.map((p) => (p.photoId === photoId ? patch(p) : p)));
+      return { ...prev, byToken };
+    });
+  }
   const title = landing ? displayTitleOf(landing, token) : "";
   const inside = view.kind !== "landing";
   const photosKey = `${photosNonce}:${albums.map((a) => a.collabToken).join(",") || token}`;
@@ -137,7 +150,8 @@ export default function GuestCollabPage() {
     if (own && own.status === "rejected") throw own.reason;
     setNameModal(null);
     setPhotosNonce((n) => n + 1);
-    if (mode === "enter") enter();
+    // 처음 들어갈 때만 화면을 옮긴다 — 안에서 토큰이 죽어 다시 적은 경우는 그 자리에 머문다
+    if (mode === "enter" && view.kind === "landing") enter();
   }
 
   // ── 못 여는 링크 · 로딩 ──
@@ -179,10 +193,14 @@ export default function GuestCollabPage() {
           photosByToken={photosByToken}
           loading={photosLoading}
           error={photosError}
+          writable={ready.writable}
           mineOnly={view.mineOnly}
           onMineOnlyChange={(v) => setView({ ...view, mineOnly: v })}
           onBack={multi ? () => setView({ kind: "home" }) : undefined}
           onSwitch={(t) => setView({ kind: "album", token: t, mineOnly: false })}
+          guestTokenOf={guestTokenOf}
+          onPatchPhoto={patchPhoto}
+          onNeedName={() => setNameModal("enter")}
         />
       )}
 

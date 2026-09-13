@@ -25,6 +25,23 @@ export function daysLeftLabel(expiresAt: string | null): string | null {
   return days === 0 ? "오늘 만료" : `${days}일 남음`;
 }
 
+/** "방금" · "n분 전" · "n시간 전" · "n일 전" · "M.DD" */
+export function relativeTime(iso: string | null): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}시간 전`;
+  const day = Math.floor(hour / 24);
+  if (day < 7) return `${day}일 전`;
+  const d = new Date(t);
+  return `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const timeOf = (p: CollabPhotoResponse) => (p.photo.createdAt ? new Date(p.photo.createdAt).getTime() : 0);
 /** 최신순(기본) · 오래된순 — 시간이 없으면 displayOrder */
 export function sortGuestPhotos(list: CollabPhotoResponse[], newestFirst: boolean): CollabPhotoResponse[] {

@@ -1,20 +1,24 @@
 "use client";
 
 /**
- * 앨범 안 — ← 앨범 · 제목 ▾ 드롭다운(다른 앨범 · 모든 사진) · n장 · 내 하트 칩 · 정렬 · 그리드(내 하트만 표시)
+ * 앨범 안 — ← 앨범 · 제목 ▾ 드롭다운(다른 앨범 · 모든 사진) · n장 · 내 하트 칩 · 정렬 · 그리드(내 하트만 표시) · 싱글뷰
  * 위치: src/app/(guest)/collab/[token]/_shell/AlbumGrid.tsx
  *
- * 그리드는 작가 · 부부 셸의 PhotoGrid 그대로(선택 없음). 타일에는 내가 누른 하트만 올리브로 — 다른 사람 좋아요 수는
- * 타일에 보이지 않는다(2026-09-13). 공유폴더가 1개면 ← 와 드롭다운이 없다. "모든 사진"은 앨범을 합치되 겹치는 사진은 한 번.
+ * 그리드는 작가 · 부부 셸의 PhotoGrid 그대로(선택 없음). 타일 클릭 = 싱글뷰 열기(게스트는 선택이 없다). 타일에는 내가 누른
+ * 하트만 올리브로 — 다른 사람 좋아요 수는 보이지 않는다(2026-09-13). 공유폴더가 1개면 ← 와 드롭다운이 없다.
+ * "모든 사진"은 앨범을 합치되 겹치는 사진은 한 번(내 하트가 붙은 쪽 우선). 좋아요는 낙관적으로 바꾸고 실패하면 되돌린다.
+ * writable=false면 위에 배너 한 줄, 싱글뷰의 하트 · 댓글 자리는 잠금.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { DEFAULT_ZOOM } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
-import { BackIcon, DropdownIcon, FolderIcon, HeartFillIcon, PhotoIcon, SwapVertIcon } from "@/components/icons";
+import { BackIcon, DropdownIcon, FolderIcon, HeartFillIcon, LockIcon, PhotoIcon, SwapVertIcon } from "@/components/icons";
+import { ApiError } from "@/lib/api/client";
 import type { CollabPhotoResponse } from "@/lib/api/collab";
-import type { CollabLandingAlbum } from "@/lib/api/collabGuest";
+import { isGuestNotIdentified, likeGuestPhoto, unlikeGuestPhoto, type CollabLandingAlbum } from "@/lib/api/collabGuest";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { GuestLightbox } from "./GuestLightbox";
 import { sortGuestPhotos } from "./guestView";
 
 export const ALL_ALBUMS = "all";
@@ -26,10 +30,14 @@ export function AlbumGrid({
   photosByToken,
   loading,
   error,
+  writable,
   mineOnly,
   onMineOnlyChange,
   onBack,
   onSwitch,
+  guestTokenOf,
+  onPatchPhoto,
+  onNeedName,
 }: {
   albums: CollabLandingAlbum[];
   /** 앨범 토큰 또는 ALL_ALBUMS */
@@ -37,16 +45,28 @@ export function AlbumGrid({
   photosByToken: ReadonlyMap<string, CollabPhotoResponse[]>;
   loading: boolean;
   error: boolean;
+  /** false면 부부가 고르기를 마친 것 — 좋아요 · 댓글 잠금 */
+  writable: boolean;
   mineOnly: boolean;
   onMineOnlyChange: (v: boolean) => void;
   /** 앨범 여러 개일 때만 — 홈으로 */
   onBack?: () => void;
   onSwitch: (token: string) => void;
+  guestTokenOf: (token: string) => string | null;
+  /** 좋아요 · 댓글 수를 사진 목록에 반영 */
+  onPatchPhoto: (token: string, photoId: number, patch: (p: CollabPhotoResponse) => CollabPhotoResponse) => void;
+  /** 토큰이 없거나 죽었을 때 — 이름을 다시 받는다 */
+  onNeedName: () => void;
 }) {
   const multi = albums.length > 1;
   const [newestFirst, setNewestFirst] = useState(true);
   const [ddOpen, setDdOpen] = useState(false);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [lastViewedId, setLastViewedId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const ddRef = useRef<HTMLDivElement>(null);
+  const noticeTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
   useEffect(() => {
     if (!ddOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -64,20 +84,66 @@ export function AlbumGrid({
   }, [ddOpen]);
 
   const album = albums.find((a) => a.collabToken === current) ?? null;
-  const all = useMemo(() => {
-    if (current !== ALL_ALBUMS) return photosByToken.get(current) ?? [];
-    const byId = new Map<number, CollabPhotoResponse>();
-    for (const a of albums) for (const p of photosByToken.get(a.collabToken) ?? []) {
-      const prev = byId.get(p.photoId);
-      if (!prev || (p.liked && !prev.liked)) byId.set(p.photoId, p);
+  /** 보고 있는 사진과 각 사진이 속한 앨범 토큰(모든 사진에서는 내 하트가 붙은 쪽 우선) */
+  const { all, tokenById } = useMemo(() => {
+    const tokenById = new Map<number, string>();
+    if (current !== ALL_ALBUMS) {
+      const list = photosByToken.get(current) ?? [];
+      for (const p of list) tokenById.set(p.photoId, current);
+      return { all: list, tokenById };
     }
-    return [...byId.values()];
+    const byId = new Map<number, CollabPhotoResponse>();
+    for (const a of albums)
+      for (const p of photosByToken.get(a.collabToken) ?? []) {
+        const prev = byId.get(p.photoId);
+        if (!prev || (p.liked && !prev.liked)) {
+          byId.set(p.photoId, p);
+          tokenById.set(p.photoId, a.collabToken);
+        }
+      }
+    return { all: [...byId.values()], tokenById };
   }, [current, albums, photosByToken]);
   const likedIds = useMemo(() => new Set(all.filter((p) => p.liked).map((p) => p.photoId)), [all]);
   const shown = useMemo(() => sortGuestPhotos(mineOnly ? all.filter((p) => p.liked) : all, newestFirst), [all, mineOnly, newestFirst]);
   const gridPhotos = useMemo<PhotoResponse[]>(() => shown.map((p) => p.photo), [shown]);
   const total = current === ALL_ALBUMS ? all.length : (album?.photoCount ?? all.length);
   const title = current === ALL_ALBUMS ? "모든 사진" : (album?.name ?? "");
+  const tokenOf = (photoId: number) => tokenById.get(photoId) ?? (current === ALL_ALBUMS ? albums[0]?.collabToken ?? "" : current);
+  const lightboxIndex = openIndex === null ? null : shown.length === 0 ? null : Math.min(openIndex, shown.length - 1);
+
+  function showNotice(text: string) {
+    setNotice(text);
+    window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 2400);
+  }
+  function open(photoId: number) {
+    const i = shown.findIndex((p) => p.photoId === photoId);
+    if (i >= 0) setOpenIndex(i);
+  }
+  function close() {
+    if (lightboxIndex !== null) setLastViewedId(shown[lightboxIndex]?.photoId ?? null);
+    setOpenIndex(null);
+  }
+  /** 좋아요 토글 — 화면 먼저, 실패하면 되돌림 */
+  async function toggleLike(p: CollabPhotoResponse) {
+    const token = tokenOf(p.photoId);
+    const guestToken = guestTokenOf(token);
+    if (!guestToken) {
+      onNeedName();
+      return;
+    }
+    const next = !p.liked;
+    const apply = (liked: boolean) => (x: CollabPhotoResponse) => ({ ...x, liked, likeCount: Math.max(0, x.likeCount + (liked === x.liked ? 0 : liked ? 1 : -1)) });
+    onPatchPhoto(token, p.photoId, apply(next));
+    try {
+      if (next) await likeGuestPhoto(token, guestToken, p.photoId);
+      else await unlikeGuestPhoto(token, guestToken, p.photoId);
+    } catch (err) {
+      onPatchPhoto(token, p.photoId, apply(!next));
+      if (isGuestNotIdentified(err)) onNeedName();
+      else showNotice(err instanceof ApiError ? err.message : "잠시 뒤 다시 시도해 주세요");
+    }
+  }
 
   const overlayOf = (photo: PhotoResponse): ReactNode =>
     likedIds.has(photo.photoId) ? (
@@ -158,15 +224,52 @@ export function AlbumGrid({
           </button>
         </div>
       </div>
+      {!writable && (
+        <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+          <LockIcon size={18} className="text-contents-light-bgd-sub" />
+          <b className="font-semibold">부부가 사진 고르기를 마쳤어요</b>
+        </div>
+      )}
       <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto" aria-busy={loading || undefined}>
         {error && all.length === 0 ? (
           <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">사진을 불러오지 못했어요</p>
         ) : !loading && gridPhotos.length === 0 ? (
           <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{mineOnly ? "좋아요한 사진이 없어요" : "사진이 없어요"}</p>
         ) : (
-          <PhotoGrid photos={gridPhotos} zoom={DEFAULT_ZOOM} selectedIds={NO_SELECTION} onToggle={() => {}} selectable={false} markStyle="check" overlayOf={overlayOf} />
+          <PhotoGrid
+            photos={gridPhotos}
+            zoom={DEFAULT_ZOOM}
+            selectedIds={NO_SELECTION}
+            onToggle={() => {}}
+            selectable={false}
+            markStyle="check"
+            currentId={lightboxIndex !== null ? shown[lightboxIndex]?.photoId ?? null : lastViewedId}
+            onTileClick={open}
+            overlayOf={overlayOf}
+            scrollToId={lastViewedId}
+          />
         )}
       </div>
+
+      {lightboxIndex !== null && (
+        <GuestLightbox
+          photos={shown}
+          index={lightboxIndex}
+          writable={writable}
+          tokenOf={tokenOf}
+          guestTokenOf={guestTokenOf}
+          onClose={close}
+          onNavigate={setOpenIndex}
+          onToggleLike={(p) => void toggleLike(p)}
+          onCommentDelta={(p, d) => onPatchPhoto(tokenOf(p.photoId), p.photoId, (x) => ({ ...x, commentCount: Math.max(0, x.commentCount + d) }))}
+          onNeedName={onNeedName}
+        />
+      )}
+      {notice && (
+        <div role="status" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-(--pill) bg-contents-light-bgd-default px-4 py-2 type-label-medium-s text-contents-dark-bgd-default shadow-(--shadow-modal)">
+          {notice}
+        </div>
+      )}
     </main>
   );
 }

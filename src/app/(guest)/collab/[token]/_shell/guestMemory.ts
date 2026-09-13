@@ -8,7 +8,7 @@
  * 앨범(세션)마다 토큰이 따로라 앨범 토큰마다 한 칸씩. 읽기는 useSyncExternalStore로(같은 탭의 변경 이벤트 + 다른 탭의 storage).
  */
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 export type StoredGuest = { guestToken: string; nickname: string; participantId: number };
 
@@ -57,4 +57,25 @@ export function subscribeGuest(onChange: () => void): () => void {
 export function useStoredGuest(token: string): StoredGuest | null {
   const raw = useSyncExternalStore(subscribeGuest, () => readGuestRaw(token), () => "");
   return parseGuest(raw);
+}
+
+const SEP = "\u0000";
+/** 여러 앨범(세션) 토큰의 보관된 신원 — 앨범마다 토큰이 따로라 한 번에 읽는다 */
+export function useStoredGuests(tokens: readonly string[]): ReadonlyMap<string, StoredGuest> {
+  const key = tokens.join(SEP);
+  const raw = useSyncExternalStore(
+    subscribeGuest,
+    () => tokens.map(readGuestRaw).join(SEP),
+    () => "",
+  );
+  return useMemo(() => {
+    const map = new Map<string, StoredGuest>();
+    const list = key ? key.split(SEP) : [];
+    const raws = raw.split(SEP);
+    list.forEach((t, i) => {
+      const g = parseGuest(raws[i] ?? "");
+      if (g) map.set(t, g);
+    });
+    return map;
+  }, [key, raw]);
 }
