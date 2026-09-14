@@ -39,6 +39,7 @@ import {
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
+import { usePhotoMove } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/usePhotoMove";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -211,6 +212,34 @@ export default function ClientGalleryPage() {
   function selectAllVisible() {
     setSelected(new Set(visiblePhotos.map((p) => p.photoId)));
   }
+  /** 여러 장 한 번에 — Shift 범위 · 체크 칠하기 */
+  const selectMany = useCallback((photoIds: number[], on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of photoIds) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  /** 이 사진이 지금 들어 있는 세부 폴더 — 끌어 옮기기의 실행 취소가 쓴다 */
+  const folderOfPhoto = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const detail of details) for (const id of detail.photoIds) map.set(id, detail.id);
+    return map;
+  }, [details]);
+  const folderOf = useCallback((photoId: number) => folderOfPhoto.get(photoId) ?? null, [folderOfPhoto]);
+  const photoMove = usePhotoMove({
+    galleryId,
+    enabled: editable && folders !== null && allPhotos.length > 0,
+    photos: visiblePhotos,
+    selectedIds: selected,
+    clearSelection,
+    folderOf,
+    onMoved: refreshFolders,
+  });
   const anyModalOpen = folderModal !== null || moveOpen || confirmOpen;
   // ⌘/Ctrl+A — 컨셉 분류에서, 입력란 · 모달이 아닐 때 보고 있는 사진 전부
   useEffect(() => {
@@ -431,6 +460,8 @@ export default function ClientGalleryPage() {
                 reviewedIds={reviewedIds}
                 onMarkReviewed={(detail) => markReviewed(galleryId, detail.id)}
                 onUnmarkReviewed={(detail) => unmarkReviewed(galleryId, detail.id)}
+                dropping={photoMove.dropping}
+                dropOver={photoMove.dropOver}
                 pendingNote={
                   folders && folders.length === 0
                     ? { label: "없음", note: "작가가 아직 폴더를 만들지 않았어요. 미분류 사진은 그대로 고를 수 있어요." }
@@ -465,6 +496,8 @@ export default function ClientGalleryPage() {
                       zoom={zoom}
                       selectedIds={selected}
                       onToggle={toggleSelect}
+                      onSelectMany={selectMany}
+                      drag={photoMove.drag}
                       selectable={editable}
                     />
                   )}
@@ -525,6 +558,7 @@ export default function ClientGalleryPage() {
       )}
       <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
       {comingSoonToast}
+      {photoMove.overlay}
     </div>
   );
 }

@@ -21,7 +21,7 @@ const STEPS: ReadonlyArray<CoachStep> = [
     key: "photos",
     eyebrow: "사진 옮기기",
     title: "사진을 골라 다른 폴더로",
-    body: "사진을 누르면 골라지고, 아래 \"폴더로 이동\"으로 다른 폴더나 미분류로 옮길 수 있어요.",
+    body: "사진을 끌어 왼쪽 폴더에 놓으면 옮겨져요. 여러 장은 Shift + 클릭이나 아래 \"폴더로 이동\"으로.",
   },
   {
     key: "review",

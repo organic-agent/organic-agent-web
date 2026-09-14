@@ -82,6 +82,7 @@ import { ShellTopbar } from "./_shell/ShellTopbar";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
+import { usePhotoMove } from "./_shell/usePhotoMove";
 import { UploadModal } from "./_shell/UploadModal";
 import { RetouchStage } from "./_shell/RetouchStage";
 import { ProgressBar } from "./_shell/UploadProgress";
@@ -572,6 +573,34 @@ export default function StudioGalleryShellPage() {
       return next;
     });
   }
+  /** 여러 장 한 번에 — Shift 범위 · 체크 칠하기 */
+  const selectMany = useCallback((photoIds: number[], on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of photoIds) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  /** 이 사진이 지금 들어 있는 세부 폴더 — 끌어 옮기기의 실행 취소가 쓴다 */
+  const folderOfPhoto = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const detail of details) for (const id of detail.photoIds) map.set(id, detail.id);
+    return map;
+  }, [details]);
+  const folderOf = useCallback((photoId: number) => folderOfPhoto.get(photoId) ?? null, [folderOfPhoto]);
+  const photoMove = usePhotoMove({
+    galleryId,
+    enabled: stageIndex === 0 && !inSelection && view === "all" && folders !== null && allPhotos.length > 0,
+    photos: visiblePhotos,
+    selectedIds: selected,
+    clearSelection,
+    folderOf,
+    onMoved: refreshFolders,
+  });
   /** 지금 보고 있는 사진 전부 고르기 — 올리는 중인(PENDING) 자리는 제외 */
   const selectAllVisible = useCallback(() => {
     setSelected(new Set(visiblePhotos.filter((p) => p.status === "UPLOADED").map((p) => p.photoId)));
@@ -1020,6 +1049,8 @@ export default function StudioGalleryShellPage() {
               reviewedIds={reviewedIds}
               onMarkReviewed={(detail) => markReviewed(galleryId, detail.id)}
               onUnmarkReviewed={(detail) => unmarkReviewed(galleryId, detail.id)}
+              dropping={photoMove.dropping}
+              dropOver={photoMove.dropOver}
               pendingNote={
                 folders && folders.length === 0 && (uploading || aiActive)
                   ? aiCategorizing
@@ -1082,6 +1113,8 @@ export default function StudioGalleryShellPage() {
                       zoom={zoom}
                       selectedIds={selected}
                       onToggle={toggleSelect}
+                      onSelectMany={selectMany}
+                      drag={photoMove.drag}
                       markedIds={inSelection ? pickedIds : undefined}
                       selectable={!inSelection}
                     />
@@ -1228,6 +1261,7 @@ export default function StudioGalleryShellPage() {
         />
       )}
       {comingSoonToast}
+      {photoMove.overlay}
     </div>
   );
 }
