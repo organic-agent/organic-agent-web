@@ -17,9 +17,12 @@
  * (클라이언트 2단계 — 사진을 누르다 담기고 빠지는 게 불편하다는 2026-09-12 피드백). 작가 화면은 타일 전체(기본).
  * PENDING(올리는 중)은 회색 자리, HEIC · HEIF는 미리보기 전(previewReady=false)엔 "미리보기 준비 중" 자리.
  * markedIds(표시만 하는 선택)는 작가가 클라이언트의 선택을 볼 때 쓴다.
+ * 여러 장 고르기(onSelectMany, 2026-09-14): Shift + 클릭은 마지막으로 고른 사진부터 범위, 왼쪽 위 44×44 체크
+ * 자리에서 누른 채 옆으로 끌면 지나는 타일을 한꺼번에 고른다(첫 타일이 바뀐 쪽으로 맞춘다).
+ * drag(usePhotoMove)를 주면 타일을 누른 채 6px 넘게 끌어 폴더로 옮긴다 — 고른 타일이면 고른 전부, 아니면 그 한 장.
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { PhotoIcon, SparkleIcon, StarFillIcon, ZoomInIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -29,6 +32,30 @@ const GAP = 8;
 const DEFAULT_RATIO = 1.5;
 /** 이보다 낮은 줄에서는 배지 · 캡션을 숨긴다(줌 약 30% 미만) */
 const DETAIL_MIN_HEIGHT = 110;
+/** 이만큼 움직여야 끌기 · 칠하기다(그 전엔 그냥 클릭) */
+const DRAG_THRESHOLD = 6;
+
+/** 끌어 옮기기 연결선 — usePhotoMove가 만들어 준다 */
+export type PhotoDragBinding = {
+  /** 타일을 누른 순간 */
+  start: (photoId: number, e: ReactPointerEvent) => void;
+  /** 방금 끝난 끌기가 만든 클릭인지 — true면 선택을 바꾸지 않는다 */
+  consumeClick: () => boolean;
+  /** 끌려가는 중인 사진 — 흐리게 */
+  movingIds: ReadonlySet<number> | null;
+};
+
+/** 칠하기 한 번(체크 자리에서 누른 채 옆으로) */
+type PaintSession = {
+  pointerId: number;
+  x: number;
+  y: number;
+  /** 지나는 타일을 이 상태로 맞춘다(첫 타일이 바뀐 쪽) */
+  on: boolean;
+  anchor: number;
+  moved: boolean;
+  done: Set<number>;
+};
 
 /** 사진 비율 캐시(가로/세로) — 폴더를 오가도, 다시 그려도 잊지 않는다 */
 const ratioCache = new Map<number, number>();
@@ -95,17 +122,57 @@ function Check({ selected, filled }: { selected: boolean; filled: boolean }) {
   );
 }
 
+/** 표시 + 칠하기 시작 자리(왼쪽 위 44×44) — 클릭은 타일로 그대로 지나간다 */
+function CheckArea({
+  selected,
+  filled,
+  onPaintStart,
+}: {
+  selected: boolean;
+  filled: boolean;
+  /** 칠하기를 시작했으면 true */
+  onPaintStart: (e: ReactPointerEvent) => boolean;
+}) {
+  return (
+    <span
+      aria-hidden
+      onPointerDown={(e) => {
+        if (e.button === 0 && onPaintStart(e)) e.stopPropagation();
+      }}
+      className="absolute top-0 left-0 grid size-11 place-items-start p-2.5"
+    >
+      <CheckMark selected={selected} filled={filled} />
+    </span>
+  );
+}
+
 /** 누르는 체크박스 — 왼쪽 위 44×44가 전부 눌리는 영역 */
-function CheckButton({ selected, filled, label, onToggle }: { selected: boolean; filled: boolean; label: string; onToggle: () => void }) {
+function CheckButton({
+  selected,
+  filled,
+  label,
+  onToggle,
+  onPaintStart,
+}: {
+  selected: boolean;
+  filled: boolean;
+  label: string;
+  onToggle: (shift: boolean) => void;
+  /** 칠하기를 시작했으면 true */
+  onPaintStart: (e: ReactPointerEvent) => boolean;
+}) {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={selected}
       aria-label={label}
+      onPointerDown={(e) => {
+        if (e.button === 0 && onPaintStart(e)) e.stopPropagation();
+      }}
       onClick={(e) => {
         e.stopPropagation();
-        onToggle();
+        onToggle(e.shiftKey);
       }}
       onDoubleClick={(e) => e.stopPropagation()}
       className="absolute top-0 left-0 grid size-11 cursor-pointer place-items-start p-2.5 focus-visible:outline-2 focus-visible:outline-white"
@@ -135,6 +202,8 @@ export function PhotoGrid({
   toggleOn = "tile",
   onTileClick,
   overlayOf,
+  onSelectMany,
+  drag = null,
 }: {
   photos: PhotoResponse[];
   /** 0~100 — 기준 행 높이로 바뀐다 */
@@ -165,6 +234,10 @@ export function PhotoGrid({
   onTileClick?: (photoId: number) => void;
   /** 타일 위에 더 얹을 것(보정 작업의 메모 · 결과 배지 · 점) — 줄이 낮으면 부모가 알아서 줄인다 */
   overlayOf?: (photo: PhotoResponse, detailed: boolean) => ReactNode;
+  /** 여러 장을 한 번에 — Shift 범위 · 체크 칠하기가 쓴다(없으면 둘 다 없음) */
+  onSelectMany?: (photoIds: number[], selected: boolean) => void;
+  /** 끌어 옮기기 — 없으면 끌어도 아무 일 없다 */
+  drag?: PhotoDragBinding | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -209,6 +282,88 @@ export function PhotoGrid({
     }
   }
 
+  // 여러 장 고르기 — 범위의 기준(마지막으로 고른 사진) · 칠하는 중 · 방금 칠했으니 이어질 클릭은 무시
+  const anchorRef = useRef<number | null>(null);
+  const paintRef = useRef<PaintSession | null>(null);
+  const paintedRef = useRef(false);
+
+  useEffect(() => {
+    if (!selectable || !onSelectMany) return;
+    function paintTo(photoId: number) {
+      const paint = paintRef.current;
+      if (!paint || paint.done.has(photoId)) return;
+      paint.done.add(photoId);
+      onSelectMany?.([photoId], paint.on);
+    }
+    function onPointerMove(e: PointerEvent) {
+      const paint = paintRef.current;
+      if (!paint || e.pointerId !== paint.pointerId) return;
+      // 손을 뗀 걸 놓쳤으면(창 밖에서 뗌) 여기서 끝낸다
+      if (e.buttons === 0) {
+        paintRef.current = null;
+        return;
+      }
+      if (!paint.moved) {
+        if (Math.abs(e.clientX - paint.x) + Math.abs(e.clientY - paint.y) < DRAG_THRESHOLD) return;
+        paint.moved = true;
+        paintTo(paint.anchor);
+      }
+      const tile = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-photo-id]");
+      const id = Number(tile?.dataset.photoId);
+      if (Number.isFinite(id)) paintTo(id);
+    }
+    function onPointerUp(e: PointerEvent) {
+      const paint = paintRef.current;
+      if (!paint || e.pointerId !== paint.pointerId) return;
+      paintedRef.current = paint.moved;
+      paintRef.current = null;
+    }
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [selectable, onSelectMany]);
+
+  /** 체크 자리를 누른 순간 — 6px 넘게 끌면 지나는 타일을 첫 타일과 같은 상태로 맞춘다 */
+  function startPaint(photoId: number, e: ReactPointerEvent) {
+    paintedRef.current = false;
+    if (!selectable || !onSelectMany) return false;
+    paintRef.current = {
+      pointerId: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+      on: !selectedIds.has(photoId),
+      anchor: photoId,
+      moved: false,
+      done: new Set(),
+    };
+    return true;
+  }
+
+  /** 한 장 고르기 — Shift면 마지막으로 고른 사진부터 여기까지(보이는 순서) */
+  function chooseOne(photoId: number, shift: boolean) {
+    if (paintedRef.current) {
+      paintedRef.current = false;
+      return;
+    }
+    const anchor = anchorRef.current;
+    if (shift && onSelectMany && anchor !== null && anchor !== photoId) {
+      const order = photos.map((p) => p.photoId);
+      const from = order.indexOf(anchor);
+      const to = order.indexOf(photoId);
+      if (from >= 0 && to >= 0) {
+        onSelectMany(from <= to ? order.slice(from, to + 1) : order.slice(to, from + 1), true);
+        return;
+      }
+    }
+    anchorRef.current = photoId;
+    onToggle(photoId);
+  }
+
   const rowHeight = rowHeightOf(zoom);
   const rows = useMemo(
     () => layoutRows(photos, width, rowHeight),
@@ -218,7 +373,7 @@ export function PhotoGrid({
   );
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-2 px-5 pb-6">
+    <div ref={containerRef} className="flex select-none flex-col gap-2 px-5 pb-6">
       {rows.map((row, rowIndex) => (
         <div key={row.photos[0]?.photoId ?? rowIndex} className="flex gap-2" style={{ height: row.height }}>
           {row.photos.map((photo, i) => {
@@ -231,31 +386,47 @@ export function PhotoGrid({
             const line = markStyle === "line" && selected ? LINE_SELECTED : current ? LINE_CURRENT : "";
             const caption = captionOf?.(photo) ?? null;
             const checkOnly = toggleOn === "check";
-            const tileClick = selectable && !checkOnly ? () => onToggle(photo.photoId) : onTileClick ? () => onTileClick(photo.photoId) : undefined;
+            const moving = drag?.movingIds?.has(photo.photoId) ?? false;
+            /** 타일 클릭이 선택을 바꾸는가(아니면 onTileClick으로) */
+            const tileToggles = selectable && !checkOnly;
+            const clickable = tileToggles || onTileClick !== undefined;
             const label = `${photo.originalFileName}${selected ? " 선택됨" : ""}${photo.score ? ` 별점 ${photo.score}` : ""}`;
             return (
               <div
                 key={photo.photoId}
-                role={tileClick || onOpen ? "button" : undefined}
-                tabIndex={tileClick || onOpen ? 0 : undefined}
+                role={clickable || onOpen ? "button" : undefined}
+                tabIndex={clickable || onOpen ? 0 : undefined}
                 data-photo-id={photo.photoId}
-                aria-pressed={selectable && !checkOnly ? selected : undefined}
+                aria-pressed={tileToggles ? selected : undefined}
                 aria-current={current || undefined}
                 aria-label={label}
-                onClick={tileClick}
+                onPointerDown={(e) => {
+                  paintedRef.current = false;
+                  if (e.button === 0 && selectable) drag?.start(photo.photoId, e);
+                }}
+                onClick={
+                  clickable
+                    ? (e) => {
+                        if (drag?.consumeClick()) return;
+                        if (tileToggles) chooseOne(photo.photoId, e.shiftKey);
+                        else onTileClick?.(photo.photoId);
+                      }
+                    : undefined
+                }
                 onDoubleClick={onOpen ? () => onOpen(photo.photoId) : undefined}
                 onKeyDown={(e) => {
                   if (e.target !== e.currentTarget) return;
                   if (e.key === "Enter" && onOpen) onOpen(photo.photoId);
-                  else if (e.key === " " && tileClick) {
+                  else if (e.key === " " && clickable) {
                     e.preventDefault();
-                    tileClick();
+                    if (tileToggles) chooseOne(photo.photoId, e.shiftKey);
+                    else onTileClick?.(photo.photoId);
                   }
                 }}
                 style={{ width: row.widths[i], height: row.height }}
-                className={`group relative shrink-0 overflow-hidden rounded-(--radius-8) bg-surface-default-light text-left ${
-                  tileClick ? "cursor-pointer" : onOpen ? "cursor-zoom-in" : "cursor-default"
-                } ${line}`}
+                className={`group relative shrink-0 overflow-hidden rounded-(--radius-8) bg-surface-default-light text-left transition-opacity duration-fast ${
+                  clickable ? "cursor-pointer" : onOpen ? "cursor-zoom-in" : "cursor-default"
+                } ${moving ? "opacity-35" : ""} ${line}`}
               >
                 {pending || preparing ? (
                   <span className="absolute inset-0 grid place-items-center text-contents-light-bgd-weakness">
@@ -285,9 +456,21 @@ export function PhotoGrid({
                   </span>
                 )}
                 {selectable && checkOnly ? (
-                  <CheckButton selected={selected} filled={markStyle === "check"} label={selected ? "선택 해제" : "선택"} onToggle={() => onToggle(photo.photoId)} />
+                  <CheckButton
+                    selected={selected}
+                    filled={markStyle === "check"}
+                    label={selected ? "선택 해제" : "선택"}
+                    onToggle={(shift) => chooseOne(photo.photoId, shift)}
+                    onPaintStart={(e) => startPaint(photo.photoId, e)}
+                  />
+                ) : selectable ? (
+                  <CheckArea
+                    selected={selected}
+                    filled={markStyle === "check"}
+                    onPaintStart={(e) => startPaint(photo.photoId, e)}
+                  />
                 ) : (
-                  (selectable || selected) && <Check selected={selected} filled={markStyle === "check"} />
+                  selected && <Check selected={selected} filled={markStyle === "check"} />
                 )}
                 {overlayOf?.(photo, detailed)}
                 {aiIds?.has(photo.photoId) && (
