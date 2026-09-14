@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
-import { CheckCircleIcon, ChevronRightIcon, PhotoIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, PhotoIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ddayLabel } from "@/app/(studio)/_lib/galleryStatus";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
@@ -53,14 +53,19 @@ import {
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
 import { listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { useAuth } from "@/lib/auth/authStore";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
+import { PersonalCoachMarks } from "./_shell/PersonalCoachMarks";
+import { PersonalEmptyGuide } from "./_shell/PersonalEmptyGuide";
+import { personalMembershipOf } from "./_shell/personalGallery";
 import { ReviewStage } from "./_shell/ReviewStage";
 import { SelectStage } from "./_shell/SelectStage";
 import { WaitCard } from "./_shell/WaitCard";
-import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf } from "./_shell/clientStages";
+import { usePersonalUpload } from "./_shell/usePersonalUpload";
+import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf, personalPhaseOf } from "./_shell/clientStages";
 
 export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
@@ -69,16 +74,24 @@ export default function ClientGalleryPage() {
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const { result: galleryResult, reload: reloadGallery } = useInvitedGallery(params.galleryId);
   const gallery = galleryResult?.kind === "ready" ? galleryResult.gallery : null;
-  const phase = gallery ? clientPhaseOf(gallery) : null;
+  const auth = useAuth();
+  /** 개인 결제 클라이언트(소유자 · 파트너)인지 — 내 소속 목록으로 판정. null이면 스튜디오 초대 클라이언트 */
+  const personal = personalMembershipOf(auth.user, gallery);
+  const isPersonal = personal !== null;
+
+  const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
+  /** 사진 목록을 마지막으로 읽은 시각 — 개인 갤러리 끊김 복구가 쓴다 */
+  const [photosLoadedAt, setPhotosLoadedAt] = useState(0);
+  // 개인은 사진 수(PENDING 포함)와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다
+  const phase = gallery ? (isPersonal ? personalPhaseOf(gallery, photos === null ? null : photos.length) : clientPhaseOf(gallery)) : null;
   /** 폴더 확정 뒤 — 셀렉은 SelectStage, 전달한 뒤(보정 중 · 검토 · 앨범 · 완료)는 ReviewStage가 그린다 */
-  const selecting = phase !== null && phase !== "wait" && phase !== "sort";
+  const selecting = phase !== null && phase !== "wait" && phase !== "sort" && phase !== "upload";
   const reviewing = phase === "submitted" || phase === "review" || phase === "album" || phase === "done";
   // 사이드바 기본값: 1단계 닫힘 · 2단계부터 열림. 사용자가 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다
   useEffect(() => {
     if (selecting && !hasPreference && collapsed) setCollapsed(false);
   }, [selecting, hasPreference, collapsed, setCollapsed]);
 
-  const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
   const [rawFolders, setFolders] = useState<ConceptFolderResponse[] | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [contentBlocked, setContentBlocked] = useState(false);
@@ -112,6 +125,7 @@ export default function ClientGalleryPage() {
       const blocked = p.status === "rejected" && p.reason instanceof ApiError && p.reason.status === 403;
       setContentBlocked(blocked);
       setPhotos(p.status === "fulfilled" ? p.value : []);
+      setPhotosLoadedAt(Date.now());
       setFolders(f.status === "fulfilled" ? f.value : []);
     })();
     return () => {
@@ -137,6 +151,7 @@ export default function ClientGalleryPage() {
   const refreshPhotos = useCallback(async () => {
     try {
       setPhotos(await listAllPhotos(galleryId));
+      setPhotosLoadedAt(Date.now());
     } catch {
       // 다음 갱신 때 다시
     }
@@ -166,6 +181,19 @@ export default function ClientGalleryPage() {
   const reviewFolderCount = details.filter((d) => d.needsReview).length;
   const unsortedCount =
     folders && folders.length > 0 ? allPhotos.filter((p) => !sortedIds.has(p.photoId)).length : 0;
+
+  // ── 개인 갤러리 업로드 · AI 정리 — 업로드 · 컨셉 분류 단계에서만 살아 있다(작가 1단계 부품 재사용) ──
+  const upload = usePersonalUpload({
+    galleryId,
+    enabled: isPersonal && (phase === "upload" || phase === "sort"),
+    photos,
+    photosLoadedAt,
+    reviewedIds,
+    setPhotos,
+    setFolders,
+    refreshPhotos,
+    planMaxPhotoCount: gallery?.planMaxPhotoCount ?? null,
+  });
 
   const visiblePhotos = useMemo(() => {
     let list = allPhotos;
@@ -286,6 +314,9 @@ export default function ClientGalleryPage() {
   const status: StatusLine = (() => {
     if (!gallery) return { text: "불러오는 중…", tone: "muted" };
     if (phase === "wait") return { text: "작가가 사진을 준비하고 있어요", tone: "muted" };
+    if (isPersonal && upload.uploading) return { text: "사진을 올리고 있어요", tone: "accent" };
+    if (phase === "upload") return { text: "사진을 올려 주세요", tone: "muted" };
+    if (isPersonal && phase === "sort" && upload.aiActive) return { text: "AI가 컨셉 · 세부 폴더로 나누고 있어요", tone: "accent" };
     if (phase === "sort") {
       if (photos === null) return { text: "불러오는 중…", tone: "muted" };
       return reviewFolderCount > 0
@@ -293,25 +324,55 @@ export default function ClientGalleryPage() {
         : { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
     }
     if (phase === "select") return { text: `고르는 중 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
-    return { text: clientStageLabelOf(phase ?? "done", gallery), tone: "accent" };
+    return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal), tone: "accent" };
   })();
   const bottomHint = (() => {
     if (notice) return notice;
+    if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
+    if (phase === "upload") return gallery?.planMaxPhotoCount ? `사진 ${gallery.planMaxPhotoCount}장까지 올릴 수 있어요 · 올리면 AI가 컨셉별로 나눠 드려요` : "올린 사진은 AI가 컨셉별로 나눠 드려요";
     if (phase === "sort") {
       if (contentBlocked) return "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
+      if (isPersonal) return "폴더를 확인하고 확정하면 함께 고를 수 있어요 · 확정은 한 번만 · 사진은 확정 전까지 더 올릴 수 있어요";
       return "폴더를 확인하고 확정하면 사진을 고를 수 있어요 · 확정은 한 번만 할 수 있어요";
     }
     return "사진 셀렉 화면을 준비하고 있어요";
   })();
-  const bottomActions =
-    phase === "sort" ? (
-      <span data-coach="confirm" className="inline-flex">
-        <ShellCta disabled={folders === null || contentBlocked} onClick={() => setConfirmOpen(true)}>
-          폴더 확정
-        </ShellCta>
-      </span>
-    ) : null;
+  const bottomActions = isPersonal ? (
+    upload.uploading ? (
+      upload.actions
+    ) : (
+      <>
+        {upload.actions}
+        {phase === "upload" ? (
+          <span data-coach="upload" className="inline-flex">
+            <ShellCta disabled={photos === null} onClick={upload.openUpload}>
+              <UploadIcon size={18} />
+              사진 올리기
+            </ShellCta>
+          </span>
+        ) : phase === "sort" ? (
+          <>
+            <ShellCta kind="ghost" onClick={upload.openUpload}>
+              <AddPhotoIcon size={18} />
+              사진 더 올리기
+            </ShellCta>
+            <span data-coach="confirm" className="inline-flex">
+              <ShellCta disabled={folders === null || upload.aiActive} onClick={() => setConfirmOpen(true)}>
+                폴더 확정
+              </ShellCta>
+            </span>
+          </>
+        ) : null}
+      </>
+    )
+  ) : phase === "sort" ? (
+    <span data-coach="confirm" className="inline-flex">
+      <ShellCta disabled={folders === null || contentBlocked} onClick={() => setConfirmOpen(true)}>
+        폴더 확정
+      </ShellCta>
+    </span>
+  ) : null;
 
   // ── 오류 · 없음 ──
   if (galleryResult && galleryResult.kind !== "ready") {
@@ -391,11 +452,13 @@ export default function ClientGalleryPage() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
-        stages={clientStagesOf(gallery)}
-        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery) : null}
+        stages={clientStagesOf(gallery, isPersonal)}
+        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery, isPersonal) : null}
+        deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
-        onInviteClick={selecting ? () => setInviteOpen(true) : undefined}
-        inviteLabel="게스트 초대"
+        onInviteClick={selecting && (!isPersonal || personal.owner) ? () => setInviteOpen(true) : undefined}
+        inviteLabel={isPersonal ? "초대" : "게스트 초대"}
+        inviteCoachKey={isPersonal ? "invite" : undefined}
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
 
@@ -413,6 +476,7 @@ export default function ClientGalleryPage() {
           reloadGallery={reloadGallery}
           inviteOpen={inviteOpen}
           onInviteClose={() => setInviteOpen(false)}
+          personal={isPersonal}
         />
       ) : (
         <>
@@ -422,6 +486,9 @@ export default function ClientGalleryPage() {
               title={gallery?.title ?? "…"}
               status={status}
               phase={phase ?? "wait"}
+              plan={isPersonal && gallery ? { used: photos?.length ?? 0, max: gallery.planMaxPhotoCount, expiresAt: gallery.planExpiresAt } : undefined}
+              selectedLockNote={isPersonal ? "분류 뒤" : undefined}
+              retouchLockNote={isPersonal ? "내보낸 뒤" : undefined}
               photoCount={opened && photos !== null ? allPhotos.length : null}
               selectedCount={0}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}
@@ -455,7 +522,13 @@ export default function ClientGalleryPage() {
                 dropOver={photoMove.dropOver}
                 pendingNote={
                   folders && folders.length === 0
-                    ? { label: "없음", note: "작가가 아직 폴더를 만들지 않았어요. 미분류 사진은 그대로 고를 수 있어요." }
+                    ? isPersonal
+                      ? upload.aiActive || upload.uploading
+                        ? { label: "정리 중", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 여기에 나타나요." }
+                        : upload.aiFailed
+                          ? { label: "없음", note: "AI 정리에 실패했어요. 아래에서 다시 시도해 주세요." }
+                          : { label: "없음", note: "아직 폴더가 없어요. 미분류 사진은 그대로 고를 수 있어요." }
+                      : { label: "없음", note: "작가가 아직 폴더를 만들지 않았어요. 미분류 사진은 그대로 고를 수 있어요." }
                     : null
                 }
               />
@@ -463,6 +536,7 @@ export default function ClientGalleryPage() {
           )}
 
           <main className="flex min-w-0 flex-1 flex-col">
+            {isPersonal && upload.recoveryBanner}
             {!gallery ? (
               <div className="flex-1" aria-busy="true" />
             ) : phase === "wait" ? (
@@ -471,6 +545,12 @@ export default function ClientGalleryPage() {
               <div className="flex-1" aria-busy="true" />
             ) : contentBlocked ? (
               <WaitCard gallery={gallery} memberCount={memberCount} />
+            ) : phase === "upload" ? (
+              <PersonalEmptyGuide />
+            ) : isPersonal && allPhotos.length === 0 && upload.uploading ? (
+              <div className="grid flex-1 place-items-center px-6 py-8" aria-busy="true">
+                <p className="type-content-s text-contents-light-bgd-sub">사진을 올리고 있어요</p>
+              </div>
             ) : allPhotos.length === 0 ? (
               <div className="grid flex-1 place-items-center px-6 py-8">
                 <p className="type-content-s text-contents-light-bgd-sub">아직 올라온 사진이 없어요</p>
@@ -505,8 +585,11 @@ export default function ClientGalleryPage() {
           onClearSelection={() => setSelected(new Set())}
           onMoveSelection={() => setMoveOpen(true)}
           hint={bottomHint}
+          progress={isPersonal ? upload.progress ?? undefined : undefined}
           actions={bottomActions}
         />
+
+        {isPersonal && upload.modal}
 
         {folderModal && folderModal.kind !== "delete" && (
           <FolderNameModal
@@ -548,6 +631,7 @@ export default function ClientGalleryPage() {
         </>
       )}
       <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
+      <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} />
       {comingSoonToast}
       {photoMove.overlay}
     </div>
