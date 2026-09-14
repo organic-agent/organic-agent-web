@@ -9,6 +9,8 @@
  * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 검토 완료(배지 감춤, 브라우저 기억) · 폴더 삭제.
  * 이름 바꾸기는 서버 API가 없어 두지 않는다(백엔드 요청 항목). 편집 핸들러를 안 주면 읽기 전용이다.
  * 맨 위 "모든 사진" 행으로 폴더에서 빠져나오고, 컨셉 이름을 누르면 그 컨셉의 사진 전체를 본다(2026-09-11 피드백).
+ * 사진을 끌고 오면(dropping) 놓을 수 있는 곳(세부 폴더 · 미분류, 지금 보고 있는 폴더는 빼고)만 점선으로 남고
+ * 나머지(모든 사진 · 컨셉 헤더)는 흐려진다. 접힌 컨셉 위에 0.6초 머물면 펼친다 — 2026-09-14 확정.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -29,6 +31,12 @@ export type FolderSelection =
   | { kind: "detail"; conceptId: number; detailId: number }
   | { kind: "unsorted" };
 
+/** 사진을 끌어 놓을 수 있는 곳 — concept는 놓는 곳이 아니라 "머물면 펼친다" */
+export type FolderDropTarget =
+  | { kind: "detail"; id: number }
+  | { kind: "unsorted" }
+  | { kind: "concept"; id: number };
+
 export type FolderPendingNote = {
   /** 머리 오른쪽 짧은 상태 — "대기" · "만드는 중…" */
   label: string;
@@ -39,6 +47,15 @@ export type FolderPendingNote = {
 type MenuTarget =
   | { kind: "concept"; concept: ConceptFolderResponse }
   | { kind: "detail"; concept: ConceptFolderResponse; detail: DetailFolderResponse };
+
+/** 끌고 오는 중의 행 모양 — 놓을 수 있으면 점선(올라와 있으면 굵게), 아니면 흐림 */
+function dropClass(dropping: boolean, droppable: boolean, over: boolean | undefined) {
+  if (!dropping) return "";
+  if (!droppable) return "opacity-40";
+  return over
+    ? "bg-brand-secondary-background outline-2 -outline-offset-2 outline-dashed outline-brand-secondary-default"
+    : "outline-1 -outline-offset-1 outline-dashed outline-border-default";
+}
 
 export function ReviewBadge() {
   return (
@@ -65,6 +82,8 @@ export function FolderColumn({
   reviewedIds,
   onMarkReviewed,
   onUnmarkReviewed,
+  dropping = false,
+  dropOver = null,
 }: {
   /** null = 불러오는 중 */
   folders: ConceptFolderResponse[] | null;
@@ -82,6 +101,10 @@ export function FolderColumn({
   reviewedIds?: Set<number>;
   onMarkReviewed?: (detail: DetailFolderResponse) => void;
   onUnmarkReviewed?: (detail: DetailFolderResponse) => void;
+  /** 사진을 끌고 오는 중 — 놓을 수 있는 곳만 또렷하게 */
+  dropping?: boolean;
+  /** 지금 올라와 있는 곳 */
+  dropOver?: FolderDropTarget | null;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [menu, setMenu] = useState<MenuTarget | null>(null);
@@ -103,6 +126,21 @@ export function FolderColumn({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [menu]);
+
+  useEffect(() => {
+    if (!dropOver || dropOver.kind !== "concept") return;
+    const id = dropOver.id;
+    if (!collapsed.has(id)) return;
+    const timer = window.setTimeout(() => {
+      setCollapsed((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [dropOver, collapsed]);
 
   function toggleConcept(id: number) {
     setCollapsed((prev) => {
@@ -241,7 +279,10 @@ export function FolderColumn({
   }
 
   return (
-    <div className="scrollbar-slim flex w-58 shrink-0 flex-col overflow-y-auto border-r border-divider-default bg-background-default-main px-3 py-4">
+    <div
+      data-folder-scroll
+      className="scrollbar-slim flex w-58 shrink-0 flex-col overflow-y-auto border-r border-divider-default bg-background-default-main px-3 py-4"
+    >
       <h2 className="mb-1.5 flex h-6 items-center justify-between px-1 type-label-semibold-xs text-contents-light-bgd-default">
         <span>컨셉 폴더</span>
         <span className="flex items-center gap-1">
@@ -297,7 +338,7 @@ export function FolderColumn({
                 selection.kind === "all"
                   ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
-              }`}
+              } ${dropping ? "opacity-40" : ""}`}
             >
               <span className="flex shrink-0 text-contents-light-bgd-weakness">
                 <PhotoIcon size={16} />
@@ -314,9 +355,10 @@ export function FolderColumn({
             return (
               <li key={concept.id}>
                 <div
+                  data-drop={dropping && closed ? `concept:${concept.id}` : undefined}
                   className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
                     conceptSelected ? "bg-brand-secondary-background" : ""
-                  }`}
+                  } ${dropping ? "opacity-40" : ""}`}
                 >
                   <button
                     type="button"
@@ -345,12 +387,16 @@ export function FolderColumn({
                     {concept.details.map((detail) => {
                       const selected = selection.kind === "detail" && selection.detailId === detail.id;
                       const detailTarget: MenuTarget = { kind: "detail", concept, detail };
+                      // 지금 보고 있는 폴더엔 놓을 수 없다(그 폴더 사진을 끌고 온 것이므로)
+                      const droppable = dropping && !selected;
+                      const over = droppable && dropOver?.kind === "detail" && dropOver.id === detail.id;
                       return (
                         <li key={detail.id}>
                           <div
+                            data-drop={droppable ? `detail:${detail.id}` : undefined}
                             className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
                               selected ? "bg-brand-secondary-background" : ""
-                            }`}
+                            } ${dropClass(dropping, droppable, over)}`}
                           >
                             <button
                               type="button"
@@ -385,12 +431,13 @@ export function FolderColumn({
               type="button"
               aria-current={selection.kind === "unsorted" || undefined}
               data-coach="unsorted"
+              data-drop={dropping && selection.kind !== "unsorted" ? "unsorted" : undefined}
               onClick={() => onSelect({ kind: "unsorted" })}
               className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
                 selection.kind === "unsorted"
                   ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
-              }`}
+              } ${dropClass(dropping, dropping && selection.kind !== "unsorted", dropping && dropOver?.kind === "unsorted")}`}
             >
               <span className="flex shrink-0 text-contents-light-bgd-weakness">
                 <FolderOffIcon size={16} />
