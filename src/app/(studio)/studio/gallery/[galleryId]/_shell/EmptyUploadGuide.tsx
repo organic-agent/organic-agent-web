@@ -11,14 +11,25 @@ const STEPS = [
   { icon: <VisibilityIcon size={20} />, title: "3. 확인하고 열기", desc: "클라이언트 초대" },
 ];
 
-export function EmptyUploadGuide() {
+export type GuideStep = (typeof STEPS)[number];
+
+export function EmptyUploadGuide({
+  title = "첫 사진을 올려 주세요",
+  lead = "이 갤러리에서 할 일은 세 가지예요.",
+  steps = STEPS,
+}: {
+  title?: string;
+  lead?: string;
+  /** 개인 갤러리는 문구가 다르다(고르는 사람이 곧 올리는 사람) */
+  steps?: readonly GuideStep[];
+} = {}) {
   return (
     <div className="grid flex-1 place-items-center px-6 py-8">
       <div className="flex w-full max-w-140 flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-border-default px-6 py-12 text-center">
-        <h3 className="type-title-s text-contents-light-bgd-default">첫 사진을 올려 주세요</h3>
-        <p className="type-content-s text-contents-light-bgd-sub">이 갤러리에서 할 일은 세 가지예요.</p>
+        <h3 className="type-title-s text-contents-light-bgd-default">{title}</h3>
+        <p className="type-content-s text-contents-light-bgd-sub">{lead}</p>
         <div className="mt-3 flex flex-wrap justify-center gap-5">
-          {STEPS.map((step) => (
+          {steps.map((step) => (
             <div key={step.title} className="flex w-32 flex-col items-center gap-1.5">
               <span className="grid size-9 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-dark">
                 {step.icon}

@@ -97,6 +97,7 @@ export function ShellTopbar({
   deadline,
   onInviteClick,
   inviteLabel = "클라이언트 초대",
+  inviteCoachKey,
   notificationHrefFor,
 }: {
   /** 없으면 로고만(클라이언트 셸) */
@@ -114,6 +115,8 @@ export function ShellTopbar({
   onInviteClick?: () => void;
   /** 초대 버튼 이름 — 클라이언트 셸은 "게스트 초대" */
   inviteLabel?: string;
+  /** 초대 버튼에 붙는 코치마크 대상 이름 */
+  inviteCoachKey?: string;
   /** 알림 행을 눌렀을 때 갈 주소 — 클라이언트는 /gallery/{id} */
   notificationHrefFor?: (n: UserNotificationResponse) => string | null;
 }) {
@@ -156,11 +159,13 @@ export function ShellTopbar({
 
       <div className="flex items-center justify-end gap-1">
         {onInviteClick && (
-          <IconButton
-            icon={<PersonAddIcon size={20} />}
-            aria-label={inviteLabel}
-            onClick={onInviteClick}
-          />
+          <span data-coach={inviteCoachKey} className="inline-flex">
+            <IconButton
+              icon={<PersonAddIcon size={20} />}
+              aria-label={inviteLabel}
+              onClick={onInviteClick}
+            />
+          </span>
         )}
         <NotificationBell hrefFor={notificationHrefFor} />
         <ProfileAvatarButton
