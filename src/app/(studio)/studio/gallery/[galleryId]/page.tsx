@@ -575,8 +575,8 @@ export default function StudioGalleryShellPage() {
       }
       return next;
     });
-  }, []);
-  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  }, [setSelected]);
+  const clearSelection = useCallback(() => setSelected(new Set()), [setSelected]);
   /** 이 사진이 지금 들어 있는 세부 폴더 — 끌어 옮기기의 실행 취소가 쓴다 */
   const folderOfPhoto = useMemo(() => {
     const map = new Map<number, number>();
@@ -981,7 +981,6 @@ export default function StudioGalleryShellPage() {
           photos={allPhotos}
           folders={folders}
           selection={selection}
-          stageIndex={stageIndex}
           sidebarOpen={!collapsed}
           onGalleryUpdated={setGallery}
           onWithdrawn={(updated) => {
@@ -1003,7 +1002,6 @@ export default function StudioGalleryShellPage() {
             <ShellSidebar
               title={gallery?.title ?? "…"}
               status={status}
-              stageIndex={stageIndex}
               photoCount={allPhotos.length}
               selectedLocked={stageIndex === 0}
               selectedCount={selectedCount}

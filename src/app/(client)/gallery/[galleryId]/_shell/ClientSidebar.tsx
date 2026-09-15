@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * 클라이언트 갤러리 사이드바 — 제목 · 상태줄 · 단계 진행(4 · 5칸) · 사진 내비
+ * 클라이언트 갤러리 사이드바 — 제목 · 상태줄 · 사진 내비
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ClientSidebar.tsx
  *
  * 작가 셸 사이드바와 같은 문법. 1단계(컨셉 분류)에서는 폴더가 폴더 열(3열)에 있으니 트리를 두지 않고,
- * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다. 단계 이름 · 칸 수는 clientStages가 정한다
- * (앨범 갤러리만 5칸).
+ * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다. 단계 진행은 상단바 가운데 세그먼트가 맡는다
+ * (2026-09-15 — 여기 있던 2px 줄 삭제).
  */
 
 import type { ReactNode } from "react";
@@ -71,8 +71,6 @@ export function ClientSidebar({
   title,
   status,
   phase,
-  stages,
-  stageIndex,
   photoCount,
   selectedCount,
   maxSelectable,
@@ -86,10 +84,6 @@ export function ClientSidebar({
   title: string;
   status: StatusLine;
   phase: ClientPhase;
-  /** 이 갤러리의 단계 이름(4 · 5칸) */
-  stages: readonly string[];
-  /** 지금 단계(0부터) */
-  stageIndex: number;
   photoCount: number | null;
   selectedCount: number;
   maxSelectable: number | null;
@@ -104,9 +98,7 @@ export function ClientSidebar({
   /** 내비 아래(회차 목록) — 작가 사이드바와 같은 형식 */
   extra?: ReactNode;
 }) {
-  const index = stageIndex;
   const waiting = phase === "wait";
-  const next = stages[index + 1];
   const selectionOpen = phase !== "wait" && phase !== "sort";
 
   return (
@@ -116,25 +108,6 @@ export function ClientSidebar({
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>
           <p className={`mt-0.5 type-label-semibold-xs ${TONE_CLASS[status.tone]}`}>{status.text}</p>
         </div>
-
-        {!waiting && (
-          <div className="flex flex-col gap-1.5" aria-label={`${stages.length}단계 중 ${index + 1}단계`}>
-            <div className="flex gap-1" aria-hidden>
-              {stages.map((name, i) => (
-                <span
-                  key={name}
-                  className={`h-0.5 flex-1 rounded-(--pill) ${i <= index ? "bg-brand-secondary-default" : "bg-divider-default"}`}
-                />
-              ))}
-            </div>
-            <p className="type-content-xs text-contents-light-bgd-weakness">
-              <span className="font-semibold text-contents-light-bgd-default">
-                {index + 1}/{stages.length} {stages[index]}
-              </span>
-              {next && <> · 다음 {next}</>}
-            </p>
-          </div>
-        )}
 
         <nav className="flex flex-col gap-0.5" aria-label="사진 보기">
           <NavRow

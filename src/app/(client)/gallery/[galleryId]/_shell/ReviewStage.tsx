@@ -35,7 +35,7 @@ import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
-import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
+import type { ClientPhase } from "./clientStages";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
@@ -301,8 +301,6 @@ export function ReviewStage({
             title={gallery.title}
             status={status}
             phase={phase}
-            stages={clientStagesOf(gallery)}
-            stageIndex={clientStageIndexOf(phase, gallery)}
             photoCount={photos.length}
             selectedCount={items.length}
             maxSelectable={gallery.maxSelectablePhotoCount}

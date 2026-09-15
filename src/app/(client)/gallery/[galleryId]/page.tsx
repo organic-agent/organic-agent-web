@@ -214,8 +214,8 @@ export default function ClientGalleryPage() {
       }
       return next;
     });
-  }, []);
-  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  }, [setSelected]);
+  const clearSelection = useCallback(() => setSelected(new Set()), [setSelected]);
   /** 이 사진이 지금 들어 있는 세부 폴더 — 끌어 옮기기의 실행 취소가 쓴다 */
   const folderOfPhoto = useMemo(() => {
     const map = new Map<number, number>();
@@ -422,8 +422,6 @@ export default function ClientGalleryPage() {
               title={gallery?.title ?? "…"}
               status={status}
               phase={phase ?? "wait"}
-              stages={clientStagesOf(gallery)}
-              stageIndex={clientStageIndexOf(phase ?? "wait", gallery)}
               photoCount={opened && photos !== null ? allPhotos.length : null}
               selectedCount={0}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}

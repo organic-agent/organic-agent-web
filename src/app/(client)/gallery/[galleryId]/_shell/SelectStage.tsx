@@ -35,7 +35,7 @@ import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { DeselectConfirmModal } from "./DeselectConfirmModal";
 import { countView } from "./clientMemory";
-import { type ClientPhase, clientStageIndexOf, clientStagesOf } from "./clientStages";
+import type { ClientPhase } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
@@ -366,8 +366,6 @@ export function SelectStage({
             title={gallery.title}
             status={status}
             phase={phase}
-            stages={clientStagesOf(gallery)}
-            stageIndex={clientStageIndexOf(phase, gallery)}
             photoCount={photosLoaded ? photos.length : null}
             selectedCount={selectedCount}
             maxSelectable={maxSelectable}
