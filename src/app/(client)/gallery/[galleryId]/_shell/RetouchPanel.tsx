@@ -97,7 +97,7 @@ export function RetouchPanel({
       const res = await refineRetouchText(galleryId, { text, photoId, x: point.x, y: point.y });
       if (!res.available) setRefine(point.id, { state: "unavailable" });
       else if (res.status === "NOT_A_REQUEST") setRefine(point.id, { state: "notRequest" });
-      else if (res.status === "NEEDS_CLARIFICATION") setRefine(point.id, { state: "clarify", question: res.question, options: res.options });
+      else if (res.status === "NEEDS_CLARIFICATION") setRefine(point.id, { state: "clarify", question: res.question ?? "", options: res.options ?? [] });
       else if (res.refinedText) {
         setRefine(point.id, null);
         updatePoint(point.id, { refinedText: res.refinedText, useRefinedText: false });

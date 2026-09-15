@@ -69,9 +69,9 @@ export type RefineRetouchResponse = {
   /** 탭한 곳과 원문이 같은 것을 가리키는지. false면 서버가 NEEDS_CLARIFICATION으로 되돌린다 */
   pointMatchesText: boolean | null;
   items: RefineRetouchItem[];
-  /** 되묻는 질문. NEEDS_CLARIFICATION이 아니면 빈 문자열 */
-  question: string;
-  options: RefineRetouchOption[];
+  /** 되묻는 질문. NEEDS_CLARIFICATION이 아니면 빈 문자열이고, 옛 서버는 아예 안 보낸다 */
+  question: string | null;
+  options: RefineRetouchOption[] | null;
 };
 
 /**
