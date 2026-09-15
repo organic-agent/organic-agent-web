@@ -7,6 +7,7 @@
  * 클라이언트가 전달하면(SELECTION_COMPLETED) 선택한 사진 전부로 1차 회차(REQUESTED)가 생긴다 — 요청 메모(문장 · 점)는 일부에만.
  * 메모 없는 사진도 기본 보정 대상이라 결과를 올려야 회차를 보낼 수 있다(서버 규칙). 구조는 클라이언트 2단계와 같다:
  * justified 그리드 + 배지(메모 · 결과 ✓만 — "결과 없음"은 표시하지 않음 · 점) + 어두운 라이트박스(하단 한 줄: 이전 · 결과 상태 · 다음 | 요청 · 전/후 · 정보).
+ * 결과는 세 갈래로 올린다: 하단 "결과 올리기"(여러 장 · 파일명 자동 매칭) · 카드 호버의 ↑ 버튼(그 사진 한 장, 파일 고르면 바로) · 싱글뷰 요청 · 전/후 탭의 결과 슬롯.
  * 하위 상태: 요청 도착(결과 0) → 올리는 중 → 다 올라옴 → 보냄(DELIVERY, 클라이언트 확인 중) → 다음 회차 요청 → 확정(ARCHIVED).
  */
 
@@ -259,6 +260,21 @@ export function RetouchStage({
           <span className="absolute top-2 right-2 inline-flex h-4.5 items-center rounded-(--pill) bg-function-success-default px-1.5 type-label-semibold-xs text-white">
             결과 ✓
           </span>
+        )}
+        {canUpload && detailed && (
+          <button
+            type="button"
+            aria-label={`${photo.originalFileName} ${it.hasResult ? "결과 바꾸기" : "결과 올리기"}`}
+            title={it.hasResult ? "이 사진의 결과 바꾸기" : "이 사진의 결과 올리기"}
+            onClick={(e) => {
+              e.stopPropagation();
+              pickResultFor(photo.photoId);
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="absolute bottom-2 left-2 grid size-6 cursor-pointer place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-black/65 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-white"
+          >
+            <UploadIcon size={15} />
+          </button>
         )}
         {detailed &&
           it.points.map((pt, i) => (
