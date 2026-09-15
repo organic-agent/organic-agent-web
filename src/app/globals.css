@@ -85,6 +85,11 @@
     outline-offset: 3px;
     border-radius: 4px;
   }
+
+  /* 사진을 끌어 옮기는 동안(usePhotoMove) — 타일 · 버튼의 cursor-pointer를 덮고 어디서나 손 모양 */
+  html[data-dragging] * {
+    cursor: grabbing !important;
+  }
 }
 
 /* ─── Scroll-reveal (state-driven, kept as utility) ─── */

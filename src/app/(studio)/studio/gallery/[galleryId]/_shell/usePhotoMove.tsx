@@ -107,6 +107,12 @@ export function usePhotoMove({
         clearSelection();
       } catch {
         showToast({ text: "옮기지 못했어요", undo: null }, 2500);
+        // 500장씩 나눠 보내다 실패하면 앞 묶음은 이미 옮겨졌을 수 있다 — 화면은 서버 기준으로 맞춘다
+        try {
+          await onMoved();
+        } catch {
+          // 다음 갱신 때 다시
+        }
         return;
       }
       showToast(
@@ -135,6 +141,12 @@ export function usePhotoMove({
     [galleryId, folderOf, onMoved, clearSelection, showToast],
   );
 
+  // 포인터 리스너는 enabled에만 묶는다(선택 · 폴더가 바뀌어도 진행 중인 끌기가 끊기지 않게) — 최신 값은 여기서 읽는다
+  const latestRef = useRef({ selectedIds, runMove });
+  useEffect(() => {
+    latestRef.current = { selectedIds, runMove };
+  });
+
   useEffect(() => {
     if (!enabled) return;
     function stop() {
@@ -142,7 +154,7 @@ export function usePhotoMove({
       sessionRef.current = null;
       setIds(null);
       setOver(null);
-      document.body.style.removeProperty("cursor");
+      delete document.documentElement.dataset.dragging;
     }
     function onPointerMove(e: PointerEvent) {
       const pending = pendingRef.current;
@@ -153,12 +165,14 @@ export function usePhotoMove({
           return;
         }
         if (Math.abs(e.clientX - pending.x) + Math.abs(e.clientY - pending.y) < DRAG_THRESHOLD) return;
-        const dragIds = selectedIds.has(pending.photoId) ? [...selectedIds] : [pending.photoId];
+        const { selectedIds: picked } = latestRef.current;
+        const dragIds = picked.has(pending.photoId) ? [...picked] : [pending.photoId];
         pendingRef.current = null;
         sessionRef.current = { pointerId: pending.pointerId, ids: dragIds };
         pointerRef.current = { x: e.clientX, y: e.clientY };
         setIds(dragIds);
-        document.body.style.cursor = "grabbing";
+        // 어디에 올려도 손 모양(globals.css의 html[data-dragging] 규칙)
+        document.documentElement.dataset.dragging = "";
       }
       const session = sessionRef.current;
       if (!session || e.pointerId !== session.pointerId) return;
@@ -180,7 +194,7 @@ export function usePhotoMove({
       draggedRef.current = true;
       stop();
       if (!target || target.kind === "concept") return;
-      void runMove(session.ids, target.kind === "detail" ? target.id : null);
+      void latestRef.current.runMove(session.ids, target.kind === "detail" ? target.id : null);
     }
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -189,9 +203,10 @@ export function usePhotoMove({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
-      document.body.style.removeProperty("cursor");
+      // 끌 수 없는 화면이 되거나 사라지면 진행 중이던 끌기도 접는다(고스트가 남지 않게)
+      stop();
     };
-  }, [enabled, selectedIds, runMove]);
+  }, [enabled]);
 
   // 끌기가 막 시작됐을 때 고스트를 손 옆에 놓는다(다음 pointermove 전까지)
   useEffect(() => {
