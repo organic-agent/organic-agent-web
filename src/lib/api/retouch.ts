@@ -4,7 +4,7 @@
  *
  * 첫 보정 요청은 셀렉 제출(photo-selection/submit)에 requests[]로 실려 한 트랜잭션으로 저장된다.
  * 선택된 모든 사진이 기본 보정 대상이고, requests는 사진별 전체 문장 · 점(x, y 비율 + 문장) 주석이다.
- * AI 정제(refine)는 원문을 바꾸지 않고 제안만 돌려준다 — LLM이 꺼진 환경은 available=false.
+ * AI 정제(refine)는 원문을 바꾸지 않고 제안만 돌려준다 — LLM이 꺼졌거나 서버가 미리보기를 읽지 못하면 available=false.
  */
 
 import { api } from "@/lib/api/client";
@@ -29,16 +29,63 @@ export type RetouchRequestItem = {
   points: RetouchPoint[];
 };
 
-export type RefineRetouchResponse = {
-  originalText: string;
-  refinedText: string | null;
-  /** false면 AI가 꺼져 있어 제안이 없다 */
-  available: boolean;
+/**
+ * 정제 판정. 화면은 이 값으로 제안 · 되묻기 · 원문 유지 중 무엇을 보여줄지 가른다.
+ * available=false면 정제가 돌지 않았으므로 판정도 없다(null).
+ */
+export type RefineStatus = "READY" | "NEEDS_CLARIFICATION" | "NOT_A_REQUEST";
+
+/** 정리안을 한 부위 한 동작으로 나눈 항목 — 아직 화면에서 쓰지 않고 계약만 받아 둔다 */
+export type RefineRetouchItem = {
+  /** 작업 대상 — 누구의 어느 부위인지, 사물이면 무엇인지와 사진 속 위치 */
+  target: string;
+  /** groom · bride · other_person · none */
+  person: string;
+  region: string;
+  action: string;
+  /** 원문이 말하지 않았으면 unspecified — 서버도 모델도 추측하지 않는다 */
+  intensity: string;
+  /** 스튜디오 보정 메뉴 id. 규칙표가 생기기 전까지 항상 null */
+  menuId: string | null;
+  /** 근거가 된 원문 구절 그대로 */
+  sourceSpan: string;
 };
 
-/** 보정 요청 문장 AI 다듬기 — 원문은 그대로, 제안만 */
-export function refineRetouchText(galleryId: number, text: string): Promise<RefineRetouchResponse> {
-  return api(`/api/v1/galleries/${galleryId}/retouch/requests/refine`, { method: "POST", body: { text } });
+/** 되묻기 선택지 — 원문 해석의 갈래지 새 보정 제안이 아니다 */
+export type RefineRetouchOption = {
+  label: string;
+  sourceSpan: string;
+};
+
+export type RefineRetouchResponse = {
+  originalText: string;
+  /** 채택하면 원문을 대신할 정리안. status가 READY가 아니면 null */
+  refinedText: string | null;
+  /** false면 AI가 꺼져 있거나 서버가 미리보기를 읽지 못해 제안이 없다 */
+  available: boolean;
+  status: RefineStatus | null;
+  /** 탭한 지점에 실제로 보이는 것. 좌표 없이 부른 호출은 null */
+  tappedObject: string | null;
+  /** 탭한 곳과 원문이 같은 것을 가리키는지. false면 서버가 NEEDS_CLARIFICATION으로 되돌린다 */
+  pointMatchesText: boolean | null;
+  items: RefineRetouchItem[];
+  /** 되묻는 질문. NEEDS_CLARIFICATION이 아니면 빈 문자열이고, 옛 서버는 아예 안 보낸다 */
+  question: string | null;
+  options: RefineRetouchOption[] | null;
+};
+
+/**
+ * 보정 요청 문장 AI 다듬기 — 원문은 그대로, 제안만
+ *
+ * photoId · x · y를 주면 서버가 미리보기에 탭 지점을 표시해 모델과 함께 보고 대상을 특정한다("이거 지워줘" →
+ * "사진 오른쪽 잔디밭 위 검은 장비를 지워 주세요"). 빼면 텍스트만 보고 말투만 다듬는 옛 경로로 떨어지므로,
+ * 점에 달린 요청은 좌표까지 함께 보낸다. 좌표 없이 photoId만 주면 사진 전체에 대한 메모로 다룬다.
+ */
+export function refineRetouchText(
+  galleryId: number,
+  request: { text: string; photoId?: number; x?: number; y?: number },
+): Promise<RefineRetouchResponse> {
+  return api(`/api/v1/galleries/${galleryId}/retouch/requests/refine`, { method: "POST", body: request });
 }
 
 // ── 회차 · 결과 (작가 3단계 보정 작업, WES-308) ──

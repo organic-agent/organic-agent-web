@@ -8,12 +8,16 @@
  * "AI 내용 다듬기" → 다듬는 중 → AI 제안 + 적용 → 적용되면 제안 문장이 요청 문장이 되고 "원래 문장으로"가 남는다
  * (useRefinedText). 초안은 브라우저(retouchDraft)에 두고 전달하기에 함께 실려 간다.
  * 모든 사진에 쓸 수 있지만 서버는 **고른 사진의 요청만** 받는다 — 안 고른 사진이면 안내를 띄운다.
+ *
+ * 다듬기는 사진과 탭 좌표까지 함께 보낸다 — 서버가 미리보기에 탭 지점을 표시해 모델과 같이 봐야 "이거 지워줘"의
+ * 대상을 특정한다. 돌아오는 판정은 셋이다: 제안(READY) · 되묻기(NEEDS_CLARIFICATION, 질문 + 선택지) ·
+ * 요청이 아님(NOT_A_REQUEST, 원문 그대로 전달). 어느 쪽이든 원문은 서버가 바꾸지 않는다.
  */
 
 import { useState, useSyncExternalStore } from "react";
 import { CheckCircleIcon, SparkleIcon, TrashIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
-import { refineRetouchText } from "@/lib/api/retouch";
+import { type RefineRetouchOption, refineRetouchText } from "@/lib/api/retouch";
 import { type DraftPoint, draftOf, type PhotoDraft, retouchDraftStore, writeDraft } from "./retouchDraft";
 
 /** 사진 위에 얹는 번호 점 — Lightbox overlay */
@@ -42,7 +46,15 @@ export function RetouchPins({ points, onRemove }: { points: DraftPoint[]; onRemo
   );
 }
 
-type Refine = { state: "loading" } | { state: "unavailable" } | { state: "error"; message: string };
+type Refine =
+  | { state: "loading" }
+  /** AI가 꺼졌거나 서버가 미리보기를 읽지 못했다 — 원문 그대로 간다 */
+  | { state: "unavailable" }
+  /** 정리할 보정 요청이 아니다(게이트 또는 모델 판정) */
+  | { state: "notRequest" }
+  /** 탭한 곳과 원문이 어긋나거나 뜻이 갈려 한 번 되묻는다 */
+  | { state: "clarify"; question: string; options: RefineRetouchOption[] }
+  | { state: "error"; message: string };
 
 export function RetouchPanel({
   galleryId,
@@ -69,24 +81,35 @@ export function RetouchPanel({
   function removePoint(id: string) {
     save({ ...draft, points: draft.points.filter((p) => p.id !== id) });
   }
+  function setRefine(id: string, value: Refine | null) {
+    setRefining((prev) => {
+      const next = new Map(prev);
+      if (value) next.set(id, value);
+      else next.delete(id);
+      return next;
+    });
+  }
   async function refine(point: DraftPoint) {
     const text = point.text.trim();
     if (!text) return;
-    setRefining((prev) => new Map(prev).set(point.id, { state: "loading" }));
+    setRefine(point.id, { state: "loading" });
     try {
-      const res = await refineRetouchText(galleryId, text);
-      setRefining((prev) => {
-        const next = new Map(prev);
-        if (!res.available || !res.refinedText) next.set(point.id, { state: "unavailable" });
-        else next.delete(point.id);
-        return next;
-      });
-      if (res.available && res.refinedText) updatePoint(point.id, { refinedText: res.refinedText, useRefinedText: false });
+      const res = await refineRetouchText(galleryId, { text, photoId, x: point.x, y: point.y });
+      if (!res.available) setRefine(point.id, { state: "unavailable" });
+      else if (res.status === "NOT_A_REQUEST") setRefine(point.id, { state: "notRequest" });
+      else if (res.status === "NEEDS_CLARIFICATION") setRefine(point.id, { state: "clarify", question: res.question ?? "", options: res.options ?? [] });
+      else if (res.refinedText) {
+        setRefine(point.id, null);
+        updatePoint(point.id, { refinedText: res.refinedText, useRefinedText: false });
+      } else setRefine(point.id, { state: "unavailable" });
     } catch (err) {
-      setRefining((prev) =>
-        new Map(prev).set(point.id, { state: "error", message: err instanceof ApiError ? err.message : "잠시 뒤 다시 시도해 주세요" }),
-      );
+      setRefine(point.id, { state: "error", message: err instanceof ApiError ? err.message : "잠시 뒤 다시 시도해 주세요" });
     }
+  }
+  /** 고른 선택지를 그대로 제안 자리에 놓는다 — 채택은 부부가 "적용"으로 따로 한다 */
+  function pickOption(id: string, label: string) {
+    setRefine(id, null);
+    updatePoint(id, { refinedText: label, useRefinedText: false });
   }
 
   return (
@@ -170,6 +193,39 @@ export function RetouchPanel({
                       />
                       {r?.state === "loading" ? (
                         <div className="h-12 animate-pulse rounded-(--radius-8) bg-brand-secondary-background" aria-label="AI가 문장을 다듬는 중" />
+                      ) : r?.state === "clarify" ? (
+                        <div className="flex flex-col gap-2 rounded-(--radius-8) bg-brand-secondary-background px-2.5 py-2">
+                          <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+                            <SparkleIcon size={12} />
+                            AI 되묻기
+                          </span>
+                          <p className="type-content-s leading-relaxed text-contents-light-bgd-default">
+                            {r.question || "어느 쪽을 말씀하신 걸까요? 알려 주시면 작가에게 정확히 전달돼요."}
+                          </p>
+                          {r.options.length > 0 && (
+                            <ul className="flex flex-wrap gap-1.5">
+                              {r.options.map((o) => (
+                                <li key={o.label}>
+                                  <button
+                                    type="button"
+                                    disabled={!editable}
+                                    onClick={() => pickOption(p.id, o.label)}
+                                    className="cursor-pointer rounded-(--pill) border border-brand-secondary-light bg-background-default-main px-2.5 py-1 type-label-medium-xs text-brand-secondary-dark transition-colors duration-fast hover:bg-brand-secondary-default hover:text-white disabled:cursor-default disabled:opacity-50"
+                                  >
+                                    {o.label}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setRefine(p.id, null)}
+                            className="cursor-pointer self-end type-content-xs text-contents-light-bgd-weakness underline underline-offset-2 hover:text-contents-light-bgd-sub"
+                          >
+                            원문 그대로 둘게요
+                          </button>
+                        </div>
                       ) : p.refinedText ? (
                         <div className="flex flex-col gap-1.5 rounded-(--radius-8) bg-brand-secondary-background px-2.5 py-2">
                           <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
@@ -188,8 +244,16 @@ export function RetouchPanel({
                         </div>
                       ) : (
                         <div className="flex items-center justify-between gap-2">
-                          <span className="type-content-xs text-function-error-default">
-                            {r?.state === "error" ? r.message : r?.state === "unavailable" ? "지금은 AI 다듬기를 쓸 수 없어요" : ""}
+                          <span
+                            className={`type-content-xs ${r?.state === "notRequest" ? "text-contents-light-bgd-weakness" : "text-function-error-default"}`}
+                          >
+                            {r?.state === "error"
+                              ? r.message
+                              : r?.state === "unavailable"
+                                ? "지금은 AI 다듬기를 쓸 수 없어요"
+                                : r?.state === "notRequest"
+                                  ? "다듬을 요청 문장이 없어요 — 적으신 내용은 그대로 전달돼요"
+                                  : ""}
                           </span>
                           <button
                             type="button"
