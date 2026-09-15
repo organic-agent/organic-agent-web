@@ -19,7 +19,7 @@ import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import { CheckCircleIcon, ChevronRightIcon, PhotoIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
+import { ddayLabel } from "@/app/(studio)/_lib/galleryStatus";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
 import {
   FolderDeleteModal,
@@ -61,14 +61,6 @@ import { ReviewStage } from "./_shell/ReviewStage";
 import { SelectStage } from "./_shell/SelectStage";
 import { WaitCard } from "./_shell/WaitCard";
 import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf } from "./_shell/clientStages";
-
-function ddayLabel(deadline: string | null): string {
-  const offset = deadlineOffset(deadline);
-  if (offset === null) return "기한 없음";
-  if (offset < 0) return `D-${-offset}`;
-  if (offset === 0) return "D-day";
-  return `+${offset}일`;
-}
 
 export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
@@ -222,8 +214,8 @@ export default function ClientGalleryPage() {
       }
       return next;
     });
-  }, []);
-  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  }, [setSelected]);
+  const clearSelection = useCallback(() => setSelected(new Set()), [setSelected]);
   /** 이 사진이 지금 들어 있는 세부 폴더 — 끌어 옮기기의 실행 취소가 쓴다 */
   const folderOfPhoto = useMemo(() => {
     const map = new Map<number, number>();
@@ -399,7 +391,8 @@ export default function ClientGalleryPage() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
-        stageLabel={phase ? clientStageLabelOf(phase, gallery) : "…"}
+        stages={clientStagesOf(gallery)}
+        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery) : null}
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={selecting ? () => setInviteOpen(true) : undefined}
         inviteLabel="게스트 초대"
@@ -429,8 +422,6 @@ export default function ClientGalleryPage() {
               title={gallery?.title ?? "…"}
               status={status}
               phase={phase ?? "wait"}
-              stages={clientStagesOf(gallery)}
-              stageIndex={clientStageIndexOf(phase ?? "wait", gallery)}
               photoCount={opened && photos !== null ? allPhotos.length : null}
               selectedCount={0}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}

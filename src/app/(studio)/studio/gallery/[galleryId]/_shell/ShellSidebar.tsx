@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * 갤러리 셸 사이드바 — 제목 · 상태줄 · 단계 진행 · 사진 내비 (버튼 없음, 주 버튼은 하단 바)
+ * 갤러리 셸 사이드바 — 제목 · 상태줄 · 사진 내비 (버튼 없음, 주 버튼은 하단 바)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar.tsx
  *
- * 접으면 통째로 사라진다(상단 ≡로 여닫음). 단계 진행은 얇은 5칸 줄 + "n/5 단계명 · 다음".
+ * 접으면 통째로 사라진다(상단 ≡로 여닫음). 단계 진행은 상단바 가운데 세그먼트가 맡는다(2026-09-15 — 여기 있던 2px 줄 삭제).
  * 선택한 사진은 1단계에선 잠김, 2단계부터 열려 "고른 수 / 고를 장수"를 보여준다(제출 전에도 열람 — 2026-09-11).
  * 2단계부터는 폴더 트리(folderTree)가 내비 아래에 들어온다. 3단계부터 "보정 사진" 행이 열리고(retouchCount),
  * 회차 목록(extra)이 내비 아래에 들어온다.
@@ -17,7 +17,6 @@ import {
   LockIcon,
   PhotoIcon,
 } from "@/components/icons";
-import { SHELL_STAGES } from "./stages";
 
 export type ShellView = "all" | "selected" | "retouch";
 
@@ -70,7 +69,6 @@ function NavRow({
 export function ShellSidebar({
   title,
   status,
-  stageIndex,
   photoCount,
   selectedLocked,
   selectedCount,
@@ -83,7 +81,6 @@ export function ShellSidebar({
 }: {
   title: string;
   status: StatusLine;
-  stageIndex: number;
   photoCount: number;
   /** 1단계 — 선택한 사진 항목 잠김 */
   selectedLocked: boolean;
@@ -99,34 +96,12 @@ export function ShellSidebar({
   /** 내비 아래 · 폴더 트리 위(회차 목록) */
   extra?: ReactNode;
 }) {
-  const next = SHELL_STAGES[stageIndex + 1];
-
   return (
     <aside className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main">
       <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-4.5 pb-3">
         <div>
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>
           <p className={`mt-0.5 type-label-semibold-xs ${TONE_CLASS[status.tone]}`}>{status.text}</p>
-        </div>
-
-        {/* 단계 진행 — 얇은 5칸 줄 + 한 줄 문구. 전환 버튼은 하단 바 우측 */}
-        <div className="flex flex-col gap-1.5" aria-label={`${SHELL_STAGES.length}단계 중 ${stageIndex + 1}단계`}>
-          <div className="flex gap-1" aria-hidden>
-            {SHELL_STAGES.map((name, i) => (
-              <span
-                key={name}
-                className={`h-0.5 flex-1 rounded-(--pill) ${
-                  i <= stageIndex ? "bg-brand-secondary-default" : "bg-divider-default"
-                }`}
-              />
-            ))}
-          </div>
-          <p className="type-content-xs text-contents-light-bgd-weakness">
-            <span className="font-semibold text-contents-light-bgd-default">
-              {stageIndex + 1}/{SHELL_STAGES.length} {SHELL_STAGES[stageIndex]}
-            </span>
-            {next && <> · 다음 {next}</>}
-          </p>
         </div>
 
         <nav className="flex flex-col gap-0.5" aria-label="사진 보기">

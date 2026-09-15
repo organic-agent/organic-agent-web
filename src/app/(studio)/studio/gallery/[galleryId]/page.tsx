@@ -31,7 +31,7 @@ import {
   UploadIcon,
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
+import { ddayLabel, deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { isAnalysisActive } from "@/lib/api/analysis";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -99,14 +99,6 @@ import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "./_shell/zoomMemory";
-
-function ddayLabel(deadline: string | null): string {
-  const offset = deadlineOffset(deadline);
-  if (offset === null) return "기한 없음";
-  if (offset < 0) return `D-${-offset}`;
-  if (offset === 0) return "D-day";
-  return `+${offset}일`;
-}
 
 function shortDate(iso: string | null): string {
   if (!iso) return "";
@@ -583,8 +575,8 @@ export default function StudioGalleryShellPage() {
       }
       return next;
     });
-  }, []);
-  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  }, [setSelected]);
+  const clearSelection = useCallback(() => setSelected(new Set()), [setSelected]);
   /** 이 사진이 지금 들어 있는 세부 폴더 — 끌어 옮기기의 실행 취소가 쓴다 */
   const folderOfPhoto = useMemo(() => {
     const map = new Map<number, number>();
@@ -976,7 +968,8 @@ export default function StudioGalleryShellPage() {
         studioName={studio?.name ?? "스튜디오"}
         studioHref={studio ? `/studio/${studio.galleryUrl}` : "/studio"}
         workspaceId={gallery?.workspaceId ?? null}
-        stageLabel={gallery ? SHELL_STAGES[stageIndex] : "…"}
+        stages={SHELL_STAGES}
+        stageIndex={gallery ? stageIndex : null}
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={studio ? () => setInviteTab("client") : undefined}
       />
@@ -988,7 +981,6 @@ export default function StudioGalleryShellPage() {
           photos={allPhotos}
           folders={folders}
           selection={selection}
-          stageIndex={stageIndex}
           sidebarOpen={!collapsed}
           onGalleryUpdated={setGallery}
           onWithdrawn={(updated) => {
@@ -1010,7 +1002,6 @@ export default function StudioGalleryShellPage() {
             <ShellSidebar
               title={gallery?.title ?? "…"}
               status={status}
-              stageIndex={stageIndex}
               photoCount={allPhotos.length}
               selectedLocked={stageIndex === 0}
               selectedCount={selectedCount}

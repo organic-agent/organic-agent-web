@@ -63,7 +63,6 @@ export function RetouchStage({
   photos,
   folders,
   selection,
-  stageIndex,
   sidebarOpen,
   onGalleryUpdated,
   onWithdrawn,
@@ -76,7 +75,6 @@ export function RetouchStage({
   folders: ConceptFolderResponse[] | null;
   selection: PhotoSelectionResponse | null;
   /** 페이지가 정한 단계 번호(제출됐으면 stage가 셀렉 대기여도 2) */
-  stageIndex: number;
   sidebarOpen: boolean;
   /** 횟수 · 닫기처럼 갤러리 응답이 바로 오는 변경 */
   onGalleryUpdated: (gallery: GalleryResponse) => void;
@@ -284,7 +282,6 @@ export function RetouchStage({
           <ShellSidebar
             title={gallery.title}
             status={status}
-            stageIndex={stageIndex}
             photoCount={photos.length}
             selectedLocked={false}
             selectedCount={selection?.selectedCount ?? pickedPhotos.length}

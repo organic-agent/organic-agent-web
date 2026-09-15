@@ -90,6 +90,15 @@ export function galleryChip(
   return { text: `${label} · D-${-offset}`, tone: "muted" };
 }
 
+/** 마감 기한 → 상단바 칩 문구: 기한 없음 · D-n · D-day · +n일(지남). 셸 상단바 · 사이드바 상태줄이 같이 쓴다. */
+export function ddayLabel(deadline: string | null): string {
+  const offset = deadlineOffset(deadline);
+  if (offset === null) return "기한 없음";
+  if (offset < 0) return `D-${-offset}`;
+  if (offset === 0) return "D-day";
+  return `+${offset}일`;
+}
+
 /** 마감 일시 → 카드 표시용 날짜(2026.08.30). 기한 없으면 null. */
 export function deadlineDateLabel(deadline: string | null): string | null {
   if (!deadline) return null;

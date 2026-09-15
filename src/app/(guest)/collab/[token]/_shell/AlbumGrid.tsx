@@ -8,6 +8,8 @@
  * 하트만 올리브로 — 다른 사람 좋아요 수는 보이지 않는다(2026-09-13). 공유폴더가 1개면 ← 와 드롭다운이 없다.
  * "모든 사진"은 앨범을 합치되 겹치는 사진은 한 번(내 하트가 붙은 쪽 우선). 좋아요는 낙관적으로 바꾸고 실패하면 되돌린다.
  * writable=false면 위에 배너 한 줄, 싱글뷰의 하트 · 댓글 자리는 잠금.
+ * 헤더 · 배너 · 그리드는 다른 화면처럼 max-w-wrap(1080) + px-6 컨테이너에 가운데 — 넓은 화면에서 사진이 끝까지 붙지 않게
+ * (2026-09-15, 이슈 67).
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -154,7 +156,7 @@ export function AlbumGrid({
 
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-5">
+      <div className="mx-auto flex h-14 w-full max-w-wrap shrink-0 items-center justify-between gap-3 px-6">
         <h2 className="flex min-w-0 items-center gap-1.5 type-title-s text-contents-light-bgd-default">
           {multi && onBack && (
             <button type="button" onClick={onBack} className="mr-1 inline-flex cursor-pointer items-center gap-0.5 type-content-s text-contents-light-bgd-sub hover:text-contents-light-bgd-default">
@@ -225,9 +227,11 @@ export function AlbumGrid({
         </div>
       </div>
       {!writable && (
-        <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
-          <LockIcon size={18} className="text-contents-light-bgd-sub" />
-          <b className="font-semibold">부부가 사진 고르기를 마쳤어요</b>
+        <div className="mx-auto mb-2 w-full max-w-wrap px-6">
+          <div className="flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+            <LockIcon size={18} className="text-contents-light-bgd-sub" />
+            <b className="font-semibold">부부가 사진 고르기를 마쳤어요</b>
+          </div>
         </div>
       )}
       <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto" aria-busy={loading || undefined}>
@@ -236,18 +240,21 @@ export function AlbumGrid({
         ) : !loading && gridPhotos.length === 0 ? (
           <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{mineOnly ? "좋아요한 사진이 없어요" : "사진이 없어요"}</p>
         ) : (
-          <PhotoGrid
-            photos={gridPhotos}
-            zoom={DEFAULT_ZOOM}
-            selectedIds={NO_SELECTION}
-            onToggle={() => {}}
-            selectable={false}
-            markStyle="check"
-            currentId={lightboxIndex !== null ? shown[lightboxIndex]?.photoId ?? null : lastViewedId}
-            onTileClick={open}
-            overlayOf={overlayOf}
-            scrollToId={lastViewedId}
-          />
+          <div className="mx-auto w-full max-w-wrap px-6">
+            <PhotoGrid
+              photos={gridPhotos}
+              zoom={DEFAULT_ZOOM}
+              selectedIds={NO_SELECTION}
+              onToggle={() => {}}
+              selectable={false}
+              markStyle="check"
+              currentId={lightboxIndex !== null ? shown[lightboxIndex]?.photoId ?? null : lastViewedId}
+              onTileClick={open}
+              overlayOf={overlayOf}
+              scrollToId={lastViewedId}
+              gutter={false}
+            />
+          </div>
         )}
       </div>
 

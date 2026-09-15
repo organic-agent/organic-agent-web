@@ -17,8 +17,10 @@
  * (클라이언트 2단계 — 사진을 누르다 담기고 빠지는 게 불편하다는 2026-09-12 피드백). 작가 화면은 타일 전체(기본).
  * PENDING(올리는 중)은 회색 자리, HEIC · HEIF는 미리보기 전(previewReady=false)엔 "미리보기 준비 중" 자리.
  * markedIds(표시만 하는 선택)는 작가가 클라이언트의 선택을 볼 때 쓴다.
- * 여러 장 고르기(onSelectMany, 2026-09-14): Shift + 클릭은 마지막으로 고른 사진부터 범위, 왼쪽 위 44×44 체크
- * 자리에서 누른 채 옆으로 끌면 지나는 타일을 한꺼번에 고른다(첫 타일이 바뀐 쪽으로 맞춘다).
+ * 여러 장 고르기(onSelectMany, 2026-09-14): Shift + 클릭은 마지막으로 고른 사진부터 범위. 왼쪽 위 44×44 체크
+ * 자리에서 누른 채 끌면 휴대폰 갤러리처럼 **누른 사진부터 지금 손 아래 사진까지 보이는 순서로 전부** 고른다
+ * (2026-09-15 — 커서가 지난 타일만 고르던 방식을 바꿈). 첫 타일이 바뀐 쪽으로 맞추고, 되돌아오면 처음 상태로.
+ * 손이 그리드 위아래 끝에 닿으면 저절로 스크롤되며 범위가 늘어난다. 타일 사이 틈 · 그리드 밖은 가장 가까운 타일로 본다.
  * drag(usePhotoMove)를 주면 타일을 누른 채 6px 넘게 끌어 폴더로 옮긴다 — 고른 타일이면 고른 전부, 아니면 그 한 장.
  */
 
@@ -45,17 +47,61 @@ export type PhotoDragBinding = {
   movingIds: ReadonlySet<number> | null;
 };
 
-/** 칠하기 한 번(체크 자리에서 누른 채 옆으로) */
+/** 그리드 위아래 끝 이 안에 손이 들어오면 저절로 스크롤 */
+const PAINT_EDGE = 56;
+const PAINT_EDGE_STEP = 10;
+
+/** 쓸어 고르기 한 번(체크 자리에서 누른 채 끌기) */
 type PaintSession = {
   pointerId: number;
+  /** 누른 자리(화면 기준) — 움직임 문턱 */
   x: number;
   y: number;
-  /** 지나는 타일을 이 상태로 맞춘다(첫 타일이 바뀐 쪽) */
+  /** 지금 손 자리(화면 기준) — 자동 스크롤이 다시 쓴다 */
+  clientX: number;
+  clientY: number;
+  /** 범위 안 사진을 이 상태로 맞춘다(첫 타일이 바뀐 쪽) */
   on: boolean;
+  /** 처음 누른 사진 — 범위의 한쪽 끝 */
   anchor: number;
   moved: boolean;
-  done: Set<number>;
+  /** 시작할 때의 선택 — 범위 밖으로 나가면 여기로 되돌린다 */
+  base: Set<number>;
+  /** 지금 범위 안이라 바뀌어 있는 사진 */
+  applied: Set<number>;
+  scroller: HTMLElement | null;
 };
+
+/** 이 요소를 담고 있는 스크롤 상자 */
+function scrollParentOf(el: HTMLElement | null): HTMLElement | null {
+  for (let node = el?.parentElement ?? null; node; node = node.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(node).overflowY)) return node;
+  }
+  return null;
+}
+
+/**
+ * 손 자리에 가장 가까운 타일 — 줄은 "위쪽 끝이 손보다 위인 마지막 줄", 그 줄에서 "왼쪽 끝이 손보다 왼쪽인 마지막 타일".
+ * 타일 사이 틈은 앞 타일, 그리드보다 위 · 왼쪽이면 첫 타일, 아래 · 오른쪽이면 마지막 타일이 된다(휴대폰 갤러리 문법).
+ */
+function tileAt(container: HTMLElement, clientX: number, clientY: number): number | null {
+  const rows = container.querySelectorAll<HTMLElement>("[data-row]");
+  if (rows.length === 0) return null;
+  let row = rows[0];
+  for (const el of rows) {
+    if (el.getBoundingClientRect().top <= clientY) row = el;
+    else break;
+  }
+  const tiles = row.querySelectorAll<HTMLElement>("[data-photo-id]");
+  if (tiles.length === 0) return null;
+  let tile = tiles[0];
+  for (const el of tiles) {
+    if (el.getBoundingClientRect().left <= clientX) tile = el;
+    else break;
+  }
+  const id = Number(tile.dataset.photoId);
+  return Number.isFinite(id) ? id : null;
+}
 
 /** 사진 비율 캐시(가로/세로) — 폴더를 오가도, 다시 그려도 잊지 않는다 */
 const ratioCache = new Map<number, number>();
@@ -204,6 +250,7 @@ export function PhotoGrid({
   overlayOf,
   onSelectMany,
   drag = null,
+  gutter = true,
 }: {
   photos: PhotoResponse[];
   /** 0~100 — 기준 행 높이로 바뀐다 */
@@ -238,6 +285,8 @@ export function PhotoGrid({
   onSelectMany?: (photoIds: number[], selected: boolean) => void;
   /** 끌어 옮기기 — 없으면 끌어도 아무 일 없다 */
   drag?: PhotoDragBinding | null;
+  /** false면 양옆 여백(px-5) 없음 — 부모가 1080 컨테이너 등으로 여백을 맡을 때(게스트 그리드) */
+  gutter?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -289,35 +338,81 @@ export function PhotoGrid({
 
   useEffect(() => {
     if (!selectable || !onSelectMany) return;
-    function paintTo(photoId: number) {
-      const paint = paintRef.current;
-      if (!paint || paint.done.has(photoId)) return;
-      paint.done.add(photoId);
-      onSelectMany?.([photoId], paint.on);
+    let frame = 0;
+
+    /** 누른 사진부터 endId까지(보이는 순서)는 맞추고, 범위에서 빠진 사진은 처음 상태로 되돌린다 */
+    function applyRange(paint: PaintSession, endId: number) {
+      const from = photos.findIndex((p) => p.photoId === paint.anchor);
+      const to = photos.findIndex((p) => p.photoId === endId);
+      if (from < 0 || to < 0) return;
+      const inside = new Set(photos.slice(Math.min(from, to), Math.max(from, to) + 1).map((p) => p.photoId));
+      const add: number[] = [];
+      const backOn: number[] = [];
+      const backOff: number[] = [];
+      for (const id of inside) if (!paint.applied.has(id)) add.push(id);
+      for (const id of paint.applied) if (!inside.has(id)) (paint.base.has(id) ? backOn : backOff).push(id);
+      paint.applied = inside;
+      if (add.length > 0) onSelectMany?.(add, paint.on);
+      if (backOn.length > 0) onSelectMany?.(backOn, true);
+      if (backOff.length > 0) onSelectMany?.(backOff, false);
     }
+
+    /** 손 자리 → 가장 가까운 타일까지 범위 다시 맞추기 */
+    function update(clientX: number, clientY: number) {
+      const paint = paintRef.current;
+      const container = containerRef.current;
+      if (!paint || !container) return;
+      paint.clientX = clientX;
+      paint.clientY = clientY;
+      const endId = tileAt(container, clientX, clientY);
+      if (endId !== null) applyRange(paint, endId);
+    }
+
+    /** 손이 그리드 위아래 끝에 닿아 있으면 스크롤하며 범위를 늘린다 */
+    function autoScroll() {
+      const paint = paintRef.current;
+      const scroller = paint?.scroller;
+      if (paint && scroller) {
+        const box = scroller.getBoundingClientRect();
+        const before = scroller.scrollTop;
+        if (paint.clientY < box.top + PAINT_EDGE) scroller.scrollTop -= PAINT_EDGE_STEP;
+        else if (paint.clientY > box.bottom - PAINT_EDGE) scroller.scrollTop += PAINT_EDGE_STEP;
+        if (scroller.scrollTop !== before) update(paint.clientX, paint.clientY);
+      }
+      frame = window.requestAnimationFrame(autoScroll);
+    }
+
+    function finish() {
+      const paint = paintRef.current;
+      if (!paint) return;
+      paintedRef.current = paint.moved;
+      paintRef.current = null;
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+    }
+
     function onPointerMove(e: PointerEvent) {
       const paint = paintRef.current;
       if (!paint || e.pointerId !== paint.pointerId) return;
       // 손을 뗀 걸 놓쳤으면(창 밖에서 뗌) 여기서 끝낸다
       if (e.buttons === 0) {
-        paintRef.current = null;
+        finish();
         return;
       }
       if (!paint.moved) {
         if (Math.abs(e.clientX - paint.x) + Math.abs(e.clientY - paint.y) < DRAG_THRESHOLD) return;
         paint.moved = true;
-        paintTo(paint.anchor);
+        frame = window.requestAnimationFrame(autoScroll);
       }
-      const tile = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-photo-id]");
-      const id = Number(tile?.dataset.photoId);
-      if (Number.isFinite(id)) paintTo(id);
+      update(e.clientX, e.clientY);
     }
     function onPointerUp(e: PointerEvent) {
       const paint = paintRef.current;
       if (!paint || e.pointerId !== paint.pointerId) return;
-      paintedRef.current = paint.moved;
-      paintRef.current = null;
+      finish();
     }
+    // 사진 목록이 바뀌어 효과가 다시 붙었으면 진행 중인 자동 스크롤을 이어 간다
+    if (paintRef.current?.moved) frame = window.requestAnimationFrame(autoScroll);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointercancel", onPointerUp);
@@ -325,10 +420,11 @@ export function PhotoGrid({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
+      window.cancelAnimationFrame(frame);
     };
-  }, [selectable, onSelectMany]);
+  }, [selectable, onSelectMany, photos]);
 
-  /** 체크 자리를 누른 순간 — 6px 넘게 끌면 지나는 타일을 첫 타일과 같은 상태로 맞춘다 */
+  /** 체크 자리를 누른 순간 — 6px 넘게 끌면 이 사진부터 손 아래 사진까지를 첫 타일과 같은 상태로 맞춘다 */
   function startPaint(photoId: number, e: ReactPointerEvent) {
     paintedRef.current = false;
     if (!selectable || !onSelectMany) return false;
@@ -336,10 +432,14 @@ export function PhotoGrid({
       pointerId: e.pointerId,
       x: e.clientX,
       y: e.clientY,
+      clientX: e.clientX,
+      clientY: e.clientY,
       on: !selectedIds.has(photoId),
       anchor: photoId,
       moved: false,
-      done: new Set(),
+      base: new Set(selectedIds),
+      applied: new Set(),
+      scroller: scrollParentOf(containerRef.current),
     };
     return true;
   }
@@ -373,9 +473,9 @@ export function PhotoGrid({
   );
 
   return (
-    <div ref={containerRef} className="flex select-none flex-col gap-2 px-5 pb-6">
+    <div ref={containerRef} className={`flex select-none flex-col gap-2 pb-6 ${gutter ? "px-5" : ""}`}>
       {rows.map((row, rowIndex) => (
-        <div key={row.photos[0]?.photoId ?? rowIndex} className="flex gap-2" style={{ height: row.height }}>
+        <div key={row.photos[0]?.photoId ?? rowIndex} data-row className="flex gap-2" style={{ height: row.height }}>
           {row.photos.map((photo, i) => {
             const selected = selectedIds.has(photo.photoId) || (markedIds?.has(photo.photoId) ?? false);
             const current = currentId === photo.photoId;
@@ -402,7 +502,8 @@ export function PhotoGrid({
                 aria-label={label}
                 onPointerDown={(e) => {
                   paintedRef.current = false;
-                  if (e.button === 0 && selectable) drag?.start(photo.photoId, e);
+                  // 올리는 중인(PENDING) 회색 자리는 옮길 수 없다 — "모두 선택"이 빼는 것과 같은 기준
+                  if (e.button === 0 && selectable && !pending) drag?.start(photo.photoId, e);
                 }}
                 onClick={
                   clickable
