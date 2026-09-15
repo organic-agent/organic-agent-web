@@ -250,6 +250,7 @@ export function PhotoGrid({
   overlayOf,
   onSelectMany,
   drag = null,
+  gutter = true,
 }: {
   photos: PhotoResponse[];
   /** 0~100 — 기준 행 높이로 바뀐다 */
@@ -284,6 +285,8 @@ export function PhotoGrid({
   onSelectMany?: (photoIds: number[], selected: boolean) => void;
   /** 끌어 옮기기 — 없으면 끌어도 아무 일 없다 */
   drag?: PhotoDragBinding | null;
+  /** false면 양옆 여백(px-5) 없음 — 부모가 1080 컨테이너 등으로 여백을 맡을 때(게스트 그리드) */
+  gutter?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -470,7 +473,7 @@ export function PhotoGrid({
   );
 
   return (
-    <div ref={containerRef} className="flex select-none flex-col gap-2 px-5 pb-6">
+    <div ref={containerRef} className={`flex select-none flex-col gap-2 pb-6 ${gutter ? "px-5" : ""}`}>
       {rows.map((row, rowIndex) => (
         <div key={row.photos[0]?.photoId ?? rowIndex} data-row className="flex gap-2" style={{ height: row.height }}>
           {row.photos.map((photo, i) => {
