@@ -53,6 +53,7 @@ export function usePersonalUpload({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
+  const [merging, setMerging] = useState(false);
   const reviewedIdsRef = useRef(reviewedIds);
   useEffect(() => {
     reviewedIdsRef.current = reviewedIds;
@@ -83,6 +84,7 @@ export function usePersonalUpload({
     async (list: ConceptFolderResponse[]) => {
       if (mergingRef.current || duplicateConceptGroups(list).length === 0) return;
       mergingRef.current = true;
+      setMerging(true);
       try {
         await mergeDuplicateConcepts(galleryId, list);
         const f = await listConceptFolders(galleryId);
@@ -91,6 +93,7 @@ export function usePersonalUpload({
         setNotice(describeUploadError(err));
       } finally {
         mergingRef.current = false;
+        setMerging(false);
       }
     },
     [galleryId, setFolders],
@@ -247,7 +250,12 @@ export function usePersonalUpload({
   );
   const recoveryBanner: ReactNode | null =
     recoverable.length > 0 ? <RecoveryBanner count={recoverable.length} onFiles={onRecoveryFiles} onDiscard={() => void discardPending()} discarding={discarding} /> : null;
-  const hint = notice ?? (recoverable.length > 0 ? `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중` : null);
+  // 작가 1단계와 같은 순서 — 분석 오류 · 폴더 정리 · 업로드 알림 · 끊긴 업로드
+  const hint =
+    analysis.error ??
+    (merging ? "같은 이름의 컨셉 폴더를 하나로 합치고 있어요" : null) ??
+    notice ??
+    (recoverable.length > 0 ? `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중` : null);
   const modal: ReactNode = uploadOpen ? (
     <UploadModal
       existingCount={photos?.length ?? 0}
@@ -262,5 +270,23 @@ export function usePersonalUpload({
     />
   ) : null;
 
-  return { uploading, aiActive, aiFailed, aiCategorizing, progress, actions, recoveryBanner, hint, notice, clearNotice: () => setNotice(null), modal, modalOpen: uploadOpen, openUpload: () => setUploadOpen(true) };
+  return {
+    uploading,
+    /** 올리는 중 n / m — 사이드바 상태줄(작가와 같은 문구) */
+    runCounts: { done: run.done, total: run.total },
+    aiActive,
+    aiFailed,
+    aiCategorizing,
+    aiCounts,
+    merging,
+    progress,
+    actions,
+    recoveryBanner,
+    hint,
+    notice,
+    clearNotice: () => setNotice(null),
+    modal,
+    modalOpen: uploadOpen,
+    openUpload: () => setUploadOpen(true),
+  };
 }

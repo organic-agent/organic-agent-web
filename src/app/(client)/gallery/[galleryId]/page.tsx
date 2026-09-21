@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, PhotoIcon, UploadIcon } from "@/components/icons";
+import { CheckCircleIcon, ChevronRightIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ddayLabel } from "@/app/(studio)/_lib/galleryStatus";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
@@ -82,8 +82,13 @@ export default function ClientGalleryPage() {
   const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
   /** 사진 목록을 마지막으로 읽은 시각 — 개인 갤러리 끊김 복구가 쓴다 */
   const [photosLoadedAt, setPhotosLoadedAt] = useState(0);
-  // 개인은 사진 수(PENDING 포함)와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다
-  const phase = gallery ? (isPersonal ? personalPhaseOf(gallery, photos === null ? null : photos.length) : clientPhaseOf(gallery)) : null;
+  // 개인은 올라온(UPLOADED) 사진 수와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다.
+  // 첫 장이 올라오기 전(PENDING만)엔 작가 1단계처럼 안내 카드가 남는다
+  const phase = gallery
+    ? isPersonal
+      ? personalPhaseOf(gallery, photos === null ? null : photos.filter((p) => p.status === "UPLOADED").length)
+      : clientPhaseOf(gallery)
+    : null;
   /** 폴더 확정 뒤 — 셀렉은 SelectStage, 전달한 뒤(보정 중 · 검토 · 앨범 · 완료)는 ReviewStage가 그린다 */
   const selecting = phase !== null && phase !== "wait" && phase !== "sort" && phase !== "upload";
   const reviewing = phase === "submitted" || phase === "review" || phase === "album" || phase === "done";
@@ -166,6 +171,7 @@ export default function ClientGalleryPage() {
 
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
+  const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
   const reviewedRaw = useSyncExternalStore(subscribeReviewed, () => readReviewedRaw(galleryId), () => "");
   const reviewedIds = useMemo(() => new Set(parseReviewed(reviewedRaw)), [reviewedRaw]);
   const folders = useMemo(
@@ -196,7 +202,8 @@ export default function ClientGalleryPage() {
   });
 
   const visiblePhotos = useMemo(() => {
-    let list = allPhotos;
+    // 올리는 동안은 PENDING도 회색 자리로 보여 준다(작가 1단계와 같음 — 끝난 뒤 남은 PENDING은 복구 배너의 몫)
+    let list = isPersonal && upload.uploading ? [...allPhotos, ...pendingPhotos] : allPhotos;
     if (folderSel.kind === "detail") {
       const ids = new Set(details.find((d) => d.id === folderSel.detailId)?.photoIds ?? []);
       list = list.filter((p) => ids.has(p.photoId));
@@ -209,7 +216,7 @@ export default function ClientGalleryPage() {
     if (filter === "review") list = list.filter((p) => reviewIds.has(p.photoId));
     if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
     return sortPhotos(list, sort);
-  }, [allPhotos, folderSel, folders, details, sortedIds, filter, reviewIds, sort]);
+  }, [allPhotos, folderSel, folders, details, sortedIds, filter, reviewIds, sort, isPersonal, upload.uploading, pendingPhotos]);
 
   const selectedDetail =
     folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
@@ -229,8 +236,9 @@ export default function ClientGalleryPage() {
       return next;
     });
   }
+  /** 지금 보고 있는 사진 전부 고르기 — 올리는 중인(PENDING) 자리는 제외(작가와 같음) */
   function selectAllVisible() {
-    setSelected(new Set(visiblePhotos.map((p) => p.photoId)));
+    setSelected(new Set(visiblePhotos.filter((p) => p.status === "UPLOADED").map((p) => p.photoId)));
   }
   /** 여러 장 한 번에 — Shift 범위 · 체크 칠하기 */
   const selectMany = useCallback((photoIds: number[], on: boolean) => {
@@ -269,7 +277,7 @@ export default function ClientGalleryPage() {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
       e.preventDefault();
-      setSelected(new Set(visiblePhotos.map((p) => p.photoId)));
+      setSelected(new Set(visiblePhotos.filter((p) => p.status === "UPLOADED").map((p) => p.photoId)));
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -314,11 +322,16 @@ export default function ClientGalleryPage() {
   const status: StatusLine = (() => {
     if (!gallery) return { text: "불러오는 중…", tone: "muted" };
     if (phase === "wait") return { text: "작가가 사진을 준비하고 있어요", tone: "muted" };
-    if (isPersonal && upload.uploading) return { text: "사진을 올리고 있어요", tone: "accent" };
-    if (phase === "upload") return { text: "사진을 올려 주세요", tone: "muted" };
-    if (isPersonal && phase === "sort" && upload.aiActive) return { text: "AI가 컨셉 · 세부 폴더로 나누고 있어요", tone: "accent" };
+    // 개인의 업로드 · AI 구간은 작가 1단계 상태줄과 같은 문구 · 숫자
+    if (isPersonal && upload.uploading) return { text: `올리는 중 ${upload.runCounts.done} / ${upload.runCounts.total}`, tone: "accent" };
+    if (isPersonal && upload.aiCategorizing) return { text: "폴더 만드는 중", tone: "accent" };
+    if (isPersonal && upload.merging) return { text: "폴더 정리 중…", tone: "accent" };
+    if (isPersonal && upload.aiActive) return { text: `AI 분석 중 ${upload.aiCounts?.scored ?? 0} / ${upload.aiCounts?.expected ?? 0}`, tone: "accent" };
+    if (isPersonal && upload.aiFailed) return { text: "AI 정리 실패 · 다시 시도할 수 있어요", tone: "error" };
+    if (phase === "upload") return { text: "사진 없음", tone: "muted" };
     if (phase === "sort") {
       if (photos === null) return { text: "불러오는 중…", tone: "muted" };
+      if (isPersonal && (!folders || folders.length === 0)) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return reviewFolderCount > 0
         ? { text: `컨셉 분류 · 확인 필요 ${reviewFolderCount} · 폴더를 확정하면 고를 수 있어요`, tone: "warning" }
         : { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
@@ -330,10 +343,10 @@ export default function ClientGalleryPage() {
     if (notice) return notice;
     if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
-    if (phase === "upload") return gallery?.planMaxPhotoCount ? `사진 ${gallery.planMaxPhotoCount}장까지 올릴 수 있어요 · 올리면 AI가 컨셉별로 나눠 드려요` : "올린 사진은 AI가 컨셉별로 나눠 드려요";
+    if (phase === "upload") return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
     if (phase === "sort") {
       if (contentBlocked) return "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
-      if (isPersonal) return "폴더를 확인하고 확정하면 함께 고를 수 있어요 · 확정은 한 번만 · 사진은 확정 전까지 더 올릴 수 있어요";
+      if (isPersonal && (!folders || folders.length === 0)) return "폴더는 업로드가 끝나면 AI가 만들어요";
       return "폴더를 확인하고 확정하면 사진을 고를 수 있어요 · 확정은 한 번만 할 수 있어요";
     }
     return "사진 셀렉 화면을 준비하고 있어요";
@@ -348,13 +361,13 @@ export default function ClientGalleryPage() {
           <span data-coach="upload" className="inline-flex">
             <ShellCta disabled={photos === null} onClick={upload.openUpload}>
               <UploadIcon size={18} />
-              사진 올리기
+              사진 업로드
             </ShellCta>
           </span>
         ) : phase === "sort" ? (
           <>
             <ShellCta kind="ghost" onClick={upload.openUpload}>
-              <AddPhotoIcon size={18} />
+              <UploadIcon size={18} />
               사진 더 올리기
             </ShellCta>
             <span data-coach="confirm" className="inline-flex">
@@ -443,6 +456,12 @@ export default function ClientGalleryPage() {
           <PhotoIcon size={18} />
         </span>
         모든 사진
+        {isPersonal && upload.aiActive && (
+          <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+            <SparkleIcon size={12} />
+            {upload.aiCategorizing ? "폴더 만드는 중" : "AI 분석 중"}
+          </span>
+        )}
         <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{allPhotos.length}장</small>
       </>
     );
@@ -523,11 +542,14 @@ export default function ClientGalleryPage() {
                 pendingNote={
                   folders && folders.length === 0
                     ? isPersonal
-                      ? upload.aiActive || upload.uploading
-                        ? { label: "정리 중", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 여기에 나타나요." }
-                        : upload.aiFailed
-                          ? { label: "없음", note: "AI 정리에 실패했어요. 아래에서 다시 시도해 주세요." }
-                          : { label: "없음", note: "아직 폴더가 없어요. 미분류 사진은 그대로 고를 수 있어요." }
+                      ? upload.uploading || upload.aiActive
+                        ? upload.aiCategorizing
+                          ? { label: "만드는 중…", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요." }
+                          : {
+                              label: "대기",
+                              note: "폴더는 업로드가 끝나면 AI가 만들어요. 임베딩 · 점수는 올라오는 대로 매기고 있어요.",
+                            }
+                        : null
                       : { label: "없음", note: "작가가 아직 폴더를 만들지 않았어요. 미분류 사진은 그대로 고를 수 있어요." }
                     : null
                 }
@@ -547,10 +569,6 @@ export default function ClientGalleryPage() {
               <WaitCard gallery={gallery} memberCount={memberCount} />
             ) : phase === "upload" ? (
               <PersonalEmptyGuide />
-            ) : isPersonal && allPhotos.length === 0 && upload.uploading ? (
-              <div className="grid flex-1 place-items-center px-6 py-8" aria-busy="true">
-                <p className="type-content-s text-contents-light-bgd-sub">사진을 올리고 있어요</p>
-              </div>
             ) : allPhotos.length === 0 ? (
               <div className="grid flex-1 place-items-center px-6 py-8">
                 <p className="type-content-s text-contents-light-bgd-sub">아직 올라온 사진이 없어요</p>
@@ -580,7 +598,7 @@ export default function ClientGalleryPage() {
 
         <ShellBottomBar
           selectionCount={selected.size}
-          visibleCount={visiblePhotos.length}
+          visibleCount={visiblePhotos.filter((p) => p.status === "UPLOADED").length}
           onSelectAll={selectAllVisible}
           onClearSelection={() => setSelected(new Set())}
           onMoveSelection={() => setMoveOpen(true)}

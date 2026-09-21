@@ -1,19 +1,21 @@
 "use client";
 
 /**
- * 개인 갤러리 빈 화면 — 작가 1단계 안내 카드를 개인 문구로 (올리기 → AI가 정리 → 둘이 고르기)
+ * 개인 갤러리 빈 화면 — 작가 1단계 안내 카드 그대로, 3번 칸만 "확인하고 열기(클라이언트 초대)" 대신 "확인하고 확정"
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/PersonalEmptyGuide.tsx
+ *
+ * 작가 · 초대 클라이언트와 겹치는 화면은 최대한 같게(2026-09-15 수민) — 제목 · 문구 · 번호 · 아이콘 크기 모두 작가 카드.
  */
 
-import { EmptyUploadGuide, type GuideStep } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/EmptyUploadGuide";
-import { CheckCircleIcon, CloudUploadIcon, SparkleIcon } from "@/components/icons";
+import { EmptyUploadGuide, type GuideStep, UPLOAD_GUIDE_STEPS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/EmptyUploadGuide";
+import { CheckCircleIcon } from "@/components/icons";
 
 const STEPS: readonly GuideStep[] = [
-  { icon: <CloudUploadIcon size={18} />, title: "사진 올리기", desc: "작가에게 받은 원본을 그대로" },
-  { icon: <SparkleIcon size={18} />, title: "AI가 정리", desc: "컨셉 · 세부 폴더로 나눠요" },
-  { icon: <CheckCircleIcon size={18} />, title: "고르기", desc: "둘이 함께 골라요" },
+  UPLOAD_GUIDE_STEPS[0],
+  UPLOAD_GUIDE_STEPS[1],
+  { icon: <CheckCircleIcon size={20} />, title: "3. 확인하고 확정", desc: "함께 고르기" },
 ];
 
 export function PersonalEmptyGuide() {
-  return <EmptyUploadGuide title="사진을 올리면 시작돼요" lead="아래 버튼으로 첫 사진을 올려 주세요." steps={STEPS} />;
+  return <EmptyUploadGuide steps={STEPS} />;
 }

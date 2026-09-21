@@ -5,11 +5,13 @@
 
 import { SparkleIcon, UploadIcon, VisibilityIcon } from "@/components/icons";
 
-const STEPS = [
+/** 작가 1단계 카드의 세 칸 — 개인 갤러리는 1 · 2번을 그대로 쓰고 3번만 바꾼다(PersonalEmptyGuide) */
+export const UPLOAD_GUIDE_STEPS = [
   { icon: <UploadIcon size={20} />, title: "1. 사진 올리기", desc: "끌어다 놓거나 고르기" },
   { icon: <SparkleIcon size={20} />, title: "2. AI가 폴더로 정리", desc: "컨셉 · 세부 폴더 자동" },
   { icon: <VisibilityIcon size={20} />, title: "3. 확인하고 열기", desc: "클라이언트 초대" },
 ];
+const STEPS = UPLOAD_GUIDE_STEPS;
 
 export type GuideStep = (typeof STEPS)[number];
 

@@ -19,8 +19,3 @@ export function personalMembershipOf(user: User | null, gallery: GalleryResponse
   return w ? { owner: w.role === "OWNER" } : null;
 }
 
-/** 개인 갤러리 빈 화면 안내 — 고르는 사람이 곧 올리는 사람 */
-export const PERSONAL_GUIDE = {
-  title: "사진을 올리면 시작돼요",
-  lead: "작가에게 받은 원본을 그대로 올려 주세요.",
-} as const;
