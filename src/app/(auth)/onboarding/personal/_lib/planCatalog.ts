@@ -5,7 +5,7 @@
  * 서버가 플랜을 2개 이상 주면 그대로 쓰고 이 카탈로그는 쓰이지 않는다.
  * 하나뿐이면 무료·스탠다드·프로 카드를 보여주되, 어느 카드를 골라도 결제는 서버의 그 플랜으로
  * 나간다(테스트 결제라 실제 돈은 없다). 백엔드에 0원 플랜과 유료 플랜 2개를 요청한 상태이며,
- * 그것이 들어오면 이 파일은 지운다. 숫자는 시안 자리표시 값이다.
+ * 그것이 들어오면 이 파일은 지운다. 숫자는 시안 자리표시 값 — 무료는 500장 · 30일(2026-09-15 수민).
  */
 
 import type { Plan, PlansResponse } from "@/lib/api/payments";
@@ -14,7 +14,7 @@ import type { Plan, PlansResponse } from "@/lib/api/payments";
 export type DisplayPlan = Plan & { checkoutPlanId: string };
 
 const DEMO_CATALOG: Omit<Plan, "id" | "currency">[] = [
-  { name: "무료", amount: 0, durationDays: 30, maxPhotoCount: 100 },
+  { name: "무료", amount: 0, durationDays: 30, maxPhotoCount: 500 },
   { name: "스탠다드", amount: 19900, durationDays: 90, maxPhotoCount: 2000 },
   { name: "프로", amount: 39900, durationDays: 180, maxPhotoCount: 5000 },
 ];
