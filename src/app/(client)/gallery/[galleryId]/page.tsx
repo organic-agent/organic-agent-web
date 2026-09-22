@@ -558,7 +558,6 @@ export default function ClientGalleryPage() {
           )}
 
           <main className="flex min-w-0 flex-1 flex-col">
-            {isPersonal && upload.recoveryBanner}
             {!gallery ? (
               <div className="flex-1" aria-busy="true" />
             ) : phase === "wait" ? (
@@ -568,7 +567,10 @@ export default function ClientGalleryPage() {
             ) : contentBlocked ? (
               <WaitCard gallery={gallery} memberCount={memberCount} />
             ) : phase === "upload" ? (
-              <PersonalEmptyGuide />
+              <>
+                {upload.recoveryBanner}
+                <PersonalEmptyGuide />
+              </>
             ) : allPhotos.length === 0 ? (
               <div className="grid flex-1 place-items-center px-6 py-8">
                 <p className="type-content-s text-contents-light-bgd-sub">아직 올라온 사진이 없어요</p>
@@ -576,6 +578,7 @@ export default function ClientGalleryPage() {
             ) : (
               <>
                 <ShellMainHeader {...headerCommon} title={allTitle} />
+                {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
                     <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">조건에 맞는 사진이 없어요</p>
