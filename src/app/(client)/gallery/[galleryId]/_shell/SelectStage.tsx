@@ -72,6 +72,7 @@ export function SelectStage({
   reloadGallery,
   inviteOpen,
   onInviteClose,
+  personal = false,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -87,6 +88,8 @@ export function SelectStage({
   /** 상단 "게스트 초대" 버튼 */
   inviteOpen: boolean;
   onInviteClose: () => void;
+  /** 개인 결제 클라이언트 — 단계 5칸, 작가에게 전달 대신 요청서 내보내기(묶음 C에서), 장수 추가 요청 없음 */
+  personal?: boolean;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
@@ -629,7 +632,7 @@ export function SelectStage({
         }
         actions={
           <>
-            {increasePending ? (
+            {personal ? null : increasePending ? (
                 <span className="inline-flex h-10 items-center gap-1.5 rounded-(--radius-8) border border-border-default px-3 type-label-medium-s text-contents-light-bgd-sub">
                   <AddPhotoIcon size={16} />
                   {increasePending.requestedCount}장 요청함 · 작가 확인 중
@@ -640,11 +643,13 @@ export function SelectStage({
                   선택 장수 추가 요청
                 </ShellCta>
               )}
-            <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
-              <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
-                작가에게 전달하기
-              </ShellCta>
-            </span>
+            {!personal && (
+              <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
+                <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
+                  작가에게 전달하기
+                </ShellCta>
+              </span>
+            )}
           </>
         }
       />

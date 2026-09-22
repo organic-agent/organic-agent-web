@@ -10,8 +10,58 @@
  */
 
 import type { ReactNode } from "react";
-import { BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon } from "@/components/icons";
+import { BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon, ScheduleIcon } from "@/components/icons";
 import type { ClientPhase } from "./clientStages";
+
+/** 개인 갤러리의 플랜 — 사진 상한 · 이용 기간(서버 planMaxPhotoCount · planExpiresAt) */
+export type PlanInfo = { used: number; max: number | null; expiresAt: string | null };
+
+function planDaysLeft(expiresAt: string | null): number | null {
+  if (!expiresAt) return null;
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+  return Number.isNaN(days) ? null : days;
+}
+function planUntil(expiresAt: string | null): string {
+  if (!expiresAt) return "기한 없음";
+  const d = new Date(expiresAt);
+  return Number.isNaN(d.getTime()) ? "" : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}까지`;
+}
+
+function PlanCard({ plan }: { plan: PlanInfo }) {
+  const days = planDaysLeft(plan.expiresAt);
+  const ratio = plan.max ? Math.min(1, plan.used / plan.max) : 0;
+  return (
+    <div data-coach="plan" className="flex flex-col gap-2 rounded-(--radius-12) border border-border-default bg-surface-default-lightness px-3 py-2.5">
+      <div className="flex items-center justify-between type-label-semibold-xs text-contents-light-bgd-default">
+        플랜
+        {days !== null && (
+          <span className={`inline-flex items-center gap-1 rounded-(--pill) px-2 py-0.5 type-label-semibold-xs ${days <= 7 ? "bg-function-warning-background text-function-warning-default" : "bg-brand-secondary-background text-brand-secondary-dark"}`}>
+            <ScheduleIcon size={12} />
+            {days <= 0 ? "만료" : `${days}일 남음`}
+          </span>
+        )}
+      </div>
+      {plan.max !== null && (
+        <div className="h-1 overflow-hidden rounded-(--pill) bg-surface-default-medium" aria-hidden>
+          <i className={`block h-full rounded-(--pill) ${ratio >= 0.9 ? "bg-function-warning-default" : "bg-brand-secondary-default"}`} style={{ width: `${Math.max(2, ratio * 100)}%` }} />
+        </div>
+      )}
+      <dl className="flex flex-col gap-0.5 type-content-xs text-contents-light-bgd-sub">
+        <div className="flex justify-between">
+          <dt>사진</dt>
+          <dd className="font-semibold text-contents-light-bgd-default tabular-nums">
+            {plan.used}
+            {plan.max !== null ? ` / ${plan.max}장` : "장 · 제한 없음"}
+          </dd>
+        </div>
+        <div className="flex justify-between">
+          <dt>이용 기간</dt>
+          <dd className="font-semibold text-contents-light-bgd-default tabular-nums">{planUntil(plan.expiresAt)}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
 
 export type ClientView = "all" | "selected" | "retouch";
 
@@ -80,6 +130,9 @@ export function ClientSidebar({
   tabs,
   retouchCount,
   extra,
+  plan,
+  selectedLockNote = "폴더 확정 뒤",
+  retouchLockNote = "셀렉 뒤",
 }: {
   title: string;
   status: StatusLine;
@@ -97,6 +150,11 @@ export function ClientSidebar({
   retouchCount?: number | null;
   /** 내비 아래(회차 목록) — 작가 사이드바와 같은 형식 */
   extra?: ReactNode;
+  /** 개인 갤러리 — 진행 표시 아래 플랜 카드 */
+  plan?: PlanInfo;
+  /** 잠긴 내비 행의 문구 — 개인은 "분류 뒤" · "내보낸 뒤" */
+  selectedLockNote?: string;
+  retouchLockNote?: string;
 }) {
   const waiting = phase === "wait";
   const selectionOpen = phase !== "wait" && phase !== "sort";
@@ -108,6 +166,8 @@ export function ClientSidebar({
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>
           <p className={`mt-0.5 type-label-semibold-xs ${TONE_CLASS[status.tone]}`}>{status.text}</p>
         </div>
+
+        {plan && <PlanCard plan={plan} />}
 
         <nav className="flex flex-col gap-0.5" aria-label="사진 보기">
           <NavRow
@@ -130,7 +190,7 @@ export function ClientSidebar({
                   )}
                 </span>
               ) : (
-                <LockedNote>폴더 확정 뒤</LockedNote>
+                <LockedNote>{selectedLockNote}</LockedNote>
               )
             }
             selected={view === "selected"}
@@ -144,7 +204,7 @@ export function ClientSidebar({
               retouchCount !== undefined && retouchCount !== null ? (
                 <span className="font-semibold text-contents-light-bgd-default tabular-nums">{retouchCount}</span>
               ) : (
-                <LockedNote>셀렉 뒤</LockedNote>
+                <LockedNote>{retouchLockNote}</LockedNote>
               )
             }
             selected={view === "retouch"}

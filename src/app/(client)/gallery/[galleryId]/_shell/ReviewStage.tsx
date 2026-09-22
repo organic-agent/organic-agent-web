@@ -78,6 +78,7 @@ export function ReviewStage({
   /** 상단 "게스트 초대" 버튼 */
   inviteOpen: boolean;
   onInviteClose: () => void;
+  /** 개인 결제 클라이언트 — 단계 5칸(보정 확인) */
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [picking, setPicking] = useState(false);
