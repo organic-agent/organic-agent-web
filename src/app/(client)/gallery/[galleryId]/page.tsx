@@ -118,6 +118,8 @@ export default function ClientGalleryPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   /** 상단 "게스트 초대" — 2단계부터(공유폴더 · 링크는 SelectStage · ReviewStage의 useGuestSharing이 그린다) */
   const [inviteOpen, setInviteOpen] = useState(false);
+  /** 개인 — 요청서를 막 내보냈으면 보정 확인 화면이 열리며 내려받기 모달을 바로 연다 */
+  const [autoDownload, setAutoDownload] = useState(false);
 
   // ── 사진 · 폴더 (열린 뒤에만 — DRAFT는 서버가 클라이언트에게 주지 않는다) ──
   const opened = gallery !== null && phase !== "wait";
@@ -482,7 +484,21 @@ export default function ClientGalleryPage() {
       />
 
       {reviewing && gallery && phase ? (
-        <ReviewStage galleryId={galleryId} gallery={gallery} phase={phase} photos={allPhotos} folders={folders} sidebarOpen={!collapsed} reloadGallery={reloadGallery} inviteOpen={inviteOpen} onInviteClose={() => setInviteOpen(false)} />
+        <ReviewStage
+          galleryId={galleryId}
+          gallery={gallery}
+          phase={phase}
+          photos={allPhotos}
+          folders={folders}
+          sidebarOpen={!collapsed}
+          reloadGallery={reloadGallery}
+          inviteOpen={inviteOpen}
+          onInviteClose={() => setInviteOpen(false)}
+          personal={isPersonal}
+          owner={personal?.owner ?? false}
+          autoOpenDownload={autoDownload}
+          onAutoOpenDownloadHandled={() => setAutoDownload(false)}
+        />
       ) : selecting && gallery && phase ? (
         <SelectStage
           galleryId={galleryId}
@@ -496,6 +512,7 @@ export default function ClientGalleryPage() {
           inviteOpen={inviteOpen}
           onInviteClose={() => setInviteOpen(false)}
           personal={isPersonal}
+          onExported={() => setAutoDownload(true)}
         />
       ) : (
         <>

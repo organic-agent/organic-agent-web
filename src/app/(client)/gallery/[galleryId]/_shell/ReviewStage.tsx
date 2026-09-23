@@ -10,12 +10,21 @@
  * 회차는 사이드바 보정 사진 아래 작가와 같은 형식.
  * 다시 요청: "다시 요청하기" → 담기 모드(체크) → 싱글뷰 요청 탭에서 결과 사진 위에 점 · 문장(2단계 패널 재사용, 초안은 브라우저)
  * → "n차 요청 보내기"(rounds/{n}/requests, 남은 횟수 1 소진) → 보정 중.
+ *
+ * 개인 갤러리(personal, 묶음 C 2026-09-23): 작가가 없어 요청서를 내보낸 뒤 **받은 보정본을 부부가 직접 올린다** —
+ * 하단 [내려받기(요청서 CSV · ZIP, 작가 모달)][보정본 올리기 → 더 올리기 → 바꾸기] + 소유자에게 [갤러리 마무리], 타일 호버 ↑로 한 장씩(작가 3단계 부품).
+ * 다시 요청 · 확정은 없고(서버가 막음) 결과는 올리는 즉시 보인다. 플랜 기간이 끝나면 서버가 자동 보관 — 배너 문구만 다르다.
  */
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
-import { BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, SparkleIcon } from "@/components/icons";
+import { ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, LockIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { BeforeAfter } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/BeforeAfter";
+import { CloseGalleryModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/CloseGalleryModal";
+import { ResultUploadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ResultUploadModal";
+import { RetouchDownloadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RetouchDownloadModal";
+import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadProgress";
+import { type ResultAssignment, useResultUpload } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useResultUpload";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { hasMemo, normalizeRoundItems, type RetouchItem } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/roundItems";
 import { saveBlob } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/retouchDownload";
@@ -66,6 +75,10 @@ export function ReviewStage({
   reloadGallery,
   inviteOpen,
   onInviteClose,
+  personal = false,
+  owner = false,
+  autoOpenDownload = false,
+  onAutoOpenDownloadHandled,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -78,9 +91,24 @@ export function ReviewStage({
   /** 상단 "게스트 초대" 버튼 */
   inviteOpen: boolean;
   onInviteClose: () => void;
-  /** 개인 결제 클라이언트 — 단계 5칸(보정 확인) */
+  /** 개인 결제 클라이언트 — 보정본을 직접 올리고 마무리한다(다시 요청 · 확정 없음) */
+  personal?: boolean;
+  /** 개인 소유자 — 갤러리 마무리 버튼 */
+  owner?: boolean;
+  /** 요청서를 막 내보낸 뒤 — 회차가 읽히면 내려받기 모달을 바로 연다 */
+  autoOpenDownload?: boolean;
+  onAutoOpenDownloadHandled?: () => void;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
+  const [detailNonce, setDetailNonce] = useState(0);
+  // 개인 — 보정본 올리기(작가 3단계 부품) · 요청서 내려받기 · 마무리
+  const [uploadOpen, setUploadOpen] = useState<{ presetPhotoId: number | null } | null>(null);
+  const [requestDownloadOpen, setRequestDownloadOpen] = useState(false);
+  const [autoDownloadHandled, setAutoDownloadHandled] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [now] = useState(() => Date.now());
+  const slotInputRef = useRef<HTMLInputElement>(null);
+  const slotTargetRef = useRef<number | null>(null);
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(() => new Set());
   const [reModalOpen, setReModalOpen] = useState(false);
@@ -104,9 +132,21 @@ export function ReviewStage({
   const latest = rounds.length > 0 ? rounds[rounds.length - 1] : null;
   const activeRoundNo = selectedRoundNo ?? currentRound?.roundNo ?? latest?.roundNo ?? null;
   const activeSummary = rounds.find((r) => r.roundNo === activeRoundNo) ?? null;
-  const detail = useRetouchRoundDetail(galleryId, activeRoundNo, overview ? 1 : 0);
+  const detail = useRetouchRoundDetail(galleryId, activeRoundNo, detailNonce + (overview ? 1 : 0));
   const items = useMemo<RetouchItem[]>(() => normalizeRoundItems(currentRound, detail, activeRoundNo), [currentRound, detail, activeRoundNo]);
   const resultCount = items.filter((it) => it.resultUrl).length;
+  const upload = useResultUpload(galleryId, activeRoundNo, () => {
+    reloadOverview();
+    setDetailNonce((n) => n + 1);
+  });
+  function pickResultFor(photoId: number) {
+    slotTargetRef.current = photoId;
+    slotInputRef.current?.click();
+  }
+  function startUpload(assignments: ResultAssignment[]) {
+    setUploadOpen(null);
+    void upload.run(assignments);
+  }
   /** 선택한 사진 = 보정 대상 전부(서버가 제출한 사진 모두를 회차에 넣는다) */
   const selectedIds = useMemo(() => new Set(items.map((it) => it.photo.photoId)), [items]);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds: selectedIds, inviteOpen, onInviteClose });
@@ -129,14 +169,19 @@ export function ReviewStage({
   const memoCount = items.filter(hasMemo).length;
 
   // ── 하위 상태 ──
-  const archived = phase === "done" || gallery.stage === "ARCHIVED";
-  const resultArrived = activeSummary?.status === "COMPLETED";
+  // 개인: 플랜 기간이 지나면 서버가 자동 보관한다 — 스케줄러가 돌기 전 몇 분도 화면은 보관으로 본다
+  const planExpired = personal && gallery.planExpiresAt !== null && new Date(gallery.planExpiresAt).getTime() <= now;
+  const archived = phase === "done" || gallery.stage === "ARCHIVED" || planExpired;
+  /** 결과 사진을 보여 줄 조건 — 개인은 올리는 즉시(회차 보내기가 없다), 초대 클라이언트는 회차가 보내진 뒤 */
+  const resultArrived = personal ? resultCount > 0 : activeSummary?.status === "COMPLETED";
+  const allDone = items.length > 0 && resultCount === items.length;
+  const canUpload = personal && !archived && activeRoundNo !== null && items.length > 0 && !upload.state.running;
   const waiting = !archived && activeSummary?.status === "REQUESTED";
   const isLatest = activeRoundNo !== null && activeRoundNo === latest?.roundNo;
   const remaining = overview?.remainingRoundCount ?? null;
   const maxRounds = overview?.maxRetouchRoundCount ?? gallery.maxRetouchRoundCount;
   const roundLabel = activeRoundNo !== null ? `${activeRoundNo}차` : "";
-  const canReRequest = resultArrived && isLatest && !archived && (remaining === null || remaining > 0);
+  const canReRequest = !personal && resultArrived && isLatest && !archived && (remaining === null || remaining > 0);
   const nextRoundNo = (latest?.roundNo ?? 0) + 1;
 
   // ── 다시 요청 담기 ──
@@ -196,7 +241,8 @@ export function ReviewStage({
     setCurrentId(photoId);
     setScrollToId(null);
     setLightboxOpen(true);
-    if (tab === "none") setTab(resultArrived ? "compare" : "request");
+    // 개인은 사진마다 보정본이 있을 수도 없을 수도 — 있는 사진만 전/후로 연다
+    if (tab === "none") setTab((personal ? Boolean(itemById.get(photoId)?.resultUrl) : resultArrived) ? "compare" : "request");
   }
   function closeLightbox() {
     setLightboxOpen(false);
@@ -211,6 +257,11 @@ export function ReviewStage({
   // ── 상태줄 · 배너 · 하단 ──
   const status: StatusLine = (() => {
     if (!overview) return { text: overviewError ?? "불러오는 중…", tone: overviewError ? "error" : "muted" };
+    if (personal) {
+      if (archived) return { text: planExpired ? "이용 기간 끝 · 보관됨" : "마무리 · 보관됨", tone: "muted" };
+      if (resultCount === 0) return { text: "요청서 내보냄 · 보정본 기다리는 중", tone: "muted" };
+      return { text: `보정본 ${resultCount} / ${items.length}장 · 전/후 확인`, tone: "accent" };
+    }
     if (archived) return { text: `보정 확정 · ${rounds.length}회 · 보관됨`, tone: "muted" };
     if (waiting) return { text: `${roundLabel} 보정 중${remaining !== null ? ` · 남은 횟수 ${remaining}` : ""}`, tone: "muted" };
     if (resultArrived) return { text: `${roundLabel} 결과 도착 · ${items.length}장 · 확인해 주세요`, tone: "accent" };
@@ -218,13 +269,25 @@ export function ReviewStage({
   })();
   const banner = (() => {
     if (!overview) return null;
+    if (personal) {
+      if (archived && planExpired) return { tone: "err" as const, icon: <ScheduleIcon size={18} />, text: <><b className="font-semibold">이용 기간이 끝나 갤러리를 보관했어요</b> · 열람 · 내려받기만 할 수 있어요</> };
+      if (archived) return { tone: "lock" as const, icon: <ArchiveIcon size={18} />, text: <><b className="font-semibold">갤러리를 마무리했어요</b> · 보관 상태라 열람 · 내려받기만 할 수 있어요</> };
+      if (resultCount === 0) return { tone: "lock" as const, icon: <LockIcon size={18} />, text: <><b className="font-semibold">요청서를 내보냈어요 · {items.length}장</b> — 선택은 잠겼고, 보정본을 올리면 전/후로 볼 수 있어요</> };
+      return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정본 {resultCount} / {items.length}장</b> · 타일을 누르면 전/후를 비교해요</> };
+    }
     if (archived) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정이 확정됐어요</b> · 갤러리는 보관됐고 보정본은 언제든 내려받을 수 있어요</> };
     if (waiting) return { tone: "info" as const, icon: <HourglassIcon size={18} />, text: <><b className="font-semibold">작가가 {roundLabel} 보정을 하고 있어요</b>{memoCount > 0 ? ` · 요청 ${memoCount}장` : ""} · 결과가 오면 알림으로 알려 드려요</> };
     if (picking) return { tone: "ok" as const, icon: <EditNoteIcon size={18} />, text: <><b className="font-semibold">다시 고칠 사진을 체크하고</b>, 한 장 보기의 요청 탭에서 결과 사진 위에 점을 찍어 적어 주세요</> };
     if (resultArrived && isLatest) return { tone: "ok" as const, icon: <BrushIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 보정 결과 {items.length}장이 도착했어요</b> · {shortDate(activeSummary?.completedAt ?? null)} · 전/후로 확인하고 더 고칠 곳이 있으면 다시 요청하세요{remaining !== null ? `(남은 ${remaining}회)` : ""}</> };
     return null;
   })();
-  const bottomHint = archived
+  const bottomHint = personal
+    ? archived
+      ? "보관된 갤러리예요 · 열람 · 내려받기만 할 수 있어요"
+      : resultCount === 0
+        ? "요청서를 작가에게 보내고, 받은 보정본을 올리면 전/후로 볼 수 있어요"
+        : `보정본 ${resultCount} / ${items.length}장${allDone ? "" : ` · ${items.length - resultCount}장은 아직`} · 타일을 누르면 전/후를 비교해요`
+    : archived
     ? "보정이 끝났어요 · 갤러리는 보관 상태라 열람만 할 수 있어요"
     : waiting
       ? "결과가 오면 알림으로 알려 드려요 · 보낸 요청은 한 장 보기의 내 요청 탭에서 볼 수 있어요"
@@ -273,10 +336,24 @@ export function ReviewStage({
             내 요청
           </span>
         )}
-        {it.hasResult && (
+        {(it.hasResult || it.resultUrl) && (
           <span className="absolute top-2 right-2 inline-flex h-4.5 items-center rounded-(--pill) bg-function-success-default px-1.5 type-label-semibold-xs text-white">
-            결과 ✓
+            {personal ? "보정본 ✓" : "결과 ✓"}
           </span>
+        )}
+        {canUpload && detailed && (
+          <button
+            type="button"
+            aria-label={`${photo.originalFileName} ${it.resultUrl ? "보정본 바꾸기" : "보정본 올리기"}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              pickResultFor(photo.photoId);
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="absolute bottom-2 left-2 grid size-6 cursor-pointer place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-black/65 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-white"
+          >
+            <UploadIcon size={15} />
+          </button>
         )}
         {detailed &&
           !resultArrived &&
@@ -365,10 +442,28 @@ export function ReviewStage({
               {banner && (
                 <div
                   className={`mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) px-3 py-2.5 type-content-s text-contents-light-bgd-default ${
-                    banner.tone === "info" ? "bg-function-info-background" : "bg-brand-secondary-background"
+                    banner.tone === "info"
+                      ? "bg-function-info-background"
+                      : banner.tone === "lock"
+                        ? "bg-surface-default-medium"
+                        : banner.tone === "err"
+                          ? "bg-function-error-background"
+                          : "bg-brand-secondary-background"
                   }`}
                 >
-                  <span className={banner.tone === "info" ? "text-function-info-default" : "text-brand-secondary-default"}>{banner.icon}</span>
+                  <span
+                    className={
+                      banner.tone === "info"
+                        ? "text-function-info-default"
+                        : banner.tone === "lock"
+                          ? "text-contents-light-bgd-sub"
+                          : banner.tone === "err"
+                            ? "text-function-error-default"
+                            : "text-brand-secondary-default"
+                    }
+                  >
+                    {banner.icon}
+                  </span>
                   <span className="min-w-0 flex-1">{banner.text}</span>
                 </div>
               )}
@@ -418,6 +513,20 @@ export function ReviewStage({
             bottomHint
           )
         }
+        progress={
+          upload.state.running ? (
+            <ProgressBar
+              icon={<UploadIcon size={18} />}
+              title={`보정본 업로드 ${upload.state.done} / ${upload.state.total}`}
+              ratio={upload.state.total ? upload.state.done / upload.state.total : null}
+              sub={
+                <button type="button" onClick={upload.cancel} className="cursor-pointer underline underline-offset-2">
+                  중단
+                </button>
+              }
+            />
+          ) : undefined
+        }
         status={
           picking ? (
             <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
@@ -435,7 +544,44 @@ export function ReviewStage({
               {csvBusy ? "내려받는 중…" : "선택 목록 (CSV)"}
             </ShellCta>
           )}
-          {picking ? (
+          {personal ? (
+            archived ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-surface-default-medium px-3 py-1.5 type-label-semibold-s text-contents-light-bgd-sub">
+                  <ArchiveIcon size={16} />
+                  {planExpired ? "보관" : "마무리"} · {items.length}장
+                </span>
+                <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
+                  <DownloadIcon size={18} />
+                  보정본 내려받기 (ZIP)
+                </ShellCta>
+              </>
+            ) : (
+              <>
+                {resultCount === 0 ? (
+                  <ShellCta kind="outline" disabled={items.length === 0} onClick={() => setRequestDownloadOpen(true)}>
+                    <DownloadIcon size={18} />
+                    내려받기
+                  </ShellCta>
+                ) : (
+                  <ShellCta kind="outline" onClick={() => setDownloadOpen(true)}>
+                    <DownloadIcon size={18} />
+                    보정본 내려받기
+                  </ShellCta>
+                )}
+                <ShellCta kind={allDone ? "secondary" : "primary"} disabled={!canUpload} onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                  <UploadIcon size={18} />
+                  {resultCount === 0 ? "보정본 올리기" : allDone ? "보정본 바꾸기" : "보정본 더 올리기"}
+                </ShellCta>
+                {owner && (
+                  <ShellCta kind="outline" onClick={() => setCloseOpen(true)}>
+                    <ArchiveIcon size={18} />
+                    갤러리 마무리
+                  </ShellCta>
+                )}
+              </>
+            )
+          ) : picking ? (
             <>
               <ShellCta kind="ghost" onClick={stopPicking}>
                 취소
@@ -482,7 +628,52 @@ export function ReviewStage({
       />
 
       {sharing.modals}
-      <ClientReviewCoachMarks ready={overview !== null && resultArrived && isLatest && !archived && !picking && !lightboxOpen && !confirmOpen && !downloadOpen} />
+      <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !picking && !lightboxOpen && !confirmOpen && !downloadOpen} />
+      {personal && (requestDownloadOpen || (autoOpenDownload && !autoDownloadHandled && items.length > 0)) && activeRoundNo !== null && (
+        <RetouchDownloadModal
+          galleryTitle={gallery.title}
+          roundNo={activeRoundNo}
+          items={items}
+          onClose={() => {
+            setRequestDownloadOpen(false);
+            setAutoDownloadHandled(true);
+            onAutoOpenDownloadHandled?.();
+          }}
+        />
+      )}
+      {personal && uploadOpen && activeRoundNo !== null && (
+        <ResultUploadModal galleryId={galleryId} roundNo={activeRoundNo} items={items} presetPhotoId={uploadOpen.presetPhotoId} onClose={() => setUploadOpen(null)} onStart={startUpload} />
+      )}
+      {personal && closeOpen && (
+        <CloseGalleryModal
+          galleryId={galleryId}
+          desc={
+            <>
+              보정본 <b className="text-contents-light-bgd-default">{resultCount} / {items.length}장</b> · 마무리하면 보관되고 열람 · 내려받기만 할 수 있어요
+            </>
+          }
+          onClose={() => setCloseOpen(false)}
+          onDone={() => {
+            setCloseOpen(false);
+            reloadOverview();
+            reloadGallery();
+          }}
+        />
+      )}
+      {personal && (
+        <input
+          ref={slotInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            const photoId = slotTargetRef.current;
+            e.target.value = "";
+            if (file && photoId !== null) void upload.run([{ file, photoId }]);
+          }}
+        />
+      )}
       {downloadOpen && activeRoundNo !== null && (
         <ResultsDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}
