@@ -88,6 +88,26 @@ export function refineRetouchText(
   return api(`/api/v1/galleries/${galleryId}/retouch/requests/refine`, { method: "POST", body: request });
 }
 
+// ── 초안(DRAFTING) 회차 — 개인 갤러리가 요청서를 내보내기 전에 항목을 만들어 둔다 (묶음 C) ──
+
+/**
+ * 초안 회차에 원본 사진 담기 — 회차가 없으면 이 호출이 만든다. 스튜디오 갤러리의 부부는 셀렉 제출에 requests[]로
+ * 실어 보내므로 이 경로가 필요한 곳은 작가가 없는 개인 갤러리다(요청서 CSV를 내보내기 전).
+ * 이번 회차에 이미 담긴 사진이 섞이면 한 장도 담기지 않는다(409) — 부르는 쪽이 진행 중 회차의 사진을 빼고 보낸다.
+ */
+export function addRetouchPhotos(galleryId: number, photoIds: number[]): Promise<unknown> {
+  return api(`/api/v1/galleries/${galleryId}/retouch/photos`, { method: "POST", body: { photoIds } });
+}
+
+/** 초안 회차에 담긴 사진 한 장의 요청문 · 점을 덮어쓴다(문장 2000자 · 점 100개까지). 제출된 회차에는 404 */
+export function updateRetouchPhotoRequest(
+  galleryId: number,
+  photoId: number,
+  body: { requestText: string | null; points: RetouchPoint[] },
+): Promise<unknown> {
+  return api(`/api/v1/galleries/${galleryId}/retouch/photos/${photoId}/request`, { method: "PUT", body });
+}
+
 // ── 회차 · 결과 (작가 3단계 보정 작업, WES-308) ──
 
 export type RetouchRoundStatus = "DRAFTING" | "REQUESTED" | "COMPLETED";
