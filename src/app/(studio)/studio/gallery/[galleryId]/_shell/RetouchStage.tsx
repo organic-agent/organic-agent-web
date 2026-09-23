@@ -14,9 +14,6 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
 import { ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
-import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
-import { ApiError } from "@/lib/api/client";
-import { closeGallery } from "@/lib/api/galleries";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
@@ -24,6 +21,7 @@ import type { RetouchRoundSummaryResponse } from "@/lib/api/retouch";
 import type { PhotoSelectionResponse } from "@/lib/api/selection";
 import { BeforeAfter } from "./BeforeAfter";
 import { ChangeRoundsModal } from "./ChangeRoundsModal";
+import { CloseGalleryModal } from "./CloseGalleryModal";
 import { ExtendDeadlineModal } from "./ExtendDeadlineModal";
 import { PhotoGrid } from "./PhotoGrid";
 import { ResultUploadModal } from "./ResultUploadModal";
@@ -549,7 +547,12 @@ export function RetouchStage({
       {modal === "close" && (
         <CloseGalleryModal
           galleryId={galleryId}
-          roundCount={usedRounds}
+          desc={
+            <>
+              보정 {usedRounds}회를 보냈고 클라이언트의 확정 · 재요청이 없어요. 마무리하면 갤러리가 <b className="text-contents-light-bgd-default">보관 상태</b>가 되어 열람만 할 수 있어요.
+              다시 열어야 하면 &ldquo;재오픈&rdquo;으로 마감을 새로 정해 열 수 있어요.
+            </>
+          }
           onClose={() => setModal(null)}
           onDone={(updated) => {
             setModal(null);
@@ -766,39 +769,3 @@ function ResultSlot({ item, enabled, onPick }: { item: RetouchItem; enabled: boo
   );
 }
 
-/** 갤러리 마무리(종료 · 보관) — 클라이언트가 확정도 재요청도 하지 않을 때 작가가 닫는다 */
-function CloseGalleryModal({ galleryId, roundCount, onClose, onDone }: { galleryId: number; roundCount: number; onClose: () => void; onDone: (gallery: GalleryResponse) => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function confirm() {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      onDone(await closeGallery(galleryId));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
-      setBusy(false);
-    }
-  }
-  return (
-    <GalleryModalShell
-      title="이 갤러리를 마무리할까요?"
-      desc={
-        <>
-          보정 {roundCount}회를 보냈고 클라이언트의 확정 · 재요청이 없어요. 마무리하면 갤러리가 <b className="text-contents-light-bgd-default">보관 상태</b>가 되어 열람만 할 수 있어요.
-          다시 열어야 하면 &ldquo;재오픈&rdquo;으로 마감을 새로 정해 열 수 있어요.
-        </>
-      }
-      maxWidthClassName="max-w-105"
-      onClose={onClose}
-    >
-      {error && (
-        <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
-          {error}
-        </p>
-      )}
-      <GalleryModalButtons onClose={onClose} onConfirm={() => void confirm()} confirmLabel={busy ? "마무리하는 중…" : "마무리(보관)"} disabled={busy} />
-    </GalleryModalShell>
-  );
-}
