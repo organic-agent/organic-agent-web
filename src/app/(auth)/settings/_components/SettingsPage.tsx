@@ -6,7 +6,7 @@
  *
  * 어느 화면인지는 주소 쿼리가 정한다: ?studio={workspaceId}&tab=… (없으면 계정 › 프로필).
  * 스튜디오 목록은 GET /studios로 받아 역할(OWNER/MEMBER)까지 안다. 개인 갤러리는 ?gallery={galleryId}&tab=… —
- * 소유자만 열리고(정보 · 파트너 · 갤러리 삭제), 파트너에겐 잠김(파트너 전용은 나중 이슈, 2026-09-23).
+ * 소유자: 정보 · 플랜 · 파트너 · 갤러리 삭제 / 파트너: 정보(읽기) · 플랜 · 갤러리 나가기 (이슈 75, 2026-09-23).
  */
 
 import { useEffect, useState } from "react";
@@ -24,7 +24,7 @@ import {
   AccountNotificationsTab,
   AccountProfileTab,
 } from "./AccountTabs";
-import { PersonalDangerTab, PersonalInfoTab, PersonalPartnerTab, usePersonalGallery } from "./PersonalGalleryTabs";
+import { PersonalDangerTab, PersonalInfoTab, PersonalLeaveTab, PersonalPartnerTab, PersonalPlanTab, usePersonalGallery } from "./PersonalGalleryTabs";
 import { NavGroup, NavInitial, NavItem, SettingsTabs } from "./SettingsShell";
 import {
   StudioDangerTab,
@@ -35,8 +35,8 @@ import {
 
 type AccountTab = "profile" | "display" | "notifications" | "delete";
 type StudioTab = "info" | "members" | "tickets" | "danger";
-type GalleryTab = "info" | "partner" | "danger";
-const GALLERY_TAB_KEYS: GalleryTab[] = ["info", "partner", "danger"];
+type GalleryTab = "info" | "plan" | "partner" | "danger";
+const GALLERY_TAB_KEYS: GalleryTab[] = ["info", "plan", "partner", "danger"];
 
 const ACCOUNT_TABS = [
   ["profile", "프로필"],
@@ -124,7 +124,7 @@ export function SettingsPage() {
   const waitingStudio = studioParam !== null && studios === null;
   const personalGalleries = user.workspaces.filter((w) => w.kind === "GALLERY" && w.workspaceType === "PERSONAL");
   const galleryParam = params.get("gallery");
-  const personalGallery = galleryParam ? (personalGalleries.find((w) => String(w.galleryId) === galleryParam && w.role === "OWNER") ?? null) : null;
+  const personalGallery = galleryParam ? (personalGalleries.find((w) => String(w.galleryId) === galleryParam) ?? null) : null;
 
   function go(next: { studio?: number; gallery?: number; tab?: string }) {
     const q = new URLSearchParams();
@@ -147,7 +147,16 @@ export function SettingsPage() {
   let content: React.ReactNode;
   if (personalGallery && personalGallery.galleryId !== null) {
     const tab: GalleryTab = GALLERY_TAB_KEYS.includes(tabParam as GalleryTab) ? (tabParam as GalleryTab) : "info";
-    content = <PersonalGalleryContent key={personalGallery.galleryId} galleryId={personalGallery.galleryId} name={personalGallery.name} tab={tab} onTab={(next) => go({ gallery: personalGallery.galleryId ?? undefined, tab: next })} />;
+    content = (
+      <PersonalGalleryContent
+        key={personalGallery.galleryId}
+        galleryId={personalGallery.galleryId}
+        name={personalGallery.name}
+        owner={personalGallery.role === "OWNER"}
+        tab={tab}
+        onTab={(next) => go({ gallery: personalGallery.galleryId ?? undefined, tab: next })}
+      />
+    );
   } else if (studio) {
     const owner = studio.role === "OWNER";
     const tab: StudioTab = STUDIO_TAB_KEYS.includes(tabParam as StudioTab)
@@ -251,17 +260,16 @@ export function SettingsPage() {
                 <p className="px-3 py-2 type-content-xs text-contents-light-bgd-weakness">개인 갤러리가 없어요</p>
               ) : (
                 personalGalleries.map((w) =>
-                  w.role === "OWNER" && w.galleryId !== null ? (
+                  w.galleryId !== null ? (
                     <NavItem
                       key={w.id}
                       icon={<PhotoIcon size={18} />}
                       label={w.name}
-                      meta="소유자"
+                      meta={w.role === "OWNER" ? "소유자" : "파트너"}
                       selected={personalGallery?.id === w.id}
                       onClick={() => go({ gallery: w.galleryId ?? undefined })}
                     />
                   ) : (
-                    // 파트너 — 나가기 등 파트너 전용 설정은 나중 이슈
                     <NavItem key={w.id} icon={<PhotoIcon size={18} />} label={w.name} meta="잠김" locked />
                   ),
                 )
@@ -276,30 +284,44 @@ export function SettingsPage() {
 }
 
 /** 설정 › 개인 갤러리 본문 — 갤러리를 읽어 정보 · 파트너 · 삭제 탭에 준다 */
-function PersonalGalleryContent({ galleryId, name, tab, onTab }: { galleryId: number; name: string; tab: GalleryTab; onTab: (tab: GalleryTab) => void }) {
+function PersonalGalleryContent({ galleryId, name, owner, tab, onTab }: { galleryId: number; name: string; owner: boolean; tab: GalleryTab; onTab: (tab: GalleryTab) => void }) {
   const { gallery, failed, setGallery } = usePersonalGallery(galleryId);
-  const tabs = [
-    ["info", "정보"],
-    ["partner", "파트너"],
-    ["danger", "갤러리 삭제"],
-  ] as const satisfies ReadonlyArray<readonly [GalleryTab, string]>;
+  const tabs = (
+    owner
+      ? [
+          ["info", "정보"],
+          ["plan", "플랜"],
+          ["partner", "파트너"],
+          ["danger", "갤러리 삭제"],
+        ]
+      : [
+          ["info", "정보"],
+          ["plan", "플랜"],
+          ["danger", "갤러리 나가기"],
+        ]
+  ) satisfies ReadonlyArray<readonly [GalleryTab, string]>;
+  const shownTab: GalleryTab = tab === "partner" && !owner ? "info" : tab;
   return (
     <>
       <div className="mb-1 flex items-center justify-between gap-3">
         <h2 className="truncate type-title-m text-contents-light-bgd-default">{gallery?.title ?? name}</h2>
-        <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness">소유자</span>
+        <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness">{owner ? "소유자" : "파트너"}</span>
       </div>
-      <SettingsTabs tabs={tabs} current={tab} dangerKey="danger" onChange={onTab} />
+      <SettingsTabs tabs={tabs} current={shownTab} dangerKey="danger" onChange={onTab} />
       {failed ? (
         <p role="alert" className="type-content-s text-function-error-default">갤러리를 불러오지 못했어요</p>
       ) : !gallery ? (
         <div className="h-40 animate-pulse rounded-(--radius-12) bg-surface-default-light" />
-      ) : tab === "info" ? (
-        <PersonalInfoTab key={gallery.id} gallery={gallery} onUpdated={setGallery} />
-      ) : tab === "partner" ? (
+      ) : shownTab === "info" ? (
+        <PersonalInfoTab key={gallery.id} gallery={gallery} canEdit={owner} onUpdated={setGallery} />
+      ) : shownTab === "plan" ? (
+        <PersonalPlanTab gallery={gallery} />
+      ) : shownTab === "partner" ? (
         <PersonalPartnerTab galleryId={gallery.id} />
-      ) : (
+      ) : owner ? (
         <PersonalDangerTab gallery={gallery} />
+      ) : (
+        <PersonalLeaveTab gallery={gallery} />
       )}
     </>
   );
