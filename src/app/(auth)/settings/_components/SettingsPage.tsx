@@ -5,8 +5,8 @@
  * 위치: src/app/(auth)/settings/_components/SettingsPage.tsx
  *
  * 어느 화면인지는 주소 쿼리가 정한다: ?studio={workspaceId}&tab=… (없으면 계정 › 프로필).
- * 스튜디오 목록은 GET /studios로 받아 역할(OWNER/MEMBER)까지 안다. 개인 갤러리는 아직 잠김 —
- * 개인 결제 클라이언트(C4) 때 연다.
+ * 스튜디오 목록은 GET /studios로 받아 역할(OWNER/MEMBER)까지 안다. 개인 갤러리는 ?gallery={galleryId}&tab=… —
+ * 소유자만 열리고(정보 · 파트너 · 갤러리 삭제), 파트너에겐 잠김(파트너 전용은 나중 이슈, 2026-09-23).
  */
 
 import { useEffect, useState } from "react";
@@ -24,6 +24,7 @@ import {
   AccountNotificationsTab,
   AccountProfileTab,
 } from "./AccountTabs";
+import { PersonalDangerTab, PersonalInfoTab, PersonalPartnerTab, usePersonalGallery } from "./PersonalGalleryTabs";
 import { NavGroup, NavInitial, NavItem, SettingsTabs } from "./SettingsShell";
 import {
   StudioDangerTab,
@@ -34,6 +35,8 @@ import {
 
 type AccountTab = "profile" | "display" | "notifications" | "delete";
 type StudioTab = "info" | "members" | "tickets" | "danger";
+type GalleryTab = "info" | "partner" | "danger";
+const GALLERY_TAB_KEYS: GalleryTab[] = ["info", "partner", "danger"];
 
 const ACCOUNT_TABS = [
   ["profile", "프로필"],
@@ -119,11 +122,14 @@ export function SettingsPage() {
       ? (studios.find((s) => String(s.workspaceId) === studioParam) ?? null)
       : null;
   const waitingStudio = studioParam !== null && studios === null;
-  const personalGalleries = user.workspaces.filter((w) => w.kind === "GALLERY");
+  const personalGalleries = user.workspaces.filter((w) => w.kind === "GALLERY" && w.workspaceType === "PERSONAL");
+  const galleryParam = params.get("gallery");
+  const personalGallery = galleryParam ? (personalGalleries.find((w) => String(w.galleryId) === galleryParam && w.role === "OWNER") ?? null) : null;
 
-  function go(next: { studio?: number; tab?: string }) {
+  function go(next: { studio?: number; gallery?: number; tab?: string }) {
     const q = new URLSearchParams();
     if (next.studio !== undefined) q.set("studio", String(next.studio));
+    if (next.gallery !== undefined) q.set("gallery", String(next.gallery));
     if (next.tab) q.set("tab", next.tab);
     if (from) q.set("from", from); // 화면을 옮겨 다녀도 돌아갈 곳은 그대로
     const qs = q.toString();
@@ -139,7 +145,10 @@ export function SettingsPage() {
   }
 
   let content: React.ReactNode;
-  if (studio) {
+  if (personalGallery && personalGallery.galleryId !== null) {
+    const tab: GalleryTab = GALLERY_TAB_KEYS.includes(tabParam as GalleryTab) ? (tabParam as GalleryTab) : "info";
+    content = <PersonalGalleryContent key={personalGallery.galleryId} galleryId={personalGallery.galleryId} name={personalGallery.name} tab={tab} onTab={(next) => go({ gallery: personalGallery.galleryId ?? undefined, tab: next })} />;
+  } else if (studio) {
     const owner = studio.role === "OWNER";
     const tab: StudioTab = STUDIO_TAB_KEYS.includes(tabParam as StudioTab)
       ? (tabParam as StudioTab)
@@ -213,7 +222,7 @@ export function SettingsPage() {
               <NavItem
                 icon={<NavInitial text={user.nickname} />}
                 label={user.nickname}
-                selected={!studio && !waitingStudio}
+                selected={!studio && !waitingStudio && !personalGallery}
                 onClick={() => go({})}
               />
             </NavGroup>
@@ -239,11 +248,23 @@ export function SettingsPage() {
             </NavGroup>
             <NavGroup label="개인 갤러리">
               {personalGalleries.length === 0 ? (
-                <NavItem icon={<PhotoIcon size={18} />} label="개인 갤러리" meta="잠김" locked />
+                <p className="px-3 py-2 type-content-xs text-contents-light-bgd-weakness">개인 갤러리가 없어요</p>
               ) : (
-                personalGalleries.map((w) => (
-                  <NavItem key={w.id} icon={<PhotoIcon size={18} />} label={w.name} meta="잠김" locked />
-                ))
+                personalGalleries.map((w) =>
+                  w.role === "OWNER" && w.galleryId !== null ? (
+                    <NavItem
+                      key={w.id}
+                      icon={<PhotoIcon size={18} />}
+                      label={w.name}
+                      meta="소유자"
+                      selected={personalGallery?.id === w.id}
+                      onClick={() => go({ gallery: w.galleryId ?? undefined })}
+                    />
+                  ) : (
+                    // 파트너 — 나가기 등 파트너 전용 설정은 나중 이슈
+                    <NavItem key={w.id} icon={<PhotoIcon size={18} />} label={w.name} meta="잠김" locked />
+                  ),
+                )
               )}
             </NavGroup>
           </nav>
@@ -251,5 +272,35 @@ export function SettingsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** 설정 › 개인 갤러리 본문 — 갤러리를 읽어 정보 · 파트너 · 삭제 탭에 준다 */
+function PersonalGalleryContent({ galleryId, name, tab, onTab }: { galleryId: number; name: string; tab: GalleryTab; onTab: (tab: GalleryTab) => void }) {
+  const { gallery, failed, setGallery } = usePersonalGallery(galleryId);
+  const tabs = [
+    ["info", "정보"],
+    ["partner", "파트너"],
+    ["danger", "갤러리 삭제"],
+  ] as const satisfies ReadonlyArray<readonly [GalleryTab, string]>;
+  return (
+    <>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h2 className="truncate type-title-m text-contents-light-bgd-default">{gallery?.title ?? name}</h2>
+        <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness">소유자</span>
+      </div>
+      <SettingsTabs tabs={tabs} current={tab} dangerKey="danger" onChange={onTab} />
+      {failed ? (
+        <p role="alert" className="type-content-s text-function-error-default">갤러리를 불러오지 못했어요</p>
+      ) : !gallery ? (
+        <div className="h-40 animate-pulse rounded-(--radius-12) bg-surface-default-light" />
+      ) : tab === "info" ? (
+        <PersonalInfoTab key={gallery.id} gallery={gallery} onUpdated={setGallery} />
+      ) : tab === "partner" ? (
+        <PersonalPartnerTab galleryId={gallery.id} />
+      ) : (
+        <PersonalDangerTab gallery={gallery} />
+      )}
+    </>
   );
 }
