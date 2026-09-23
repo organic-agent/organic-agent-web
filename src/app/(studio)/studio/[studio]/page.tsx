@@ -127,8 +127,9 @@ export default function GalleriesPage() {
       : galleries.filter((gallery) => gallery.stage === stageFilter);
   const listReady = result?.kind === "ready" && studioId !== null;
 
-  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다 */
+  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다. 초대 작가는 결제 모달을 열지 않는다(이슈 75) */
   function openNewGallery() {
+    if (!isOwner && tickets.state !== "ok") return;
     if (tickets.state === "none") setTicketModal("first");
     else if (tickets.state === "full") setTicketModal("over");
     else setNewGalleryOpen(true);
@@ -190,6 +191,7 @@ export default function GalleriesPage() {
         onStageFilterChange={setStageFilter}
         tickets={studioId !== null ? tickets : null}
         onTicketClick={() => setTicketModal(tickets.state === "full" ? "over" : "add")}
+        canBuy={isOwner}
       />
 
       <main className="mx-auto w-full max-w-wrap px-6 pt-5 pb-16">
@@ -199,11 +201,13 @@ export default function GalleriesPage() {
               <TicketIcon size={20} />
             </span>
             <p className="flex-1 type-content-s text-contents-light-bgd-default">
-              아직 이용권이 없어요. 갤러리 하나에 이용권 하나가 필요해요.
+              {isOwner ? "아직 이용권이 없어요. 갤러리 하나에 이용권 하나가 필요해요." : "아직 이용권이 없어요 · 소유자가 결제하면 갤러리를 만들 수 있어요"}
             </p>
-            <Button size="sm" onClick={() => setTicketModal("first")}>
-              결제하기
-            </Button>
+            {isOwner && (
+              <Button size="sm" onClick={() => setTicketModal("first")}>
+                결제하기
+              </Button>
+            )}
           </div>
         )}
 
@@ -217,6 +221,7 @@ export default function GalleriesPage() {
             stageFilter={stageFilter}
             tickets={tickets}
             onCreateClick={openNewGallery}
+            canBuy={isOwner}
             onEditGallery={setEditingGallery}
             onArchiveGallery={setArchivingGallery}
             onDeleteGallery={setDeletingGallery}
@@ -289,8 +294,7 @@ export default function GalleriesPage() {
           !newGalleryOpen &&
           ticketModal === null &&
           !inviteOpen
-        }
-      />
+        } owner={isOwner} />
     </div>
   );
 }

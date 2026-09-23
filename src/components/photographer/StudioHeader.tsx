@@ -34,6 +34,7 @@ export function StudioHeader({
   onStageFilterChange,
   tickets,
   onTicketClick,
+  canBuy = true,
 }: {
   studioName: string;
   galleries: GalleryListItem[];
@@ -43,6 +44,8 @@ export function StudioHeader({
   tickets: StudioTickets | null;
   /** pill의 "추가" — 이용권 결제 모달을 연다 */
   onTicketClick: () => void;
+  /** false면(초대 작가) 개수만 보이고 "추가"가 없다 — 결제는 소유자 몫(이슈 75) */
+  canBuy?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -98,7 +101,7 @@ export function StudioHeader({
       </div>
 
       <div ref={menuRef} className="relative flex shrink-0 items-center gap-2">
-        {tickets && <TicketPill tickets={tickets} onClick={onTicketClick} />}
+        {tickets && <TicketPill tickets={tickets} onClick={onTicketClick} canBuy={canBuy} />}
         <button
           type="button"
           data-coach="filter"
@@ -155,10 +158,20 @@ export function StudioHeader({
 function TicketPill({
   tickets,
   onClick,
+  canBuy = true,
 }: {
   tickets: StudioTickets;
   onClick: () => void;
+  canBuy?: boolean;
 }) {
+  if (tickets.state !== "none" && !canBuy) {
+    return (
+      <span className="inline-flex h-9 items-center gap-1.5 rounded-(--pill) bg-surface-default-light px-3.5 type-label-semibold-xs text-contents-light-bgd-sub">
+        <TicketIcon size={16} />
+        이용권 {tickets.remaining}개 남음
+      </span>
+    );
+  }
   if (tickets.state === "none") {
     return (
       <span className="inline-flex h-9 items-center gap-1.5 rounded-(--pill) bg-surface-default-light px-3.5 type-label-semibold-xs text-contents-light-bgd-sub">

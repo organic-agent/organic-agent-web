@@ -684,7 +684,7 @@ export default function ClientGalleryPage() {
         </>
       )}
       <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
-      <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} />
+      <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
       {comingSoonToast}
       {photoMove.overlay}
     </div>
