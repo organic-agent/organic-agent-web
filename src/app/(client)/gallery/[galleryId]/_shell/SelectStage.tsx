@@ -14,11 +14,13 @@
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
+ * 개인 갤러리(personal)는 작가가 없어 전달 대신 **"요청서 내보내기"**(ExportSelectionModal: 초안 저장 → export → 잠김)이고
+ * 장수 추가 요청이 없다(묶음 C, 2026-09-23).
  * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
@@ -34,6 +36,7 @@ import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFi
 import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { DeselectConfirmModal } from "./DeselectConfirmModal";
+import { ExportSelectionModal } from "./ExportSelectionModal";
 import { countView } from "./clientMemory";
 import type { ClientPhase } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
@@ -73,6 +76,8 @@ export function SelectStage({
   inviteOpen,
   onInviteClose,
   personal = false,
+  partnerName = null,
+  onExported,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -88,8 +93,12 @@ export function SelectStage({
   /** 상단 "게스트 초대" 버튼 */
   inviteOpen: boolean;
   onInviteClose: () => void;
-  /** 개인 결제 클라이언트 — 단계 5칸, 작가에게 전달 대신 요청서 내보내기(묶음 C에서), 장수 추가 요청 없음 */
+  /** 개인 결제 클라이언트 — 단계 5칸, 작가에게 전달 대신 요청서 내보내기, 장수 추가 요청 없음 */
   personal?: boolean;
+  /** 개인 — 함께 고르는 사람 이름(내보내기 모달의 알림 한 줄) */
+  partnerName?: string | null;
+  /** 개인 — 내보낸 뒤(페이지가 보정 확인 화면으로 넘기며 내려받기 모달을 연다) */
+  onExported?: () => void;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
@@ -104,6 +113,7 @@ export function SelectStage({
   }
   const [increaseOpen, setIncreaseOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const increaseRaw = useSyncExternalStore(increaseStore.subscribe, () => increaseStore.readRaw(galleryId), () => "");
   const increasePending = useMemo(() => {
     void increaseRaw;
@@ -303,11 +313,12 @@ export function SelectStage({
   const requests = useMemo(() => toRequestItems(drafts, pickedIds), [drafts, pickedIds]);
   const unpickedDraftCount = draftCount.photos - requests.length;
   const canSubmit = editable && selectedCount > 0 && (maxSelectable === null || selectedCount === maxSelectable);
+  const verb = personal ? "내보낼" : "전달할";
   const submitHint =
     editable && maxSelectable !== null && selectedCount !== maxSelectable
       ? selectedCount < maxSelectable
-        ? `${maxSelectable}장을 채우면 전달할 수 있어요 (지금 ${selectedCount}장)`
-        : `${maxSelectable}장까지만 전달할 수 있어요 (지금 ${selectedCount}장)`
+        ? `${maxSelectable}장을 채우면 ${verb} 수 있어요 (지금 ${selectedCount}장)`
+        : `${maxSelectable}장까지만 ${verb} 수 있어요 (지금 ${selectedCount}장)`
       : null;
 
   // ── 싱글뷰 ──
@@ -643,18 +654,23 @@ export function SelectStage({
                   선택 장수 추가 요청
                 </ShellCta>
               )}
-            {!personal && (
-              <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
+            <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
+              {personal ? (
+                <ShellCta disabled={!canSubmit} onClick={() => setExportOpen(true)}>
+                  <DownloadIcon size={18} />
+                  요청서 내보내기
+                </ShellCta>
+              ) : (
                 <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
                   작가에게 전달하기
                 </ShellCta>
-              </span>
-            )}
+              )}
+            </span>
           </>
         }
       />
 
-      <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} />
+      <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} personal={personal} />
 
       {deselectId !== null && photoById.get(deselectId) && (
         <DeselectConfirmModal
@@ -676,6 +692,27 @@ export function SelectStage({
           onRequested={(count) => {
             setIncreaseOpen(false);
             setLocalNotice(`${count}장으로 늘려 달라고 요청했어요 · 작가가 정하면 알림이 와요`);
+          }}
+        />
+      )}
+      {exportOpen && (
+        <ExportSelectionModal
+          galleryId={galleryId}
+          selectedCount={selectedCount}
+          maxSelectable={maxSelectable}
+          requests={requests}
+          unpickedDraftCount={unpickedDraftCount}
+          ratedCount={ratedCount}
+          partnerName={partnerName}
+          onClose={() => setExportOpen(false)}
+          onExported={() => {
+            setExportOpen(false);
+            // 내보낸 요청은 서버 회차가 가졌으니 초안을 지운다(안 고른 사진의 초안은 남긴다)
+            for (const id of pickedIds) writeDraft(galleryId, id, null);
+            setLocalNotice("요청서를 내보냈어요");
+            void refreshSelection();
+            reloadGallery();
+            onExported?.();
           }}
         />
       )}
