@@ -22,6 +22,7 @@ import { createPersonalGallery, toSelectionDeadline } from "@/lib/api/galleries"
 import { getCheckout, getPlans, type CheckoutResponse } from "@/lib/api/payments";
 import { PersonalSteps } from "../_components/PersonalSteps";
 import { resolvePlans, type DisplayPlan } from "../_lib/planCatalog";
+import { refreshMe } from "@/app/(auth)/settings/_lib/refreshMe";
 
 export default function PersonalGalleryPage() {
   return (
@@ -93,6 +94,8 @@ function PersonalGalleryForm() {
         maxSelectablePhotoCount: count ? countNumber : null,
         shootType: "CEREMONY",
       });
+      // 새 개인 작업공간이 내 소속에 실려야 갤러리 화면이 개인 갤러리로 판정한다(personalMembershipOf)
+      await refreshMe();
       router.replace(`/gallery/${gallery.id}`);
     } catch (err) {
       setSubmitting(false);
