@@ -12,7 +12,8 @@ import { useState, type ReactNode } from "react";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { CreateShareFolderModal } from "./CreateShareFolderModal";
-import { InviteGuestsModal, type InviteTab } from "./InviteGuestsModal";
+import { InviteGuestsBody, InviteGuestsModal, type InviteTab } from "./InviteGuestsModal";
+import { PersonalInviteModal } from "./PersonalInviteModal";
 import { ReactionsView } from "./ReactionsView";
 import { ShareFolderTab } from "./ShareFolderTab";
 import { useCollabSessions } from "./useCollabSessions";
@@ -25,6 +26,7 @@ export function useGuestSharing({
   pickedIds,
   inviteOpen,
   onInviteClose,
+  personal,
 }: {
   galleryId: number;
   photos: PhotoResponse[];
@@ -33,6 +35,8 @@ export function useGuestSharing({
   /** 상단 초대 버튼으로 열림 */
   inviteOpen: boolean;
   onInviteClose: () => void;
+  /** 개인 갤러리 — 초대 모달이 파트너 | 게스트 탭(PersonalInviteModal)이 된다 */
+  personal?: { galleryTitle: string };
 }): {
   shareTab: ReactNode;
   modals: ReactNode;
@@ -72,7 +76,26 @@ export function useGuestSharing({
 
   const modals = (
     <>
-      {open && !create && (
+      {open && !create && (personal ? (
+        <PersonalInviteModal
+          galleryId={galleryId}
+          galleryTitle={personal.galleryTitle}
+          initialTab={sideInvite !== null ? "guest" : "partner"}
+          guest={
+            <InviteGuestsBody
+              galleryId={galleryId}
+              collab={collab}
+              initialTab={initialTab}
+              onClose={closeInvite}
+              onCreateShareFolder={() => {
+                closeInvite();
+                setCreate({ returnToInvite: true });
+              }}
+            />
+          }
+          onClose={closeInvite}
+        />
+      ) : (
         <InviteGuestsModal
           galleryId={galleryId}
           collab={collab}
@@ -83,7 +106,7 @@ export function useGuestSharing({
             setCreate({ returnToInvite: true });
           }}
         />
-      )}
+      ))}
       {create && (
         <CreateShareFolderModal
           galleryId={galleryId}
