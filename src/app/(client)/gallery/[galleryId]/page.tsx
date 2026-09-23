@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { ddayLabel } from "@/app/(studio)/_lib/galleryStatus";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
 import {
+  DeletePhotosModal,
   FolderDeleteModal,
   FolderNameModal,
   MovePhotosModal,
@@ -52,13 +53,14 @@ import {
   type ConceptFolderResponse,
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
-import { listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
 import { useAuth } from "@/lib/auth/authStore";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
 import { PersonalCoachMarks } from "./_shell/PersonalCoachMarks";
+import { PersonalInviteModal } from "./_shell/PersonalInviteModal";
 import { PersonalEmptyGuide } from "./_shell/PersonalEmptyGuide";
 import { personalMembershipOf } from "./_shell/personalGallery";
 import { ReviewStage } from "./_shell/ReviewStage";
@@ -118,6 +120,8 @@ export default function ClientGalleryPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   /** 상단 "게스트 초대" — 2단계부터(공유폴더 · 링크는 SelectStage · ReviewStage의 useGuestSharing이 그린다) */
   const [inviteOpen, setInviteOpen] = useState(false);
+  /** 개인 소유자 — 컨셉 분류에서 고른 사진을 휴지통으로(작가 1단계와 같은 자리) */
+  const [deletePhotosOpen, setDeletePhotosOpen] = useState(false);
   /** 개인 — 요청서를 막 내보냈으면 보정 확인 화면이 열리며 내려받기 모달을 바로 연다 */
   const [autoDownload, setAutoDownload] = useState(false);
 
@@ -270,7 +274,7 @@ export default function ClientGalleryPage() {
     folderOf,
     onMoved: refreshFolders,
   });
-  const anyModalOpen = folderModal !== null || moveOpen || confirmOpen;
+  const anyModalOpen = folderModal !== null || moveOpen || confirmOpen || deletePhotosOpen;
   // ⌘/Ctrl+A — 컨셉 분류에서, 입력란 · 모달이 아닐 때 보고 있는 사진 전부
   useEffect(() => {
     if (!editable || anyModalOpen) return;
@@ -312,6 +316,12 @@ export default function ClientGalleryPage() {
     )
       setFolderSel({ kind: "all" });
     setFolderModal(null);
+  }
+  async function confirmDeletePhotos() {
+    await deletePhotos(galleryId, [...selected]);
+    setSelected(new Set());
+    setDeletePhotosOpen(false);
+    await Promise.all([refreshPhotos(), refreshFolders()]);
   }
   async function confirmMove(targetDetailId: number | null) {
     await moveCategoryPhotos(galleryId, [...selected], targetDetailId);
@@ -477,7 +487,7 @@ export default function ClientGalleryPage() {
         stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery, isPersonal) : null}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
-        onInviteClick={selecting && (!isPersonal || personal.owner) ? () => setInviteOpen(true) : undefined}
+        onInviteClick={isPersonal ? (personal.owner ? () => setInviteOpen(true) : undefined) : selecting ? () => setInviteOpen(true) : undefined}
         inviteLabel={isPersonal ? "초대" : "게스트 초대"}
         inviteCoachKey={isPersonal ? "invite" : undefined}
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
@@ -622,6 +632,7 @@ export default function ClientGalleryPage() {
           onSelectAll={selectAllVisible}
           onClearSelection={() => setSelected(new Set())}
           onMoveSelection={() => setMoveOpen(true)}
+          onDeleteSelection={isPersonal && personal.owner && sorting ? () => setDeletePhotosOpen(true) : undefined}
           hint={bottomHint}
           progress={isPersonal ? upload.progress ?? undefined : undefined}
           actions={bottomActions}
@@ -639,6 +650,10 @@ export default function ClientGalleryPage() {
         )}
         {folderModal && folderModal.kind === "delete" && (
           <FolderDeleteModal target={folderModal.target} onClose={() => setFolderModal(null)} onConfirm={confirmFolderDelete} />
+        )}
+        {deletePhotosOpen && <DeletePhotosModal count={selected.size} onClose={() => setDeletePhotosOpen(false)} onConfirm={confirmDeletePhotos} />}
+        {isPersonal && inviteOpen && !selecting && !reviewing && gallery && (
+          <PersonalInviteModal galleryId={galleryId} galleryTitle={gallery.title} guest={null} onClose={() => setInviteOpen(false)} />
         )}
         {moveOpen && (
           <MovePhotosModal

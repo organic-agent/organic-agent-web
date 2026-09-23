@@ -7,6 +7,7 @@
  * 링크 만들기: 사이드바 공유 탭에서 만든 공유폴더만 체크리스트로. 하나면 그 링크를 그대로, 여러 개면 사진을 겹침 없이
  * 모은 새 공유폴더(묶음)를 만들어 링크 하나를 준다(서버가 부분 집합 링크를 못 만들어서 — 사진은 만든 시점 고정).
  * 만든 링크: 이름 · 남은 기간 · 복사 · 재발행(7일 연장, 반응 보존) · 이름 바꾸기 · 폐기 · 폐기된 것은 다시 발행.
+ * 본문(InviteGuestsBody)과 껍데기를 나눠 두었다 — 개인 갤러리는 파트너 | 게스트 탭 모달(PersonalInviteModal) 안에 본문만 넣는다.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -218,7 +219,7 @@ function SessionCard({
   );
 }
 
-export function InviteGuestsModal({
+export function InviteGuestsBody({
   galleryId,
   collab,
   initialTab,
@@ -390,7 +391,7 @@ export function InviteGuestsModal({
   }
 
   return (
-    <GalleryModalShell title="게스트 초대" maxWidthClassName="max-w-140" onClose={onClose}>
+    <>
       {sessions !== null && sessions.length > 0 && !made && tabs}
       {collab.error && sessions === null ? (
         <p role="alert" className="type-content-s text-function-error-default">
@@ -399,6 +400,15 @@ export function InviteGuestsModal({
       ) : (
         body
       )}
+    </>
+  );
+}
+
+/** 초대 클라이언트의 게스트 초대 모달 — 제목 + 본문 */
+export function InviteGuestsModal(props: Parameters<typeof InviteGuestsBody>[0]) {
+  return (
+    <GalleryModalShell title="게스트 초대" maxWidthClassName="max-w-140" onClose={props.onClose}>
+      <InviteGuestsBody {...props} />
     </GalleryModalShell>
   );
 }

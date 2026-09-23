@@ -213,10 +213,26 @@ export type GalleryMemberResponse = {
 
 /**
  * 갤러리 멤버 목록. 담당 작가와 부부 모두 조회 가능, 정원 2명이라
- * 최대 두 건. 마감 뒤에도 열린다.
+ * 최대 두 건. 마감 뒤에도 열린다. 개인 갤러리면 워크스페이스 멤버(소유자 + 파트너)가 이 모양으로 온다.
  */
 export function listGalleryMembers(
   galleryId: number,
 ): Promise<GalleryMemberResponse[]> {
   return api(`/api/v1/galleries/${galleryId}/members`);
+}
+
+/** 멤버 내보내기 — 담당 작가(개인 갤러리는 소유자)만. 내보낸 사람에게 알림이 간다 */
+export function removeGalleryMember(galleryId: number, memberId: number): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/members/${memberId}`, { method: "DELETE" });
+}
+
+/**
+ * 개인 갤러리 설정 저장 — 소유자만, 보관 뒤엔 불가. 선택 마감은 플랜 만료(planExpiresAt) 전까지만.
+ * 고를 장수 null = 몇 장이든(내보내기 때 정확히 채울 필요 없음).
+ */
+export function updatePersonalGallery(
+  galleryId: number,
+  body: { title: string; selectionDeadline: string | null; maxSelectablePhotoCount: number | null },
+): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/personal`, { method: "PATCH", body });
 }

@@ -149,7 +149,7 @@ export function ReviewStage({
   }
   /** 선택한 사진 = 보정 대상 전부(서버가 제출한 사진 모두를 회차에 넣는다) */
   const selectedIds = useMemo(() => new Set(items.map((it) => it.photo.photoId)), [items]);
-  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds: selectedIds, inviteOpen, onInviteClose });
+  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds: selectedIds, inviteOpen, onInviteClose, personal: personal ? { galleryTitle: gallery.title } : undefined });
   const itemById = useMemo(() => new Map(items.map((it) => [it.photo.photoId, it])), [items]);
   // 선택 목록 CSV — "선택한 사진" 보기에서(전달한 뒤에도 남는 기록, 2단계에서 옮겨 옴)
   const [csvBusy, setCsvBusy] = useState(false);

@@ -81,8 +81,14 @@ export function getCurrentInvite(
  */
 export function issueInvite(
   galleryId: number,
+  options?: {
+    /** 기본 GALLERY_MEMBER(스튜디오 갤러리의 클라이언트). 개인 갤러리는 PERSONAL_PARTNER */
+    kind?: InviteKind;
+    /** 기본 2. 개인 파트너는 1(소유자 + 파트너 = 정원 2) */
+    maxUses?: number;
+  },
 ): Promise<GalleryInviteResponse> {
-  return api(`/api/v1/galleries/${galleryId}/invites`, { method: "POST" });
+  return api(`/api/v1/galleries/${galleryId}/invites`, { method: "POST", body: options ?? {} });
 }
 
 /**

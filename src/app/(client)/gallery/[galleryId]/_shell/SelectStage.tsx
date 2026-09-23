@@ -104,7 +104,7 @@ export function SelectStage({
   const maxSelectable = gallery.maxSelectablePhotoCount;
   const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
   const [deselectId, setDeselectId] = useState<number | null>(null);
-  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose });
+  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal ? { galleryTitle: gallery.title } : undefined });
   /** 담기는 바로, 빼기는 확인 뒤 */
   function requestToggle(photoId: number) {
     if (!editable) return;

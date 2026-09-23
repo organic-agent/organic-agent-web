@@ -39,6 +39,7 @@ import {
 } from "@/lib/api/invites";
 import { useAuth } from "@/lib/auth/authStore";
 import { logout } from "@/lib/auth/logout";
+import { refreshMe } from "@/app/(auth)/settings/_lib/refreshMe";
 
 type Tone = "brand" | "ok" | "warn" | "bad";
 
@@ -220,6 +221,8 @@ export function InviteLanding({ token }: { token: string }) {
         kind === "PERSONAL_PARTNER"
           ? await acceptPartnerInvite(token)
           : await acceptInvite(token);
+      // 새 소속이 내 정보에 실려야 갤러리 화면이 개인 파트너 · 클라이언트를 맞게 판정한다
+      await refreshMe();
       router.replace(destinationOf(accepted));
     } catch (err) {
       setAccepting(false);
