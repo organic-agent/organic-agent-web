@@ -37,6 +37,15 @@ const STEPS: ReadonlyArray<CoachStep> = [
   },
 ];
 
-export function ClientSelectCoachMarks({ ready }: { ready: boolean }) {
-  return <CoachMarks steps={STEPS} storeKey="sel.coach.clientSelect" ready={ready} />;
+/** 개인 갤러리는 작가에게 전달하지 않고 요청서를 내보낸다 — 마지막 두 문구만 바꾼다 */
+const PERSONAL_STEPS: ReadonlyArray<CoachStep> = STEPS.map((step) =>
+  step.key === "pick"
+    ? { ...step, body: "고른 사진은 왼쪽 위 체크로 표시되고, 아래에서 몇 장 골랐는지 보여요. 목표 장수를 채우면 요청서를 내보낼 수 있어요." }
+    : step.key === "submit"
+      ? { ...step, title: "다 골랐으면 요청서 내보내기", body: "내보낸 뒤에는 바꿀 수 없어요. 보정 요청도 함께 실려요." }
+      : step,
+);
+
+export function ClientSelectCoachMarks({ ready, personal = false }: { ready: boolean; personal?: boolean }) {
+  return <CoachMarks steps={personal ? PERSONAL_STEPS : STEPS} storeKey="sel.coach.clientSelect" ready={ready} />;
 }
