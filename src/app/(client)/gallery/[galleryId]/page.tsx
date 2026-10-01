@@ -80,6 +80,8 @@ export default function ClientGalleryPage() {
   /** 개인 결제 클라이언트(소유자 · 파트너)인지 — 내 소속 목록으로 판정. null이면 스튜디오 초대 클라이언트 */
   const personal = personalMembershipOf(auth.user, gallery);
   const isPersonal = personal !== null;
+  /** 개인 소유자 — 업로드 단계부터 "초대"(파트너 | 게스트 탭). 파트너는 초대 클라이언트처럼 셀렉부터 "게스트 초대"만(파트너 초대 발급은 소유자 전용, 공유폴더는 서버가 참여자 모두에게 허용) */
+  const personalOwner = isPersonal && personal.owner;
 
   const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
   /** 사진 목록을 마지막으로 읽은 시각 — 개인 갤러리 끊김 복구가 쓴다 */
@@ -487,9 +489,9 @@ export default function ClientGalleryPage() {
         stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery, isPersonal) : null}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
-        onInviteClick={isPersonal ? (personal.owner ? () => setInviteOpen(true) : undefined) : selecting ? () => setInviteOpen(true) : undefined}
-        inviteLabel={isPersonal ? "초대" : "게스트 초대"}
-        inviteCoachKey={isPersonal ? "invite" : undefined}
+        onInviteClick={personalOwner || selecting ? () => setInviteOpen(true) : undefined}
+        inviteLabel={personalOwner ? "초대" : "게스트 초대"}
+        inviteCoachKey={personalOwner ? "invite" : undefined}
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
 
@@ -522,6 +524,7 @@ export default function ClientGalleryPage() {
           inviteOpen={inviteOpen}
           onInviteClose={() => setInviteOpen(false)}
           personal={isPersonal}
+          owner={personal?.owner ?? false}
           onExported={() => setAutoDownload(true)}
         />
       ) : (
@@ -652,7 +655,7 @@ export default function ClientGalleryPage() {
           <FolderDeleteModal target={folderModal.target} onClose={() => setFolderModal(null)} onConfirm={confirmFolderDelete} />
         )}
         {deletePhotosOpen && <DeletePhotosModal count={selected.size} onClose={() => setDeletePhotosOpen(false)} onConfirm={confirmDeletePhotos} />}
-        {isPersonal && inviteOpen && !selecting && !reviewing && gallery && (
+        {personalOwner && inviteOpen && !selecting && !reviewing && gallery && (
           <PersonalInviteModal galleryId={galleryId} galleryTitle={gallery.title} guest={null} onClose={() => setInviteOpen(false)} />
         )}
         {moveOpen && (
