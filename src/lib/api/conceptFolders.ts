@@ -20,8 +20,6 @@ export type DetailFolderResponse = {
   name: string;
   sortOrder: number;
   createdSource: "AI" | "USER";
-  /** 폴더 사진의 피사체 다수결(과반) — 없으면 null */
-  category: "BRIDE" | "GROOM" | "COUPLE" | "GROUP" | null;
   /** AI가 이름에 확신이 낮아 작가 확인이 필요한 폴더. 서버가 지우는 방법은 없다(영구 배지) */
   needsReview: boolean;
   photoIds: number[];
