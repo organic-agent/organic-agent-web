@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import { CheckCircleIcon, ChevronRightIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
@@ -53,6 +53,7 @@ import {
   type ConceptFolderResponse,
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
+import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
 import { useAuth } from "@/lib/auth/authStore";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
@@ -74,7 +75,21 @@ export default function ClientGalleryPage() {
   const galleryId = Number(params.galleryId);
   const { collapsed, hasPreference, setCollapsed } = useSidebar();
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
+  const router = useRouter();
   const { result: galleryResult, reload: reloadGallery } = useInvitedGallery(params.galleryId);
+  // 볼 수 없는 갤러리(403 · 404 — 내보내졌거나 삭제됐거나 주소 오타) → 소속을 다시 읽고 워크스페이스 목록 또는 랜딩으로
+  const gone = galleryResult?.kind === "notFound";
+  useEffect(() => {
+    if (!gone) return;
+    let cancelled = false;
+    (async () => {
+      const to = await destinationAfterLeaving();
+      if (!cancelled) router.replace(to);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gone, router]);
   const gallery = galleryResult?.kind === "ready" ? galleryResult.gallery : null;
   const auth = useAuth();
   /** 개인 결제 클라이언트(소유자 · 파트너)인지 — 내 소속 목록으로 판정. null이면 스튜디오 초대 클라이언트 */

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import { getGallery, leaveGallery, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
-import { refreshMe } from "../_lib/refreshMe";
+import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { DangerConfirmModal } from "./DangerConfirmModal";
 import { DangerButton, DangerCard, FieldLabel, ReadOnlyBox, Section } from "./SettingsShell";
 
@@ -189,8 +189,7 @@ export function PersonalLeaveTab({ gallery }: { gallery: GalleryResponse }) {
   const [open, setOpen] = useState(false);
   async function leave() {
     await leaveGallery(gallery.id);
-    await refreshMe();
-    router.replace("/workspace");
+    router.replace(await destinationAfterLeaving());
   }
   return (
     <Section title="갤러리 나가기">
@@ -222,8 +221,7 @@ export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
 
   async function remove() {
     await moveGalleryToTrash(gallery.id);
-    await refreshMe();
-    router.replace("/workspace");
+    router.replace(await destinationAfterLeaving());
   }
 
   return (

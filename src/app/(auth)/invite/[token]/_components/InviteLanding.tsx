@@ -39,7 +39,7 @@ import {
 } from "@/lib/api/invites";
 import { useAuth } from "@/lib/auth/authStore";
 import { logout } from "@/lib/auth/logout";
-import { refreshMe } from "@/app/(auth)/settings/_lib/refreshMe";
+import { refreshMe } from "@/lib/auth/refreshMe";
 
 type Tone = "brand" | "ok" | "warn" | "bad";
 
