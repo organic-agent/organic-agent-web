@@ -11,6 +11,7 @@
  * - 새 갤러리 생성/수정/보관/완전 삭제 모달 열림 상태 관리와 결과의 목록 반영
  * - 팀원 초대 모달(상단바 초대 버튼), 첫 진입 코치마크(갤러리 0개일 때 1회)
  * - 스튜디오 이름 서버 동기화 (공개 주소 정규화 포함)
+ * - 소속이 아니면(내보내짐 · 삭제 · 주소 오타 → 목록에 없음 · 403 · 404) 소속을 다시 읽고 워크스페이스 목록 또는 랜딩으로
  */
 
 import { useEffect, useState } from "react";
@@ -20,6 +21,8 @@ import { TicketIcon } from "@/components/icons";
 import { StudioHeader } from "@/components/photographer/StudioHeader";
 import { StudioTopbar } from "@/components/photographer/StudioTopbar";
 import { Button } from "@/components/ui/Button";
+import { ApiError } from "@/lib/api/client";
+import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import {
   fetchStudio,
   listMyStudios,
@@ -92,16 +95,22 @@ export default function GalleriesPage() {
           : ((await listMyStudios()).find((s) => s.galleryUrl === key) ?? null);
         if (cancelled) return;
         if (!found) {
-          setNotFound(true);
+          // 내 스튜디오 목록에 없다 — 내보내졌거나 삭제됐거나 주소 오타. 남은 소속으로 보낸다
+          router.replace(await destinationAfterLeaving());
           return;
         }
         setCurrent(found);
         updateStudioFromServer(found.name, found.galleryUrl);
         // 번호로 들어왔으면 정식 주소(공개 주소)로 바꿔 준다
         if (found.galleryUrl !== key) router.replace(`/studio/${found.galleryUrl}`);
-      } catch {
-        // 소속 아님(403)·없는 번호(404)·네트워크 — 모두 "찾을 수 없음"으로
-        if (!cancelled) setNotFound(true);
+      } catch (err) {
+        if (cancelled) return;
+        // 소속 아님(403) · 없는 번호(404) → 남은 소속으로. 네트워크 등 나머지는 오류 화면
+        if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+          router.replace(await destinationAfterLeaving());
+          return;
+        }
+        setNotFound(true);
       }
     })();
     return () => {
@@ -127,8 +136,9 @@ export default function GalleriesPage() {
       : galleries.filter((gallery) => gallery.stage === stageFilter);
   const listReady = result?.kind === "ready" && studioId !== null;
 
-  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다 */
+  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다. 초대 작가는 결제 모달을 열지 않는다(이슈 75) */
   function openNewGallery() {
+    if (!isOwner && tickets.state !== "ok") return;
     if (tickets.state === "none") setTicketModal("first");
     else if (tickets.state === "full") setTicketModal("over");
     else setNewGalleryOpen(true);
@@ -166,10 +176,10 @@ export default function GalleriesPage() {
       <div className="grid min-h-dvh place-items-center bg-background-default-main px-6">
         <div className="flex flex-col items-center gap-4 text-center">
           <h1 className="type-title-m text-contents-light-bgd-default">
-            스튜디오를 찾을 수 없어요
+            스튜디오를 불러오지 못했어요
           </h1>
           <p className="type-content-m text-contents-light-bgd-sub">
-            내 소속이 아니거나 주소가 잘못됐어요.
+            네트워크 연결을 확인한 뒤 다시 시도해 주세요.
           </p>
           <Button href="/studio">내 스튜디오로</Button>
         </div>
@@ -190,6 +200,7 @@ export default function GalleriesPage() {
         onStageFilterChange={setStageFilter}
         tickets={studioId !== null ? tickets : null}
         onTicketClick={() => setTicketModal(tickets.state === "full" ? "over" : "add")}
+        canBuy={isOwner}
       />
 
       <main className="mx-auto w-full max-w-wrap px-6 pt-5 pb-16">
@@ -199,11 +210,13 @@ export default function GalleriesPage() {
               <TicketIcon size={20} />
             </span>
             <p className="flex-1 type-content-s text-contents-light-bgd-default">
-              아직 이용권이 없어요. 갤러리 하나에 이용권 하나가 필요해요.
+              {isOwner ? "아직 이용권이 없어요. 갤러리 하나에 이용권 하나가 필요해요." : "아직 이용권이 없어요 · 소유자가 결제하면 갤러리를 만들 수 있어요"}
             </p>
-            <Button size="sm" onClick={() => setTicketModal("first")}>
-              결제하기
-            </Button>
+            {isOwner && (
+              <Button size="sm" onClick={() => setTicketModal("first")}>
+                결제하기
+              </Button>
+            )}
           </div>
         )}
 
@@ -217,6 +230,7 @@ export default function GalleriesPage() {
             stageFilter={stageFilter}
             tickets={tickets}
             onCreateClick={openNewGallery}
+            canBuy={isOwner}
             onEditGallery={setEditingGallery}
             onArchiveGallery={setArchivingGallery}
             onDeleteGallery={setDeletingGallery}
@@ -289,8 +303,7 @@ export default function GalleriesPage() {
           !newGalleryOpen &&
           ticketModal === null &&
           !inviteOpen
-        }
-      />
+        } owner={isOwner} />
     </div>
   );
 }

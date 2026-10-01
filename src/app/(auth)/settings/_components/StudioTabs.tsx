@@ -37,7 +37,7 @@ import {
 import { useAuth } from "@/lib/auth/authStore";
 import { updateStudioFromServer } from "@/lib/studio";
 import { useStudioTickets } from "@/lib/studioTickets";
-import { refreshMe } from "../_lib/refreshMe";
+import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { DangerConfirmModal } from "./DangerConfirmModal";
 import {
   DangerButton,
@@ -409,14 +409,12 @@ export function StudioDangerTab({ studio }: { studio: StudioResponse }) {
 
   async function remove() {
     await deleteStudio(studio.workspaceId);
-    await refreshMe();
-    router.replace("/");
+    router.replace(await destinationAfterLeaving());
   }
 
   async function leave() {
     await leaveStudio(studio.workspaceId);
-    await refreshMe();
-    router.replace("/");
+    router.replace(await destinationAfterLeaving());
   }
 
   if (!owner) {

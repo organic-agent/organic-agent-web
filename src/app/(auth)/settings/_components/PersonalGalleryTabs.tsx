@@ -4,9 +4,10 @@
  * 설정 › 개인 갤러리 — 정보(이름 · 선택 마감 · 고를 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
  * 위치: src/app/(auth)/settings/_components/PersonalGalleryTabs.tsx
  *
- * 스튜디오 설정과 같은 틀. 소유자만 들어온다(파트너는 내비에서 잠김 — 나가기 등 파트너 전용은 나중 이슈).
- * 저장은 PATCH galleries/{id}/personal — 선택 마감은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만.
- * 삭제는 휴지통 이동(DELETE galleries/{id}) — 복원 UI 없음, 보관 기간 뒤 자동 삭제(작가와 같음).
+ * 스튜디오 설정과 같은 틀. 소유자: 정보 · 플랜 · 파트너 · 갤러리 삭제 / 파트너: 정보(읽기) · 플랜 · 갤러리 나가기 (이슈 75, 2026-09-23).
+ * 저장은 PATCH galleries/{id}/personal — 서버가 소유자만 허용해 파트너는 읽기 전용(파트너도 수정 = 백엔드 전달 사항),
+ * 선택 마감은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만. 플랜(사진 상한 · 이용 기간)은 바꿀 수 없어 따로 읽기 탭.
+ * 삭제는 휴지통 이동(DELETE galleries/{id}) — 복원 UI 없음, 보관 기간 뒤 자동 삭제(작가와 같음). 나가기는 DELETE members/me.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -16,8 +17,8 @@ import { PartnerInviteBody } from "@/app/(client)/gallery/[galleryId]/_shell/Par
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
-import { getGallery, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
-import { refreshMe } from "../_lib/refreshMe";
+import { getGallery, leaveGallery, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
+import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { DangerConfirmModal } from "./DangerConfirmModal";
 import { DangerButton, DangerCard, FieldLabel, ReadOnlyBox, Section } from "./SettingsShell";
 
@@ -49,9 +50,18 @@ export function usePersonalGallery(galleryId: number) {
   return { gallery, failed, setGallery };
 }
 
-export function PersonalInfoTab({ gallery, onUpdated }: { gallery: GalleryResponse; onUpdated: (gallery: GalleryResponse) => void }) {
+export function PersonalInfoTab({
+  gallery,
+  canEdit,
+  onUpdated,
+}: {
+  gallery: GalleryResponse;
+  /** 소유자 — 파트너는 서버가 저장을 막아 읽기만(백엔드 전달 사항) */
+  canEdit: boolean;
+  onUpdated: (gallery: GalleryResponse) => void;
+}) {
   const id = useId();
-  const readOnly = gallery.stage === "ARCHIVED";
+  const readOnly = !canEdit || gallery.stage === "ARCHIVED";
   const [title, setTitle] = useState(gallery.title);
   const [deadline, setDeadline] = useState(toDateInput(gallery.selectionDeadline));
   const [count, setCount] = useState(gallery.maxSelectablePhotoCount === null ? "" : String(gallery.maxSelectablePhotoCount));
@@ -68,7 +78,6 @@ export function PersonalInfoTab({ gallery, onUpdated }: { gallery: GalleryRespon
     deadline !== toDateInput(gallery.selectionDeadline) ||
     countNumber !== gallery.maxSelectablePhotoCount;
   const valid = title.trim().length > 0 && countValid;
-  const planLabel = `사진 ${gallery.planMaxPhotoCount !== null ? `${gallery.planMaxPhotoCount}장까지` : "제한 없음"} · ${deadlineDateLabel(gallery.planExpiresAt) ?? "기간 없음"}까지`;
 
   function reset() {
     setTitle(gallery.title);
@@ -130,10 +139,9 @@ export function PersonalInfoTab({ gallery, onUpdated }: { gallery: GalleryRespon
           </>
         )}
       </div>
-      <div className="mb-6">
-        <FieldLabel>플랜</FieldLabel>
-        <ReadOnlyBox>{planLabel}</ReadOnlyBox>
-      </div>
+      {readOnly && canEdit === false && gallery.stage !== "ARCHIVED" && (
+        <p className="mb-6 type-content-xs text-contents-light-bgd-weakness">바꾸는 건 소유자만 할 수 있어요</p>
+      )}
       {banner && (
         <p role="alert" className="mb-4 type-content-xs text-function-error-default">
           {banner}
@@ -154,6 +162,51 @@ export function PersonalInfoTab({ gallery, onUpdated }: { gallery: GalleryRespon
   );
 }
 
+/** 플랜 — 바꿀 수 없는 값(사진 상한 · 이용 기간 · 남은 일수). 소유자 · 파트너 모두 읽기 */
+export function PersonalPlanTab({ gallery }: { gallery: GalleryResponse }) {
+  const [now] = useState(() => Date.now());
+  const days = gallery.planExpiresAt ? Math.ceil((new Date(gallery.planExpiresAt).getTime() - now) / 86_400_000) : null;
+  return (
+    <Section title="플랜">
+      <div className="mb-5">
+        <FieldLabel>사진</FieldLabel>
+        <ReadOnlyBox>{gallery.planMaxPhotoCount !== null ? `${gallery.planMaxPhotoCount}장까지` : "제한 없음"}</ReadOnlyBox>
+      </div>
+      <div className="mb-5">
+        <FieldLabel>이용 기간</FieldLabel>
+        <ReadOnlyBox>
+          {gallery.planExpiresAt ? `${deadlineDateLabel(gallery.planExpiresAt)}까지${days !== null ? (days > 0 ? ` · ${days}일 남음` : " · 끝남") : ""}` : "기간 없음"}
+        </ReadOnlyBox>
+      </div>
+      <p className="type-content-xs text-contents-light-bgd-weakness">플랜은 바꿀 수 없어요 · 기간이 끝나면 갤러리가 보관돼요</p>
+    </Section>
+  );
+}
+
+/** 파트너 — 갤러리 나가기(DELETE members/me). 다시 들어오려면 소유자의 초대 링크 */
+export function PersonalLeaveTab({ gallery }: { gallery: GalleryResponse }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  async function leave() {
+    await leaveGallery(gallery.id);
+    router.replace(await destinationAfterLeaving());
+  }
+  return (
+    <Section title="갤러리 나가기">
+      <DangerCard
+        title={`${gallery.title} 나가기`}
+        desc="나가면 이 갤러리를 볼 수 없어요. 다시 들어오려면 초대 링크가 필요해요."
+        action={<DangerButton onClick={() => setOpen(true)}>나가기</DangerButton>}
+      />
+      {open && (
+        <DangerConfirmModal title="갤러리를 나갈까요?" confirmLabel="나가기" busyLabel="나가는 중…" onConfirm={leave} onClose={() => setOpen(false)}>
+          <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>을 더 볼 수 없어요. 다시 들어오려면 초대 링크가 필요해요.
+        </DangerConfirmModal>
+      )}
+    </Section>
+  );
+}
+
 export function PersonalPartnerTab({ galleryId }: { galleryId: number }) {
   return (
     <Section title="파트너">
@@ -168,8 +221,7 @@ export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
 
   async function remove() {
     await moveGalleryToTrash(gallery.id);
-    await refreshMe();
-    router.replace("/workspace");
+    router.replace(await destinationAfterLeaving());
   }
 
   return (

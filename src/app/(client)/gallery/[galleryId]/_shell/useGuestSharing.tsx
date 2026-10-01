@@ -35,7 +35,7 @@ export function useGuestSharing({
   /** 상단 초대 버튼으로 열림 */
   inviteOpen: boolean;
   onInviteClose: () => void;
-  /** 개인 갤러리 — 초대 모달이 파트너 | 게스트 탭(PersonalInviteModal)이 된다 */
+  /** 개인 갤러리 **소유자** — 초대 모달이 파트너 | 게스트 탭(PersonalInviteModal)이 된다. 파트너는 비워 두면 게스트 초대 모달(초대 클라이언트와 같음) */
   personal?: { galleryTitle: string };
 }): {
   shareTab: ReactNode;

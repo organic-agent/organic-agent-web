@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import {
@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/Button";
 import { ddayLabel, deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { isAnalysisActive } from "@/lib/api/analysis";
 import { ApiError } from "@/lib/api/client";
+import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import {
   createConceptFolder,
   createDetailFolder,
@@ -112,6 +113,7 @@ type SelectSub = "invite" | "picking" | "submitted" | "overdue";
 
 export default function StudioGalleryShellPage() {
   const params = useParams<{ galleryId: string }>();
+  const router = useRouter();
   const galleryId = Number(params.galleryId);
   const { collapsed } = useSidebar();
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
@@ -171,17 +173,18 @@ export default function StudioGalleryShellPage() {
         setFolders(f.status === "fulfilled" ? f.value : []);
       } catch (err) {
         if (cancelled) return;
-        setLoadError(
-          err instanceof ApiError && (err.status === 403 || err.status === 404)
-            ? "이 갤러리를 볼 수 없어요. 내 스튜디오의 갤러리가 아니거나 삭제됐어요."
-            : "갤러리를 불러오지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-        );
+        // 소속 아님(403) · 삭제됨(404) → 소속을 다시 읽고 워크스페이스 목록 또는 랜딩으로. 나머지는 오류 화면
+        if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+          router.replace(await destinationAfterLeaving());
+          return;
+        }
+        setLoadError("갤러리를 불러오지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [galleryId]);
+  }, [galleryId, router]);
 
   // ── 조용한 재조회 — 업로드 · 분석 진행이 목록을 갈아 끼울 때(스크롤 유지, 로딩 화면 없음) ──
   // 한 번에 하나만 돌고(겹치면 끝난 뒤 한 번 더), 늦게 온 옛 응답이 새 목록을 덮지 않게 순번을 본다

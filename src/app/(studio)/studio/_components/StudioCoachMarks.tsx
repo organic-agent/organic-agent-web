@@ -5,6 +5,7 @@
  * 위치: src/app/(studio)/studio/_components/StudioCoachMarks.tsx
  *
  * 말풍선 4단계: 새 갤러리 → 필터 → 알림 → 초대. 그리기 · 기록(`sel.coach.studioHome`)은 공통 CoachMarks.
+ * 초대 작가(멤버)는 초대 버튼이 없어 3단계 — 첫 진입 안내는 코치마크로만(이슈 75, 2026-09-23).
  */
 
 import { CoachMarks, type CoachStep } from "@/components/app/CoachMarks";
@@ -39,6 +40,11 @@ const STEPS: ReadonlyArray<CoachStep> = [
   },
 ];
 
-export function StudioCoachMarks({ ready }: { ready: boolean }) {
-  return <CoachMarks steps={STEPS} storeKey="sel.coach.studioHome" ready={ready} />;
+/** 초대 작가 — 초대 칸 없음, 새 갤러리 문구는 이용권이 소유자 몫임을 말한다 */
+const MEMBER_STEPS: ReadonlyArray<CoachStep> = STEPS.filter((step) => step.key !== "invite").map((step) =>
+  step.key === "new-gallery" ? { ...step, body: "이름만 정하면 바로 만들 수 있어요. 갤러리 하나에 이용권 하나가 들고, 이용권은 소유자가 관리해요." } : step,
+);
+
+export function StudioCoachMarks({ ready, owner = true }: { ready: boolean; owner?: boolean }) {
+  return <CoachMarks steps={owner ? STEPS : MEMBER_STEPS} storeKey="sel.coach.studioHome" ready={ready} />;
 }

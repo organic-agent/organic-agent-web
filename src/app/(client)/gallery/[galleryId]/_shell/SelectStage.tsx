@@ -76,6 +76,7 @@ export function SelectStage({
   inviteOpen,
   onInviteClose,
   personal = false,
+  owner = false,
   partnerName = null,
   onExported,
 }: {
@@ -95,6 +96,8 @@ export function SelectStage({
   onInviteClose: () => void;
   /** 개인 결제 클라이언트 — 단계 5칸, 작가에게 전달 대신 요청서 내보내기, 장수 추가 요청 없음 */
   personal?: boolean;
+  /** 개인 — 소유자면 초대 모달이 파트너 | 게스트 탭, 파트너면 초대 클라이언트와 같은 게스트 초대 모달 */
+  owner?: boolean;
   /** 개인 — 함께 고르는 사람 이름(내보내기 모달의 알림 한 줄) */
   partnerName?: string | null;
   /** 개인 — 내보낸 뒤(페이지가 보정 확인 화면으로 넘기며 내려받기 모달을 연다) */
@@ -104,7 +107,7 @@ export function SelectStage({
   const maxSelectable = gallery.maxSelectablePhotoCount;
   const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
   const [deselectId, setDeselectId] = useState<number | null>(null);
-  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal ? { galleryTitle: gallery.title } : undefined });
+  const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal && owner ? { galleryTitle: gallery.title } : undefined });
   /** 담기는 바로, 빼기는 확인 뒤 */
   function requestToggle(photoId: number) {
     if (!editable) return;

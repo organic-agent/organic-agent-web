@@ -221,6 +221,11 @@ export function listGalleryMembers(
   return api(`/api/v1/galleries/${galleryId}/members`);
 }
 
+/** 갤러리에서 나가기 — 초대로 들어온 멤버(개인 파트너) 본인. 소유자에게 알림이 간다 */
+export function leaveGallery(galleryId: number): Promise<void> {
+  return api(`/api/v1/galleries/${galleryId}/members/me`, { method: "DELETE" });
+}
+
 /** 멤버 내보내기 — 담당 작가(개인 갤러리는 소유자)만. 내보낸 사람에게 알림이 간다 */
 export function removeGalleryMember(galleryId: number, memberId: number): Promise<void> {
   return api(`/api/v1/galleries/${galleryId}/members/${memberId}`, { method: "DELETE" });
