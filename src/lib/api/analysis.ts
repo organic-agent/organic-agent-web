@@ -57,15 +57,19 @@ export function isAnalysisActive(job: AnalysisJobResponse | null | undefined): b
 }
 
 /**
- * 갤러리 AI 분석 요청 — 본문 없음, 202로 잡을 돌려준다. 비동기라 상태는 GET으로 폴링한다.
+ * 갤러리 AI 분석 요청 — 202로 잡을 돌려준다. 비동기라 상태는 GET으로 폴링한다.
+ * conceptCount(작가가 기억하는 컨셉 수, 1~30)는 선택 — 있으면 본문 {conceptCount}로 보내고, 없으면 본문 없이 보내 AI가 개수를 정한다.
  * 이미 벡터 · 점수가 있는 사진은 다시 계산하지 않으므로, 사진을 더 올린 뒤 다시 불러도
  * 새 사진만 처리된다(단, 폴더는 새 컨셉 폴더로 덧붙는다 — 백엔드 확인 항목).
  *
  * 실패: 409 ANALYSIS_JOB_ALREADY_ACTIVE(폴링만 붙이면 됨) · 409 ANALYSIS_NO_PHOTOS ·
  * 503 ANALYSIS_NOT_CONFIGURED · 403(담당 작가 아님 · 보관된 갤러리).
  */
-export function requestAnalysis(galleryId: number): Promise<AnalysisJobResponse> {
-  return api(`/api/v1/galleries/${galleryId}/ai-analysis`, { method: "POST" });
+export function requestAnalysis(galleryId: number, conceptCount?: number | null): Promise<AnalysisJobResponse> {
+  return api(`/api/v1/galleries/${galleryId}/ai-analysis`, {
+    method: "POST",
+    ...(conceptCount ? { body: { conceptCount } } : {}),
+  });
 }
 
 /**
