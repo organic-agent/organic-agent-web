@@ -42,6 +42,7 @@ const ICONS = [
   ['StarFillIcon', 'kid_star-fill'],
   ['PhotoIcon', 'image'],
   ['PlusIcon', 'add'],
+  ['MinusIcon', 'remove'],
   ['SparkleIcon', 'wand_stars'], // 확인 항목: AI 셀렉 아이콘은 디자이너 답 받은 뒤 확정
   ['SettingIcon', 'settings'],
   ['CloseIcon', 'close'],
