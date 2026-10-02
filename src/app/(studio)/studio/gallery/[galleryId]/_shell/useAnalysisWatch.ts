@@ -97,11 +97,15 @@ export function useAnalysisWatch(
   /** 첫 폴링 — 들어왔을 때 이미 끝나 있던 잡은 "완료됨" 신호를 다시 보내지 않는다 */
   const firstPollRef = useRef(true);
 
-  /** 분석 잡 요청. 이미 도는 잡이 있으면 그 잡이 흡수(CATEGORIZING이면 끝난 뒤 한 번 더) */
-  const request = useCallback(async () => {
+  /**
+   * 분석 잡 요청. 이미 도는 잡이 있으면 그 잡이 흡수(CATEGORIZING이면 끝난 뒤 한 번 더).
+   * conceptCount는 사용자가 기억하는 컨셉 수 — 화면이 첫 업로드 때 받아 들고 있다가 넘긴다. 훅 안에서 다시 부르는
+   * 요청(예약 · 자동)은 값 없이 보낸다: 그때는 새로 올라온 사진만 처리되어 같은 개수가 맞지 않는다.
+   */
+  const request = useCallback(async (conceptCount?: number | null) => {
     setError(null);
     try {
-      const created = await requestAnalysis(galleryId);
+      const created = await requestAnalysis(galleryId, conceptCount);
       setJob(created);
       setNonce((n) => n + 1);
     } catch (err) {
