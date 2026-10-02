@@ -589,10 +589,13 @@ export default function ClientGalleryPage() {
                     ? isPersonal
                       ? upload.uploading || upload.aiActive
                         ? upload.aiCategorizing
-                          ? { label: "만드는 중…", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요." }
+                          ? {
+                              label: "만드는 중…",
+                              note: `AI가 ${upload.conceptCount !== null ? `컨셉 ${upload.conceptCount}개 기준으로 ` : ""}컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요.`,
+                            }
                           : {
                               label: "대기",
-                              note: "폴더는 업로드가 끝나면 AI가 만들어요. 임베딩 · 점수는 올라오는 대로 매기고 있어요.",
+                              note: `${upload.conceptCount !== null ? `업로드가 끝나면 AI가 컨셉 ${upload.conceptCount}개로 나눠요.` : "폴더는 업로드가 끝나면 AI가 만들어요."} 임베딩 · 점수는 올라오는 대로 매기고 있어요.`,
                             }
                         : null
                       : { label: "없음", note: "작가가 아직 폴더를 만들지 않았어요. 미분류 사진은 그대로 고를 수 있어요." }

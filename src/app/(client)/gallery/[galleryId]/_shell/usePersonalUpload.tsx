@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { duplicateConceptGroups, mergeDuplicateConcepts, normalizeFolders } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/folderView";
 import { RecoveryBanner } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RecoveryBanner";
 import { ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
+import { ConceptCountModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ConceptCountModal";
 import { UploadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadModal";
 import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadProgress";
 import { forgetUploaded, parseRemembered, readRememberedRaw, readUploadActiveRaw, subscribeRemembered } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadMemory";
@@ -51,6 +52,13 @@ export function usePersonalUpload({
   planMaxPhotoCount: number | null;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
+  // 첫 업로드 전에 묻는 컨셉 수(이슈 79) — 작가 1단계와 같은 규칙: 화면이 들고 있다가 분석 요청에 싣고, 잡이 끝나면 비운다
+  const [conceptOpen, setConceptOpen] = useState(false);
+  const [conceptCount, setConceptCount] = useState<number | null>(null);
+  const conceptCountRef = useRef(conceptCount);
+  useEffect(() => {
+    conceptCountRef.current = conceptCount;
+  }, [conceptCount]);
   const [notice, setNotice] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -106,6 +114,7 @@ export function usePersonalUpload({
     {
       onDone: () => {
         setNotice(null);
+        setConceptCount(null);
         void (async () => {
           const [f, p] = await Promise.all([listConceptFolders(galleryId).catch(() => null), listAllPhotos(galleryId).catch(() => null)]);
           if (f) setFolders(f);
@@ -121,9 +130,11 @@ export function usePersonalUpload({
       },
     },
   );
+  const requestAnalysisJob = analysis.request;
   useEffect(() => {
-    requestAnalysisRef.current = analysis.request;
-  }, [analysis.request]);
+    // 업로드가 끝나 자동으로 부르는 요청 — 첫 업로드 때 받은 컨셉 수를 싣는다(없으면 본문 없이)
+    requestAnalysisRef.current = () => requestAnalysisJob(conceptCountRef.current);
+  }, [requestAnalysisJob]);
   const aiJob = analysis.job;
   const aiActive = isAnalysisActive(aiJob);
   const aiCategorizing = aiJob?.status === "CATEGORIZING";
@@ -236,7 +247,7 @@ export function usePersonalUpload({
         </ShellCta>
       )}
       {(aiFailed || analysis.error) && (
-        <ShellCta kind="secondary" onClick={() => void analysis.request()}>
+        <ShellCta kind="secondary" onClick={() => void analysis.request(conceptCountRef.current)}>
           <SparkleIcon size={18} />
           AI 정리 다시 시도
         </ShellCta>
@@ -256,22 +267,46 @@ export function usePersonalUpload({
     (merging ? "같은 이름의 컨셉 폴더를 하나로 합치고 있어요" : null) ??
     notice ??
     (recoverable.length > 0 ? `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중` : null);
-  const modal: ReactNode = uploadOpen ? (
-    <UploadModal
-      existingCount={photos?.length ?? 0}
-      existingNames={existingNames}
-      planMaxPhotoCount={planMaxPhotoCount}
-      onClose={() => setUploadOpen(false)}
-      onStart={(files) => {
-        setUploadOpen(false);
-        setNotice(null);
-        void start(files);
-      }}
-    />
-  ) : null;
+  // 첫 업로드(사진 0장)는 컨셉 수 모달이 먼저, 더 올리기는 바로 업로드 모달. "바꾸기"는 업로드 모달 위에 컨셉 수 모달을 띄운다
+  const firstUpload = allPhotos.length === 0;
+  const modal: ReactNode = (
+    <>
+      {uploadOpen && (
+        <UploadModal
+          existingCount={photos?.length ?? 0}
+          existingNames={existingNames}
+          planMaxPhotoCount={planMaxPhotoCount}
+          conceptCount={conceptCount}
+          onChangeConcept={firstUpload ? () => setConceptOpen(true) : undefined}
+          // 컨셉 수 모달이 위에 떠 있으면 ESC가 두 모달에 같이 닿는다 — 위 모달만 닫히게 한다
+          onClose={() => {
+            if (!conceptOpen) setUploadOpen(false);
+          }}
+          onStart={(files) => {
+            setUploadOpen(false);
+            setNotice(null);
+            void start(files);
+          }}
+        />
+      )}
+      {conceptOpen && (
+        <ConceptCountModal
+          initial={conceptCount}
+          onClose={() => setConceptOpen(false)}
+          onDone={(count) => {
+            setConceptCount(count);
+            setConceptOpen(false);
+            setUploadOpen(true);
+          }}
+        />
+      )}
+    </>
+  );
 
   return {
     uploading,
+    /** 첫 업로드 전에 받은 컨셉 수 — 폴더 열 대기 안내에 보여준다. null이면 건너뜀 · 아직 안 물음 */
+    conceptCount,
     /** 올리는 중 n / m — 사이드바 상태줄(작가와 같은 문구) */
     runCounts: { done: run.done, total: run.total },
     aiActive,
@@ -286,7 +321,7 @@ export function usePersonalUpload({
     notice,
     clearNotice: () => setNotice(null),
     modal,
-    modalOpen: uploadOpen,
-    openUpload: () => setUploadOpen(true),
+    modalOpen: uploadOpen || conceptOpen,
+    openUpload: () => (firstUpload ? setConceptOpen(true) : setUploadOpen(true)),
   };
 }
