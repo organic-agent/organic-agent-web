@@ -266,6 +266,15 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+/** Material Symbols: remove */
+export function MinusIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M242.69-457.31q-9.64 0-16.16-6.58-6.53-6.58-6.53-16.31 0-9.72 6.53-16.11 6.52-6.38 16.16-6.38h474.62q9.64 0 16.16 6.58 6.53 6.58 6.53 16.31 0 9.72-6.53 16.11-6.52 6.38-16.16 6.38H242.69Z" />
+    </IconBase>
+  );
+}
+
 /** Material Symbols: wand_stars */
 export function SparkleIcon(props: IconProps) {
   return (

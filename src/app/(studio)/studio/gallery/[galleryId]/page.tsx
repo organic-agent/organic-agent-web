@@ -84,6 +84,7 @@ import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
 import { usePhotoMove } from "./_shell/usePhotoMove";
+import { ConceptCountModal } from "./_shell/ConceptCountModal";
 import { UploadModal } from "./_shell/UploadModal";
 import { RetouchStage } from "./_shell/RetouchStage";
 import { ProgressBar } from "./_shell/UploadProgress";
@@ -138,6 +139,16 @@ export default function StudioGalleryShellPage() {
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<"retouch" | "asis" | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  /**
+   * 첫 업로드 전에 묻는 컨셉 수(이슈 79) — 서버 갤러리에 저장 칸이 없어 화면이 들고 있다가 분석 요청 본문에 싣는다.
+   * 잡이 끝나면 비운다: "사진 더 올리기" 뒤 추가 분석은 새 사진만 처리해 같은 개수가 맞지 않는다. 실패 뒤 다시 시도는 같은 값.
+   */
+  const [conceptOpen, setConceptOpen] = useState(false);
+  const [conceptCount, setConceptCount] = useState<number | null>(null);
+  const conceptCountRef = useRef(conceptCount);
+  useEffect(() => {
+    conceptCountRef.current = conceptCount;
+  }, [conceptCount]);
   /** 사진 목록을 마지막으로 읽은 시각 — 복구 대상 PENDING의 나이를 이 시각으로 잰다(렌더 중 시계를 읽지 않기 위해) */
   const [photosLoadedAt, setPhotosLoadedAt] = useState(0);
   const [discarding, setDiscarding] = useState(false);
@@ -264,6 +275,7 @@ export default function StudioGalleryShellPage() {
     {
       onDone: () => {
         setUploadNotice(null);
+        setConceptCount(null);
         void (async () => {
           const [f, p] = await Promise.all([
             listConceptFolders(galleryId).catch(() => null),
@@ -288,9 +300,11 @@ export default function StudioGalleryShellPage() {
       },
     },
   );
+  const requestAnalysisJob = analysis.request;
   useEffect(() => {
-    requestAnalysisRef.current = analysis.request;
-  }, [analysis.request]);
+    // 업로드가 끝나 자동으로 부르는 요청 — 첫 업로드 때 받은 컨셉 수를 싣는다(없으면 본문 없이)
+    requestAnalysisRef.current = () => requestAnalysisJob(conceptCountRef.current);
+  }, [requestAnalysisJob]);
   const aiJob = analysis.job;
   const aiActive = isAnalysisActive(aiJob);
   const aiCategorizing = aiJob?.status === "CATEGORIZING";
@@ -898,7 +912,7 @@ export default function StudioGalleryShellPage() {
             </ShellCta>
           )}
           {(aiFailed || analysis.error) && (
-            <ShellCta kind="secondary" onClick={() => void analysis.request()}>
+            <ShellCta kind="secondary" onClick={() => void analysis.request(conceptCountRef.current)}>
               <SparkleIcon size={18} />
               AI 정리 다시 시도
             </ShellCta>
@@ -908,7 +922,11 @@ export default function StudioGalleryShellPage() {
               폴더 만들기
             </ShellCta>
           )}
-          <ShellCta kind={allPhotos.length === 0 ? "primary" : "ghost"} onClick={() => setUploadOpen(true)}>
+          {/* 첫 업로드(사진 0장)는 컨셉 수 모달이 먼저, 더 올리기는 바로 업로드 모달 */}
+          <ShellCta
+            kind={allPhotos.length === 0 ? "primary" : "ghost"}
+            onClick={() => (allPhotos.length === 0 ? setConceptOpen(true) : setUploadOpen(true))}
+          >
             <UploadIcon size={18} />
             {allPhotos.length === 0 ? "사진 업로드" : "사진 더 올리기"}
           </ShellCta>
@@ -1048,10 +1066,13 @@ export default function StudioGalleryShellPage() {
               pendingNote={
                 folders && folders.length === 0 && (uploading || aiActive)
                   ? aiCategorizing
-                    ? { label: "만드는 중…", note: "AI가 컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요." }
+                    ? {
+                        label: "만드는 중…",
+                        note: `AI가 ${conceptCount !== null ? `컨셉 ${conceptCount}개 기준으로 ` : ""}컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요.`,
+                      }
                     : {
                         label: "대기",
-                        note: "폴더는 업로드가 끝나면 AI가 만들어요. 임베딩 · 점수는 올라오는 대로 매기고 있어요.",
+                        note: `${conceptCount !== null ? `업로드가 끝나면 AI가 컨셉 ${conceptCount}개로 나눠요.` : "폴더는 업로드가 끝나면 AI가 만들어요."} 임베딩 · 점수는 올라오는 대로 매기고 있어요.`,
                       }
                   : null
               }
@@ -1146,11 +1167,27 @@ export default function StudioGalleryShellPage() {
           existingCount={photos?.length ?? 0}
           existingNames={existingNames}
           planMaxPhotoCount={gallery?.planMaxPhotoCount ?? null}
-          onClose={() => setUploadOpen(false)}
+          conceptCount={conceptCount}
+          onChangeConcept={allPhotos.length === 0 ? () => setConceptOpen(true) : undefined}
+          // 컨셉 수 모달이 위에 떠 있으면 ESC가 두 모달에 같이 닿는다 — 위 모달만 닫히게 한다
+          onClose={() => {
+            if (!conceptOpen) setUploadOpen(false);
+          }}
           onStart={(files) => {
             setUploadOpen(false);
             setUploadNotice(null);
             void startUpload(files);
+          }}
+        />
+      )}
+      {conceptOpen && (
+        <ConceptCountModal
+          initial={conceptCount}
+          onClose={() => setConceptOpen(false)}
+          onDone={(count) => {
+            setConceptCount(count);
+            setConceptOpen(false);
+            setUploadOpen(true);
           }}
         />
       )}

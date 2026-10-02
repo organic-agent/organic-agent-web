@@ -11,6 +11,8 @@
  *
  * 담을 때 검사 둘: 형식(JPG · PNG · WebP · HEIC · HEIF 아니면 제외 표시), 플랜 장수 상한
  * (갤러리 응답의 planMaxPhotoCount가 있으면 "지금 사진 + 담은 사진"이 넘는지 — 넘으면 발급 자체가 409).
+ * 첫 업로드면 앞서 컨셉 수 모달(ConceptCountModal)에서 받은 값을 장수 줄 오른쪽에 "컨셉 n개 · 바꾸기"로 보여준다 —
+ * 누르면 화면이 컨셉 수 모달을 이 모달 위에 다시 띄우고, 담아 둔 파일은 그대로 남는다(이슈 79).
  */
 
 import { useMemo, useRef, useState, type DragEvent } from "react";
@@ -44,6 +46,8 @@ export function UploadModal({
   existingCount,
   existingNames,
   planMaxPhotoCount,
+  conceptCount = null,
+  onChangeConcept,
   onClose,
   onStart,
 }: {
@@ -52,6 +56,10 @@ export function UploadModal({
   /** 갤러리에 이미 있는 사진의 원본 파일명 — 같은 이름은 기본으로 건너뛴다(같은 사진이 두 번 올라가는 것 방지) */
   existingNames: Set<string>;
   planMaxPhotoCount: number | null;
+  /** 첫 업로드 전 컨셉 수 모달에서 받은 값. null = 건너뜀. onChangeConcept가 없으면(사진 더 올리기) 표시하지 않는다 */
+  conceptCount?: number | null;
+  /** "바꾸기" · "넣기" — 컨셉 수 모달을 다시 연다 */
+  onChangeConcept?: () => void;
   onClose: () => void;
   onStart: (files: File[]) => void;
 }) {
@@ -268,6 +276,18 @@ export function UploadModal({
                 {counts.valid}장 · {formatBytes(counts.bytes)}
               </span>
               <span className="flex shrink-0 items-center gap-2 pl-2">
+                {onChangeConcept && (
+                  <>
+                    <span>{conceptCount !== null ? `컨셉 ${conceptCount}개` : "컨셉 수 건너뜀"}</span>
+                    <button
+                      type="button"
+                      onClick={onChangeConcept}
+                      className="cursor-pointer text-contents-light-bgd-default underline underline-offset-2"
+                    >
+                      {conceptCount !== null ? "바꾸기" : "넣기"}
+                    </button>
+                  </>
+                )}
                 {excludedNote && <span>{excludedNote}</span>}
                 {counts.duplicates > 0 && (
                   <>
