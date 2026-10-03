@@ -7,17 +7,11 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DarkModeIcon, LightModeIcon } from "@/components/icons";
+import { DarkModeIcon, InfoIcon, LightModeIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
-import { Toggle } from "@/components/ui/Toggle";
 import { deleteMyAccount, updateNickname, type User } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
-import {
-  getNotificationSettings,
-  updateNotificationSettings,
-  type NotificationSettings,
-} from "@/lib/api/notifications";
 import { setAuthenticated } from "@/lib/auth/authStore";
 import { logout } from "@/lib/auth/logout";
 import { useTheme, type Theme } from "@/lib/theme";
@@ -176,75 +170,21 @@ export function AccountDisplayTab() {
   );
 }
 
+/**
+ * 알림 탭 — 이메일 · 브라우저 알림은 서버에 발송 기능이 없다(알림은 DB에만 쌓인다). 켜진 스위치가 눌리기만 하고
+ * 아무것도 오지 않던 것을, 스위치를 두지 않고 안내 한 줄로 바꿨다(QA 2026-09-29 · 이슈 84, 시안 F — 수민 문구).
+ * 지금 동작하는 알림은 탑바의 알림 아이콘(NotificationBell)뿐이다. 발송이 생기면 알림 설정 API
+ * (lib/api/notifications의 getNotificationSettings · updateNotificationSettings)로 스위치를 되살린다.
+ */
 export function AccountNotificationsTab() {
-  const [settings, setSettings] = useState<NotificationSettings | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await getNotificationSettings();
-        if (!cancelled) setSettings(res);
-      } catch {
-        if (!cancelled) setBanner("알림 설정을 불러오지 못했어요.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function change(patch: Partial<NotificationSettings>) {
-    if (!settings) return;
-    const prev = settings;
-    const next = { ...settings, ...patch };
-    setSettings(next);
-    setBanner(null);
-    try {
-      setSettings(await updateNotificationSettings(next));
-    } catch (err) {
-      setSettings(prev);
-      setBanner(
-        err instanceof ApiError ? err.message : "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.",
-      );
-    }
-  }
-
-  const rows: ReadonlyArray<{ key: keyof NotificationSettings; label: string; desc: string }> = [
-    { key: "emailEnabled", label: "이메일 알림", desc: "셀렉 제출 · 보정 요청 · 마감 임박을 이메일로 받아요" },
-    { key: "browserEnabled", label: "브라우저 알림", desc: "이 브라우저가 열려 있을 때 바로 띄워요" },
-  ];
-
   return (
     <Section title="알림 수신">
-      <div className="flex flex-col">
-        {rows.map((row) => (
-          <div
-            key={row.key}
-            className="flex items-center justify-between gap-4 border-b border-divider-default py-3.5"
-          >
-            <div>
-              <p className="type-content-m text-contents-light-bgd-default">{row.label}</p>
-              <p className="type-content-xs text-contents-light-bgd-sub">{row.desc}</p>
-            </div>
-            {settings ? (
-              <Toggle
-                checked={settings[row.key]}
-                onChange={(checked) => void change({ [row.key]: checked })}
-                aria-label={row.label}
-              />
-            ) : (
-              <span className="h-5 w-9 animate-pulse rounded-(--pill) bg-surface-default-light" />
-            )}
-          </div>
-        ))}
-      </div>
-      {banner && (
-        <p role="alert" className="mt-3 type-content-xs text-function-error-default">
-          {banner}
-        </p>
-      )}
+      <p className="flex items-start gap-2 rounded-(--radius-8) bg-function-info-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+        <span className="mt-px shrink-0 text-function-info-default">
+          <InfoIcon size={18} />
+        </span>
+        이메일 · 브라우저 알림은 준비 중이에요. 지금은 오른쪽 위 알림 아이콘으로 알려 드려요.
+      </p>
     </Section>
   );
 }
