@@ -13,6 +13,12 @@
 /** 사이드바 접힘 여부를 저장하는 쿠키 이름. */
 export const SIDEBAR_COOKIE = "sel.sidebar.collapsed";
 
+/**
+ * 사이드바가 본문 옆이 아니라 본문 대신 보이는 폭 — Tailwind `max-sm:`(640px 미만)과 같은 기준.
+ * 이 폭에서는 사이드바를 열면 사진이 반쯤 잘려 보이므로, 본문을 숨기고 사이드바만 화면에 둔다(QA 이슈 84).
+ */
+export const SIDEBAR_ONLY_QUERY = "(max-width: 639.98px)";
+
 /** 서버가 읽은 쿠키 문자열("1"/"0"/없음)을 접힘 여부(boolean)로 바꾼다. */
 export function parseCollapsedCookie(raw: string | undefined): boolean {
   return raw === "1";

@@ -157,18 +157,18 @@ export function AlbumGrid({
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="mx-auto flex h-14 w-full max-w-wrap shrink-0 items-center justify-between gap-3 px-6">
-        <h2 className="flex min-w-0 items-center gap-1.5 type-title-s text-contents-light-bgd-default">
+        <h2 className="flex min-w-0 items-center gap-1.5 whitespace-nowrap type-title-s text-contents-light-bgd-default">
           {multi && onBack && (
-            <button type="button" onClick={onBack} className="mr-1 inline-flex cursor-pointer items-center gap-0.5 type-content-s text-contents-light-bgd-sub hover:text-contents-light-bgd-default">
+            <button type="button" onClick={onBack} className="mr-1 inline-flex shrink-0 cursor-pointer items-center gap-0.5 type-content-s text-contents-light-bgd-sub hover:text-contents-light-bgd-default">
               <BackIcon size={18} />
               앨범
             </button>
           )}
           {multi ? (
-            <div ref={ddRef} className="relative">
-              <button type="button" aria-haspopup="menu" aria-expanded={ddOpen} onClick={() => setDdOpen((v) => !v)} className="inline-flex cursor-pointer items-center gap-0.5 rounded-(--radius-8) py-1 pr-1 pl-1.5 type-title-s text-contents-light-bgd-default hover:bg-surface-default-lightness">
-                <span className="truncate">{title}</span>
-                <DropdownIcon size={20} className={`text-contents-light-bgd-sub transition-transform duration-fast ${ddOpen ? "rotate-180" : ""}`} />
+            <div ref={ddRef} className="relative min-w-0">
+              <button type="button" aria-haspopup="menu" aria-expanded={ddOpen} onClick={() => setDdOpen((v) => !v)} className="flex max-w-full cursor-pointer items-center gap-0.5 rounded-(--radius-8) py-1 pr-1 pl-1.5 type-title-s text-contents-light-bgd-default hover:bg-surface-default-lightness">
+                <span className="min-w-0 truncate">{title}</span>
+                <DropdownIcon size={20} className={`shrink-0 text-contents-light-bgd-sub transition-transform duration-fast ${ddOpen ? "rotate-180" : ""}`} />
               </button>
               {ddOpen && (
                 <div role="menu" className="absolute top-full left-0 z-20 mt-1 w-66 rounded-(--radius-12) border border-border-default bg-background-default-main p-1.5 shadow-(--shadow-modal)">
@@ -207,22 +207,28 @@ export function AlbumGrid({
           ) : (
             <span className="truncate">{title}</span>
           )}
-          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness tabular-nums">{total}장</small>
+          <small className="ml-1 shrink-0 type-content-s font-normal text-contents-light-bgd-weakness tabular-nums">{total}장</small>
         </h2>
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             aria-pressed={mineOnly}
             onClick={() => onMineOnlyChange(!mineOnly)}
-            className={`inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-(--pill) px-3 type-label-medium-s transition-colors duration-fast ${mineOnly ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-default-medium text-contents-light-bgd-default hover:bg-surface-default-light"}`}
+            className={`inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-(--pill) px-3 whitespace-nowrap type-label-medium-s transition-colors duration-fast ${mineOnly ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-default-medium text-contents-light-bgd-default hover:bg-surface-default-light"}`}
           >
             <HeartFillIcon size={16} className={mineOnly ? "" : "text-brand-secondary-default"} />
             내 하트
             <b className={`font-medium tabular-nums ${mineOnly ? "text-contents-dark-bgd-default/80" : "text-contents-light-bgd-sub"}`}>{likedIds.size}</b>
           </button>
-          <button type="button" onClick={() => setNewestFirst((v) => !v)} className="inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-surface-default-medium px-3 type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-light">
+          <button
+            type="button"
+            aria-label={newestFirst ? "최신순" : "오래된순"}
+            title={newestFirst ? "최신순" : "오래된순"}
+            onClick={() => setNewestFirst((v) => !v)}
+            className="inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-surface-default-medium px-3 whitespace-nowrap type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-light max-[480px]:px-2"
+          >
             <SwapVertIcon size={18} className="text-contents-light-bgd-sub" />
-            {newestFirst ? "최신순" : "오래된순"}
+            <span className="max-[480px]:hidden">{newestFirst ? "최신순" : "오래된순"}</span>
           </button>
         </div>
       </div>

@@ -20,12 +20,13 @@
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { type CustomMenu, ShellMainHeader, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
@@ -235,6 +236,8 @@ export function SelectStage({
   })();
   const focusedDetail = filter.detailIds.size === 1 && !filter.unsorted ? details.find((d) => d.id === [...filter.detailIds][0]) ?? null : null;
   const focusedConcept = focusedDetail ? folders?.find((c) => c.details.some((d) => d.id === focusedDetail.id)) ?? null : null;
+  // 세부 폴더 하나만 볼 때 제목 앞에 붙는 상위(컨셉) 이름 — 좁으면 헤더가 통째로 숨긴다
+  const titleParent = view !== "selected" && focusedDetail && focusedConcept ? focusedConcept.name : undefined;
   const title = (() => {
     if (view === "selected")
       return (
@@ -251,10 +254,6 @@ export function SelectStage({
     if (focusedDetail && focusedConcept)
       return (
         <>
-          <span className="font-normal text-contents-light-bgd-weakness">{focusedConcept.name}</span>
-          <span className="flex text-contents-light-bgd-weakness">
-            <ChevronRightIcon size={18} />
-          </span>
           <span className="truncate">{focusedDetail.name}</span>
           <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
         </>
@@ -379,7 +378,7 @@ export function SelectStage({
 
   return (
     <>
-      <div className="flex min-h-0 flex-1">
+      <div className={SHELL_BODY_CLASS}>
         {sidebarOpen && (
           <ClientSidebar
             title={gallery.title}
@@ -427,6 +426,7 @@ export function SelectStage({
             <>
               <ShellMainHeader
                 title={title}
+                titleParent={titleParent}
                 leading={
                   <>
                   {view === "all" && (
@@ -434,10 +434,11 @@ export function SelectStage({
                       type="button"
                       data-coach="ai"
                       aria-pressed={aiPhotos.length > 0}
+                      aria-label={`AI 추천${aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}`}
                       disabled={!editable || aiBusy || ai.jobActive}
                       onClick={() => void ai.request(focusedDetail?.id ?? null)}
                       title={focusedDetail ? `${focusedDetail.name}에서 약 10%를 이유와 함께 골라 드려요` : "폴더마다 몇 장씩 이유와 함께 골라 드려요"}
-                      className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 ${
+                      className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 max-[860px]:px-2.25 ${
                         aiPhotos.length > 0
                           ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default"
                           : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
@@ -446,22 +447,23 @@ export function SelectStage({
                       <span className="text-brand-secondary-default">
                         <SparkleIcon size={18} />
                       </span>
-                      AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}
+                      <span className="max-[860px]:hidden">AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}</span>
                     </button>
                   )}
                   <button
                     type="button"
                     aria-pressed={guestOn}
+                    aria-label="하객 반응"
                     onClick={() => setGuestOn((v) => !v)}
                     title="공유폴더에서 온 하객 좋아요를 타일에 겹쳐 봐요"
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 type-content-s transition-colors duration-fast ${
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
                       guestOn ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                     }`}
                   >
                     <span className={guestOn ? "text-brand-secondary-default" : "text-contents-light-bgd-sub"}>
                       <GroupIcon size={18} />
                     </span>
-                    하객 반응
+                    <span className="max-[860px]:hidden">하객 반응</span>
                   </button>
                   </>
                 }
@@ -626,15 +628,16 @@ export function SelectStage({
             `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
           )
         }
+        hintIsNotice={shownNotice !== null}
         status={
           <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
-            선택한 사진
+            <span className="max-sm:hidden">선택한 사진</span>
             <b className={`type-label-semibold-l tabular-nums ${full ? "text-function-warning-default" : "text-contents-light-bgd-default"}`}>
               {selectedCount}
             </b>
             {maxSelectable !== null && <span className="text-contents-light-bgd-weakness">/ {maxSelectable}</span>}
             {pickedPhotos.length > 0 && (
-              <span className="ml-1 flex" aria-hidden>
+              <span className="ml-1 flex max-lg:hidden" aria-hidden>
                 {pickedPhotos.slice(-3).map((p) => (
                   <span key={p.photoId} className="-ml-2 size-6.5 overflow-hidden rounded-(--radius-4) border-2 border-background-default-main bg-surface-default-light first:ml-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -665,7 +668,7 @@ export function SelectStage({
                   요청서 내보내기
                 </ShellCta>
               ) : (
-                <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
+                <ShellCta disabled={!canSubmit} short="전달하기" onClick={() => setSubmitOpen(true)}>
                   작가에게 전달하기
                 </ShellCta>
               )}

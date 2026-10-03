@@ -50,6 +50,7 @@ export function ShareFolderTab({
               <li key={s.sessionId}>
                 <button
                   type="button"
+                  data-sidebar-item
                   aria-current={current || undefined}
                   onClick={() => onOpenReactions(s.sessionId)}
                   className={`flex w-full cursor-pointer flex-col gap-0.5 rounded-(--radius-8) px-2 py-1.5 text-left transition-colors duration-fast ${current ? "bg-brand-secondary-background" : "hover:bg-surface-default-light"}`}

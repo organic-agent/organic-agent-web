@@ -60,8 +60,8 @@ export function SidebarFolderTree({
               <span className="flex shrink-0">
                 {closed ? <ChevronRightIcon size={14} /> : <DropdownIcon size={14} />}
               </span>
-              <span className="shrink-0">{concept.name}</span>
-              <span aria-hidden className="ml-1 h-px flex-1 bg-border-default" />
+              <span className="min-w-0 truncate">{concept.name}</span>
+              <span aria-hidden className="ml-1 h-px min-w-3 flex-1 bg-border-default" />
             </button>
             {!closed && (
               <ul>
@@ -72,6 +72,7 @@ export function SidebarFolderTree({
                     <li key={detail.id}>
                       <button
                         type="button"
+                        data-sidebar-item
                         aria-current={selected || undefined}
                         onClick={() =>
                           onSelect({ kind: "detail", conceptId: concept.id, detailId: detail.id })

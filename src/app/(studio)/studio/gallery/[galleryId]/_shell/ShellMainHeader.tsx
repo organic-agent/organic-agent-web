@@ -9,11 +9,15 @@
  * 쓰면(보정 작업: 결과 없는 것 먼저 · 메모 있는 것만) customSort · customFilter로 같은 버튼 · 메뉴에 바꿔 끼운다.
  * 보기 전환(그리드 · 한 장 보기) 버튼은 두지 않는다 — 디자이너 시안의 헤더에 없고, 크게 보기는 썸네일을 눌러 여는
  * 팝업이라 전환할 상태가 없다(늘 선택된 그리드 버튼 · 화면마다 다르게 돌던 한 장 보기 버튼을 뺌, QA 2026-09-29 · 이슈 84).
+ * 좁은 폭(QA 이슈 84): 제목은 줄바꿈하지 않는다. 상위 폴더 이름(titleParent)은 1024 미만이면 늘, 그 이상이면 자리가
+ * 모자랄 때 › 와 함께 통째로 사라져 "하위 폴더 이름 + 장수"만 남는다. 줌 퍼센트 · 슬라이더는 1100 미만에서, 줌 전체는
+ * 640 미만에서 숨기고, 정렬 버튼은 640 미만에서 아이콘만 남긴다. 좌우 여백은 480 미만에서 12px.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CheckCircleIcon,
+  ChevronRightIcon,
   SwapVertIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -42,6 +46,7 @@ const FILTER_LABEL: Record<Exclude<FilterKey, "none">, string> = {
 
 export function ShellMainHeader({
   title,
+  titleParent,
   zoom,
   onZoomChange,
   sort,
@@ -55,6 +60,8 @@ export function ShellMainHeader({
   customFilter,
 }: {
   title: ReactNode;
+  /** 제목 앞에 흐리게 붙는 상위 폴더 이름("컨셉 › 세부 폴더"의 컨셉) — 좁으면 › 와 함께 통째로 사라진다 */
+  titleParent?: ReactNode;
   /** 0~100 — 타일 폭으로 바뀐다 */
   zoom: number;
   onZoomChange: (zoom: number) => void;
@@ -102,15 +109,26 @@ export function ShellMainHeader({
         : SORT_LABEL[sort];
 
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-5">
-      <h2 className="flex min-w-0 items-center gap-1.5 type-title-s text-contents-light-bgd-default">
-        {title}
+    <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-5 max-[480px]:px-3">
+      {/* 한 줄 높이로 자르고 줄바꿈을 허용한다. 뒤에서부터 채워(row-reverse) 제목 묶음이 먼저 자리를 잡고,
+          상위 폴더 묶음은 같은 줄에 못 들어가면 다음 줄로 넘어가 보이지 않는다. 제목 묶음만으로도 넘치면 그 안의 이름이 말줄임.
+          바깥 여백(-m · p 1.5)은 잘리는 상자 안에 포커스 테두리("검토 완료" 버튼)가 들어갈 자리다 */}
+      <h2 className="-m-1.5 flex h-10 min-w-0 flex-1 flex-row-reverse flex-wrap content-start justify-end gap-x-1.5 gap-y-4 overflow-hidden p-1.5 whitespace-nowrap type-title-s text-contents-light-bgd-default">
+        {titleParent && (
+          <span className="order-2 flex h-7 shrink-0 items-center gap-1.5 font-normal text-contents-light-bgd-weakness max-lg:hidden">
+            {titleParent}
+            <span className="flex">
+              <ChevronRightIcon size={18} />
+            </span>
+          </span>
+        )}
+        <span className="order-1 flex h-7 max-w-full min-w-0 items-center gap-1.5">{title}</span>
       </h2>
 
       <div className="flex shrink-0 items-center gap-3">
         {leading}
-        <div className="flex items-center gap-1.5 type-content-xs text-contents-light-bgd-weakness">
-          <span className="w-8 text-right tabular-nums">{zoom}%</span>
+        <div className="flex items-center gap-1.5 type-content-xs text-contents-light-bgd-weakness max-sm:hidden">
+          <span className="w-8 text-right tabular-nums max-[1100px]:hidden">{zoom}%</span>
           <button
             type="button"
             aria-label="사진 작게"
@@ -128,7 +146,7 @@ export function ShellMainHeader({
             value={zoom}
             onChange={(e) => onZoomChange(Number(e.target.value))}
             aria-label="사진 크기"
-            className="h-1 w-24 cursor-pointer appearance-none rounded-(--pill) bg-border-default accent-contents-light-bgd-default"
+            className="h-1 w-24 cursor-pointer appearance-none rounded-(--pill) bg-border-default accent-contents-light-bgd-default max-[1100px]:hidden"
           />
           <button
             type="button"
@@ -146,12 +164,14 @@ export function ShellMainHeader({
             type="button"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
+            aria-label={buttonLabel}
+            title={buttonLabel}
             onClick={() => setMenuOpen((v) => !v)}
-            className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-surface-default-light px-3 type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-medium ${
+            className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-surface-default-light px-3 whitespace-nowrap type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-medium max-sm:px-2.25 ${
               filterActive ? "font-semibold" : ""
             }`}
           >
-            {buttonLabel}
+            <span className="max-sm:hidden">{buttonLabel}</span>
             <span className="flex text-contents-light-bgd-sub">
               <SwapVertIcon size={18} />
             </span>

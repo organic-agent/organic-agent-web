@@ -69,6 +69,7 @@ function Row({
     <div
       role="button"
       tabIndex={0}
+      data-sidebar-item
       aria-current={focused || undefined}
       onClick={onFocus}
       onKeyDown={(e) => {
@@ -145,8 +146,8 @@ export function ClientFolderTree({
               className="flex w-full cursor-pointer items-center gap-1.5 px-1.5 pt-3 pb-1 text-left type-content-xs text-contents-light-bgd-weakness"
             >
               <span className="flex shrink-0">{closed ? <ChevronRightIcon size={14} /> : <DropdownIcon size={14} />}</span>
-              <span className="shrink-0">{concept.name}</span>
-              <span aria-hidden className="ml-1 h-px flex-1 bg-border-default" />
+              <span className="min-w-0 truncate">{concept.name}</span>
+              <span aria-hidden className="ml-1 h-px min-w-3 flex-1 bg-border-default" />
             </button>
             {!closed && (
               <ul>

@@ -8,6 +8,8 @@
  * 선택한 사진은 1단계에선 잠김, 2단계부터 열려 "고른 수 / 고를 장수"를 보여준다(제출 전에도 열람 — 2026-09-11).
  * 2단계부터는 폴더 트리(folderTree)가 내비 아래에 들어온다. 3단계부터 "보정 사진" 행이 열리고(retouchCount),
  * 회차 목록(extra)이 내비 아래에 들어온다.
+ * 640 미만에서는 본문 옆에 설 자리가 없어 화면 폭을 다 쓰고 본문은 숨는다(SHELL_BODY_CLASS). 그때 볼 것을 고르는
+ * 행(data-sidebar-item — 내비 · 폴더 · 회차 · 공유폴더)을 누르면 닫혀서 사진으로 돌아간다(QA 이슈 84).
  */
 
 import type { ReactNode } from "react";
@@ -17,6 +19,13 @@ import {
   LockIcon,
   PhotoIcon,
 } from "@/components/icons";
+import { useSidebar } from "@/components/SidebarProvider";
+
+/**
+ * 사이드바와 본문이 나란히 놓이는 줄의 클래스 — 작가 · 클라이언트 셸 공용.
+ * 640 미만에서 사이드바(aside)가 열려 있으면 나머지(폴더 열 · 본문)를 숨겨 사이드바만 보인다.
+ */
+export const SHELL_BODY_CLASS = "flex min-h-0 flex-1 max-sm:has-[>aside]:[&>:not(aside)]:hidden";
 
 export type ShellView = "all" | "selected" | "retouch";
 
@@ -50,6 +59,7 @@ function NavRow({
   return (
     <button
       type="button"
+      data-sidebar-item
       aria-current={selected || undefined}
       disabled={disabled}
       onClick={onClick}
@@ -96,8 +106,14 @@ export function ShellSidebar({
   /** 내비 아래 · 폴더 트리 위(회차 목록) */
   extra?: ReactNode;
 }) {
+  const { closeIfNarrow } = useSidebar();
   return (
-    <aside className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main">
+    <aside
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("[data-sidebar-item]")) closeIfNarrow();
+      }}
+      className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main max-sm:w-full max-sm:border-r-0"
+    >
       <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-4.5 pb-3">
         <div>
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>

@@ -7,10 +7,12 @@
  * 작가 셸 사이드바와 같은 문법. 1단계(컨셉 분류)에서는 폴더가 폴더 열(3열)에 있으니 트리를 두지 않고,
  * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다. 단계 진행은 상단바 가운데 세그먼트가 맡는다
  * (2026-09-15 — 여기 있던 2px 줄 삭제).
+ * 640 미만에서는 화면 폭을 다 쓰고 본문은 숨는다 — 볼 것을 고르는 행(data-sidebar-item)을 누르면 닫힌다(작가 사이드바와 같음).
  */
 
 import type { ReactNode } from "react";
 import { BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon, ScheduleIcon } from "@/components/icons";
+import { useSidebar } from "@/components/SidebarProvider";
 import type { ClientPhase } from "./clientStages";
 
 /** 개인 갤러리의 플랜 — 사진 상한 · 이용 기간(서버 planMaxPhotoCount · planExpiresAt) */
@@ -92,6 +94,7 @@ function NavRow({
   return (
     <button
       type="button"
+      data-sidebar-item
       aria-current={selected || undefined}
       disabled={disabled}
       onClick={onClick}
@@ -158,9 +161,15 @@ export function ClientSidebar({
 }) {
   const waiting = phase === "wait";
   const selectionOpen = phase !== "wait" && phase !== "sort";
+  const { closeIfNarrow } = useSidebar();
 
   return (
-    <aside className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main">
+    <aside
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("[data-sidebar-item]")) closeIfNarrow();
+      }}
+      className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main max-sm:w-full max-sm:border-r-0"
+    >
       <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-4.5 pb-3">
         <div>
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>

@@ -6,6 +6,7 @@
  *
  * 알림 없음(2026-09-13). 로고는 링크가 아니다 — 게스트를 서비스 밖으로 보내지 않는다. 홈(표지 헤더)에서는 가운데를 비우고,
  * 그리드 화면에서만 갤러리 이름을 작게 둔다.
+ * 폰 폭(QA 이슈 84): 워드마크는 줄바꿈하지 않고 480 미만에서는 로고만 남긴다. 가운데 이름은 넘치면 말줄임.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -55,10 +56,12 @@ export function GuestTopbar({ mid, nickname, onRename }: { mid?: string | null; 
   return (
     <header className="grid h-13 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-divider-default bg-background-default-main px-4 pr-3">
       <span className="flex items-center gap-2 text-contents-light-bgd-default">
-        <BrandLogo size={26} />
-        <b className="type-brand-wordmark">Easy Select</b>
+        <span className="flex shrink-0">
+          <BrandLogo size={26} />
+        </span>
+        <b className="type-brand-wordmark whitespace-nowrap max-[480px]:hidden">Easy Select</b>
       </span>
-      <span className="truncate type-content-s text-contents-light-bgd-weakness">{mid ?? ""}</span>
+      <span className="min-w-0 truncate px-2 type-content-s text-contents-light-bgd-weakness">{mid ?? ""}</span>
       <div className="flex items-center justify-end">
         {nickname && (
           <div ref={wrapRef} className="relative">

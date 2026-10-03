@@ -38,6 +38,7 @@ export function RoundList({
           <button
             key={r.roundNo}
             type="button"
+            data-sidebar-item
             aria-current={active || undefined}
             onClick={() => onSelect(r.roundNo)}
             className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) py-1.5 pr-2.5 pl-3.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
