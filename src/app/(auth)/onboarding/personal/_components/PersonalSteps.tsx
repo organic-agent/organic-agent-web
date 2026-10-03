@@ -1,30 +1,32 @@
 /**
- * 개인 갤러리 온보딩 단계 표시 — 고른 경로대로 칸이 바뀐다
+ * 개인 갤러리 온보딩 단계 표시 — 들어온 길에 따라 칸이 다르다
  * 위치: src/app/(auth)/onboarding/personal/_components/PersonalSteps.tsx
  *
- * 유료 플랜을 고르면 "플랜 선택 · 결제 · 갤러리 정보" 세 칸, 무료(또는 아직 안 골랐으면)
- * "플랜 선택 · 갤러리 정보" 두 칸. 어느 경로든 번호가 1부터 빠짐없이 이어진다.
+ * plan: "플랜 선택 · 갤러리 정보" (일반 진입 — 무료, 또는 등록해 둔 쿠폰으로 프로)
+ * coupon: "쿠폰 등록 · 갤러리 정보" (선물 링크 진입)
+ * 어느 길이든 두 칸이고 번호는 1부터 이어진다. 결제 칸은 카드 결제가 열릴 때 돌아온다(이슈 81).
  */
 
-export type PersonalStep = "plan" | "checkout" | "gallery";
+export type PersonalStep = "plan" | "coupon" | "gallery";
+export type PersonalStepsVariant = "plan" | "coupon";
 
 export function PersonalSteps({
-  paid,
+  variant,
   current,
 }: {
-  paid: boolean;
+  variant: PersonalStepsVariant;
   current: PersonalStep;
 }) {
-  const items: [PersonalStep, string][] = paid
-    ? [
-        ["plan", "플랜 선택"],
-        ["checkout", "결제"],
-        ["gallery", "갤러리 정보"],
-      ]
-    : [
-        ["plan", "플랜 선택"],
-        ["gallery", "갤러리 정보"],
-      ];
+  const items: [PersonalStep, string][] =
+    variant === "coupon"
+      ? [
+          ["coupon", "쿠폰 등록"],
+          ["gallery", "갤러리 정보"],
+        ]
+      : [
+          ["plan", "플랜 선택"],
+          ["gallery", "갤러리 정보"],
+        ];
   const idx = items.findIndex(([key]) => key === current);
 
   return (

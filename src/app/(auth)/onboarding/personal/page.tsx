@@ -1,45 +1,61 @@
 "use client";
 
 /**
- * 개인 갤러리 온보딩 1단계 — 플랜 선택
+ * 개인 갤러리 온보딩 1단계 — 플랜 선택 (일반 진입)
  * 위치: src/app/(auth)/onboarding/personal/page.tsx
  *
- * 플랜 API 목록을 카드로 그린다. 0원 플랜은 무료 카드(점선), 나머지는 유료 카드.
- * 무료를 고르면 결제 화면 없이 0원 이용권을 조용히 받아 바로 갤러리 정보로 간다 —
- * 갤러리 생성 API가 이용권을 필수로 받기 때문이다. 유료는 결제 화면으로 간다.
- * 서버가 플랜을 하나만 주는 동안은 표시 카탈로그(무료·스탠다드·프로)로 그린다 — planCatalog 참고.
+ * 서버 플랜(free · pro)을 카드로 그린다. 무료는 계정당 한 번 — 내 혜택(GET /billing/me)의 freePlanAvailable이
+ * false면 잠긴다("이미 썼어요"). 프로는 카드 결제가 열릴 때까지 잠긴다("결제 준비 중") — 다만 등록해 둔 미사용
+ * 쿠폰이 있으면 그 쿠폰으로 고를 수 있다("쿠폰 등록됨"). 무료를 고르면 결제 없이 바로 갤러리 정보로, 프로는
+ * 쿠폰 id를 실어 갤러리 정보로 간다. 쿠폰 선물 링크(#code=)로 왔으면 이 화면을 그리지 않고 쿠폰 등록 화면으로
+ * 바꾼다(OnboardingGate가 먼저 받지만 직접 진입도 대비). 2026-10-03 수민 결정 · 이슈 81.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
-import { ArrowRightIcon, BackIcon, InfoIcon } from "@/components/icons";
+import { ArrowRightIcon, BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-import { ApiError } from "@/lib/api/client";
-import { createCheckout, getPlans, isFreePlan } from "@/lib/api/payments";
+import {
+  availableCoupon,
+  getMyBenefits,
+  getPlans,
+  isFreePlan,
+  type MyBenefitsResponse,
+  type Plan,
+} from "@/lib/api/payments";
+import { couponRedemptionPath } from "@/lib/couponLink";
+import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "./_components/PersonalSteps";
 import { PlanCard } from "./_components/PlanCard";
-import { resolvePlans, type DisplayPlan } from "./_lib/planCatalog";
+
+type Loaded = { plans: Plan[]; benefits: MyBenefitsResponse };
 
 export default function PersonalPlanPage() {
   const router = useRouter();
-  const [plans, setPlans] = useState<{ list: DisplayPlan[]; checkoutEnabled: boolean } | null>(
-    null,
-  );
+  const hash = useCouponCodeFromHash();
+  /** 선물 링크(#code=)로 들어왔으면 플랜 선택을 보여주지 않고 쿠폰 등록 화면으로 — # 조각을 읽은 뒤에만 판단 */
+  const hashChecked = hash.ready && hash.code === null;
+  const [data, setData] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
   const [nonce, setNonce] = useState(0);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [banner, setBanner] = useState<string | null>(null);
 
   useEffect(() => {
+    if (hash.code) router.replace(couponRedemptionPath(hash.code));
+  }, [hash.code, router]);
+
+  useEffect(() => {
+    if (!hashChecked) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await getPlans();
-        if (!cancelled)
-          setPlans({ list: resolvePlans(res).plans, checkoutEnabled: res.testCheckoutEnabled });
+        const [plansRes, benefits] = await Promise.all([getPlans(), getMyBenefits()]);
+        if (cancelled) return;
+        // 무료를 앞에 — 서버 순서와 무관하게 카드 자리를 고정한다
+        const plans = [...plansRes.plans].sort((a, b) => Number(isFreePlan(b)) - Number(isFreePlan(a)));
+        setData({ plans, benefits });
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -47,43 +63,43 @@ export default function PersonalPlanPage() {
     return () => {
       cancelled = true;
     };
-  }, [nonce]);
+  }, [hashChecked, nonce]);
 
-  const picked = plans?.list.find((p) => p.id === pickedId) ?? null;
-  const paid = picked !== null && !isFreePlan(picked);
-  const checkoutOff = plans !== null && !plans.checkoutEnabled;
+  const coupon = data ? availableCoupon(data.benefits) : null;
 
-  async function proceed() {
-    if (!picked || starting) return;
-    if (paid) {
-      router.push(`/onboarding/personal/checkout?plan=${encodeURIComponent(picked.id)}`);
-      return;
+  /** 카드를 고를 수 있는지와 꼬리표 — 무료 소진 · 프로는 결제 전(쿠폰 있으면 올리브 꼬리표로 열림) */
+  function lockOf(plan: Plan): { disabled: boolean; tag: string | null; tagTone: "muted" | "brand" } {
+    if (isFreePlan(plan)) {
+      return data && !data.benefits.freePlanAvailable
+        ? { disabled: true, tag: "이미 썼어요", tagTone: "muted" }
+        : { disabled: false, tag: null, tagTone: "muted" };
     }
-    // 무료 — 0원 이용권을 받아 바로 갤러리 정보로
-    setStarting(true);
-    setBanner(null);
-    try {
-      const checkout = await createCheckout(picked.checkoutPlanId);
-      router.push(
-        `/onboarding/personal/gallery?checkout=${encodeURIComponent(checkout.checkoutId)}&plan=${encodeURIComponent(picked.id)}`,
-      );
-    } catch (err) {
-      setStarting(false);
-      setBanner(
-        err instanceof ApiError
-          ? err.message
-          : "시작하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-      );
-    }
+    return coupon
+      ? { disabled: false, tag: "쿠폰 등록됨", tagTone: "brand" }
+      : { disabled: true, tag: "결제 준비 중", tagTone: "muted" };
   }
 
-  const buttonLabel = !picked
-    ? "플랜을 골라 주세요"
-    : paid
-      ? `${picked.name} 결제하러 가기`
-      : starting
-        ? "시작하는 중…"
-        : "무료로 시작하기";
+  const picked = data?.plans.find((p) => p.id === pickedId) ?? null;
+  const pickedFree = picked !== null && isFreePlan(picked);
+
+  function proceed() {
+    if (!picked) return;
+    if (pickedFree) {
+      router.push("/onboarding/personal/gallery?plan=free");
+      return;
+    }
+    if (coupon) router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`);
+  }
+
+  const buttonLabel = !picked ? "플랜을 골라 주세요" : pickedFree ? "무료로 시작하기" : "쿠폰으로 계속하기";
+
+  if (!hashChecked) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-background-default-main">
+        <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">플랜을 불러오고 있어요…</p>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
@@ -97,7 +113,7 @@ export default function PersonalPlanPage() {
             <BackIcon size={16} />
             역할 선택으로
           </Link>
-          <PersonalSteps paid={paid} current="plan" />
+          <PersonalSteps variant="plan" current="plan" />
           <p className="type-label-eyebrow text-brand-secondary-default">For Individuals</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             플랜을 골라 주세요
@@ -107,7 +123,7 @@ export default function PersonalPlanPage() {
           </p>
 
           <div className="mt-6">
-            {plans === null && !failed && (
+            {data === null && !failed && (
               <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">
                 플랜을 불러오고 있어요…
               </p>
@@ -128,48 +144,37 @@ export default function PersonalPlanPage() {
                 </Button>
               </div>
             )}
-            {plans && (
-              <>
-                <div
-                  role="radiogroup"
-                  aria-label="플랜"
-                  className={`grid gap-3 max-[720px]:grid-cols-1 ${
-                    plans.list.length >= 3 ? "grid-cols-3" : "grid-cols-2"
-                  }`}
-                >
-                  {plans.list.map((plan) => (
+            {data && (
+              <div
+                role="radiogroup"
+                aria-label="플랜"
+                className={`grid gap-3 max-[720px]:grid-cols-1 ${
+                  data.plans.length >= 3 ? "grid-cols-3" : "grid-cols-2"
+                }`}
+              >
+                {data.plans.map((plan) => {
+                  const lock = lockOf(plan);
+                  return (
                     <PlanCard
                       key={plan.id}
                       plan={plan}
                       checked={pickedId === plan.id}
+                      disabled={lock.disabled}
+                      tag={lock.tag}
+                      tagTone={lock.tagTone}
                       onPick={() => setPickedId(plan.id)}
                     />
-                  ))}
-                </div>
-                {checkoutOff && (
-                  <p
-                    role="status"
-                    className="mt-4 flex items-start gap-2 rounded-(--radius-8) bg-function-info-surface px-3 py-2 type-content-s text-contents-light-bgd-default"
-                  >
-                    <InfoIcon size={18} className="mt-px shrink-0 text-function-info-default" />
-                    지금은 결제를 열 수 없어요. 잠시 후 다시 시도하거나 문의해 주세요.
-                  </p>
-                )}
-              </>
+                  );
+                })}
+              </div>
             )}
           </div>
-
-          {banner && (
-            <p role="alert" className="mt-6 text-center type-content-xs text-function-error-default">
-              {banner}
-            </p>
-          )}
 
           <Button
             size="lg"
             className="mt-6 w-full"
             icon={<ArrowRightIcon />}
-            disabled={!picked || starting || checkoutOff}
+            disabled={!picked}
             onClick={proceed}
           >
             {buttonLabel}

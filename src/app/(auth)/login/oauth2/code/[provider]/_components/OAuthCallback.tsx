@@ -18,6 +18,7 @@ import { ApiError } from "@/lib/api/client";
 import { setAuthenticated } from "@/lib/auth/authStore";
 import { readLoginContext, resolveDestination } from "@/lib/auth/loginFlow";
 import { setTokens } from "@/lib/auth/tokenStore";
+import { COUPON_PATH } from "@/lib/couponLink";
 
 // 인가 코드는 일회용이다. StrictMode(개발)가 effect를 두 번 돌려 같은 코드로
 // 두 번 교환하면 두 번째가 반드시 실패해 "성공했는데 에러"가 되므로,
@@ -41,6 +42,11 @@ export function OAuthCallback({
     const ctx = readLoginContext();
 
     function backToLogin(errorCode: string) {
+      // 쿠폰 선물 링크에서 시작했으면 그 화면으로 — 코드는 # 조각에, 에러는 쿼리에
+      if (ctx?.couponCode) {
+        router.replace(`${COUPON_PATH}?error=${encodeURIComponent(errorCode)}#${new URLSearchParams({ code: ctx.couponCode }).toString()}`);
+        return;
+      }
       const query = new URLSearchParams({
         role: ctx?.intent === "studio" ? "photographer" : "couple",
         error: errorCode,
@@ -71,6 +77,7 @@ export function OAuthCallback({
             inviteToken: result.inviteToken,
             user,
             intent: ctx?.intent ?? "couple",
+            couponCode: ctx?.couponCode ?? null,
           }),
         );
       } catch (err) {

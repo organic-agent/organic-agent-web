@@ -15,6 +15,7 @@ import {
   type User,
   type UserWorkspace,
 } from "@/lib/api/auth";
+import { couponRedemptionPath } from "@/lib/couponLink";
 
 /**
  * 로그인 뒤 목적지를 정하는 값. 모달 문구(로그인/회원가입)는 LoginModal의 mode가 따로 정한다.
@@ -27,6 +28,8 @@ export type LoginIntent = "couple" | "studio" | "personal";
 export type LoginContext = {
   intent: LoginIntent;
   inviteToken: string | null;
+  /** 프로 쿠폰 선물 링크로 왔는데 로그인 전이었을 때의 코드 — 로그인 뒤 쿠폰 등록 화면으로 돌아간다(이슈 81) */
+  couponCode?: string | null;
 };
 
 const CONTEXT_KEY = "sel.loginContext";
@@ -110,11 +113,14 @@ export type DestinationInput = {
   user: User;
   /** 모달을 연 곳이 넘긴 목적지 의도. nav처럼 역할을 모르는 곳은 couple */
   intent: LoginIntent;
+  /** 쿠폰 선물 링크에서 시작한 로그인이면 그 코드 — 쿠폰 등록 화면으로 돌아간다 */
+  couponCode?: string | null;
 };
 
 /**
  * 로그인 완료 후 목적지 — 소속 규칙.
  *  - 초대 토큰이 있으면 초대 수락 페이지. 서버는 자동 수락하지 않으니 사용자가 확인한다.
+ *  - 쿠폰 코드가 있으면 쿠폰 등록 화면(코드를 # 조각에 실어서).
  *  - 소속 0개(신규): 의도가 있으면 그 온보딩으로, 없으면 역할 선택으로.
  *  - 소속 1개: 그 공간으로.
  *  - 소속 2개 이상: 워크스페이스 목록에서 고른다.
@@ -123,8 +129,10 @@ export function resolveDestination({
   inviteToken,
   user,
   intent,
+  couponCode = null,
 }: DestinationInput): string {
   if (inviteToken) return `/invite/${encodeURIComponent(inviteToken)}`;
+  if (couponCode) return couponRedemptionPath(couponCode);
   const spaces = sortByRecentActivity(user.workspaces ?? []);
   if (spaces.length === 0) {
     if (intent === "studio") return "/onboarding/studio";

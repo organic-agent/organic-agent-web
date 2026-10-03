@@ -44,6 +44,8 @@ export type GalleryResponse = {
   planExpiresAt: string | null;
   /** 플랜의 사진 상한. 발급 때 "지금 사진 + 올릴 사진"이 넘으면 409(GALLERY_409_3). null이면 제한 없음 */
   planMaxPhotoCount: number | null;
+  /** "free" 또는 "pro". 요금제가 없거나 옛 테스트 이용권으로 만든 갤러리는 null */
+  planId: string | null;
 };
 
 export type CreateGalleryRequest = {
@@ -58,15 +60,18 @@ export type CreateGalleryRequest = {
 };
 
 export type CreatePersonalGalleryRequest = CreateGalleryRequest & {
-  /** 테스트 결제로 받은 이용권. 한 번 쓰면 소진된다 */
-  checkoutId: string;
   /** AI 폴더의 큰 분류를 가르는 값. 온보딩은 본식으로 보내고 갤러리 설정에서 바꾼다 */
   shootType: "REHEARSAL" | "CEREMONY" | "OTHER";
+  /** "free" | "pro". 무료는 계정당 한 번, 프로는 새 갤러리에만(기존 무료 갤러리 업그레이드 없음) */
+  planId: "free" | "pro";
+  /** 프로 개설에 쓸 본인의 미사용 쿠폰 id. 무료면 보내지 않는다 */
+  couponId?: number;
 };
 
 /**
- * 개인 갤러리 개설 — 본인 이용권(checkoutId)을 한 번 쓴다. 만들어진 갤러리는 즉시
- * 공개 상태이고, 플랜 기간이 기본 완료 예정일이 된다. 만든 사람이 OWNER다.
+ * 개인 갤러리 개설 — 무료는 생성일부터 달력 기준 1개월 · 500장, 프로는 미사용 쿠폰 한 장을 써서
+ * 1년 · 10,000장(이용 기간은 이때 시작). 만들어진 갤러리는 즉시 공개 상태이고, 이용 기간 끝이
+ * 기본 선택 마감이 된다. 만든 사람이 OWNER다. 옛 checkoutId는 더 보내지 않는다(이슈 81).
  */
 export function createPersonalGallery(
   request: CreatePersonalGalleryRequest,

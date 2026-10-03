@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * 개인 갤러리 온보딩 3단계 — 갤러리 정보
+ * 개인 갤러리 온보딩 — 갤러리 정보 (일반 진입 · 쿠폰 진입이 함께 쓰는 마지막 화면)
  * 위치: src/app/(auth)/onboarding/personal/gallery/page.tsx
  *
- * 주소의 checkout(이용권)으로 어떤 플랜인지 확인해 상단에 "무료로 시작" 또는
- * "OO 플랜 결제 완료"를 보여주고, 이름·선택 마감·고를 장수를 받아 개인 갤러리를 만든다.
- * 촬영 종류는 화면에서 받지 않고 본식으로 보낸다 — 갤러리 설정에서 바꿀 수 있다.
+ * 주소의 plan(free · pro)과 coupon(프로일 때 미사용 쿠폰 id)으로 어떤 갤러리를 만들지 정한다. 무료는 내 혜택의
+ * freePlanAvailable, 프로는 그 쿠폰이 내 것이고 미사용인지 확인하고, 아니면 앞 화면으로 돌려보낸다.
+ * 배지는 플랜 응답 값으로 "프로 · 10,000장 · 1년" / "무료로 시작 · 500장 · 1개월". 단계 표시와 뒤로 가기만
+ * 들어온 길에 따라 다르다(쿠폰 등록 · 플랜 선택). 이름·선택 마감·고를 장수를 받아 planId · couponId로 개설한다.
+ * 촬영 종류는 화면에서 받지 않고 본식으로 보낸다 — 갤러리 설정에서 바꿀 수 있다. 이슈 81.
  * useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다.
  */
 
@@ -19,10 +21,18 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import { createPersonalGallery, toSelectionDeadline } from "@/lib/api/galleries";
-import { getCheckout, getPlans, type CheckoutResponse } from "@/lib/api/payments";
-import { PersonalSteps } from "../_components/PersonalSteps";
-import { resolvePlans, type DisplayPlan } from "../_lib/planCatalog";
+import {
+  formatAmount,
+  getMyBenefits,
+  getPlans,
+  isFreePlan,
+  planDurationLabel,
+  type Plan,
+  type ProCouponResponse,
+} from "@/lib/api/payments";
 import { refreshMe } from "@/lib/auth/refreshMe";
+import { COUPON_PATH } from "@/lib/couponLink";
+import { PersonalSteps } from "../_components/PersonalSteps";
 
 export default function PersonalGalleryPage() {
   return (
@@ -32,41 +42,51 @@ export default function PersonalGalleryPage() {
   );
 }
 
+type Ticket = { plan: Plan; coupon: ProCouponResponse | null };
+
 function PersonalGalleryForm() {
   const router = useRouter();
   const search = useSearchParams();
-  const checkoutId = search.get("checkout");
-  const planId = search.get("plan");
-  const [ticket, setTicket] = useState<{
-    checkout: CheckoutResponse;
-    plan: DisplayPlan | null;
-  } | null>(null);
+  const planParam = search.get("plan");
+  const couponParam = search.get("coupon");
+  const [ticket, setTicket] = useState<Ticket | null>(null);
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
   const [count, setCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
-  // 이용권이 없으면(주소 직접 입력 등) 플랜 선택으로
+  // 주소가 가리키는 플랜 · 쿠폰이 지금 쓸 수 있는 것인지 — 아니면 앞 화면으로
   useEffect(() => {
-    if (!checkoutId) {
+    if (planParam !== "free" && planParam !== "pro") {
       router.replace("/onboarding/personal");
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const [checkout, plans] = await Promise.all([getCheckout(checkoutId), getPlans()]);
+        const [plansRes, benefits] = await Promise.all([getPlans(), getMyBenefits()]);
         if (cancelled) return;
-        // 배지는 사용자가 고른 표시 플랜 기준. 주소에 없으면 이용권의 플랜으로 되짚는다.
-        const list = resolvePlans(plans).plans;
-        setTicket({
-          checkout,
-          plan:
-            list.find((p) => p.id === planId) ??
-            list.find((p) => p.checkoutPlanId === checkout.planId) ??
-            null,
-        });
+        const plan = plansRes.plans.find((p) => p.id === planParam);
+        if (!plan) {
+          router.replace("/onboarding/personal");
+          return;
+        }
+        if (planParam === "free") {
+          if (!benefits.freePlanAvailable) {
+            router.replace("/onboarding/personal");
+            return;
+          }
+          setTicket({ plan, coupon: null });
+          return;
+        }
+        const couponId = Number(couponParam);
+        const coupon = benefits.coupons.find((c) => c.couponId === couponId && c.status === "AVAILABLE") ?? null;
+        if (!coupon) {
+          router.replace(COUPON_PATH);
+          return;
+        }
+        setTicket({ plan, coupon });
       } catch {
         if (!cancelled) router.replace("/onboarding/personal");
       }
@@ -74,25 +94,25 @@ function PersonalGalleryForm() {
     return () => {
       cancelled = true;
     };
-  }, [checkoutId, planId, router]);
+  }, [planParam, couponParam, router]);
 
-  const paid =
-    ticket !== null && (ticket.plan ? ticket.plan.amount > 0 : ticket.checkout.amount > 0);
+  const pro = ticket !== null && !isFreePlan(ticket.plan);
   const countNumber = Number(count);
   const countValid = count === "" || (Number.isInteger(countNumber) && countNumber >= 1);
   const canSubmit = title.trim().length > 0 && countValid && !submitting && ticket !== null;
 
   async function handleSubmit() {
-    if (!canSubmit || !checkoutId) return;
+    if (!canSubmit || !ticket) return;
     setSubmitting(true);
     setBanner(null);
     try {
       const gallery = await createPersonalGallery({
-        checkoutId,
         title: title.trim(),
         selectionDeadline: deadline ? toSelectionDeadline(deadline) : null,
         maxSelectablePhotoCount: count ? countNumber : null,
         shootType: "CEREMONY",
+        planId: pro ? "pro" : "free",
+        ...(ticket.coupon ? { couponId: ticket.coupon.couponId } : {}),
       });
       // 새 개인 작업공간이 내 소속에 실려야 갤러리 화면이 개인 갤러리로 판정한다(personalMembershipOf)
       await refreshMe();
@@ -107,10 +127,11 @@ function PersonalGalleryForm() {
     }
   }
 
-  const backHref =
-    ticket && paid
-      ? `/onboarding/personal/checkout?plan=${encodeURIComponent(ticket.plan?.id ?? ticket.checkout.planId)}`
-      : "/onboarding/personal";
+  const badge = ticket
+    ? pro
+      ? `${ticket.plan.name} · ${formatAmount(ticket.plan.maxPhotoCount)}장 · ${planDurationLabel(ticket.plan)}`
+      : `무료로 시작 · ${formatAmount(ticket.plan.maxPhotoCount)}장 · ${planDurationLabel(ticket.plan)}`
+    : null;
 
   return (
     <main className="flex min-h-dvh flex-col bg-background-default-main">
@@ -118,25 +139,23 @@ function PersonalGalleryForm() {
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-130">
           <Link
-            href={backHref}
+            href={pro ? COUPON_PATH : "/onboarding/personal"}
             className="mb-5 inline-flex items-center gap-1 type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
           >
             <BackIcon size={16} />
-            {paid ? "결제로" : "플랜 선택으로"}
+            {pro ? "쿠폰 등록으로" : "플랜 선택으로"}
           </Link>
-          <PersonalSteps paid={paid} current="gallery" />
+          <PersonalSteps variant={pro ? "coupon" : "plan"} current="gallery" />
 
-          {ticket && (
+          {badge && (
             <span
               className={`mb-3 inline-flex items-center rounded-(--pill) px-2.5 py-1 type-label-semibold-xs ${
-                paid
+                pro
                   ? "bg-function-success-surface text-contents-light-bgd-default"
                   : "bg-brand-secondary-background text-brand-secondary-dark"
               }`}
             >
-              {paid
-                ? `${ticket.plan?.name ?? "플랜"} 결제 완료`
-                : `무료로 시작${ticket.plan ? ` · ${ticket.plan.maxPhotoCount}장 · ${ticket.plan.durationDays}일` : ""}`}
+              {badge}
             </span>
           )}
 
