@@ -11,10 +11,13 @@
  * 모르는 동안은 3:2로 두고 알게 되면 줄이 다시 흐른다. 서버가 width · height를 주면 그 값으로 캐시를 채우면 된다.
  *
  * 선택 표시 두 가지(markStyle): "line" = 안쪽 2px 선 + 2px 흰 틈 + 체크(작가 화면 · 1단계) /
- * "check" = 왼쪽 위 체크만(클라이언트 2단계, 2026-09-12). currentId(싱글뷰로 열릴 사진)는 같은 구조의
- * 올리브 선. showScore면 왼쫽 아래 별점 배지(줌이 작으면 숨김). onOpen이 있으면 호버 돋보기 · 더블클릭 · 호버 캡션.
- * toggleOn="check"면 타일 전체가 아니라 **체크박스(왼쪽 위 넓은 영역)만** 선택을 바꾸고, 타일 클릭은 onTileClick(현재 사진)으로 간다
- * (클라이언트 2단계 — 사진을 누르다 담기고 빠지는 게 불편하다는 2026-09-12 피드백). 작가 화면은 타일 전체(기본).
+ * "check" = 왼쪽 위 체크만(클라이언트 2단계, 2026-09-12). currentId(마지막으로 크게 본 사진)는 같은 구조의
+ * 올리브 선. showScore면 오른쪽 위 별점 배지(줌이 작으면 숨김, AI 추천 ✦와 나란히). onOpen이 있으면 호버 캡션이 뜨고
+ * **타일을 누르면 크게 보기(싱글뷰)가 열린다** — 호버 돋보기 · 더블클릭은 없앴다(2026-10-03 수민: 헤더의 보기 버튼과
+ * 돋보기를 빼고 썸네일 클릭으로. 돋보기가 캡션 · 하객 반응 배지를 가리던 것도 함께 풀린다 — 이슈 84).
+ * toggleOn="check"면 타일 전체가 아니라 **체크박스(왼쪽 위 44×44)만** 선택을 바꾼다. 체크 자리의 클릭은 타일로
+ * 번지지 않아 크게 보기가 열리지 않는다. 타일 클릭은 onOpen(없으면 onTileClick)으로 간다
+ * (클라이언트 2단계 — 사진을 누르다 담기고 빠지는 게 불편하다는 2026-09-12 피드백). 작가 1단계는 타일 전체가 선택(기본).
  * PENDING(올리는 중)은 회색 자리, HEIC · HEIF는 미리보기 전(previewReady=false)엔 "미리보기 준비 중" 자리.
  * markedIds(표시만 하는 선택)는 작가가 클라이언트의 선택을 볼 때 쓴다.
  * 여러 장 고르기(onSelectMany, 2026-09-14): Shift + 클릭은 마지막으로 고른 사진부터 범위. 왼쪽 위 44×44 체크
@@ -25,7 +28,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { PhotoIcon, SparkleIcon, StarFillIcon, ZoomInIcon } from "@/components/icons";
+import { PhotoIcon, SparkleIcon, StarFillIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
 /** 줌 0~100 → 기준 행 높이(px) */
@@ -265,9 +268,9 @@ export function PhotoGrid({
   markStyle?: "line" | "check";
   /** 싱글뷰로 열릴(마지막으로 본) 사진 — 올리브 안쪽 선 */
   currentId?: number | null;
-  /** 왼쪽 아래 별점 배지 */
+  /** 오른쪽 위 별점 배지 */
   showScore?: boolean;
-  /** 있으면 호버 돋보기 · 더블클릭으로 연다(싱글뷰) */
+  /** 있으면 타일을 눌러 연다(싱글뷰) · 호버 캡션 — 체크박스 자리는 빼고 */
   onOpen?: (photoId: number) => void;
   /** 호버 캡션의 둘째 줄(폴더 이름 등) */
   captionOf?: (photo: PhotoResponse) => string | null;
@@ -277,7 +280,7 @@ export function PhotoGrid({
   aiIds?: ReadonlySet<number>;
   /** 선택을 바꾸는 곳 — tile(타일 전체, 기본) · check(왼쪽 위 체크박스만) */
   toggleOn?: "tile" | "check";
-  /** toggleOn="check"일 때 타일 클릭(현재 사진으로) */
+  /** onOpen이 없을 때의 타일 클릭 — 게스트 앨범 · 하객 반응처럼 화면이 직접 여는 곳 */
   onTileClick?: (photoId: number) => void;
   /** 타일 위에 더 얹을 것(보정 작업의 메모 · 결과 배지 · 점) — 줄이 낮으면 부모가 알아서 줄인다 */
   overlayOf?: (photo: PhotoResponse, detailed: boolean) => ReactNode;
@@ -285,7 +288,7 @@ export function PhotoGrid({
   onSelectMany?: (photoIds: number[], selected: boolean) => void;
   /** 끌어 옮기기 — 없으면 끌어도 아무 일 없다 */
   drag?: PhotoDragBinding | null;
-  /** false면 양옆 여백(px-5) 없음 — 부모가 1080 컨테이너 등으로 여백을 맡을 때(게스트 그리드) */
+  /** false면 양옆 여백(px-5, 480 미만 px-3) 없음 — 부모가 1080 컨테이너 등으로 여백을 맡을 때(게스트 그리드) */
   gutter?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -473,7 +476,7 @@ export function PhotoGrid({
   );
 
   return (
-    <div ref={containerRef} className={`flex select-none flex-col gap-2 pb-6 ${gutter ? "px-5" : ""}`}>
+    <div ref={containerRef} className={`flex select-none flex-col gap-2 pb-6 ${gutter ? "px-5 max-[480px]:px-3" : ""}`}>
       {rows.map((row, rowIndex) => (
         <div key={row.photos[0]?.photoId ?? rowIndex} data-row className="flex gap-2" style={{ height: row.height }}>
           {row.photos.map((photo, i) => {
@@ -487,15 +490,22 @@ export function PhotoGrid({
             const caption = captionOf?.(photo) ?? null;
             const checkOnly = toggleOn === "check";
             const moving = drag?.movingIds?.has(photo.photoId) ?? false;
-            /** 타일 클릭이 선택을 바꾸는가(아니면 onTileClick으로) */
+            /** 타일 클릭이 선택을 바꾸는가 — 아니면 크게 보기(onOpen), 그것도 없으면 onTileClick */
             const tileToggles = selectable && !checkOnly;
-            const clickable = tileToggles || onTileClick !== undefined;
+            const clickable = tileToggles || onOpen !== undefined || onTileClick !== undefined;
+            const activate = (shift: boolean) => {
+              if (tileToggles) chooseOne(photo.photoId, shift);
+              else if (onOpen) onOpen(photo.photoId);
+              else onTileClick?.(photo.photoId);
+            };
+            const scoreShown = showScore && photo.score !== null && detailed;
+            const aiPicked = aiIds?.has(photo.photoId) ?? false;
             const label = `${photo.originalFileName}${selected ? " 선택됨" : ""}${photo.score ? ` 별점 ${photo.score}` : ""}`;
             return (
               <div
                 key={photo.photoId}
-                role={clickable || onOpen ? "button" : undefined}
-                tabIndex={clickable || onOpen ? 0 : undefined}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
                 data-photo-id={photo.photoId}
                 aria-pressed={tileToggles ? selected : undefined}
                 aria-current={current || undefined}
@@ -509,24 +519,20 @@ export function PhotoGrid({
                   clickable
                     ? (e) => {
                         if (drag?.consumeClick()) return;
-                        if (tileToggles) chooseOne(photo.photoId, e.shiftKey);
-                        else onTileClick?.(photo.photoId);
+                        activate(e.shiftKey);
                       }
                     : undefined
                 }
-                onDoubleClick={onOpen ? () => onOpen(photo.photoId) : undefined}
                 onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === "Enter" && onOpen) onOpen(photo.photoId);
-                  else if (e.key === " " && clickable) {
+                  if (e.target !== e.currentTarget || !clickable) return;
+                  if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    if (tileToggles) chooseOne(photo.photoId, e.shiftKey);
-                    else onTileClick?.(photo.photoId);
+                    activate(e.shiftKey);
                   }
                 }}
                 style={{ width: row.widths[i], height: row.height }}
                 className={`group relative shrink-0 overflow-hidden rounded-(--radius-8) bg-surface-default-light text-left transition-opacity duration-fast ${
-                  clickable ? "cursor-pointer" : onOpen ? "cursor-zoom-in" : "cursor-default"
+                  clickable ? "cursor-pointer" : "cursor-default"
                 } ${moving ? "opacity-35" : ""} ${line}`}
               >
                 {pending || preparing ? (
@@ -574,34 +580,24 @@ export function PhotoGrid({
                   selected && <Check selected={selected} filled={markStyle === "check"} />
                 )}
                 {overlayOf?.(photo, detailed)}
-                {aiIds?.has(photo.photoId) && (
-                  <span aria-label="AI 추천" className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-brand-secondary-default text-white">
-                    <SparkleIcon size={12} />
+                {/* 오른쪽 위 — 별점 · AI 추천 ✦ (둘 다 있으면 나란히). 눌리지 않게 해 타일 클릭을 막지 않는다 */}
+                {(scoreShown || aiPicked) && (
+                  <span className="pointer-events-none absolute top-2 right-2 flex items-center gap-1">
+                    {scoreShown && (
+                      <span
+                        aria-hidden
+                        className="inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-black/50 pr-1.5 pl-1 type-label-semibold-xs text-white"
+                      >
+                        <StarFillIcon size={11} />
+                        {photo.score}
+                      </span>
+                    )}
+                    {aiPicked && (
+                      <span aria-label="AI 추천" className="grid size-5 place-items-center rounded-full bg-brand-secondary-default text-white">
+                        <SparkleIcon size={12} />
+                      </span>
+                    )}
                   </span>
-                )}
-                {showScore && photo.score !== null && detailed && (
-                  <span
-                    aria-hidden
-                    className="absolute bottom-2 left-2 inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-black/50 pr-1.5 pl-1 type-label-semibold-xs text-white"
-                  >
-                    <StarFillIcon size={11} />
-                    {photo.score}
-                  </span>
-                )}
-                {onOpen && (
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    aria-label="한 장 보기"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpen(photo.photoId);
-                    }}
-                    onDoubleClick={(e) => e.stopPropagation()}
-                    className="absolute right-2 bottom-2 grid size-6 cursor-zoom-in place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-black/65"
-                  >
-                    <ZoomInIcon size={15} />
-                  </button>
                 )}
               </div>
             );

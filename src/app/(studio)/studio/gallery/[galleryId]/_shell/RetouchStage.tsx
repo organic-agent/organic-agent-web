@@ -31,7 +31,7 @@ import { RetouchDownloadModal } from "./RetouchDownloadModal";
 import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
-import { ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
+import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
 import { ProgressBar } from "./UploadProgress";
 import { type ResultAssignment, useResultUpload } from "./useResultUpload";
 import { useRetouchOverview, useRetouchRoundDetail } from "./useRetouchOverview";
@@ -291,7 +291,7 @@ export function RetouchStage({
 
   return (
     <>
-      <div className="flex min-h-0 flex-1">
+      <div className={SHELL_BODY_CLASS}>
         {sidebarOpen && (
           <ShellSidebar
             title={gallery.title}
@@ -356,9 +356,6 @@ export function RetouchStage({
                   ],
                   onChange: (key) => setFilter(key as Filter),
                 }}
-                onSingleView={() => {
-                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
-                }}
               />
               {banner && (
                 <div
@@ -384,7 +381,6 @@ export function RetouchStage({
                     selectable={false}
                     currentId={currentId}
                     onOpen={openPhoto}
-                    onTileClick={setCurrentId}
                     toggleOn="check"
                     captionOf={(p) => {
                       const it = itemById.get(p.photoId);
@@ -420,6 +416,7 @@ export function RetouchStage({
             bottomHint
           )
         }
+        hintIsNotice={upload.state.failed.length > 0}
         progress={
           upload.state.running ? (
             <ProgressBar

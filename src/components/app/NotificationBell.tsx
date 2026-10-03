@@ -5,7 +5,8 @@
  * 위치: src/components/app/NotificationBell.tsx
  * 시안: 와이어프레임 11 알림 드롭다운 + 보드 A3 (유형 아이콘 · 전체/안 읽음 탭 · 오늘/이번 주/이전 묶음)
  *
- * 열기 전에도 목록을 한 번 받아 안 읽은 알림이 있으면 벨에 점을 찍는다. 열 때 다시 받는다.
+ * 열기 전에도 목록을 한 번 받아 안 읽은 알림이 있으면 벨에 점을 찍는다. 열 때 다시 받고, 탭이 보이는 동안
+ * 60초마다 · 다른 탭에서 돌아올 때도 다시 받는다 — 화면을 열어 둔 채 기다려도 새 알림의 점이 생기게(이슈 84).
  * 행을 누르면 읽음 처리(PATCH)하고 범위에 맞는 화면으로 간다 — 갤러리 알림의 주소는 보는 사람의
  * 역할에 따라 다르므로 hrefFor로 바꿔 끼운다(기본은 작가 주소). 내보내짐 · 작업공간 삭제 알림은
  * 갈 곳이 없어(403·404) 어느 역할이든 읽음 처리만 한다.
@@ -124,6 +125,9 @@ function groupOf(iso: string | null, now: number): Group {
 
 type Loaded = { list: UserNotificationResponse[]; at: number };
 
+/** 탭이 보이는 동안 목록을 다시 받는 간격 */
+const REFRESH_MS = 60_000;
+
 /** 눌러도 갈 곳이 없는 알림 — 내보내졌거나 작업공간이 삭제돼 그 주소는 이미 403·404다. 읽음 처리만 한다 */
 const NO_DESTINATION = new Set<NotificationType>(["MEMBERSHIP_REMOVED", "WORKSPACE_DELETED"]);
 
@@ -160,6 +164,31 @@ export function NotificationBell({
       cancelled = true;
     };
   }, [open]);
+
+  // 탭이 보이는 동안 주기적으로, 그리고 다른 탭에서 돌아올 때 다시 받는다 — 새로고침 없이도 벨의 점이 생기게
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const list = await listNotifications();
+        if (cancelled) return;
+        loadedOnce.current = true;
+        setData({ list, at: Date.now() });
+        setFailed(false);
+      } catch {
+        // 주기 갱신 실패는 조용히 — 다음 차례에 다시
+      }
+    }
+    const timer = window.setInterval(() => void refresh(), REFRESH_MS);
+    const onVisible = () => void refresh();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   // 바깥 클릭·ESC로 닫기
   useEffect(() => {

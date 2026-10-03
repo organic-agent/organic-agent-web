@@ -18,7 +18,6 @@ import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import {
   CheckCircleIcon,
-  ChevronRightIcon,
   CloudUploadIcon,
   ErrorIcon,
   PauseIcon,
@@ -78,7 +77,7 @@ import {
 } from "./_shell/reviewMemory";
 import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "./_shell/ShellMainHeader";
-import { ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
+import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
 import { ShellTopbar } from "./_shell/ShellTopbar";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
@@ -95,7 +94,7 @@ import {
   readUploadActiveRaw,
   subscribeRemembered,
 } from "./_shell/uploadMemory";
-import { matchRecoveryFiles, recoverablePending } from "./_shell/uploadRecovery";
+import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "./_shell/uploadRecovery";
 import { describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
@@ -406,15 +405,11 @@ export default function StudioGalleryShellPage() {
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
 
   function onRecoveryFiles(files: File[]) {
-    const { resume, fresh } = matchRecoveryFiles(files, recoverable, remembered);
-    setUploadNotice(
-      resume.length === 0
-        ? "짝이 맞는 파일이 없어 새 사진으로 올려요"
-        : fresh.length > 0
-          ? `${resume.length}장은 이어서, ${fresh.length}장은 새로 올려요`
-          : null,
-    );
-    void startUpload(fresh, resume);
+    // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 원래 폴더를 통째로 다시 골라도 중복이 생기지 않게
+    const match = matchRecoveryFiles(files, recoverable, remembered, existingNames);
+    setUploadNotice(recoveryNotice(match));
+    if (match.resume.length === 0 && match.fresh.length === 0) return;
+    void startUpload(match.fresh, match.resume);
   }
   // ── 검토 동작 — 폴더 만들기 · 삭제 · 사진 이동 · 사진 삭제 (서버는 본문 없이 끝나므로 다시 조회) ──
   async function submitFolderName(name: string) {
@@ -671,16 +666,13 @@ export default function StudioGalleryShellPage() {
     onSortChange: setSort,
     filter,
     onFilterChange: setFilter,
-    onSingleView: showComingSoon,
   };
 
+  // 세부 폴더를 볼 때만 상위(컨셉) 이름을 제목 앞에 붙인다 — 좁으면 헤더가 통째로 숨긴다
+  const allTitleParent = selectedDetail && selectedConcept ? selectedConcept.name : undefined;
   const allTitle =
     selectedDetail && selectedConcept ? (
       <>
-        <span className="font-normal text-contents-light-bgd-weakness">{selectedConcept.name}</span>
-        <span className="flex text-contents-light-bgd-weakness">
-          <ChevronRightIcon size={18} />
-        </span>
         <span className="truncate">{selectedDetail.name}</span>
         {selectedDetail.needsReview && (
           <>
@@ -805,11 +797,11 @@ export default function StudioGalleryShellPage() {
   const bottomStatus =
     stageIndex === 1 && sub !== "invite" ? (
       <span className="flex items-center gap-2.5 type-content-m text-contents-light-bgd-sub">
-        선택한 사진
+        <span className="max-sm:hidden">선택한 사진</span>
         <b className="type-title-s text-contents-light-bgd-default tabular-nums">{selectedCount}</b>
         {maxSelectable !== null && <span className="tabular-nums">/ {maxSelectable}</span>}
         <span
-          className={`size-11 overflow-hidden rounded-(--radius-8) border bg-surface-default-light ${
+          className={`size-11 overflow-hidden rounded-(--radius-8) border bg-surface-default-light max-lg:hidden ${
             sub === "overdue" ? "border-function-warning-default" : "border-divider-default"
           }`}
         >
@@ -931,7 +923,7 @@ export default function StudioGalleryShellPage() {
             {allPhotos.length === 0 ? "사진 업로드" : "사진 더 올리기"}
           </ShellCta>
           {allPhotos.length > 0 && (
-            <ShellCta disabled={!canOpen} onClick={() => setOpenConfirm(true)}>
+            <ShellCta disabled={!canOpen} short="열기" onClick={() => setOpenConfirm(true)}>
               갤러리 열기
             </ShellCta>
           )}
@@ -1018,7 +1010,7 @@ export default function StudioGalleryShellPage() {
         />
       ) : (
         <>
-        <div className="flex min-h-0 flex-1">
+        <div className={SHELL_BODY_CLASS}>
           {!collapsed && (
             <ShellSidebar
               title={gallery?.title ?? "…"}
@@ -1114,7 +1106,7 @@ export default function StudioGalleryShellPage() {
               </>
             ) : (
               <>
-                <ShellMainHeader {...headerCommon} title={allTitle} />
+                <ShellMainHeader {...headerCommon} title={allTitle} titleParent={allTitleParent} />
                 {recoveryBanner}
                 {quotaBanner}
                 <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
@@ -1148,6 +1140,7 @@ export default function StudioGalleryShellPage() {
           onMoveSelection={() => setMoveOpen(true)}
           onDeleteSelection={() => setDeletePhotosOpen(true)}
           hint={bottomHint}
+          hintIsNotice={stageIndex === 0 && Boolean(analysis.error || uploadNotice)}
           progress={
             stageIndex === 0 && (uploadProgress || aiProgress) ? (
               <>

@@ -9,7 +9,7 @@
  * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
- * 싱글뷰(Lightbox)는 돋보기 · 더블클릭 · 헤더 "한 장 보기"로 열고, 닫으면 그 사진으로 스크롤한다.
+ * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
@@ -20,12 +20,13 @@
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, ChevronRightIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { type CustomMenu, ShellMainHeader, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
@@ -235,6 +236,8 @@ export function SelectStage({
   })();
   const focusedDetail = filter.detailIds.size === 1 && !filter.unsorted ? details.find((d) => d.id === [...filter.detailIds][0]) ?? null : null;
   const focusedConcept = focusedDetail ? folders?.find((c) => c.details.some((d) => d.id === focusedDetail.id)) ?? null : null;
+  // 세부 폴더 하나만 볼 때 제목 앞에 붙는 상위(컨셉) 이름 — 좁으면 헤더가 통째로 숨긴다
+  const titleParent = view !== "selected" && focusedDetail && focusedConcept ? focusedConcept.name : undefined;
   const title = (() => {
     if (view === "selected")
       return (
@@ -251,10 +254,6 @@ export function SelectStage({
     if (focusedDetail && focusedConcept)
       return (
         <>
-          <span className="font-normal text-contents-light-bgd-weakness">{focusedConcept.name}</span>
-          <span className="flex text-contents-light-bgd-weakness">
-            <ChevronRightIcon size={18} />
-          </span>
           <span className="truncate">{focusedDetail.name}</span>
           <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
         </>
@@ -289,7 +288,9 @@ export function SelectStage({
     () => aiInScope.map((r) => photoById.get(r.photo.photoId)).filter((p): p is PhotoResponse => p !== undefined),
     [aiInScope, photoById],
   );
+  // 로딩은 이번 라운드 사진이 뜨기 전까지만 — 이유는 사진이 뜬 뒤에도 서버가 이어서 채운다(이슈 84)
   const aiBusy = ai.phase === "requesting" || ai.phase === "running";
+  const aiReasonsReady = aiInScope.filter((r) => r.reasonReady).length;
   const showAiGroup = view === "all" && (aiPhotos.length > 0 || aiBusy || ai.error !== null);
   const restPhotos = useMemo(() => (showAiGroup ? gridPhotos.filter((p) => !aiIds.has(p.photoId)) : gridPhotos), [showAiGroup, gridPhotos, aiIds]);
   const aiReasonOf = (photo: PhotoResponse) => {
@@ -377,7 +378,7 @@ export function SelectStage({
 
   return (
     <>
-      <div className="flex min-h-0 flex-1">
+      <div className={SHELL_BODY_CLASS}>
         {sidebarOpen && (
           <ClientSidebar
             title={gallery.title}
@@ -425,6 +426,7 @@ export function SelectStage({
             <>
               <ShellMainHeader
                 title={title}
+                titleParent={titleParent}
                 leading={
                   <>
                   {view === "all" && (
@@ -432,10 +434,11 @@ export function SelectStage({
                       type="button"
                       data-coach="ai"
                       aria-pressed={aiPhotos.length > 0}
-                      disabled={!editable || aiBusy}
+                      aria-label={`AI 추천${aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}`}
+                      disabled={!editable || aiBusy || ai.jobActive}
                       onClick={() => void ai.request(focusedDetail?.id ?? null)}
                       title={focusedDetail ? `${focusedDetail.name}에서 약 10%를 이유와 함께 골라 드려요` : "폴더마다 몇 장씩 이유와 함께 골라 드려요"}
-                      className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 ${
+                      className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 max-[860px]:px-2.25 ${
                         aiPhotos.length > 0
                           ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default"
                           : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
@@ -444,22 +447,23 @@ export function SelectStage({
                       <span className="text-brand-secondary-default">
                         <SparkleIcon size={18} />
                       </span>
-                      AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}
+                      <span className="max-[860px]:hidden">AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}</span>
                     </button>
                   )}
                   <button
                     type="button"
                     aria-pressed={guestOn}
+                    aria-label="하객 반응"
                     onClick={() => setGuestOn((v) => !v)}
                     title="공유폴더에서 온 하객 좋아요를 타일에 겹쳐 봐요"
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 type-content-s transition-colors duration-fast ${
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
                       guestOn ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                     }`}
                   >
                     <span className={guestOn ? "text-brand-secondary-default" : "text-contents-light-bgd-sub"}>
                       <GroupIcon size={18} />
                     </span>
-                    하객 반응
+                    <span className="max-[860px]:hidden">하객 반응</span>
                   </button>
                   </>
                 }
@@ -470,12 +474,8 @@ export function SelectStage({
                 filter="none"
                 onFilterChange={() => {}}
                 showFilters={false}
-                coachKey="single"
                 sortable={view === "all"}
                 customSort={guestOn ? guestSortMenu : undefined}
-                onSingleView={() => {
-                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
-                }}
               />
               <div data-coach="pick" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {showAiGroup && (
@@ -498,16 +498,22 @@ export function SelectStage({
                       ) : (
                         <>
                           <b className="font-semibold">AI 추천 {aiPhotos.length}장</b>
-                          <span className="type-content-xs text-contents-light-bgd-weakness">{scopeLabel} 중 · 이유는 사진에 마우스를 올리면 보여요</span>
+                          <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">
+                            {aiReasonsReady < aiInScope.length
+                              ? `${scopeLabel} 중 · 이유 준비 중 ${aiReasonsReady} / ${aiInScope.length}`
+                              : `${scopeLabel} 중 · 이유는 사진에 마우스를 올리면 보여요`}
+                          </span>
                         </>
                       )}
                       <span className="flex-1" />
                       {!aiBusy && editable && (
                         <>
+                          {/* 서버 잡이 이유를 채우는 동안은 새 요청이 409 — 끝날 때까지 꺼 둔다 */}
                           <button
                             type="button"
+                            disabled={ai.jobActive}
                             onClick={() => void ai.request(focusedDetail?.id ?? null)}
-                            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) border border-border-default px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-background-default-main"
+                            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) border border-border-default px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-background-default-main disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
                           >
                             <RefreshIcon size={14} />
                             다시 추천
@@ -532,7 +538,6 @@ export function SelectStage({
                         selectedIds={pickedIds}
                         onToggle={requestToggle}
                         toggleOn="check"
-                        onTileClick={setCurrentId}
                         selectable={editable}
                         markStyle="check"
                         currentId={currentId}
@@ -573,7 +578,6 @@ export function SelectStage({
                         selectedIds={pickedIds}
                         onToggle={requestToggle}
                         toggleOn="check"
-                        onTileClick={setCurrentId}
                         selectable={editable}
                         markStyle="check"
                         currentId={currentId}
@@ -592,7 +596,6 @@ export function SelectStage({
                     selectedIds={pickedIds}
                     onToggle={requestToggle}
                     toggleOn="check"
-                    onTileClick={setCurrentId}
                     selectable={editable}
                     markStyle="check"
                     currentId={currentId}
@@ -620,20 +623,21 @@ export function SelectStage({
               {shownNotice}
             </button>
           ) : selectedCount === 0 ? (
-            "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
+            "왼쪽 위 체크로 선택해요 · 사진을 누르면 크게 보며 별점과 보정 요청"
           ) : (
             `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
           )
         }
+        hintIsNotice={shownNotice !== null}
         status={
           <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
-            선택한 사진
+            <span className="max-sm:hidden">선택한 사진</span>
             <b className={`type-label-semibold-l tabular-nums ${full ? "text-function-warning-default" : "text-contents-light-bgd-default"}`}>
               {selectedCount}
             </b>
             {maxSelectable !== null && <span className="text-contents-light-bgd-weakness">/ {maxSelectable}</span>}
             {pickedPhotos.length > 0 && (
-              <span className="ml-1 flex" aria-hidden>
+              <span className="ml-1 flex max-lg:hidden" aria-hidden>
                 {pickedPhotos.slice(-3).map((p) => (
                   <span key={p.photoId} className="-ml-2 size-6.5 overflow-hidden rounded-(--radius-4) border-2 border-background-default-main bg-surface-default-light first:ml-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -664,7 +668,7 @@ export function SelectStage({
                   요청서 내보내기
                 </ShellCta>
               ) : (
-                <ShellCta disabled={!canSubmit} onClick={() => setSubmitOpen(true)}>
+                <ShellCta disabled={!canSubmit} short="전달하기" onClick={() => setSubmitOpen(true)}>
                   작가에게 전달하기
                 </ShellCta>
               )}
@@ -797,6 +801,7 @@ export function SelectStage({
                 pickedIds={pickedIds}
                 editable={editable}
                 busy={aiBusy}
+                jobActive={ai.jobActive}
                 error={ai.error}
                 onPick={toggle}
                 onRequest={() => void ai.request(details.find((d) => d.photoIds.includes(currentPhoto.photoId))?.id ?? null)}
@@ -819,6 +824,7 @@ function AiPanel({
   pickedIds,
   editable,
   busy,
+  jobActive,
   error,
   onPick,
   onRequest,
@@ -829,7 +835,10 @@ function AiPanel({
   folderName: string | null;
   pickedIds: ReadonlySet<number>;
   editable: boolean;
+  /** 사진을 고르는 중(이번 라운드 사진이 아직 없다) */
   busy: boolean;
+  /** 서버 잡이 아직 도는 중(이유를 채우는 중 포함) — 새 요청은 409라 요청 버튼을 끈다 */
+  jobActive: boolean;
   error: string | null;
   onPick: (photoId: number) => void;
   onRequest: () => void;
@@ -891,7 +900,7 @@ function AiPanel({
       {error && <p className="type-content-xs text-function-error-default">{error}</p>}
       <button
         type="button"
-        disabled={!editable || busy}
+        disabled={!editable || busy || jobActive}
         onClick={onRequest}
         className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-(--radius-8) border border-border-default type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
       >

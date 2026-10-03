@@ -15,9 +15,8 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useComingSoonToast } from "@/components/app/ComingSoonToast";
-import { useSidebar } from "@/components/SidebarProvider";
-import { CheckCircleIcon, ChevronRightIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
+import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
+import { CheckCircleIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ddayLabel } from "@/app/(studio)/_lib/galleryStatus";
 import { FolderColumn, ReviewBadge, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
@@ -39,6 +38,7 @@ import {
 } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/reviewMemory";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
 import { usePhotoMove } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/usePhotoMove";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
@@ -74,7 +74,6 @@ export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
   const galleryId = Number(params.galleryId);
   const { collapsed, hasPreference, setCollapsed } = useSidebar();
-  const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const router = useRouter();
   const { result: galleryResult, reload: reloadGallery } = useInvitedGallery(params.galleryId);
   // 볼 수 없는 갤러리(403 · 404 — 내보내졌거나 삭제됐거나 주소 오타) → 소속을 다시 읽고 워크스페이스 목록 또는 랜딩으로
@@ -111,9 +110,10 @@ export default function ClientGalleryPage() {
   /** 폴더 확정 뒤 — 셀렉은 SelectStage, 전달한 뒤(보정 중 · 검토 · 앨범 · 완료)는 ReviewStage가 그린다 */
   const selecting = phase !== null && phase !== "wait" && phase !== "sort" && phase !== "upload";
   const reviewing = phase === "submitted" || phase === "review" || phase === "album" || phase === "done";
-  // 사이드바 기본값: 1단계 닫힘 · 2단계부터 열림. 사용자가 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다
+  // 사이드바 기본값: 1단계 닫힘 · 2단계부터 열림. 사용자가 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다.
+  // 640 미만에서는 사이드바가 사진을 가리므로 저절로 열지 않는다(항목을 눌러 닫은 것을 다시 여는 일도 없게)
   useEffect(() => {
-    if (selecting && !hasPreference && collapsed) setCollapsed(false);
+    if (selecting && !hasPreference && collapsed && !isSidebarOnlyViewport()) setCollapsed(false);
   }, [selecting, hasPreference, collapsed, setCollapsed]);
 
   const [rawFolders, setFolders] = useState<ConceptFolderResponse[] | null>(null);
@@ -443,15 +443,12 @@ export default function ClientGalleryPage() {
     onSortChange: setSort,
     filter,
     onFilterChange: setFilter,
-    onSingleView: showComingSoon,
   };
+  // 세부 폴더를 볼 때만 상위(컨셉) 이름을 제목 앞에 붙인다 — 좁으면 헤더가 통째로 숨긴다
+  const allTitleParent = selectedDetail && selectedConcept ? selectedConcept.name : undefined;
   const allTitle =
     selectedDetail && selectedConcept ? (
       <>
-        <span className="font-normal text-contents-light-bgd-weakness">{selectedConcept.name}</span>
-        <span className="flex text-contents-light-bgd-weakness">
-          <ChevronRightIcon size={18} />
-        </span>
         <span className="truncate">{selectedDetail.name}</span>
         {selectedDetail.needsReview && (
           <>
@@ -544,7 +541,7 @@ export default function ClientGalleryPage() {
         />
       ) : (
         <>
-        <div className="flex min-h-0 flex-1">
+        <div className={SHELL_BODY_CLASS}>
           {!collapsed && (
             <ClientSidebar
               title={gallery?.title ?? "…"}
@@ -625,7 +622,7 @@ export default function ClientGalleryPage() {
               </div>
             ) : (
               <>
-                <ShellMainHeader {...headerCommon} title={allTitle} />
+                <ShellMainHeader {...headerCommon} title={allTitle} titleParent={allTitleParent} />
                 {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
@@ -655,6 +652,7 @@ export default function ClientGalleryPage() {
           onMoveSelection={() => setMoveOpen(true)}
           onDeleteSelection={isPersonal && personal.owner && sorting ? () => setDeletePhotosOpen(true) : undefined}
           hint={bottomHint}
+          hintIsNotice={Boolean(notice) || (isPersonal && Boolean(upload.hint))}
           progress={isPersonal ? upload.progress ?? undefined : undefined}
           actions={bottomActions}
         />
@@ -706,7 +704,6 @@ export default function ClientGalleryPage() {
       )}
       <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
       <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
-      {comingSoonToast}
       {photoMove.overlay}
     </div>
   );

@@ -31,6 +31,7 @@ import { saveBlob } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/retou
 import { RoundList } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RoundList";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { useRetouchOverview, useRetouchRoundDetail } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useRetouchOverview";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import { ApiError } from "@/lib/api/client";
@@ -373,7 +374,7 @@ export function ReviewStage({
 
   return (
     <>
-      <div className="flex min-h-0 flex-1">
+      <div className={SHELL_BODY_CLASS}>
         {sidebarOpen && (
           <ClientSidebar
             title={gallery.title}
@@ -435,9 +436,6 @@ export function ReviewStage({
                 filter="none"
                 onFilterChange={() => {}}
                 sortable={false}
-                onSingleView={() => {
-                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
-                }}
               />
               {banner && (
                 <div
@@ -480,7 +478,6 @@ export function ReviewStage({
                     markStyle="check"
                     currentId={currentId}
                     onOpen={openPhoto}
-                    onTileClick={setCurrentId}
                     toggleOn="check"
                     captionOf={(p) => {
                       const it = itemById.get(p.photoId);
@@ -513,6 +510,7 @@ export function ReviewStage({
             bottomHint
           )
         }
+        hintIsNotice={csvNotice !== null}
         progress={
           upload.state.running ? (
             <ProgressBar

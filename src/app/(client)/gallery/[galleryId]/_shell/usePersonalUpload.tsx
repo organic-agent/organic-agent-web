@@ -18,7 +18,7 @@ import { ConceptCountModal } from "@/app/(studio)/studio/gallery/[galleryId]/_sh
 import { UploadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadModal";
 import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadProgress";
 import { forgetUploaded, parseRemembered, readRememberedRaw, readUploadActiveRaw, subscribeRemembered } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadMemory";
-import { matchRecoveryFiles, recoverablePending } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadRecovery";
+import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadRecovery";
 import { describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useAnalysisWatch";
 import { useUploadRun } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useUploadRun";
@@ -157,9 +157,11 @@ export function usePersonalUpload({
     if (stale.length > 0) forgetUploaded(galleryId, stale);
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
   function onRecoveryFiles(files: File[]) {
-    const { resume: resumeItems, fresh } = matchRecoveryFiles(files, recoverable, remembered);
-    setNotice(resumeItems.length === 0 ? "짝이 맞는 파일이 없어 새 사진으로 올려요" : fresh.length > 0 ? `${resumeItems.length}장은 이어서, ${fresh.length}장은 새로 올려요` : null);
-    void start(fresh, resumeItems);
+    // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 작가 1단계와 같은 규칙
+    const match = matchRecoveryFiles(files, recoverable, remembered, existingNames);
+    setNotice(recoveryNotice(match));
+    if (match.resume.length === 0 && match.fresh.length === 0) return;
+    void start(match.fresh, match.resume);
   }
   async function discardPending() {
     if (discarding || recoverable.length === 0) return;
