@@ -5,7 +5,10 @@
  *
  * 짝짓기 근거는 둘이다. ① 발급 때 브라우저에 기억해 둔 (파일명, 크기) — 가장 확실.
  * ② 서버 PENDING 행의 원본 파일명 — 기억이 없을 때(다른 브라우저 · 저장소 초기화) 이름이 하나뿐이면 믿는다.
- * 짝이 없는 파일은 새 업로드로 간다(같은 사진이 두 번 생길 수 있어도, 사용자가 올리려고 고른 파일을 버리지 않는다).
+ * 짝이 없는 파일 가운데 이미 올라온(UPLOADED) 사진과 이름이 같은 것은 건너뛴다 — 끊긴 뒤 원래 폴더를 통째로
+ * 다시 고르면 올라간 사진까지 새로 올라가 중복되던 것(QA 2026-09-29 · 이슈 84). 업로드 모달과 같은 규칙이고,
+ * 서버 사진 응답에 크기가 없어 이름만 본다. 같은 이름을 일부러 또 올리려면 업로드 모달의 "그래도 올리기"로.
+ * 나머지 짝 없는 파일은 새 업로드로 간다(사용자가 올리려고 고른 파일을 버리지 않는다).
  * 순수 함수 — 화면 · 저장소 · 시계에 기대지 않는다(시각은 인자로 받는다).
  */
 
@@ -35,11 +38,22 @@ export function recoverablePending(
   });
 }
 
+export type RecoveryMatch = {
+  /** 끊긴(PENDING) 사진과 짝이 맞아 이어 올릴 것 */
+  resume: ResumeItem[];
+  /** 짝도 없고 올라온 적도 없어 새로 올릴 것 */
+  fresh: File[];
+  /** 이미 올라온 사진과 이름이 같아 건너뛴 것 */
+  skipped: File[];
+};
+
 export function matchRecoveryFiles(
   files: File[],
   pending: PhotoResponse[],
   remembered: RememberedUpload[],
-): { resume: ResumeItem[]; fresh: File[] } {
+  /** 이미 올라온(UPLOADED) 사진의 원본 파일명 */
+  existingNames: ReadonlySet<string>,
+): RecoveryMatch {
   const pendingIds = new Set(pending.map((p) => p.photoId));
   // ① 기억: (이름, 크기) → 사진 번호 (아직 PENDING인 것만)
   const byNameSize = new Map<string, number[]>();
@@ -55,6 +69,7 @@ export function matchRecoveryFiles(
   const used = new Set<number>();
   const resume: ResumeItem[] = [];
   const fresh: File[] = [];
+  const skipped: File[] = [];
   for (const file of files) {
     const exact = (byNameSize.get(`${file.name}::${file.size}`) ?? []).find((id) => !used.has(id));
     let photoId = exact;
@@ -65,7 +80,25 @@ export function matchRecoveryFiles(
     if (photoId !== undefined) {
       used.add(photoId);
       resume.push({ file, photoId });
-    } else fresh.push(file);
+    } else if (existingNames.has(file.name)) skipped.push(file);
+    else fresh.push(file);
   }
-  return { resume, fresh };
+  return { resume, fresh, skipped };
+}
+
+/** 복구 결과를 하단 바 한 줄로 — 이어 올리기만 있고 건너뛴 것도 없으면 말하지 않는다(null) */
+export function recoveryNotice({ resume, fresh, skipped }: RecoveryMatch): string | null {
+  const skip = skipped.length > 0 ? `${skipped.length}장은 이미 있어 건너뛰었어요` : null;
+  if (resume.length === 0 && fresh.length === 0) {
+    return skip ? "고른 사진은 모두 이미 올라와 있어요" : null;
+  }
+  const upload =
+    resume.length === 0
+      ? "짝이 맞는 파일이 없어 새 사진으로 올려요"
+      : fresh.length > 0
+        ? `${resume.length}장은 이어서, ${fresh.length}장은 새로 올려요`
+        : skip
+          ? `${resume.length}장은 이어서 올려요`
+          : null;
+  return [upload, skip].filter(Boolean).join(" · ") || null;
 }

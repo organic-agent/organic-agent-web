@@ -95,7 +95,7 @@ import {
   readUploadActiveRaw,
   subscribeRemembered,
 } from "./_shell/uploadMemory";
-import { matchRecoveryFiles, recoverablePending } from "./_shell/uploadRecovery";
+import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "./_shell/uploadRecovery";
 import { describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
@@ -406,15 +406,11 @@ export default function StudioGalleryShellPage() {
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
 
   function onRecoveryFiles(files: File[]) {
-    const { resume, fresh } = matchRecoveryFiles(files, recoverable, remembered);
-    setUploadNotice(
-      resume.length === 0
-        ? "짝이 맞는 파일이 없어 새 사진으로 올려요"
-        : fresh.length > 0
-          ? `${resume.length}장은 이어서, ${fresh.length}장은 새로 올려요`
-          : null,
-    );
-    void startUpload(fresh, resume);
+    // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 원래 폴더를 통째로 다시 골라도 중복이 생기지 않게
+    const match = matchRecoveryFiles(files, recoverable, remembered, existingNames);
+    setUploadNotice(recoveryNotice(match));
+    if (match.resume.length === 0 && match.fresh.length === 0) return;
+    void startUpload(match.fresh, match.resume);
   }
   // ── 검토 동작 — 폴더 만들기 · 삭제 · 사진 이동 · 사진 삭제 (서버는 본문 없이 끝나므로 다시 조회) ──
   async function submitFolderName(name: string) {
