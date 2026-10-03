@@ -1,24 +1,23 @@
 "use client";
 
 /**
- * 메인 헤더 — 제목(경로) · 줌 슬라이더 · 보기 토글 · 정렬/필터 버튼 (디자이너 시안 문법)
+ * 메인 헤더 — 제목(경로) · 줌 슬라이더 · 정렬/필터 버튼 (디자이너 시안 문법)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader.tsx
  *
  * 장수는 사이드바가 보여주고 여기서는 보는 방법만 다룬다. 촬영 순은 사진에 촬영 시각이 없어
  * 준비 중(백엔드 요청). 정렬 · 필터 항목은 기본(업로드 · 이름 · 별점 / 검토 · 미분류)이고, 화면이 다른 항목을
  * 쓰면(보정 작업: 결과 없는 것 먼저 · 메모 있는 것만) customSort · customFilter로 같은 버튼 · 메뉴에 바꿔 끼운다.
+ * 보기 전환(그리드 · 한 장 보기) 버튼은 두지 않는다 — 디자이너 시안의 헤더에 없고, 크게 보기는 썸네일을 눌러 여는
+ * 팝업이라 전환할 상태가 없다(늘 선택된 그리드 버튼 · 화면마다 다르게 돌던 한 장 보기 버튼을 뺌, QA 2026-09-29 · 이슈 84).
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CheckCircleIcon,
-  GridViewIcon,
-  SingleViewIcon,
   SwapVertIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@/components/icons";
-import { IconButton } from "@/components/ui/IconButton";
 import type { PhotoResponse } from "@/lib/api/photos";
 
 export type SortKey = "uploaded" | "name" | "score";
@@ -49,11 +48,9 @@ export function ShellMainHeader({
   onSortChange,
   filter,
   onFilterChange,
-  onSingleView,
   sortable = true,
   showFilters = true,
   leading,
-  coachKey,
   customSort,
   customFilter,
 }: {
@@ -65,15 +62,12 @@ export function ShellMainHeader({
   onSortChange: (sort: SortKey) => void;
   filter: FilterKey;
   onFilterChange: (filter: FilterKey) => void;
-  onSingleView: () => void;
   /** false면 정렬 · 필터 버튼을 숨긴다(선택한 사진 보기 — 고른 순 고정) */
   sortable?: boolean;
   /** false면 정렬 메뉴에서 필터(검토 필요만 · 미분류만)를 뺀다 — 클라이언트 셀렉 */
   showFilters?: boolean;
   /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
   leading?: ReactNode;
-  /** 보기 토글(한 장 보기)에 붙는 코치마크 대상 이름 */
-  coachKey?: string;
   /** 기본 정렬 항목 대신 쓸 것 — 같은 버튼 · 메뉴 모양 */
   customSort?: CustomMenu;
   /** 기본 필터 항목 대신 쓸 것 — value "none"이면 필터 없음 */
@@ -145,11 +139,6 @@ export function ShellMainHeader({
           >
             <ZoomInIcon size={16} />
           </button>
-        </div>
-
-        <div className="flex gap-0.5" role="group" aria-label="보기" data-coach={coachKey}>
-          <IconButton icon={<GridViewIcon size={18} />} aria-label="그리드" selected />
-          <IconButton icon={<SingleViewIcon size={18} />} aria-label="한 장 보기" onClick={onSingleView} />
         </div>
 
         {sortable && <div ref={menuRef} className="relative">

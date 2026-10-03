@@ -129,9 +129,6 @@ export function ReactionsView({ galleryId, session, photos }: { galleryId: numbe
         onFilterChange={() => {}}
         customSort={sortMenu}
         customFilter={filterMenu}
-        onSingleView={() => {
-          if (shown.length > 0) open(shown[0].photoId);
-        }}
       />
       <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto" aria-busy={photos === null || undefined}>
         {photos === null ? (

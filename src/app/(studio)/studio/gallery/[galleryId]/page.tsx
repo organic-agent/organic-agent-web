@@ -667,7 +667,6 @@ export default function StudioGalleryShellPage() {
     onSortChange: setSort,
     filter,
     onFilterChange: setFilter,
-    onSingleView: showComingSoon,
   };
 
   const allTitle =

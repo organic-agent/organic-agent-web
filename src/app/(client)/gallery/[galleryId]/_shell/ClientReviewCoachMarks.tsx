@@ -21,7 +21,7 @@ const STEPS: ReadonlyArray<CoachStep> = [
     key: "results",
     eyebrow: "결과 사진",
     title: "타일이 보정 결과예요",
-    body: "돋보기나 더블클릭으로 크게 열면 전/후를 슬라이더로 비교하고, \"내 요청\" 탭에서 보냈던 요청을 다시 볼 수 있어요.",
+    body: "사진을 누르면 크게 열려요. 전/후를 슬라이더로 비교하고, \"내 요청\" 탭에서 보냈던 요청을 다시 볼 수 있어요.",
   },
   {
     key: "rerequest",

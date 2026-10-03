@@ -18,6 +18,8 @@ import { createLocalStore, type LocalStore } from "@/lib/localStore";
 export type CoachStep = {
   /** data-coach 속성 값 */
   key: string;
+  /** 가리킬 data-coach 값이 key와 다를 때 — 두 단계가 같은 대상을 가리킬 때 쓴다 */
+  target?: string;
   eyebrow: string;
   title: string;
   body: string;
@@ -79,7 +81,7 @@ export function CoachMarks({
     if (!active) return;
     let frame = 0;
     const measure = () => {
-      const el = document.querySelector<HTMLElement>(`[data-coach="${step.key}"]`);
+      const el = document.querySelector<HTMLElement>(`[data-coach="${step.target ?? step.key}"]`);
       frame = requestAnimationFrame(() => {
         if (!el) {
           if (index === steps.length - 1) doneStore.set(true);

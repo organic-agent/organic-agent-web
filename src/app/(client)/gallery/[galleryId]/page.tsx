@@ -15,7 +15,6 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { useSidebar } from "@/components/SidebarProvider";
 import { CheckCircleIcon, ChevronRightIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -74,7 +73,6 @@ export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
   const galleryId = Number(params.galleryId);
   const { collapsed, hasPreference, setCollapsed } = useSidebar();
-  const { showComingSoon, comingSoonToast } = useComingSoonToast();
   const router = useRouter();
   const { result: galleryResult, reload: reloadGallery } = useInvitedGallery(params.galleryId);
   // 볼 수 없는 갤러리(403 · 404 — 내보내졌거나 삭제됐거나 주소 오타) → 소속을 다시 읽고 워크스페이스 목록 또는 랜딩으로
@@ -443,7 +441,6 @@ export default function ClientGalleryPage() {
     onSortChange: setSort,
     filter,
     onFilterChange: setFilter,
-    onSingleView: showComingSoon,
   };
   const allTitle =
     selectedDetail && selectedConcept ? (
@@ -706,7 +703,6 @@ export default function ClientGalleryPage() {
       )}
       <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
       <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
-      {comingSoonToast}
       {photoMove.overlay}
     </div>
   );

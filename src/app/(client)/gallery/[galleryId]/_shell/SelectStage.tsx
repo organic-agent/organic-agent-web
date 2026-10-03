@@ -9,7 +9,7 @@
  * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
- * 싱글뷰(Lightbox)는 돋보기 · 더블클릭 · 헤더 "한 장 보기"로 열고, 닫으면 그 사진으로 스크롤한다.
+ * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
@@ -472,12 +472,8 @@ export function SelectStage({
                 filter="none"
                 onFilterChange={() => {}}
                 showFilters={false}
-                coachKey="single"
                 sortable={view === "all"}
                 customSort={guestOn ? guestSortMenu : undefined}
-                onSingleView={() => {
-                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
-                }}
               />
               <div data-coach="pick" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
                 {showAiGroup && (
@@ -540,7 +536,6 @@ export function SelectStage({
                         selectedIds={pickedIds}
                         onToggle={requestToggle}
                         toggleOn="check"
-                        onTileClick={setCurrentId}
                         selectable={editable}
                         markStyle="check"
                         currentId={currentId}
@@ -581,7 +576,6 @@ export function SelectStage({
                         selectedIds={pickedIds}
                         onToggle={requestToggle}
                         toggleOn="check"
-                        onTileClick={setCurrentId}
                         selectable={editable}
                         markStyle="check"
                         currentId={currentId}
@@ -600,7 +594,6 @@ export function SelectStage({
                     selectedIds={pickedIds}
                     onToggle={requestToggle}
                     toggleOn="check"
-                    onTileClick={setCurrentId}
                     selectable={editable}
                     markStyle="check"
                     currentId={currentId}
@@ -628,7 +621,7 @@ export function SelectStage({
               {shownNotice}
             </button>
           ) : selectedCount === 0 ? (
-            "사진을 누르면 선택돼요 · 돋보기나 더블클릭으로 한 장씩 보며 별점과 보정 요청"
+            "왼쪽 위 체크로 선택해요 · 사진을 누르면 크게 보며 별점과 보정 요청"
           ) : (
             `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
           )

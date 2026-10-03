@@ -356,9 +356,6 @@ export function RetouchStage({
                   ],
                   onChange: (key) => setFilter(key as Filter),
                 }}
-                onSingleView={() => {
-                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
-                }}
               />
               {banner && (
                 <div
@@ -384,7 +381,6 @@ export function RetouchStage({
                     selectable={false}
                     currentId={currentId}
                     onOpen={openPhoto}
-                    onTileClick={setCurrentId}
                     toggleOn="check"
                     captionOf={(p) => {
                       const it = itemById.get(p.photoId);

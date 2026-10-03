@@ -435,9 +435,6 @@ export function ReviewStage({
                 filter="none"
                 onFilterChange={() => {}}
                 sortable={false}
-                onSingleView={() => {
-                  if (gridPhotos.length > 0) openPhoto(currentPhoto ? currentPhoto.photoId : gridPhotos[0].photoId);
-                }}
               />
               {banner && (
                 <div
@@ -480,7 +477,6 @@ export function ReviewStage({
                     markStyle="check"
                     currentId={currentId}
                     onOpen={openPhoto}
-                    onTileClick={setCurrentId}
                     toggleOn="check"
                     captionOf={(p) => {
                       const it = itemById.get(p.photoId);
