@@ -289,7 +289,9 @@ export function SelectStage({
     () => aiInScope.map((r) => photoById.get(r.photo.photoId)).filter((p): p is PhotoResponse => p !== undefined),
     [aiInScope, photoById],
   );
+  // 로딩은 이번 라운드 사진이 뜨기 전까지만 — 이유는 사진이 뜬 뒤에도 서버가 이어서 채운다(이슈 84)
   const aiBusy = ai.phase === "requesting" || ai.phase === "running";
+  const aiReasonsReady = aiInScope.filter((r) => r.reasonReady).length;
   const showAiGroup = view === "all" && (aiPhotos.length > 0 || aiBusy || ai.error !== null);
   const restPhotos = useMemo(() => (showAiGroup ? gridPhotos.filter((p) => !aiIds.has(p.photoId)) : gridPhotos), [showAiGroup, gridPhotos, aiIds]);
   const aiReasonOf = (photo: PhotoResponse) => {
@@ -432,7 +434,7 @@ export function SelectStage({
                       type="button"
                       data-coach="ai"
                       aria-pressed={aiPhotos.length > 0}
-                      disabled={!editable || aiBusy}
+                      disabled={!editable || aiBusy || ai.jobActive}
                       onClick={() => void ai.request(focusedDetail?.id ?? null)}
                       title={focusedDetail ? `${focusedDetail.name}에서 약 10%를 이유와 함께 골라 드려요` : "폴더마다 몇 장씩 이유와 함께 골라 드려요"}
                       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 ${
@@ -498,16 +500,22 @@ export function SelectStage({
                       ) : (
                         <>
                           <b className="font-semibold">AI 추천 {aiPhotos.length}장</b>
-                          <span className="type-content-xs text-contents-light-bgd-weakness">{scopeLabel} 중 · 이유는 사진에 마우스를 올리면 보여요</span>
+                          <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">
+                            {aiReasonsReady < aiInScope.length
+                              ? `${scopeLabel} 중 · 이유 준비 중 ${aiReasonsReady} / ${aiInScope.length}`
+                              : `${scopeLabel} 중 · 이유는 사진에 마우스를 올리면 보여요`}
+                          </span>
                         </>
                       )}
                       <span className="flex-1" />
                       {!aiBusy && editable && (
                         <>
+                          {/* 서버 잡이 이유를 채우는 동안은 새 요청이 409 — 끝날 때까지 꺼 둔다 */}
                           <button
                             type="button"
+                            disabled={ai.jobActive}
                             onClick={() => void ai.request(focusedDetail?.id ?? null)}
-                            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) border border-border-default px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-background-default-main"
+                            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) border border-border-default px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-background-default-main disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
                           >
                             <RefreshIcon size={14} />
                             다시 추천
@@ -797,6 +805,7 @@ export function SelectStage({
                 pickedIds={pickedIds}
                 editable={editable}
                 busy={aiBusy}
+                jobActive={ai.jobActive}
                 error={ai.error}
                 onPick={toggle}
                 onRequest={() => void ai.request(details.find((d) => d.photoIds.includes(currentPhoto.photoId))?.id ?? null)}
@@ -819,6 +828,7 @@ function AiPanel({
   pickedIds,
   editable,
   busy,
+  jobActive,
   error,
   onPick,
   onRequest,
@@ -829,7 +839,10 @@ function AiPanel({
   folderName: string | null;
   pickedIds: ReadonlySet<number>;
   editable: boolean;
+  /** 사진을 고르는 중(이번 라운드 사진이 아직 없다) */
   busy: boolean;
+  /** 서버 잡이 아직 도는 중(이유를 채우는 중 포함) — 새 요청은 409라 요청 버튼을 끈다 */
+  jobActive: boolean;
   error: string | null;
   onPick: (photoId: number) => void;
   onRequest: () => void;
@@ -891,7 +904,7 @@ function AiPanel({
       {error && <p className="type-content-xs text-function-error-default">{error}</p>}
       <button
         type="button"
-        disabled={!editable || busy}
+        disabled={!editable || busy || jobActive}
         onClick={onRequest}
         className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-(--radius-8) border border-border-default type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
       >
