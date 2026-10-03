@@ -111,6 +111,7 @@ export function LoginModal({
   mode = "login",
   intent = "couple",
   inviteToken = null,
+  couponCode = null,
   errorCode = null,
   asPage = false,
 }: {
@@ -119,6 +120,8 @@ export function LoginModal({
   mode?: LoginMode;
   intent?: LoginIntent;
   inviteToken?: string | null;
+  /** 프로 쿠폰 선물 링크로 왔는데 로그인 전일 때 — 로그인 뒤 쿠폰 등록 화면으로 돌아간다(이슈 81) */
+  couponCode?: string | null;
   /** OAuth 콜백이 실패를 되돌려보낼 때의 에러 코드 (/login?error=...) */
   errorCode?: string | null;
   asPage?: boolean;
@@ -180,7 +183,7 @@ export function LoginModal({
     setLoadingProvider(provider);
     setStartError(null);
     try {
-      await startLogin(provider, { intent, inviteToken });
+      await startLogin(provider, { intent, inviteToken, couponCode });
       // 성공하면 페이지가 provider로 통째로 떠난다 — 로딩을 해제하지 않는 게 맞다.
     } catch {
       setLoadingProvider(null);
