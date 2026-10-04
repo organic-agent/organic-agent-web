@@ -90,6 +90,11 @@
   html[data-dragging] * {
     cursor: grabbing !important;
   }
+  /* 놓을 수 없는 곳(대분류 폴더 · 모든 사진 · 지금 보는 폴더 — FolderColumn의 data-nodrop) 위에서는 금지 모양 */
+  html[data-dragging] [data-nodrop],
+  html[data-dragging] [data-nodrop] * {
+    cursor: not-allowed !important;
+  }
 }
 
 /* ─── Scroll-reveal (state-driven, kept as utility) ─── */

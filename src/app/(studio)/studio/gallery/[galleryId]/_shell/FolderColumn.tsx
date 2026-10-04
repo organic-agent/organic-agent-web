@@ -11,6 +11,8 @@
  * 맨 위 "모든 사진" 행으로 폴더에서 빠져나오고, 컨셉 이름을 누르면 그 컨셉의 사진 전체를 본다(2026-09-11 피드백).
  * 사진을 끌고 오면(dropping) 놓을 수 있는 곳(세부 폴더 · 미분류, 지금 보고 있는 폴더는 빼고)만 점선으로 남고
  * 나머지(모든 사진 · 컨셉 헤더)는 흐려진다. 접힌 컨셉 위에 0.6초 머물면 펼친다 — 2026-09-14 확정.
+ * 놓을 수 없는 곳에는 data-nodrop을 달아 그 위에서 커서가 금지 모양이 된다(globals.css) — 대분류 폴더로는
+ * 옮길 수 없다는 것이 드러나지 않았다(2차 QA).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -339,6 +341,7 @@ export function FolderColumn({
                   ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
               } ${dropping ? "opacity-40" : ""}`}
+              data-nodrop={dropping ? "" : undefined}
             >
               <span className="flex shrink-0 text-contents-light-bgd-weakness">
                 <PhotoIcon size={16} />
@@ -356,6 +359,7 @@ export function FolderColumn({
               <li key={concept.id}>
                 <div
                   data-drop={dropping && closed ? `concept:${concept.id}` : undefined}
+                  data-nodrop={dropping ? "" : undefined}
                   className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
                     conceptSelected ? "bg-brand-secondary-background" : ""
                   } ${dropping ? "opacity-40" : ""}`}
@@ -394,6 +398,7 @@ export function FolderColumn({
                         <li key={detail.id}>
                           <div
                             data-drop={droppable ? `detail:${detail.id}` : undefined}
+                            data-nodrop={dropping && !droppable ? "" : undefined}
                             className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
                               selected ? "bg-brand-secondary-background" : ""
                             } ${dropClass(dropping, droppable, over)}`}
@@ -432,6 +437,7 @@ export function FolderColumn({
               aria-current={selection.kind === "unsorted" || undefined}
               data-coach="unsorted"
               data-drop={dropping && selection.kind !== "unsorted" ? "unsorted" : undefined}
+              data-nodrop={dropping && selection.kind === "unsorted" ? "" : undefined}
               onClick={() => onSelect({ kind: "unsorted" })}
               className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
                 selection.kind === "unsorted"
