@@ -240,7 +240,7 @@ export function AlbumGrid({
           </div>
         </div>
       )}
-      <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto" aria-busy={loading || undefined}>
+      <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto" aria-busy={loading || undefined}>
         {error && all.length === 0 ? (
           <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">사진을 불러오지 못했어요</p>
         ) : !loading && gridPhotos.length === 0 ? (

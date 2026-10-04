@@ -465,7 +465,7 @@ export function ReviewStage({
                   <span className="min-w-0 flex-1">{banner.text}</span>
                 </div>
               )}
-              <div data-coach="results" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+              <div data-coach="results" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                 {gridPhotos.length === 0 ? (
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{view === "retouch" ? "보정 회차가 아직 없어요" : "사진이 없어요"}</p>
                 ) : (

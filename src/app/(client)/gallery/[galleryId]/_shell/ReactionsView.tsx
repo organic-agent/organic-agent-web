@@ -130,7 +130,7 @@ export function ReactionsView({ galleryId, session, photos }: { galleryId: numbe
         customSort={sortMenu}
         customFilter={filterMenu}
       />
-      <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto" aria-busy={photos === null || undefined}>
+      <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto" aria-busy={photos === null || undefined}>
         {photos === null ? (
           <div className="flex-1" />
         ) : shown.length === 0 ? (

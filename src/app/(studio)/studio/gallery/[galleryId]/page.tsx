@@ -1100,7 +1100,7 @@ export default function StudioGalleryShellPage() {
                 />
                 {quotaBanner}
                 {selectionBanner}
-                <div className="scrollbar-slim flex min-h-0 flex-1 flex-col overflow-y-auto">
+                <div className="scrollbar-slim scrollbar-stable flex min-h-0 flex-1 flex-col overflow-y-auto">
                   {pickedPhotos.length === 0 ? (
                     selectedEmpty
                   ) : (
@@ -1118,7 +1118,7 @@ export default function StudioGalleryShellPage() {
                 <ShellMainHeader {...headerCommon} title={allTitle} titleParent={allTitleParent} />
                 {recoveryBanner}
                 {quotaBanner}
-                <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+                <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
                     <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
                       조건에 맞는 사진이 없어요

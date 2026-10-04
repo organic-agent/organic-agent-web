@@ -170,6 +170,11 @@
   .scrollbar-slim::-webkit-scrollbar-track {
     background: transparent;
   }
+  /* 스크롤 막대 자리를 늘 비워 둔다 — 사진 그리드(PhotoGrid)는 폭에 맞춰 줄을 짜서, 막대가 생겼다 없어졌다 하면
+     폭이 바뀌어 줄이 다시 짜이고 그 때문에 막대가 또 바뀌며 사진이 떨렸다(2차 QA). 그리드를 감싼 스크롤 영역에 붙인다 */
+  .scrollbar-stable {
+    scrollbar-gutter: stable;
+  }
 }
 
 /* ─── 미리보기 준비 중 물결 (prefers-reduced-motion 시 정지) ─── */

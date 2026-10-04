@@ -367,7 +367,7 @@ export function RetouchStage({
                   <span className="min-w-0 flex-1">{banner.text}</span>
                 </div>
               )}
-              <div className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+              <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                 {gridPhotos.length === 0 ? (
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
                     {view === "retouch" ? (items.length === 0 ? "보정 회차가 아직 없어요" : "조건에 맞는 사진이 없어요") : "사진이 없어요"}
