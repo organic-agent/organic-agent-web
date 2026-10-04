@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
+import { blockLeave, useLeaveGuard } from "@/components/app/LeaveGuard";
 import { useSidebar } from "@/components/SidebarProvider";
 import {
   CheckCircleIcon,
@@ -95,7 +96,7 @@ import {
   subscribeRemembered,
 } from "./_shell/uploadMemory";
 import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "./_shell/uploadRecovery";
-import { describeUploadError, formatEta } from "./_shell/uploadSupport";
+import { UPLOAD_LEAVE_NOTICE, describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
@@ -257,6 +258,8 @@ export default function StudioGalleryShellPage() {
     },
   });
   const uploading = run.phase === "running" || run.phase === "paused";
+  // 올리는 중(일시정지 포함)에는 다른 화면으로 가지 않는다 — 링크 · 메뉴 · 알림 · 뒤로 가기 · 새로고침
+  const { leaveToast } = useLeaveGuard(uploading, UPLOAD_LEAVE_NOTICE);
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
   // ── 단계 ── 서버 stage가 정본이지만, 선택 앨범이 제출됐으면(SUBMITTED) stage가 아직 셀렉 대기여도 3단계로 본다
@@ -1239,6 +1242,7 @@ export default function StudioGalleryShellPage() {
           initialTab={inviteTab}
           onClose={() => setInviteTab(null)}
           onManageMembers={() => {
+            if (blockLeave()) return;
             window.location.assign(
               `/settings?studio=${gallery.workspaceId}&tab=members&from=${encodeURIComponent(`/studio/gallery/${gallery.id}`)}`,
             );
@@ -1285,6 +1289,7 @@ export default function StudioGalleryShellPage() {
         />
       )}
       {comingSoonToast}
+      {leaveToast}
       {photoMove.overlay}
     </div>
   );

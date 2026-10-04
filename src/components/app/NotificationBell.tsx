@@ -24,6 +24,7 @@ import {
   ScheduleIcon,
   SparkleIcon,
 } from "@/components/icons";
+import { blockLeave } from "@/components/app/LeaveGuard";
 import { IconButton } from "@/components/ui/IconButton";
 import {
   listNotifications,
@@ -240,6 +241,8 @@ export function NotificationBell({
 
   async function openItem(n: UserNotificationResponse) {
     const href = NO_DESTINATION.has(n.type) ? null : hrefFor(n);
+    // 업로드 중이면 이동하지 않는다 — 가 보지 못했으니 읽음으로도 바꾸지 않는다
+    if (href && blockLeave()) return;
     if (n.readAt === null) {
       markLocally([n.id]);
       try {

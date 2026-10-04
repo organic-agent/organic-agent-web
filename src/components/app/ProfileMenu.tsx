@@ -20,6 +20,7 @@ import {
   PlusIcon,
   SettingIcon,
 } from "@/components/icons";
+import { blockLeave } from "@/components/app/LeaveGuard";
 import { Avatar } from "@/components/ui/Avatar";
 import { MenuItem } from "@/components/ui/MenuItem";
 import type { User, UserWorkspace } from "@/lib/api/auth";
@@ -104,13 +105,16 @@ export function ProfileMenu({
   const listed = spaces.slice(0, MAX_LISTED);
   const dark = theme === "dark";
 
+  // 업로드 중이면 메뉴만 닫고 이동하지 않는다(안내는 LeaveGuard가 띄운다) — 로그아웃도 요청을 보내기 전에 멈춘다
   function go(path: string) {
     onClose();
+    if (blockLeave()) return;
     router.push(path);
   }
 
   async function handleLogout() {
     onClose();
+    if (blockLeave()) return;
     await logout();
     router.replace("/");
   }
@@ -195,6 +199,7 @@ export function ProfileMenu({
         icon={<SettingIcon size={20} />}
         onClick={() => {
           onClose();
+          if (blockLeave()) return;
           // 설정의 "돌아가기"가 여기로 돌아오도록 현재 위치를 실어 보낸다
           const from = `${window.location.pathname}${window.location.search}`;
           router.push(`/settings?from=${encodeURIComponent(from)}`);

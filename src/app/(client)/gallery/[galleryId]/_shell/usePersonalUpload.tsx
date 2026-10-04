@@ -19,9 +19,10 @@ import { UploadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/Up
 import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadProgress";
 import { forgetUploaded, parseRemembered, readRememberedRaw, readUploadActiveRaw, subscribeRemembered } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadMemory";
 import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadRecovery";
-import { describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
+import { UPLOAD_LEAVE_NOTICE, describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useAnalysisWatch";
 import { useUploadRun } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useUploadRun";
+import { useLeaveGuard } from "@/components/app/LeaveGuard";
 import { CloudUploadIcon, ErrorIcon, PauseIcon, PlayIcon, RefreshIcon, SparkleIcon } from "@/components/icons";
 import { isAnalysisActive } from "@/lib/api/analysis";
 import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
@@ -86,6 +87,8 @@ export function usePersonalUpload({
     },
   });
   const uploading = run.phase === "running" || run.phase === "paused";
+  // 올리는 중(일시정지 포함)에는 다른 화면으로 가지 않는다 — 작가 1단계와 같은 규칙
+  const { leaveToast } = useLeaveGuard(uploading, UPLOAD_LEAVE_NOTICE);
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
   const mergeDuplicates = useCallback(
@@ -302,6 +305,7 @@ export function usePersonalUpload({
           }}
         />
       )}
+      {leaveToast}
     </>
   );
 

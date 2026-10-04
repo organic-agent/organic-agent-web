@@ -20,6 +20,7 @@
 
 import Link from "next/link";
 import { ddayLabel, deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
+import { guardNavigate } from "@/components/app/LeaveGuard";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import type { UserNotificationResponse } from "@/lib/api/notifications";
 import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
@@ -155,12 +156,19 @@ export function ShellTopbar({
           onClick={toggle}
           className={`shrink-0 ${collapsed ? "" : "bg-brand-secondary-background"}`}
         />
-        <Link href="/" aria-label="Easy Select 홈" className="ml-1 flex h-7 shrink-0 items-center text-contents-light-bgd-default">
+        {/* 업로드 중에는 세 링크 모두 이동하지 않는다(guardNavigate) */}
+        <Link
+          href="/"
+          onNavigate={guardNavigate}
+          aria-label="Easy Select 홈"
+          className="ml-1 flex h-7 shrink-0 items-center text-contents-light-bgd-default"
+        >
           <BrandLogo size={26} />
         </Link>
         {/* 워드마크는 로고와 따로 사라져야 해서 칸을 나눴다 — 같은 곳으로 가는 링크라 탭 순서 · 읽기에서는 뺀다 */}
         <Link
           href="/"
+          onNavigate={guardNavigate}
           tabIndex={-1}
           aria-hidden
           className="ml-0.5 flex h-7 shrink-0 items-center whitespace-nowrap text-contents-light-bgd-default max-sm:hidden"
@@ -177,6 +185,7 @@ export function ShellTopbar({
             <span aria-hidden className="mx-2 h-4.5 w-px bg-border-default" />
             <Link
               href={studioHref}
+              onNavigate={guardNavigate}
               className="max-w-72 truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-secondary-dark"
             >
               {studioName}
