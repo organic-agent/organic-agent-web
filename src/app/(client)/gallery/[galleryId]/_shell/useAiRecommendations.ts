@@ -1,15 +1,13 @@
 "use client";
 
 /**
- * AI 추천 진행 — 요청 → 잡 폴링 → 이번 라운드 사진이 뜨면 로딩 끝, 이유는 뒤에서 채운다
+ * AI 추천 진행 — 요청 → 잡 폴링 → 이번 라운드 사진이 뜨면 로딩 끝
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/useAiRecommendations.ts
  *
- * 서버 잡은 두 단계다: ① 사진을 골라 추천 행을 이유 없이 저장하고 라운드를 확정(job.round가 생긴다) → ② 10장씩
- * 이유 문장을 채운 뒤에야 DONE. 화면은 ①이 끝나 이번 라운드 사진이 보이는 순간 로딩을 끝내고(phase "done"),
- * ②는 뒤에서 5초마다 읽어 사진별 "이유 준비 중…"을 채운다 — 50장이면 몇 분이 걸려, 전부 기다리게 하면 끝나지
- * 않은 것처럼 보인다(QA 2026-09-29 · 이슈 84). 잡이 도는 동안 새 요청은 409라 jobActive로 요청 버튼을 끈다.
- * 이유 폴링은 10분 상한. 처음 들어오면 지난 추천이 있는지 한 번 읽고, 도는 잡이 있으면 같은 규칙으로 따라간다.
- * 결과는 photos 중 round가 이번 라운드인 것만.
+ * 서버 잡은 사진을 골라 추천 행을 저장하고 라운드를 확정(job.round가 생긴다)한 뒤 DONE이 된다. 화면은 이번 라운드
+ * 사진이 보이는 순간 로딩을 끝내고(phase "done"), 잡이 DONE이 될 때까지는 뒤에서 느슨하게 따라간다 — 잡이 도는 동안
+ * 새 요청은 409라 jobActive로 요청 버튼을 끈다(따라가기는 10분 상한). 처음 들어오면 지난 추천이 있는지 한 번 읽고,
+ * 도는 잡이 있으면 같은 규칙으로 따라간다. 결과는 photos 중 round가 이번 라운드인 것만.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,17 +16,17 @@ import { type AiRecommendation, type AiRecommendationList, getRecommendations, r
 
 /** 사진을 고르는 동안(라운드 확정 전) */
 const POLL_MS = 3_000;
-/** 사진이 뜬 뒤 이유를 채우는 동안 — 화면을 막지 않으니 느슨하게 */
-const REASON_POLL_MS = 5_000;
-/** 이유 폴링 상한 — 넘으면 멈추고 요청 버튼을 다시 연다 */
-const REASON_WAIT_MS = 10 * 60_000;
+/** 사진이 뜬 뒤 잡이 끝나기를 기다리는 동안 — 화면을 막지 않으니 느슨하게 */
+const SETTLE_POLL_MS = 5_000;
+/** 잡 따라가기 상한 — 넘으면 멈추고 요청 버튼을 다시 연다 */
+const SETTLE_WAIT_MS = 10 * 60_000;
 
 export type AiPhase = "idle" | "requesting" | "running" | "done" | "failed";
 
 export function useAiRecommendations(galleryId: number) {
   const [list, setList] = useState<AiRecommendationList | null>(null);
   const [phase, setPhase] = useState<AiPhase>("idle");
-  /** 서버 잡이 아직 도는 중(사진을 고르거나 이유를 채우는 중) — 새 요청은 409 */
+  /** 서버 잡이 아직 도는 중 — 새 요청은 409 */
   const [jobActive, setJobActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,12 +60,11 @@ export function useAiRecommendations(galleryId: number) {
     const round = job?.round ?? next.round;
     const current = round === null ? [] : next.photos.filter((p) => p.round === round);
     if (current.length > 0) {
-      // ② 사진이 떴다 — 로딩은 끝. 이유가 덜 찼으면 뒤에서 이어 읽는다(잡이 DONE이 된 직후에도 잠깐 비어 있을 수 있다)
-      const reasonsPending = current.some((p) => !p.reasonReady);
-      const waitedTooLong = Date.now() - startedRef.current > REASON_WAIT_MS;
+      // ② 사진이 떴다 — 로딩은 끝. 잡이 아직 돌면 DONE이 될 때까지 뒤에서 따라간다
+      const waitedTooLong = Date.now() - startedRef.current > SETTLE_WAIT_MS;
       setJobActive(active && !waitedTooLong);
       setPhase("done");
-      return job?.status !== "FAILED" && (active || reasonsPending) && !waitedTooLong ? REASON_POLL_MS : null;
+      return active && !waitedTooLong ? SETTLE_POLL_MS : null;
     }
     setJobActive(active);
     if (job?.status === "FAILED" && !initial) {

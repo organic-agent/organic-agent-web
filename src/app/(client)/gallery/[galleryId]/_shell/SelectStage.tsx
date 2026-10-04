@@ -288,15 +288,10 @@ export function SelectStage({
     () => aiInScope.map((r) => photoById.get(r.photo.photoId)).filter((p): p is PhotoResponse => p !== undefined),
     [aiInScope, photoById],
   );
-  // 로딩은 이번 라운드 사진이 뜨기 전까지만 — 이유는 사진이 뜬 뒤에도 서버가 이어서 채운다(이슈 84)
+  // 로딩은 이번 라운드 사진이 뜨기 전까지만
   const aiBusy = ai.phase === "requesting" || ai.phase === "running";
-  const aiReasonsReady = aiInScope.filter((r) => r.reasonReady).length;
   const showAiGroup = view === "all" && (aiPhotos.length > 0 || aiBusy || ai.error !== null);
   const restPhotos = useMemo(() => (showAiGroup ? gridPhotos.filter((p) => !aiIds.has(p.photoId)) : gridPhotos), [showAiGroup, gridPhotos, aiIds]);
-  const aiReasonOf = (photo: PhotoResponse) => {
-    const r = aiByPhotoId.get(photo.photoId);
-    return r ? (r.reasonReady && r.reason ? r.reason : "이유 준비 중…") : null;
-  };
   const scopeLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? "모든 사진" : "보는 폴더";
   const aiUnpicked = aiPhotos.filter((p) => !pickedIds.has(p.photoId));
   /** 별점 순이면 점수별 그룹(5 → 1 → 없음) */
@@ -499,16 +494,14 @@ export function SelectStage({
                         <>
                           <b className="font-semibold">AI 추천 {aiPhotos.length}장</b>
                           <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">
-                            {aiReasonsReady < aiInScope.length
-                              ? `${scopeLabel} 중 · 이유 준비 중 ${aiReasonsReady} / ${aiInScope.length}`
-                              : `${scopeLabel} 중 · 이유는 사진에 마우스를 올리면 보여요`}
+                            {scopeLabel} 중
                           </span>
                         </>
                       )}
                       <span className="flex-1" />
                       {!aiBusy && editable && (
                         <>
-                          {/* 서버 잡이 이유를 채우는 동안은 새 요청이 409 — 끝날 때까지 꺼 둔다 */}
+                          {/* 서버 잡이 도는 동안은 새 요청이 409 — 끝날 때까지 꺼 둔다 */}
                           <button
                             type="button"
                             disabled={ai.jobActive}
@@ -543,7 +536,6 @@ export function SelectStage({
                         currentId={currentId}
                         showScore
                         onOpen={openPhoto}
-                        captionOf={aiReasonOf}
                         aiIds={aiIds}
                         overlayOf={guestOverlay}
                       />
@@ -837,7 +829,7 @@ function AiPanel({
   editable: boolean;
   /** 사진을 고르는 중(이번 라운드 사진이 아직 없다) */
   busy: boolean;
-  /** 서버 잡이 아직 도는 중(이유를 채우는 중 포함) — 새 요청은 409라 요청 버튼을 끈다 */
+  /** 서버 잡이 아직 도는 중 — 새 요청은 409라 요청 버튼을 끈다 */
   jobActive: boolean;
   error: string | null;
   onPick: (photoId: number) => void;
@@ -852,7 +844,6 @@ function AiPanel({
             <SparkleIcon size={14} />
             AI 추천 {rec.rank}위{folderName ? ` · ${folderName.split(" / ").at(-1)}` : ""}
           </span>
-          <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{rec.reasonReady && rec.reason ? rec.reason : "이유를 만드는 중이에요…"}</p>
         </div>
       ) : (
         <p className="type-content-s leading-relaxed text-contents-light-bgd-sub">
@@ -875,7 +866,6 @@ function AiPanel({
                     <p className="type-label-semibold-xs text-contents-light-bgd-default">
                       {r.rank}위{rec && rec.photo.photoId === r.photo.photoId ? " · 이 사진" : ""}
                     </p>
-                    <p className="truncate type-content-xs text-contents-light-bgd-sub">{r.reasonReady && r.reason ? r.reason : "이유 준비 중…"}</p>
                   </div>
                   {picked ? (
                     <span className="text-brand-secondary-default" aria-label="선택됨">
