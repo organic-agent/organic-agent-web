@@ -26,6 +26,8 @@ type TextFieldProps = {
    * onChange만으로는 "비어 있음"과 구분할 수 없다. 적을 때와 칸을 떠날 때 알려 준다
    */
   onBadInput?: (bad: boolean) => void;
+  /** 휴대폰 자판 종류 — 숫자만 받는 text 칸에 "numeric" */
+  inputMode?: "numeric";
   "aria-label"?: string;
   /** <label htmlFor>와 연결할 때 */
   id?: string;
@@ -44,6 +46,7 @@ export function TextField({
   min,
   max,
   onBadInput,
+  inputMode,
   className = "",
   "aria-label": ariaLabel,
   id,
@@ -57,6 +60,7 @@ export function TextField({
       autoComplete={autoComplete}
       min={min}
       max={max ?? (type === "date" ? DATE_MAX : undefined)}
+      inputMode={inputMode}
       placeholder={placeholder}
       aria-label={ariaLabel}
       aria-invalid={error || undefined}

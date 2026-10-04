@@ -42,6 +42,7 @@ import {
   goalDateRejectedMessage,
   planExpiryFromNow,
 } from "@/lib/goalDateRange";
+import { clampSelectableCountInput } from "@/lib/selectableCount";
 import { PersonalSteps } from "../_components/PersonalSteps";
 
 export default function PersonalGalleryPage() {
@@ -110,12 +111,10 @@ function PersonalGalleryForm() {
   }, [planParam, couponParam, router]);
 
   const pro = ticket !== null && !isFreePlan(ticket.plan);
-  const countNumber = Number(count);
-  const countValid = count === "" || (Number.isInteger(countNumber) && countNumber >= 1);
   // 목표일은 오늘부터 이용 기간 안에서만 — 달력은 범위만 고르게 막고, 손으로 적은 범위 밖 날짜는 이유를 보여 준다
   const goalRange = goalDateRange(ticket ? planExpiryFromNow(ticket.plan, now) : null, now);
   const deadlineProblem = goalDateProblem(deadline, goalRange, deadlineUnreadable);
-  const canSubmit = title.trim().length > 0 && countValid && deadlineProblem === null && !submitting && ticket !== null;
+  const canSubmit = title.trim().length > 0 && deadlineProblem === null && !submitting && ticket !== null;
 
   async function handleSubmit() {
     if (!canSubmit || !ticket) return;
@@ -125,7 +124,7 @@ function PersonalGalleryForm() {
       const gallery = await createPersonalGallery({
         title: title.trim(),
         selectionDeadline: deadline ? toSelectionDeadline(deadline) : null,
-        maxSelectablePhotoCount: count ? countNumber : null,
+        maxSelectablePhotoCount: count ? Number(count) : null,
         shootType: "CEREMONY",
         planId: pro ? "pro" : "free",
         ...(ticket.coupon ? { couponId: ticket.coupon.couponId } : {}),
@@ -236,23 +235,16 @@ function PersonalGalleryForm() {
                 고를 장수
                 <span className="ml-1 font-normal text-contents-light-bgd-sub">(선택)</span>
               </label>
+              {/* 1~200만 적힌다 — 숫자가 아닌 글자와 0은 지워지고 200을 넘으면 200이 된다. 그래서 오류 문구가 없다 */}
               <TextField
                 id="gallery-count"
-                type="number"
-                min={1}
+                inputMode="numeric"
                 value={count}
-                onChange={setCount}
-                placeholder="예: 300"
-                error={!countValid}
+                onChange={(v) => setCount(clampSelectableCountInput(v))}
+                placeholder="예: 50"
+                autoComplete="off"
                 className="h-12 px-4"
               />
-              <p
-                className={`mt-1.5 type-content-xs ${
-                  countValid ? "text-contents-light-bgd-sub" : "text-function-error-default"
-                }`}
-              >
-                {countValid ? "비우면 제한 없음" : "1 이상의 정수를 입력해 주세요"}
-              </p>
             </div>
 
             {banner && (

@@ -26,6 +26,7 @@ import {
   goalDateRange,
   goalDateRejectedMessage,
 } from "@/lib/goalDateRange";
+import { clampSelectableCountInput } from "@/lib/selectableCount";
 import { DangerConfirmModal } from "./DangerConfirmModal";
 import { DangerButton, DangerCard, FieldLabel, ReadOnlyBox, Section } from "./SettingsShell";
 
@@ -81,6 +82,7 @@ export function PersonalInfoTab({
   const timer = useRef(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  // 장수 칸은 적을 때 1~200으로 맞춰진다. 상한이 생기기 전에 저장된 더 큰 값은 건드리기 전까지 그대로 둔다
   const countNumber = count.trim() === "" ? null : Number(count);
   const countValid = countNumber === null || (Number.isInteger(countNumber) && countNumber >= 1);
   const deadlineChanged = deadline !== toDateInput(gallery.selectionDeadline);
@@ -166,7 +168,7 @@ export function PersonalInfoTab({
           <ReadOnlyBox>{gallery.maxSelectablePhotoCount === null ? "정하지 않음" : `${gallery.maxSelectablePhotoCount}장`}</ReadOnlyBox>
         ) : (
           <>
-            <TextField id={`${id}-count`} type="number" min={1} value={count} onChange={setCount} placeholder="비우면 몇 장이든" error={!countValid} className="h-12 px-4" />
+            <TextField id={`${id}-count`} inputMode="numeric" value={count} onChange={(v) => setCount(clampSelectableCountInput(v))} placeholder="예: 50" autoComplete="off" error={!countValid} className="h-12 px-4" />
             <p className="mt-1.5 type-content-xs text-contents-light-bgd-weakness">정하면 그 수를 정확히 채워야 요청서를 내보낼 수 있어요</p>
           </>
         )}
