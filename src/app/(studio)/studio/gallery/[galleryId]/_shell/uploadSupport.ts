@@ -112,6 +112,8 @@ const UPLOAD_MESSAGE: Record<string, string> = {
   GALLERY_403_6: "보관된 갤러리라 더 올릴 수 없어요.",
   RECOMMENDATION_409_2: "업로드가 끝난 사진이 없어 AI 정리를 시작할 수 없어요.",
   PHOTO_503_1: "이 서버에는 AI 정리 실행기가 아직 설정되지 않았어요.",
+  // 새 사진이 기존 폴더에 맞지 않고 새 폴더를 만들 만큼(5장) 모이지 않으면 미분류로 남는다(server #217)
+  CATEGORY_409_3: "폴더에 새로 넣을 사진이 없어요. 새 폴더는 비슷한 사진이 5장 넘게 모이면 만들어져요.",
 };
 
 export function describeUploadError(error: unknown): string {

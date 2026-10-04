@@ -217,7 +217,6 @@ export default function ClientGalleryPage() {
     enabled: isPersonal && (phase === "upload" || phase === "sort"),
     photos,
     photosLoadedAt,
-    reviewedIds,
     setPhotos,
     setFolders,
     refreshPhotos,
@@ -354,7 +353,6 @@ export default function ClientGalleryPage() {
     // 개인의 업로드 · AI 구간은 작가 1단계 상태줄과 같은 문구 · 숫자
     if (isPersonal && upload.uploading) return { text: `올리는 중 ${upload.runCounts.done} / ${upload.runCounts.total}`, tone: "accent" };
     if (isPersonal && upload.aiCategorizing) return { text: "폴더 만드는 중", tone: "accent" };
-    if (isPersonal && upload.merging) return { text: "폴더 정리 중…", tone: "accent" };
     if (isPersonal && upload.aiActive) return { text: `AI 분석 중 ${upload.aiCounts?.scored ?? 0} / ${upload.aiCounts?.expected ?? 0}`, tone: "accent" };
     if (isPersonal && upload.aiFailed) return { text: upload.aiRetryable ? "AI 정리 실패 · 다시 시도할 수 있어요" : "AI 정리 실패", tone: "error" };
     if (phase === "upload") return { text: "사진 없음", tone: "muted" };

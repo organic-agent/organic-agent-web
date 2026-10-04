@@ -6,12 +6,11 @@
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/usePersonalUpload.tsx
  *
  * 소유자 · 파트너 둘 다 올릴 수 있다(서버 requireUploader). 플랜 상한은 모달이 미리 검사해 넘는 만큼은 못 담는다.
- * 큐가 비면 AI 분석을 요청하고, 끝나면 폴더 · 사진을 다시 읽고 같은 이름 컨셉을 합친다. 끊김 복구(이 브라우저가
+ * 큐가 비면 AI 분석을 요청하고, 끝나면 폴더 · 사진을 다시 읽는다(나눠 올린 사진은 서버가 기존 폴더에 합친다). 끊김 복구(이 브라우저가
  * 발급한 PENDING)는 작가 화면과 같다. 하단 바에 꽂을 진행 막대 · 버튼과 모달 · 배너를 JSX로 돌려준다.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { duplicateConceptGroups, mergeDuplicateConcepts, normalizeFolders } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/folderView";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { RecoveryBanner } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RecoveryBanner";
 import { ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ConceptCountModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ConceptCountModal";
@@ -32,7 +31,6 @@ export function usePersonalUpload({
   enabled,
   photos,
   photosLoadedAt,
-  reviewedIds,
   setPhotos,
   setFolders,
   refreshPhotos,
@@ -44,7 +42,6 @@ export function usePersonalUpload({
   photos: PhotoResponse[] | null;
   /** 사진 목록을 마지막으로 읽은 시각 — 끊김 복구가 "그 뒤 발급된 것"을 가른다 */
   photosLoadedAt: number;
-  reviewedIds: ReadonlySet<number>;
   setPhotos: (photos: PhotoResponse[]) => void;
   setFolders: (folders: ConceptFolderResponse[]) => void;
   refreshPhotos: () => Promise<void>;
@@ -61,13 +58,7 @@ export function usePersonalUpload({
   }, [conceptCount]);
   const [notice, setNotice] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
-  const [merging, setMerging] = useState(false);
-  const reviewedIdsRef = useRef(reviewedIds);
-  useEffect(() => {
-    reviewedIdsRef.current = reviewedIds;
-  }, [reviewedIds]);
   const lastEmbeddedRefreshRef = useRef(0);
-  const mergingRef = useRef(false);
 
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
   const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
@@ -87,25 +78,6 @@ export function usePersonalUpload({
   const uploading = run.phase === "running" || run.phase === "paused";
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
-  const mergeDuplicates = useCallback(
-    async (list: ConceptFolderResponse[]) => {
-      if (mergingRef.current || duplicateConceptGroups(list).length === 0) return;
-      mergingRef.current = true;
-      setMerging(true);
-      try {
-        await mergeDuplicateConcepts(galleryId, list);
-        const f = await listConceptFolders(galleryId);
-        setFolders(f);
-      } catch (err) {
-        setNotice(describeUploadError(err));
-      } finally {
-        mergingRef.current = false;
-        setMerging(false);
-      }
-    },
-    [galleryId, setFolders],
-  );
-
   // ── AI 분석 감시 — 끝나면 폴더 · 사진 재조회 ──
   const analysis = useAnalysisWatch(
     galleryId,
@@ -118,7 +90,6 @@ export function usePersonalUpload({
           const [f, p] = await Promise.all([listConceptFolders(galleryId).catch(() => null), listAllPhotos(galleryId).catch(() => null)]);
           if (f) setFolders(f);
           if (p) setPhotos(p);
-          if (f && p) await mergeDuplicates(normalizeFolders(f, p.filter((x) => x.status === "UPLOADED"), new Set(reviewedIdsRef.current)));
         })();
       },
       onEmbeddedChange: () => {
@@ -265,10 +236,9 @@ export function usePersonalUpload({
   );
   const recoveryBanner: ReactNode | null =
     recoverable.length > 0 ? <RecoveryBanner count={recoverable.length} onFiles={(files) => void onRecoveryFiles(files)} onDiscard={() => void discardPending()} discarding={discarding} /> : null;
-  // 작가 1단계와 같은 순서 — 분석 오류 · 폴더 정리 · 업로드 알림 · 끊긴 업로드
+  // 작가 1단계와 같은 순서 — 분석 오류 · 업로드 알림 · 끊긴 업로드
   const hint =
     analysis.error ??
-    (merging ? "같은 이름의 컨셉 폴더를 하나로 합치고 있어요" : null) ??
     notice ??
     (recoverable.length > 0 ? `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중` : null);
   // 첫 업로드(사진 0장)는 컨셉 수 모달이 먼저, 더 올리기는 바로 업로드 모달. "바꾸기"는 업로드 모달 위에 컨셉 수 모달을 띄운다
@@ -319,7 +289,6 @@ export function usePersonalUpload({
     aiRetryable,
     aiCategorizing,
     aiCounts,
-    merging,
     progress,
     actions,
     recoveryBanner,
