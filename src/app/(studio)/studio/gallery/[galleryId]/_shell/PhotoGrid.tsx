@@ -155,7 +155,8 @@ function CheckMark({ selected, filled }: { selected: boolean; filled: boolean })
       aria-hidden
       className={`grid size-5.5 place-items-center rounded-(--radius-4) border border-white/90 text-white transition-opacity duration-fast ${on}`}
     >
-      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {/* 고르기 전(마우스를 올렸을 때)의 체크는 흐리게 — 고른 사진의 체크와 헷갈리지 않게(2차 QA) */}
+      <svg viewBox="0 0 16 16" className={`size-3.5 ${selected ? "" : "opacity-45"}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3.5 8.5 6.5 11.5 12.5 5" />
       </svg>
     </span>

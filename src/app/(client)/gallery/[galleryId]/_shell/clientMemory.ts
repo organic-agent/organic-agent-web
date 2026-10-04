@@ -5,7 +5,7 @@
  * 메모(sel.memo.{galleryId}): 사진 id → 문장. 작가에게 보이지 않아야 해서(2026-09-12 결정) 서버 "내부 사진 댓글"의
  * 열람 범위를 확인하기 전까지 브라우저에만 둔다 — 신랑 · 신부가 다른 기기면 서로 안 보인다(노션 ② 미결).
  * 열람(sel.viewed.{galleryId}): 사진 id → 싱글뷰로 연 횟수. 공유는 서버 API가 생기면(⑥ 갭 11).
- * reviewMemory와 같은 구독 방식(useSyncExternalStore) — raw 문자열을 읽고 바뀔 때만 파싱한다.
+ * uploadMemory와 같은 구독 방식(useSyncExternalStore) — raw 문자열을 읽고 바뀔 때만 파싱한다.
  */
 
 export type RecordStore<T> = {

@@ -477,7 +477,7 @@ export function SelectStage({
                 sortable={view === "all"}
                 customSort={guestOn ? guestSortMenu : undefined}
               />
-              <div data-coach="pick" className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
+              <div data-coach="pick" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                 {showAiGroup && (
                   <div className="px-5 pt-1 pb-3">
                     <div className="mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2 type-content-s text-contents-light-bgd-default">
