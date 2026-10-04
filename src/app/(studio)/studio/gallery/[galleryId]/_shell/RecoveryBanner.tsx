@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * 끊김 복구 배너 — "n장이 다 올라오지 못했어요. 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요."
+ * 끊김 복구 배너 — "업로드가 중단됐어요. 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요."
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/RecoveryBanner.tsx
  *
  * 서버에 PENDING(발급만 되고 올라오지 않은) 사진이 남아 있을 때 본문 위에 뜬다(1단계 보드 ⑥).
+ * 장수는 말하지 않는다 — PENDING 행은 발급된 사진만이라, 아직 발급 차례가 안 왔던 사진이 빠져 실제와 달랐다(2차 QA).
  * 이어서 올리기 → 파일명 · 크기로 짝을 맞춰 재발급으로 이어 올린다(사진이 두 번 생기지 않는다). 올리던 사진을
  *   통째로 다시 골라도 이미 올라온 사진은 건너뛰므로(uploadRecovery), 문장이 그렇게 해도 된다고 알려 준다.
  * 닫기(X) → PENDING 행을 휴지통으로 보내고 배너를 닫는다(24시간 뒤 서버가 알아서 하는 일을 앞당기는 것).
@@ -15,12 +16,10 @@ import { CloseIcon, CloudOffIcon } from "@/components/icons";
 import { UPLOAD_ACCEPT_ATTR } from "./uploadSupport";
 
 export function RecoveryBanner({
-  count,
   onFiles,
   onDiscard,
   discarding = false,
 }: {
-  count: number;
   onFiles: (files: File[]) => void;
   onDiscard: () => void;
   discarding?: boolean;
@@ -34,9 +33,7 @@ export function RecoveryBanner({
       <span className="flex shrink-0 text-function-warning-default">
         <CloudOffIcon size={18} />
       </span>
-      <span className="min-w-0 flex-1">
-        <b className="font-semibold">{count}장</b>이 다 올라오지 못했어요. 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요.
-      </span>
+      <span className="min-w-0 flex-1">업로드가 중단됐어요. 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요.</span>
       <input
         ref={inputRef}
         type="file"
