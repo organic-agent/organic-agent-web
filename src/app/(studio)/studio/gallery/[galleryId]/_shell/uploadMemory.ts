@@ -3,7 +3,7 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/uploadMemory.ts
  *
  * 서버에는 PENDING 사진 행(번호 · 파일명)만 남고 어떤 로컬 파일이었는지는 없다. 여기 적어 둔
- * 파일명 · 크기로 "파일 다시 고르기"에서 짝을 맞춰 재발급(같은 행에 새 URL)으로 이어 올린다.
+ * 파일명 · 크기로 "이어서 올리기"에서 짝을 맞춰 재발급(같은 행에 새 URL)으로 이어 올린다.
  * 완료 통보까지 끝난 사진은 지운다. 키는 sel.upload.{galleryId}. 저장소가 막혀 있어도 동작은 계속된다.
  *
  * 화면은 useSyncExternalStore로 구독한다(렌더 중 localStorage를 직접 읽지 않는다). 이 모듈이 쓸 때마다
