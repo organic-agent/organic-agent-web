@@ -19,7 +19,7 @@ import { UploadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/Up
 import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadProgress";
 import { forgetUploaded, parseRemembered, readRememberedRaw, readUploadActiveRaw, subscribeRemembered } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadMemory";
 import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadRecovery";
-import { describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
+import { checkFileUploads, describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useAnalysisWatch";
 import { useUploadRun } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useUploadRun";
 import { CloudUploadIcon, ErrorIcon, PauseIcon, PlayIcon, RefreshIcon, SparkleIcon } from "@/components/icons";
@@ -71,7 +71,6 @@ export function usePersonalUpload({
 
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
   const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
-  const existingNames = useMemo(() => new Set(allPhotos.map((p) => p.originalFileName)), [allPhotos]);
 
   // ── 업로드 실행기 — 큐가 비면 분석 잡을 요청한다 ──
   const requestAnalysisRef = useRef<() => Promise<void>>(async () => {});
@@ -156,9 +155,11 @@ export function usePersonalUpload({
     const stale = remembered.filter((item) => !pendingIds.has(item.photoId) && item.issuedAt < photosLoadedAt).map((item) => item.photoId);
     if (stale.length > 0) forgetUploaded(galleryId, stale);
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
-  function onRecoveryFiles(files: File[]) {
-    // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 작가 1단계와 같은 규칙
-    const match = matchRecoveryFiles(files, recoverable, remembered, existingNames);
+  async function onRecoveryFiles(files: File[]) {
+    // 고른 파일의 원본 지문을 서버에 물어 이미 올라온 것은 건너뛰고, 올리다 만 것은 그 행에 이어 올린다
+    setNotice("고른 사진을 확인하고 있어요");
+    const checks = await checkFileUploads(galleryId, files);
+    const match = matchRecoveryFiles(files, recoverable, remembered, checks);
     setNotice(recoveryNotice(match));
     if (match.resume.length === 0 && match.fresh.length === 0) return;
     void start(match.fresh, match.resume);
@@ -262,7 +263,7 @@ export function usePersonalUpload({
     </>
   );
   const recoveryBanner: ReactNode | null =
-    recoverable.length > 0 ? <RecoveryBanner count={recoverable.length} onFiles={onRecoveryFiles} onDiscard={() => void discardPending()} discarding={discarding} /> : null;
+    recoverable.length > 0 ? <RecoveryBanner count={recoverable.length} onFiles={(files) => void onRecoveryFiles(files)} onDiscard={() => void discardPending()} discarding={discarding} /> : null;
   // 작가 1단계와 같은 순서 — 분석 오류 · 폴더 정리 · 업로드 알림 · 끊긴 업로드
   const hint =
     analysis.error ??
@@ -275,8 +276,8 @@ export function usePersonalUpload({
     <>
       {uploadOpen && (
         <UploadModal
+          galleryId={galleryId}
           existingCount={photos?.length ?? 0}
-          existingNames={existingNames}
           planMaxPhotoCount={planMaxPhotoCount}
           conceptCount={conceptCount}
           onChangeConcept={firstUpload ? () => setConceptOpen(true) : undefined}

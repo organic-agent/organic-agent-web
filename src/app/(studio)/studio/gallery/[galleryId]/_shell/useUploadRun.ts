@@ -15,6 +15,9 @@
  * 이어 올리기(resume): 끊겼던 PENDING 사진을 같은 행에 새 URL로(재발급) — 사진이 두 번 생기지 않는다.
  * 실패분 다시 올리기도 발급이 끝난 파일은 이 길로 간다.
  *
+ * 새 파일은 원본 지문(sourceHash)을 실어 발급한다 — 같은 원본이 올리는 중이면 서버가 그 행에 URL을 다시 주고,
+ * 이미 올라왔으면 URL 없이 UPLOADED로 답한다. 그 파일은 PUT 없이 "이미 있음"으로 세고 넘어간다.
+ *
  * 일시정지는 새 PUT을 시작하지 않는 것이다(진행 중인 전송은 끝까지). 취소는 진행 중 전송을 끊고,
  * 이미 올라간 사진은 서버에 남는다(발급만 된 사진은 기억에 남아 복구 배너의 대상이 된다).
  */
@@ -28,6 +31,7 @@ import {
   S3PutError,
 } from "@/lib/api/photos";
 import type { PreparedFile } from "@/lib/upload/masterResize";
+import { sourceHashesOf } from "@/lib/upload/sourceHash";
 import {
   UPLOAD_COMPLETE_BATCH,
   UPLOAD_ISSUE_BATCH,
@@ -54,8 +58,10 @@ export type UploadPhase = "idle" | "running" | "paused" | "finished";
 export type UploadRun = {
   phase: UploadPhase;
   total: number;
-  /** S3 PUT까지 끝난 수 */
+  /** S3 PUT까지 끝난 수(이미 올라와 있던 것 포함) */
   done: number;
+  /** 발급이 "이미 올라온 원본"이라고 답해 PUT 없이 넘어간 수 */
+  skipped: number;
   failed: number;
   /** 0~1 — 파일별 전송 비율의 평균 */
   ratio: number;
@@ -91,6 +97,7 @@ const IDLE: UploadRun = {
   phase: "idle",
   total: 0,
   done: 0,
+  skipped: 0,
   failed: 0,
   ratio: 0,
   resized: 0,
@@ -143,6 +150,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
       const failedFiles: File[] = [];
       const completedIds: number[] = [];
       let done = 0;
+      let skipped = 0;
       let resized = 0;
       let pendingServerCheck = 0;
       let error: string | null = null;
@@ -169,6 +177,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
           phase: pausedRef.current ? "paused" : "running",
           total,
           done,
+          skipped,
           failed: failedFiles.length,
           ratio: total ? sum / total : 0,
           resized,
@@ -193,11 +202,19 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         });
       }
 
-      /** 새 파일 묶음 — 줄이고 → 발급 → 인덱스로 짝짓기 */
+      /** 올라와 있던 원본 — PUT 없이 끝난 것으로 센다 */
+      function markAlreadyUploaded(file: File) {
+        releasePrepared(file);
+        ratioByFile.set(file, 1);
+        done += 1;
+        skipped += 1;
+      }
+
+      /** 새 파일 묶음 — 줄이고 · 지문 → 발급 → 인덱스로 짝짓기 */
       async function prepareFreshBatch(batch: File[]): Promise<Issued[]> {
-        const prepared = await Promise.all(batch.map(prepare));
+        const [prepared, hashes] = await Promise.all([Promise.all(batch.map(prepare)), sourceHashesOf(batch)]);
         if (controller.signal.aborted) return [];
-        const ready: { file: File; prepared: PreparedFile }[] = [];
+        const ready: { file: File; prepared: PreparedFile; sourceHash: string | null }[] = [];
         batch.forEach((file, i) => {
           const item = prepared[i];
           if (!item) failedFiles.push(file);
@@ -205,7 +222,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
             // 서버는 묶음 전체를 거절한다(PHOTO_400_7) — 한 장 때문에 100장이 실패하지 않게 여기서 뺀다
             failedFiles.push(file);
             error = OVERSIZE_MESSAGE;
-          } else ready.push({ file, prepared: item });
+          } else ready.push({ file, prepared: item, sourceHash: hashes[i] });
         });
         if (ready.length === 0) {
           publish(true);
@@ -215,11 +232,12 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         try {
           res = await issueUploadUrls(
             galleryId,
-            ready.map(({ file, prepared: item }) => ({
+            ready.map(({ file, prepared: item, sourceHash }) => ({
               fileName: file.name,
               contentType: uploadContentType(file),
               contentLength: item.blob.size,
               crc32c: item.crc32c,
+              ...(sourceHash ? { sourceHash } : {}),
             })),
           );
         } catch (err) {
@@ -230,9 +248,15 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
           return [];
         }
         const issued: Issued[] = [];
+        // 한 묶음에 같은 원본이 둘이면 서버는 같은 photoId를 준다 — 한 번만 올린다
+        const seenIds = new Set<number>();
         ready.forEach(({ file, prepared: item }, i) => {
           const upload = res.uploads[i];
-          if (upload)
+          if (!upload) failedFiles.push(file);
+          else if (upload.state === "UPLOADED" || !upload.uploadUrl || seenIds.has(upload.photoId))
+            markAlreadyUploaded(file);
+          else {
+            seenIds.add(upload.photoId);
             issued.push({
               file,
               prepared: item,
@@ -240,8 +264,9 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
               uploadUrl: upload.uploadUrl,
               contentType: uploadContentType(file),
             });
-          else failedFiles.push(file);
+          }
         });
+        if (issued.length < ready.length) publish(true);
         rememberIssued(
           galleryId,
           issued.map((job) => ({
@@ -318,10 +343,8 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
             else failedFiles.push(item.file);
           } catch (single) {
             if (single instanceof ApiError && single.code === "PHOTO_409_1") {
-              releasePrepared(item.file);
-              ratioByFile.set(item.file, 1);
+              markAlreadyUploaded(item.file);
               completedIds.push(item.photoId); // 통보는 멱등 — 이미 UPLOADED여도 안전
-              done += 1;
               publish(true);
             } else {
               failedFiles.push(item.file);
@@ -459,6 +482,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         phase: "finished",
         total,
         done,
+        skipped,
         failed: failedFiles.length,
         ratio: total ? done / total : 0,
         resized,

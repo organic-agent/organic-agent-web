@@ -95,7 +95,7 @@ import {
   subscribeRemembered,
 } from "./_shell/uploadMemory";
 import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "./_shell/uploadRecovery";
-import { describeUploadError, formatEta } from "./_shell/uploadSupport";
+import { checkFileUploads, describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
@@ -383,7 +383,6 @@ export default function StudioGalleryShellPage() {
     () => "",
   );
   const remembered = useMemo(() => parseRemembered(rememberedRaw), [rememberedRaw]);
-  const existingNames = useMemo(() => new Set(allPhotos.map((p) => p.originalFileName)), [allPhotos]);
   // 다른 탭이 이 갤러리를 올리는 중이면(심장 박동 20초 안) 그 탭의 PENDING을 복구 대상으로 삼지 않는다
   const otherTabUploading =
     useSyncExternalStore(subscribeRemembered, () => readUploadActiveRaw(galleryId), () => "") === "1";
@@ -404,9 +403,11 @@ export default function StudioGalleryShellPage() {
     if (stale.length > 0) forgetUploaded(galleryId, stale);
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
 
-  function onRecoveryFiles(files: File[]) {
-    // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 원래 폴더를 통째로 다시 골라도 중복이 생기지 않게
-    const match = matchRecoveryFiles(files, recoverable, remembered, existingNames);
+  async function onRecoveryFiles(files: File[]) {
+    // 고른 파일의 원본 지문을 서버에 물어 이미 올라온 것은 건너뛰고, 올리다 만 것은 그 행에 이어 올린다
+    setUploadNotice("고른 사진을 확인하고 있어요");
+    const checks = await checkFileUploads(galleryId, files);
+    const match = matchRecoveryFiles(files, recoverable, remembered, checks);
     setUploadNotice(recoveryNotice(match));
     if (match.resume.length === 0 && match.fresh.length === 0) return;
     void startUpload(match.fresh, match.resume);
@@ -842,7 +843,7 @@ export default function StudioGalleryShellPage() {
     recoverable.length > 0 ? (
       <RecoveryBanner
         count={recoverable.length}
-        onFiles={onRecoveryFiles}
+        onFiles={(files) => void onRecoveryFiles(files)}
         onDiscard={() => void discardPending()}
         discarding={discarding}
       />
@@ -1157,8 +1158,8 @@ export default function StudioGalleryShellPage() {
 
       {uploadOpen && (
         <UploadModal
+          galleryId={galleryId}
           existingCount={photos?.length ?? 0}
-          existingNames={existingNames}
           planMaxPhotoCount={gallery?.planMaxPhotoCount ?? null}
           conceptCount={conceptCount}
           onChangeConcept={allPhotos.length === 0 ? () => setConceptOpen(true) : undefined}

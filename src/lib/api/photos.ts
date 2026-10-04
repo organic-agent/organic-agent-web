@@ -9,15 +9,29 @@
  *
  * 발급은 리사이즈 뒤에 받는다. 서명에 Content-Length·Content-Type·x-amz-checksum-crc32c가
  * 들어가서, 발급 때 적은 크기와 다른 바이트를 올리면 S3가 거절한다.
+ *
+ * 원본 지문(sourceHash, src/lib/upload/sourceHash.ts)을 실으면 발급이 멱등해진다 — 같은 원본은 갤러리에
+ * 한 장만 생긴다. 리사이즈 전에 지문 조회(upload-check)로 이미 올라온 원본을 걸러 낸다.
  */
 
 import { api } from "@/lib/api/client";
 
+/**
+ * 원본 하나의 상태. NEW = 새로 올릴 원본, PENDING = 올리다 만 원본(발급하면 같은 사진으로 이어진다),
+ * UPLOADED = 이미 올라온 원본(건너뛴다), TRASHED = 같은 원본이 휴지통에 있다(조회에만 — 올리면 새 사진이 된다).
+ */
+export type UploadState = "NEW" | "PENDING" | "UPLOADED" | "TRASHED";
+
 export type IssuedUpload = {
   photoId: number;
   storageKey: string;
-  /** 이 URL로 S3에 직접 PUT — 발급 요청의 contentType·contentLength를 그대로 보내야 한다. */
-  uploadUrl: string;
+  /**
+   * 이 URL로 S3에 직접 PUT — 발급 요청의 contentType·contentLength를 그대로 보내야 한다.
+   * state가 UPLOADED면 null(이미 올라온 사진이라 올릴 것이 없다).
+   */
+  uploadUrl: string | null;
+  /** 지문 없이 발급하면 항상 NEW. 재발급 응답은 PENDING */
+  state: UploadState;
 };
 
 export type IssueUploadUrlsResponse = {
@@ -37,10 +51,49 @@ export type UploadFileRequest = {
    * 헤더가 같아야 한다. S3는 받은 바이트로 다시 계산해 다르면 400(BadDigest)으로 거절한다.
    */
   crc32c: string;
+  /**
+   * 리사이즈 전 원본의 지문. 보내면 같은 지문의 사진이 올리는 중이면 그 행에 URL을 다시 주고(PENDING),
+   * 이미 올라왔으면 URL 없이 UPLOADED로 답한다. 없으면 파일마다 새 사진 행이 생긴다.
+   */
+  sourceHash?: string;
 };
 
+export type UploadCheckResult = {
+  sourceHash: string;
+  state: UploadState;
+  /** PENDING · UPLOADED일 때 그 사진. NEW · TRASHED면 null */
+  photoId: number | null;
+};
+
+/** 지문 조회 한 번에 물을 수 있는 수(서버 CheckUploadsRequest.MAX_SOURCE_HASHES) */
+const UPLOAD_CHECK_BATCH = 1000;
+
 /**
- * 업로드 URL 일괄 발급. 파일 하나당 사진 행 하나가 PENDING으로 생긴다. 한 번에 500장까지.
+ * 지문 조회 — 원본들이 이 갤러리에 이미 있는지. 리사이즈보다 먼저 불러 이미 올라온 원본을 건너뛴다.
+ * 읽기 전용이고 최종 판정은 발급이 다시 한다. 1000개씩 나눠 묻고, 결과는 지문당 하나다.
+ */
+export async function checkUploads(
+  galleryId: number,
+  sourceHashes: string[],
+): Promise<Map<string, UploadCheckResult>> {
+  const unique = [...new Set(sourceHashes)];
+  const byHash = new Map<string, UploadCheckResult>();
+  for (let i = 0; i < unique.length; i += UPLOAD_CHECK_BATCH) {
+    const res = await api<{ results: UploadCheckResult[] }>(
+      `/api/v1/galleries/${galleryId}/photos/upload-check`,
+      {
+        method: "POST",
+        body: { sourceHashes: unique.slice(i, i + UPLOAD_CHECK_BATCH) },
+      },
+    );
+    for (const result of res.results) byHash.set(result.sourceHash, result);
+  }
+  return byHash;
+}
+
+/**
+ * 업로드 URL 일괄 발급. 새 원본 하나당 사진 행 하나가 PENDING으로 생긴다(같은 지문이 있으면 그 행). 한 번에 500장까지.
+ * 응답은 요청한 파일 수만큼, 같은 순서다 — 한 요청 안의 같은 지문은 같은 photoId로 온다.
  * 실패: 400(필드 누락, 개수 초과 PHOTO_400_1, 미지원 형식 PHOTO_400_2, 크기 초과 PHOTO_400_7)
  * · 403(담당 작가 아님) · 409(플랜 장수 초과 GALLERY_409_3).
  */

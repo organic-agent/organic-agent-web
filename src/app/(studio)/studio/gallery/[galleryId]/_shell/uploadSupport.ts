@@ -1,12 +1,14 @@
 /**
- * 업로드 보조 — 형식 판별 · 묶음 · 표시 문구 · 리사이즈 결과 캐시 · 오류 문구
+ * 업로드 보조 — 형식 판별 · 묶음 · 표시 문구 · 리사이즈 결과 캐시 · 지문 조회 · 오류 문구
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport.ts
  *
- * 순수 함수만. 실행기(useUploadRun) · 모달(UploadModal) · 복구(stage 4)가 함께 쓴다.
+ * 실행기(useUploadRun) · 모달(UploadModal) · 복구(stage 4)가 함께 쓴다.
  */
 
 import { ApiError } from "@/lib/api/client";
+import { checkUploads, type UploadCheckResult } from "@/lib/api/photos";
 import { prepareMaster, type PreparedFile } from "@/lib/upload/masterResize";
+import { sourceHashesOf } from "@/lib/upload/sourceHash";
 
 /** 서버가 받아주는 형식(PhotoService.ALLOWED_CONTENT_TYPES). 소문자로 보낸다 */
 export const UPLOAD_ACCEPTED_TYPES = [
@@ -82,6 +84,21 @@ export function prepareCached(file: File): Promise<PreparedFile> {
 
 export function releasePrepared(file: File) {
   preparedCache.delete(file);
+}
+
+/**
+ * 파일들이 이 갤러리에 이미 있는지 — 원본 지문을 계산해 서버에 묻는다(리사이즈 전). 결과는 파일 순서대로이고,
+ * 지문을 못 읽은 파일이나 조회가 실패한 경우는 null이다(그 파일은 새 사진처럼 다룬다 — 발급이 다시 판정한다).
+ */
+export async function checkFileUploads(
+  galleryId: number,
+  files: File[],
+): Promise<(UploadCheckResult | null)[]> {
+  const hashes = await sourceHashesOf(files);
+  const known = hashes.filter((hash): hash is string => hash !== null);
+  if (known.length === 0) return files.map(() => null);
+  const byHash = await checkUploads(galleryId, known).catch(() => null);
+  return hashes.map((hash) => (hash && byHash?.get(hash)) || null);
 }
 
 const UPLOAD_MESSAGE: Record<string, string> = {
