@@ -5,7 +5,7 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader.tsx
  *
  * 장수는 사이드바가 보여주고 여기서는 보는 방법만 다룬다. 촬영 순은 사진에 촬영 시각이 없어
- * 준비 중(백엔드 요청). 정렬 · 필터 항목은 기본(업로드 · 이름 · 별점 / 검토 · 미분류)이고, 화면이 다른 항목을
+ * 준비 중(백엔드 요청). 정렬 · 필터 항목은 기본(업로드 · 이름 · 별점 / 미분류)이고, 화면이 다른 항목을
  * 쓰면(보정 작업: 결과 없는 것 먼저 · 메모 있는 것만) customSort · customFilter로 같은 버튼 · 메뉴에 바꿔 끼운다.
  * 보기 전환(그리드 · 한 장 보기) 버튼은 두지 않는다 — 디자이너 시안의 헤더에 없고, 크게 보기는 썸네일을 눌러 여는
  * 팝업이라 전환할 상태가 없다(늘 선택된 그리드 버튼 · 화면마다 다르게 돌던 한 장 보기 버튼을 뺌, QA 2026-09-29 · 이슈 84).
@@ -25,7 +25,7 @@ import {
 import type { PhotoResponse } from "@/lib/api/photos";
 
 export type SortKey = "uploaded" | "name" | "score";
-export type FilterKey = "none" | "review" | "unsorted";
+export type FilterKey = "none" | "unsorted";
 export type MenuOption = { key: string; label: string; trailing?: string };
 export type CustomMenu = { value: string; options: MenuOption[]; onChange: (key: string) => void };
 
@@ -40,7 +40,6 @@ export function sortPhotos(list: PhotoResponse[], sort: SortKey): PhotoResponse[
   return sorted;
 }
 const FILTER_LABEL: Record<Exclude<FilterKey, "none">, string> = {
-  review: "검토 필요만",
   unsorted: "미분류만",
 };
 
@@ -71,7 +70,7 @@ export function ShellMainHeader({
   onFilterChange: (filter: FilterKey) => void;
   /** false면 정렬 · 필터 버튼을 숨긴다(선택한 사진 보기 — 고른 순 고정) */
   sortable?: boolean;
-  /** false면 정렬 메뉴에서 필터(검토 필요만 · 미분류만)를 뺀다 — 클라이언트 셀렉 */
+  /** false면 정렬 메뉴에서 필터(미분류만)를 뺀다 — 클라이언트 셀렉 */
   showFilters?: boolean;
   /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
   leading?: ReactNode;
@@ -112,7 +111,7 @@ export function ShellMainHeader({
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-5 max-[480px]:px-3">
       {/* 한 줄 높이로 자르고 줄바꿈을 허용한다. 뒤에서부터 채워(row-reverse) 제목 묶음이 먼저 자리를 잡고,
           상위 폴더 묶음은 같은 줄에 못 들어가면 다음 줄로 넘어가 보이지 않는다. 제목 묶음만으로도 넘치면 그 안의 이름이 말줄임.
-          바깥 여백(-m · p 1.5)은 잘리는 상자 안에 포커스 테두리("검토 완료" 버튼)가 들어갈 자리다 */}
+          바깥 여백(-m · p 1.5)은 잘리는 상자 안에 포커스 테두리가 들어갈 자리다 */}
       <h2 className="-m-1.5 flex h-10 min-w-0 flex-1 flex-row-reverse flex-wrap content-start justify-end gap-x-1.5 gap-y-4 overflow-hidden p-1.5 whitespace-nowrap type-title-s text-contents-light-bgd-default">
         {titleParent && (
           <span className="order-2 flex h-7 shrink-0 items-center gap-1.5 font-normal text-contents-light-bgd-weakness max-lg:hidden">

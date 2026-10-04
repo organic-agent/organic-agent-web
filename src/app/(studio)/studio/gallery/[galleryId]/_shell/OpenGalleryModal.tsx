@@ -20,14 +20,12 @@ export function OpenGalleryModal({
   gallery,
   photoCount,
   folderCount,
-  reviewCount,
   onClose,
   onOpened,
 }: {
   gallery: GalleryResponse;
   photoCount: number;
   folderCount: number;
-  reviewCount: number;
   onClose: () => void;
   onOpened: (gallery: GalleryResponse) => void;
 }) {
@@ -62,7 +60,7 @@ export function OpenGalleryModal({
         <Row label="갤러리" value={gallery.title} />
         <Row
           label="사진"
-          value={`${photoCount}장${folderCount > 0 ? ` · 폴더 ${folderCount}${reviewCount > 0 ? ` (확인 필요 ${reviewCount})` : ""}` : ""}`}
+          value={`${photoCount}장${folderCount > 0 ? ` · 폴더 ${folderCount}` : ""}`}
         />
         <Row
           label="선택 마감"

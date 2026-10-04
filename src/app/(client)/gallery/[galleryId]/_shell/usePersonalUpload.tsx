@@ -33,7 +33,6 @@ export function usePersonalUpload({
   enabled,
   photos,
   photosLoadedAt,
-  reviewedIds,
   setPhotos,
   setFolders,
   refreshPhotos,
@@ -45,7 +44,6 @@ export function usePersonalUpload({
   photos: PhotoResponse[] | null;
   /** 사진 목록을 마지막으로 읽은 시각 — 끊김 복구가 "그 뒤 발급된 것"을 가른다 */
   photosLoadedAt: number;
-  reviewedIds: ReadonlySet<number>;
   setPhotos: (photos: PhotoResponse[]) => void;
   setFolders: (folders: ConceptFolderResponse[]) => void;
   refreshPhotos: () => Promise<void>;
@@ -63,10 +61,6 @@ export function usePersonalUpload({
   const [notice, setNotice] = useState<string | null>(null);
   const [discarding, setDiscarding] = useState(false);
   const [merging, setMerging] = useState(false);
-  const reviewedIdsRef = useRef(reviewedIds);
-  useEffect(() => {
-    reviewedIdsRef.current = reviewedIds;
-  }, [reviewedIds]);
   const lastEmbeddedRefreshRef = useRef(0);
   const mergingRef = useRef(false);
 
@@ -122,7 +116,7 @@ export function usePersonalUpload({
           const [f, p] = await Promise.all([listConceptFolders(galleryId).catch(() => null), listAllPhotos(galleryId).catch(() => null)]);
           if (f) setFolders(f);
           if (p) setPhotos(p);
-          if (f && p) await mergeDuplicates(normalizeFolders(f, p.filter((x) => x.status === "UPLOADED"), new Set(reviewedIdsRef.current)));
+          if (f && p) await mergeDuplicates(normalizeFolders(f, p.filter((x) => x.status === "UPLOADED")));
         })();
       },
       onEmbeddedChange: () => {

@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * 클라이언트 컨셉 분류 첫 진입 코치마크 5 (2026-09-11 순서)
+ * 클라이언트 컨셉 분류 첫 진입 코치마크 4 (2026-09-11 순서, "검토" 단계는 배지를 없애며 뺌)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ClientCoachMarks.tsx
  *
- * 컨셉 폴더 → 사진 옮기기 → "검토" 배지 → 미분류 → 폴더 확정. 대상은 data-coach 속성.
- * 그리기 · 기록(`sel.coach.clientSort`)은 공통 CoachMarks. 검토 배지가 없는 갤러리는 그 단계를 건너뛴다.
+ * 컨셉 폴더 → 사진 옮기기 → 미분류 → 폴더 확정. 대상은 data-coach 속성.
+ * 그리기 · 기록(`sel.coach.clientSort`)은 공통 CoachMarks.
  */
 
 import { CoachMarks, type CoachStep } from "@/components/app/CoachMarks";
@@ -22,13 +22,6 @@ const STEPS: ReadonlyArray<CoachStep> = [
     eyebrow: "사진 옮기기",
     title: "사진을 골라 다른 폴더로",
     body: "사진을 끌어 왼쪽 폴더에 놓으면 옮겨져요. 여러 장은 Shift + 클릭이나 아래 \"폴더로 이동\"으로.",
-  },
-  {
-    key: "review",
-    eyebrow: "검토",
-    title: "AI가 확신이 낮은 폴더",
-    body: "이 배지가 붙은 폴더는 한 번 살펴봐 주세요. 확인했으면 폴더 메뉴에서 \"검토 완료\".",
-    round: true,
   },
   {
     key: "unsorted",

@@ -4,9 +4,10 @@
  * 폴더 열 — 컨셉 › 세부 폴더 트리 (1단계 사진 업로드에서만 3열로 붙는다)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn.tsx
  *
- * 세부 폴더의 needsReview는 "검토" 배지(서버가 지우는 방법이 없는 영구 배지), 어느 폴더에도 없는 사진은 맨 아래 "미분류".
+ * 어느 폴더에도 없는 사진은 맨 아래 "미분류". "검토" 배지와 검토 완료 메뉴는 없앴다(2차 QA — 폴더 단위라 어떤 사진이
+ * 왜 문제인지 알 수 없었다. 서버의 needsReview 값은 그대로 오지만 읽지 않는다).
  * 편집(1단계 보드 확정): 머리의 "컨셉 폴더 추가", 행에 마우스를 올리면 숫자 자리에 케밥 —
- * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 검토 완료(배지 감춤, 브라우저 기억) · 폴더 삭제.
+ * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 폴더 삭제.
  * 이름 바꾸기는 서버 API가 없어 두지 않는다(백엔드 요청 항목). 편집 핸들러를 안 주면 읽기 전용이다.
  * 맨 위 "모든 사진" 행으로 폴더에서 빠져나오고, 컨셉 이름을 누르면 그 컨셉의 사진 전체를 본다(2026-09-11 피드백).
  * 사진을 끌고 오면(dropping) 놓을 수 있는 곳(세부 폴더 · 미분류, 지금 보고 있는 폴더는 빼고)만 점선으로 남고
@@ -17,7 +18,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  CheckCircleIcon,
   CreateFolderIcon,
   DropdownIcon,
   FolderOffIcon,
@@ -59,17 +59,6 @@ function dropClass(dropping: boolean, droppable: boolean, over: boolean | undefi
     : "outline-1 -outline-offset-1 outline-dashed outline-border-default";
 }
 
-export function ReviewBadge() {
-  return (
-    <span
-      data-coach="review"
-      className="ml-1.5 rounded-(--pill) bg-function-warning-background px-1.5 py-px type-label-semibold-xs text-function-warning-default"
-    >
-      검토
-    </span>
-  );
-}
-
 export function FolderColumn({
   folders,
   totalPhotos,
@@ -81,9 +70,6 @@ export function FolderColumn({
   onCreateDetail,
   onDeleteConcept,
   onDeleteDetail,
-  reviewedIds,
-  onMarkReviewed,
-  onUnmarkReviewed,
   dropping = false,
   dropOver = null,
 }: {
@@ -99,10 +85,6 @@ export function FolderColumn({
   onCreateDetail?: (concept: ConceptFolderResponse) => void;
   onDeleteConcept?: (concept: ConceptFolderResponse) => void;
   onDeleteDetail?: (concept: ConceptFolderResponse, detail: DetailFolderResponse) => void;
-  /** 이 브라우저에서 "검토 완료"로 표시한 세부 폴더 id — 배지는 감춰져 있고 되살리기 메뉴가 뜬다 */
-  reviewedIds?: Set<number>;
-  onMarkReviewed?: (detail: DetailFolderResponse) => void;
-  onUnmarkReviewed?: (detail: DetailFolderResponse) => void;
   /** 사진을 끌고 오는 중 — 놓을 수 있는 곳만 또렷하게 */
   dropping?: boolean;
   /** 지금 올라와 있는 곳 */
@@ -224,41 +206,6 @@ export function FolderColumn({
             세부 폴더 추가
           </button>
         )}
-        {target.kind === "detail" && target.detail.needsReview && onMarkReviewed && (
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setMenu(null);
-              onMarkReviewed(target.detail);
-            }}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-          >
-            <span className="flex text-brand-secondary-dark">
-              <CheckCircleIcon size={16} />
-            </span>
-            검토 완료
-          </button>
-        )}
-        {target.kind === "detail" &&
-          !target.detail.needsReview &&
-          reviewedIds?.has(target.detail.id) &&
-          onUnmarkReviewed && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenu(null);
-                onUnmarkReviewed(target.detail);
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-            >
-              <span className="flex text-contents-light-bgd-sub">
-                <CheckCircleIcon size={16} />
-              </span>
-              검토 표시 되살리기
-            </button>
-          )}
         {((target.kind === "concept" && onDeleteConcept) || (target.kind === "detail" && onDeleteDetail)) && (
           <button
             type="button"
@@ -415,10 +362,7 @@ export function FolderColumn({
                                   : "text-contents-light-bgd-sub"
                               }`}
                             >
-                              <span className="min-w-0 flex-1 truncate">
-                                {detail.name}
-                                {detail.needsReview && <ReviewBadge />}
-                              </span>
+                              <span className="min-w-0 flex-1 truncate">{detail.name}</span>
                             </button>
                             {renderTrailing(detail.photoIds.length, detailTarget)}
                             {renderMenu(detailTarget)}

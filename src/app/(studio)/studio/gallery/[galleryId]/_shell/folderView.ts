@@ -3,7 +3,7 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/folderView.ts
  *
  * 정규화: 서버의 세부 폴더 photoIds는 순서가 없고 휴지통 사진도 섞여 온다 — 살아 있는 사진만 남기고
- * 업로드 순으로 정렬한다. "검토 완료"로 표시한(브라우저 기억) 폴더의 needsReview는 감춘다.
+ * 업로드 순으로 정렬한다.
  *
  * 중복 컨셉: 사진을 더 올려 다시 분석하면 서버가 같은 이름의 컨셉 폴더를 뒤에 덧붙인다(2026-09-11 실측,
  * 백엔드 요청 항목). 그때까지는 화면이 정리한다 — 같은 이름 컨셉 중 가장 앞의 것을 남기고, 나머지의 세부 폴더
@@ -23,7 +23,6 @@ const MOVE_BATCH = 500;
 export function normalizeFolders(
   raw: ConceptFolderResponse[],
   livePhotos: PhotoResponse[],
-  reviewedIds: Set<number>,
 ): ConceptFolderResponse[] {
   const live = new Map(livePhotos.map((p) => [p.photoId, p]));
   const order = (a: number, b: number) => {
@@ -35,7 +34,6 @@ export function normalizeFolders(
     ...concept,
     details: concept.details.map((detail) => ({
       ...detail,
-      needsReview: detail.needsReview && !reviewedIds.has(detail.id),
       photoIds: detail.photoIds.filter((id) => live.has(id)).sort(order),
     })),
   }));

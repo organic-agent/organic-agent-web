@@ -20,7 +20,7 @@ export type DetailFolderResponse = {
   name: string;
   sortOrder: number;
   createdSource: "AI" | "USER";
-  /** AI가 이름에 확신이 낮아 작가 확인이 필요한 폴더. 서버가 지우는 방법은 없다(영구 배지) */
+  /** AI가 이름에 확신이 낮은 폴더. 화면은 읽지 않는다 — "검토" 배지를 없앴다(2차 QA) */
   needsReview: boolean;
   photoIds: number[];
 };

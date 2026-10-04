@@ -9,17 +9,17 @@
  * (사이드바 + 컨셉 폴더 열 + 그리드)이다.
  *
  * 단계(clientStages): 대기(DRAFT — 서버가 사진 · 폴더를 주지 않아 안내 카드만) → 컨셉 분류(폴더 확정 전 —
- * 사진 옮기기 · 폴더 추가 · 삭제 · 검토 완료 · 폴더 확정) → 셀렉 & 보정 요청(WES-312) → 보정 검토(WES-313)
+ * 사진 옮기기 · 폴더 추가 · 삭제 · 폴더 확정) → 셀렉 & 보정 요청(WES-312) → 보정 검토(WES-313)
  * → (앨범 구성) → 완료.
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
-import { CheckCircleIcon, PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
+import { PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ddayLabel } from "@/app/(studio)/_lib/galleryStatus";
-import { FolderColumn, ReviewBadge, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
+import { FolderColumn, type FolderSelection } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderColumn";
 import {
   DeletePhotosModal,
   FolderDeleteModal,
@@ -29,13 +29,6 @@ import {
 } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/FolderModals";
 import { normalizeFolders } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/folderView";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
-import {
-  markReviewed,
-  parseReviewed,
-  readReviewedRaw,
-  subscribeReviewed,
-  unmarkReviewed,
-} from "@/app/(studio)/studio/gallery/[galleryId]/_shell/reviewMemory";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
@@ -195,19 +188,12 @@ export default function ClientGalleryPage() {
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
   const pendingPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "PENDING"), [photos]);
-  const reviewedRaw = useSyncExternalStore(subscribeReviewed, () => readReviewedRaw(galleryId), () => "");
-  const reviewedIds = useMemo(() => new Set(parseReviewed(reviewedRaw)), [reviewedRaw]);
   const folders = useMemo(
-    () => (rawFolders ? normalizeFolders(rawFolders, allPhotos, reviewedIds) : null),
-    [rawFolders, allPhotos, reviewedIds],
+    () => (rawFolders ? normalizeFolders(rawFolders, allPhotos) : null),
+    [rawFolders, allPhotos],
   );
   const details = useMemo(() => folders?.flatMap((c) => c.details) ?? [], [folders]);
   const sortedIds = useMemo(() => new Set(details.flatMap((d) => d.photoIds)), [details]);
-  const reviewIds = useMemo(
-    () => new Set(details.filter((d) => d.needsReview).flatMap((d) => d.photoIds)),
-    [details],
-  );
-  const reviewFolderCount = details.filter((d) => d.needsReview).length;
   const unsortedCount =
     folders && folders.length > 0 ? allPhotos.filter((p) => !sortedIds.has(p.photoId)).length : 0;
 
@@ -217,7 +203,6 @@ export default function ClientGalleryPage() {
     enabled: isPersonal && (phase === "upload" || phase === "sort"),
     photos,
     photosLoadedAt,
-    reviewedIds,
     setPhotos,
     setFolders,
     refreshPhotos,
@@ -236,10 +221,9 @@ export default function ClientGalleryPage() {
     } else if (folderSel.kind === "unsorted") {
       list = list.filter((p) => !sortedIds.has(p.photoId));
     }
-    if (filter === "review") list = list.filter((p) => reviewIds.has(p.photoId));
     if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
     return sortPhotos(list, sort);
-  }, [allPhotos, folderSel, folders, details, sortedIds, filter, reviewIds, sort, isPersonal, upload.uploading, pendingPhotos]);
+  }, [allPhotos, folderSel, folders, details, sortedIds, filter, sort, isPersonal, upload.uploading, pendingPhotos]);
 
   const selectedDetail =
     folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
@@ -361,9 +345,7 @@ export default function ClientGalleryPage() {
     if (phase === "sort") {
       if (photos === null) return { text: "불러오는 중…", tone: "muted" };
       if (isPersonal && (!folders || folders.length === 0)) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
-      return reviewFolderCount > 0
-        ? { text: `컨셉 분류 · 확인 필요 ${reviewFolderCount} · 폴더를 확정하면 고를 수 있어요`, tone: "warning" }
-        : { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
+      return { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
     }
     if (phase === "select") return { text: `고르는 중 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
     return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal), tone: "accent" };
@@ -450,21 +432,6 @@ export default function ClientGalleryPage() {
     selectedDetail && selectedConcept ? (
       <>
         <span className="truncate">{selectedDetail.name}</span>
-        {selectedDetail.needsReview && (
-          <>
-            <ReviewBadge />
-            {editable && (
-              <button
-                type="button"
-                onClick={() => markReviewed(galleryId, selectedDetail.id)}
-                className="ml-1 inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) border border-border-default px-2.5 type-label-medium-s font-medium text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-              >
-                <CheckCircleIcon size={14} />
-                검토 완료
-              </button>
-            )}
-          </>
-        )}
         <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
       </>
     ) : folderSel.kind === "concept" && selectedConcept ? (
@@ -576,9 +543,6 @@ export default function ClientGalleryPage() {
                 onDeleteDetail={(concept, detail) =>
                   setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
                 }
-                reviewedIds={reviewedIds}
-                onMarkReviewed={(detail) => markReviewed(galleryId, detail.id)}
-                onUnmarkReviewed={(detail) => unmarkReviewed(galleryId, detail.id)}
                 dropping={photoMove.dropping}
                 dropOver={photoMove.dropOver}
                 pendingNote={
@@ -689,7 +653,6 @@ export default function ClientGalleryPage() {
             folders={folders ?? []}
             photoCount={allPhotos.length}
             unsortedCount={unsortedCount}
-            reviewCount={reviewFolderCount}
             onClose={() => setConfirmOpen(false)}
             onConfirmed={() => {
               setConfirmOpen(false);

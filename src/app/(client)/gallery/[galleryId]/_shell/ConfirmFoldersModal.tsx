@@ -18,7 +18,6 @@ export function ConfirmFoldersModal({
   folders,
   photoCount,
   unsortedCount,
-  reviewCount,
   onClose,
   onConfirmed,
 }: {
@@ -26,7 +25,6 @@ export function ConfirmFoldersModal({
   folders: ConceptFolderResponse[];
   photoCount: number;
   unsortedCount: number;
-  reviewCount: number;
   onClose: () => void;
   onConfirmed: () => void;
 }) {
@@ -65,7 +63,6 @@ export function ConfirmFoldersModal({
           label="사진"
           value={`${photoCount}장${unsortedCount > 0 ? ` · 미분류 ${unsortedCount}장은 그대로 고를 수 있어요` : ""}`}
         />
-        {reviewCount > 0 && <Row label="검토 배지" value={`${reviewCount}개 남음 (AI가 확신이 낮은 폴더)`} />}
       </dl>
       {error && (
         <p role="alert" className="mb-4 text-center type-content-xs text-function-error-default">
