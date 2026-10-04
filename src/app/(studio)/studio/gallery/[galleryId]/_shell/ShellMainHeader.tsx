@@ -53,6 +53,7 @@ export function ShellMainHeader({
   filter,
   onFilterChange,
   sortable = true,
+  scoreSort = true,
   showFilters = true,
   leading,
   customSort,
@@ -70,6 +71,8 @@ export function ShellMainHeader({
   onFilterChange: (filter: FilterKey) => void;
   /** false면 정렬 · 필터 버튼을 숨긴다(선택한 사진 보기 — 고른 순 고정) */
   sortable?: boolean;
+  /** false면 정렬 메뉴에서 별점 순을 뺀다 — 아직 별점을 매길 수 없는 단계(작가 사진 업로드 · 컨셉 분류) */
+  scoreSort?: boolean;
   /** false면 정렬 메뉴에서 필터(미분류만)를 뺀다 — 클라이언트 셀렉 */
   showFilters?: boolean;
   /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
@@ -194,17 +197,19 @@ export function ShellMainHeader({
                       }}
                     />
                   ))
-                : (Object.keys(SORT_LABEL) as SortKey[]).map((key) => (
-                    <MenuRow
-                      key={key}
-                      label={SORT_LABEL[key]}
-                      checked={sort === key}
-                      onClick={() => {
-                        onSortChange(key);
-                        setMenuOpen(false);
-                      }}
-                    />
-                  ))}
+                : (Object.keys(SORT_LABEL) as SortKey[])
+                    .filter((key) => scoreSort || key !== "score")
+                    .map((key) => (
+                      <MenuRow
+                        key={key}
+                        label={SORT_LABEL[key]}
+                        checked={sort === key}
+                        onClick={() => {
+                          onSortChange(key);
+                          setMenuOpen(false);
+                        }}
+                      />
+                    ))}
               {!customSort && <MenuRow label="촬영 순" trailing="준비 중" disabled onClick={() => {}} />}
               {customFilter ? (
                 <>

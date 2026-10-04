@@ -586,7 +586,8 @@ export default function ClientGalleryPage() {
               </div>
             ) : (
               <>
-                <ShellMainHeader {...headerCommon} title={allTitle} titleParent={allTitleParent} />
+                {/* 컨셉 분류 단계에는 아직 별점이 없어 정렬 메뉴에서 별점 순을 뺀다 */}
+                <ShellMainHeader {...headerCommon} scoreSort={false} title={allTitle} titleParent={allTitleParent} />
                 {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (

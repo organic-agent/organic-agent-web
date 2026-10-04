@@ -494,6 +494,9 @@ export default function StudioGalleryShellPage() {
   const selectedCount = selection?.selectedCount ?? pickedIds.size;
   const maxSelectable = gallery?.maxSelectablePhotoCount ?? null;
 
+  // 사진 업로드 단계에는 아직 별점이 없다 — 정렬 메뉴에서 별점 순을 빼고, 별점 순으로 둔 채 이 단계를 보면 업로드 순으로 본다
+  const scoreSort = stageIndex !== 0;
+  const activeSort: SortKey = !scoreSort && sort === "score" ? "uploaded" : sort;
   const visiblePhotos = useMemo(() => {
     // 올리는 동안은 PENDING도 회색 자리로 보여 준다(끝난 뒤 남은 PENDING은 복구 배너의 몫)
     let list = uploading ? [...allPhotos, ...pendingPhotos] : allPhotos;
@@ -509,8 +512,8 @@ export default function StudioGalleryShellPage() {
       list = list.filter((p) => !sortedIds.has(p.photoId));
     }
     if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
-    return sortPhotos(list, sort);
-  }, [allPhotos, pendingPhotos, uploading, folderSel, folders, details, sortedIds, filter, sort]);
+    return sortPhotos(list, activeSort);
+  }, [allPhotos, pendingPhotos, uploading, folderSel, folders, details, sortedIds, filter, activeSort]);
 
   const selectedDetail =
     folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
@@ -647,7 +650,8 @@ export default function StudioGalleryShellPage() {
   const headerCommon = {
     zoom,
     onZoomChange: writeZoom,
-    sort,
+    sort: activeSort,
+    scoreSort,
     onSortChange: setSort,
     filter,
     onFilterChange: setFilter,
