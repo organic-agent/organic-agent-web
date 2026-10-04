@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { LandingNav } from "./_components/LandingNav";
@@ -194,13 +195,19 @@ export default function LandingPage() {
               </a>
             </div>
 
-            {/* 우: 웨딩 사진 자리 (시안 400×500) — TODO: 실제 이미지로 교체
-                 <Image src="/images/hero-wedding.jpg" alt="웨딩 사진" fill className="object-cover" />
-                 플레이스홀더는 실사진 교체 전 임시 — 브랜드 올리브 그라데이션(C1 랜딩 C2 결정) */}
-            <div
-              aria-hidden
-              className="w-100 h-125 shrink-0 rounded-(--radius-24) bg-linear-to-br from-brand-secondary-background to-brand-secondary-lightness max-[900px]:w-full max-[900px]:h-80"
-            />
+            {/* 우: 웨딩 사진 (시안 400×500). 세로 사진(2:3)이라 가로로 넓어지는 900 미만에서는 얼굴 쪽이 보이게 위쪽에 맞춘다.
+                 첫 화면에 바로 보이는 사진이라 미루지 않고 먼저 받는다(loading eager · fetchPriority high) */}
+            <div className="relative w-100 h-125 shrink-0 overflow-hidden rounded-(--radius-24) bg-brand-secondary-background max-[900px]:w-full max-[900px]:h-80">
+              <Image
+                src="/images/hero-wedding.jpg"
+                alt="웨딩드레스와 정장을 입고 손을 잡은 채 웃고 있는 신랑 신부"
+                fill
+                sizes="(max-width: 900px) 100vw, 400px"
+                loading="eager"
+                fetchPriority="high"
+                className="object-cover max-[900px]:object-[50%_22%]"
+              />
+            </div>
           </div>
         </section>
 
