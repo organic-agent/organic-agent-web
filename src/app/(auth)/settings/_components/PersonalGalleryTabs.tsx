@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * 설정 › 개인 갤러리 — 정보(이름 · 선택 마감 · 고를 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
+ * 설정 › 개인 갤러리 — 정보(이름 · 목표일 · 고를 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
  * 위치: src/app/(auth)/settings/_components/PersonalGalleryTabs.tsx
  *
  * 스튜디오 설정과 같은 틀. 소유자: 정보 · 플랜 · 파트너 · 갤러리 삭제 / 파트너: 정보(읽기) · 플랜 · 갤러리 나가기 (이슈 75, 2026-09-23).
  * 저장은 PATCH galleries/{id}/personal — 서버가 소유자만 허용해 파트너는 읽기 전용(파트너도 수정 = 백엔드 전달 사항),
- * 선택 마감은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만. 플랜(사진 상한 · 이용 기간)은 바꿀 수 없어 따로 읽기 탭.
+ * 목표일(서버 필드 selectionDeadline — 개인 갤러리에서는 "선택 마감" 대신 이 이름, QA BUG-1)은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만. 플랜(사진 상한 · 이용 기간)은 바꿀 수 없어 따로 읽기 탭.
  * 삭제는 휴지통 이동(DELETE galleries/{id}) — 복원 UI 없음, 보관 기간 뒤 자동 삭제(작가와 같음). 나가기는 DELETE members/me.
  */
 
@@ -115,7 +115,7 @@ export function PersonalInfoTab({
       </div>
       <div className="mb-5">
         <FieldLabel htmlFor={`${id}-deadline`} optional>
-          선택 마감
+          목표일
         </FieldLabel>
         {readOnly ? (
           <ReadOnlyBox>{deadlineDateLabel(gallery.selectionDeadline) ?? "없음"}</ReadOnlyBox>
