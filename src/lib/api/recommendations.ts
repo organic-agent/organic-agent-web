@@ -23,7 +23,6 @@ export type AiSelectionJob = {
   finishedAt: string | null;
   error: string | null;
   createdAt: string | null;
-  prompt: string | null;
   targetCount: number | null;
   recommendedCount: number | null;
   shortfallCount: number | null;
