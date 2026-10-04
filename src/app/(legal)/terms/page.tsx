@@ -125,7 +125,14 @@ export default function TermsPage() {
 
       </LegalArticle>
 
-      <LegalArticle title="제11조 (콘텐츠의 권리)">
+      <LegalArticle title="제11조 (게스트의 이용)">
+        <ol>
+          <li>게스트는 공유 링크로 서비스를 이용하는 동안 제10조 제3항·제5항과 콘텐츠의 권리·콘텐츠의 삭제와 보관 조항을 지켜야 합니다.</li>
+          <li>게스트가 남긴 좋아요와 댓글은 해당 갤러리의 회원이 볼 수 있으며, 공유 링크가 만료되거나 갤러리가 삭제되면 함께 삭제될 수 있습니다.</li>
+        </ol>
+      </LegalArticle>
+
+      <LegalArticle title="제12조 (콘텐츠의 권리)">
         <ol>
           <li>회원이 올린 사진의 저작권은 촬영자 등 원저작권자에게 있습니다. 서비스를 이용한다고 해서 저작권이 옮겨지지 않습니다.</li>
           <li>운영팀은 서비스를 제공하고 운영하는 데 필요한 범위(저장, 화면 표시, 전송, AI 분석)에서만 콘텐츠를 이용합니다.</li>
@@ -135,7 +142,7 @@ export default function TermsPage() {
 
       </LegalArticle>
 
-      <LegalArticle title="제12조 (콘텐츠의 삭제와 보관)">
+      <LegalArticle title="제13조 (콘텐츠의 삭제와 보관)">
         <ol>
           <li>회원이 삭제한 사진과 갤러리는 삭제한 날부터 7일이 지나면 복구할 수 없게 지워집니다.</li>
           <li>서비스는 사진을 고르고 주고받기 위한 공간이며, 사진을 영구히 보관하는 공간이 아닙니다. 원본 사진은 회원이 따로 보관해야 합니다.</li>
@@ -144,12 +151,12 @@ export default function TermsPage() {
 
       </LegalArticle>
 
-      <LegalArticle title="제13조 (서비스의 변경과 중단)">
+      <LegalArticle title="제14조 (서비스의 변경과 중단)">
         <p>운영팀은 시스템 점검과 교체, 통신 장애, 천재지변 등 부득이한 사유가 있으면 서비스 제공을 잠시 멈출 수 있으며, 미리 알리거나 사정상 미리 알릴 수 없으면 뒤에 알립니다.</p>
 
       </LegalArticle>
 
-      <LegalArticle title="제14조 (계약 해지와 이용 제한)">
+      <LegalArticle title="제15조 (계약 해지와 이용 제한)">
         <ol>
           <li>회원은 언제든지 서비스의 설정 메뉴에서 탈퇴하여 이용 계약을 해지할 수 있습니다.</li>
           <li>탈퇴하면 회원이 소유한 스튜디오와 그 안의 갤러리·사진이 함께 삭제되고, 다른 스튜디오 소속과 갤러리 참여는 해제됩니다. 스튜디오의 소유자를 다른 구성원에게 넘겨야 하는 경우에는 그 뒤에 탈퇴할 수 있습니다.</li>
@@ -158,7 +165,7 @@ export default function TermsPage() {
 
       </LegalArticle>
 
-      <LegalArticle title="제15조 (책임의 제한)">
+      <LegalArticle title="제16조 (책임의 제한)">
         <ol>
           <li>운영팀은 천재지변 또는 이에 준하는 불가항력으로 서비스를 제공할 수 없는 경우 책임을 지지 않습니다.</li>
           <li>운영팀은 회원의 책임 있는 사유로 생긴 서비스 이용 장애에 대해 책임을 지지 않습니다.</li>
@@ -168,7 +175,7 @@ export default function TermsPage() {
 
       </LegalArticle>
 
-      <LegalArticle title="제16조 (준거법과 재판 관할)">
+      <LegalArticle title="제17조 (준거법과 재판 관할)">
         <p>이 약관은 대한민국 법령에 따라 해석되며, 서비스 이용과 관련하여 분쟁이 생기면 민사소송법이 정한 관할 법원에 소를 제기합니다.</p>
 
       </LegalArticle>
