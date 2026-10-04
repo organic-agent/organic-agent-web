@@ -9,12 +9,14 @@
  * 뒤 칸은 잡 상태가 진실이다. 카운트는 잡 progress와 사진 요약 어느 쪽이든 같은 프로젝션이다.
  *
  * 폴링 간격: 카운트가 움직이는 동안 3초, 마지막 변화 뒤 1분이 지나면 10초, 탭이 숨겨져 있으면 15초.
- * 5분 동안 그대로면 "멈춘 것 같다"고만 알린다(실패 판정 아님 — 서버가 10분 · 20분에 재시도한다).
+ * 5분 동안 그대로면 "오래 걸린다"고만 알린다(실패 판정 아님). 실패는 서버가 정한다 — 진행 없이 35분이면
+ * 잡을 FAILED(SCORE_STAGE_DOWN)로 닫는다(#213). 그 전까지는 기다리면 이어진다.
  *
  * 잡 요청은 프론트 몫이다. 업로드가 끝나면 request()를 부르고, 이미 도는 잡이 있으면(409) 그 잡이
  * 새 사진을 흡수한다 — 단 이미 분류(CATEGORIZING)에 들어간 잡은 흡수하지 못해 끝난 뒤 한 번 더 요청한다.
  * 탭이 닫혀 요청을 못 보낸 갤러리(올라온 사진은 있는데 잡이 없거나, 점수가 났는데 분류가 안 된 사진이
- * 있는 경우)는 화면에 들어왔을 때 한 번 자동으로 요청한다.
+ * 있는 경우)는 화면에 들어왔을 때 한 번 자동으로 요청한다. 다시 해도 같은 실패(isRetryableFailure 아님)로
+ * 닫힌 잡 뒤에는 자동으로 부르지 않는다.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +24,7 @@ import {
   ANALYSIS_JOB_ALREADY_ACTIVE,
   getLatestAnalysis,
   isAnalysisActive,
+  isRetryableFailure,
   requestAnalysis,
   type AnalysisJobResponse,
 } from "@/lib/api/analysis";
@@ -206,6 +209,7 @@ export function useAnalysisWatch(
           counts !== null &&
           !uploading &&
           !isAnalysisActive(latest) &&
+          !(latest?.status === "FAILED" && !isRetryableFailure(latest)) &&
           latestSummary.pending === 0 &&
           (latest === null ? counts.expected > 0 : counts.scored > counts.categorized);
         if (needsJob && !autoRequestedRef.current) {

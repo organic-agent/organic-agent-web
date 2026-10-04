@@ -32,12 +32,26 @@ export type AnalysisProgress = {
   failed: number;
 };
 
+/**
+ * FAILED의 이유 코드(서버 AnalysisFailureCode, #213). 화면은 이 코드로 "다시 시도"를 보일지 가른다.
+ * NOTHING_TO_ANALYZE = 분석할 사진이 없음 · SCORE_STAGE_DOWN = 임베딩 · 점수가 오래 멈춤 ·
+ * CATEGORIZE_TIMEOUT · CATEGORIZE_FAILED = 분류가 끝나지 못함 · FOLDER_FAILED = 폴더를 만들지 못함
+ */
+export type AnalysisFailureCode =
+  | "NOTHING_TO_ANALYZE"
+  | "SCORE_STAGE_DOWN"
+  | "CATEGORIZE_TIMEOUT"
+  | "CATEGORIZE_FAILED"
+  | "FOLDER_FAILED";
+
 export type AnalysisJobResponse = {
   jobId: number;
   galleryId: number;
   status: AnalysisStatus;
   progress: AnalysisProgress;
-  /** FAILED일 때만 이유 */
+  /** FAILED의 이유 코드. FAILED가 아니거나 코드가 생기기 전에 닫힌 잡이면 null */
+  errorCode: AnalysisFailureCode | null;
+  /** FAILED일 때 그대로 보여 줄 사용자 문장(서버가 코드별로 만든다). 그 외에는 null */
   error: string | null;
   createdAt: string | null;
   finishedAt: string | null;
@@ -54,6 +68,16 @@ export const ANALYSIS_NOT_CONFIGURED = "PHOTO_503_1";
 
 export function isAnalysisActive(job: AnalysisJobResponse | null | undefined): boolean {
   return job?.status === "ANALYZING" || job?.status === "CATEGORIZING";
+}
+
+/**
+ * 같은 사진으로 다시 요청하면 될 수 있는 실패인가 — "AI 정리 다시 시도"를 보일지.
+ * 분석할 사진이 없음(사진을 올려야 한다) · 폴더 생성 실패(다시 해도 같다, 문의 대상)는 아니다.
+ * 코드 없이 닫힌 옛 잡은 이유를 모르니 다시 시도를 열어 둔다.
+ */
+export function isRetryableFailure(job: AnalysisJobResponse | null | undefined): boolean {
+  if (job?.status !== "FAILED") return false;
+  return job.errorCode !== "NOTHING_TO_ANALYZE" && job.errorCode !== "FOLDER_FAILED";
 }
 
 /** 컨셉 수의 범위 — 서버 AnalysisRequest의 @Min · @Max와 같다. 컨셉 수 모달이 입력 단계에서 막는 데 쓴다 */

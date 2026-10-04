@@ -356,7 +356,7 @@ export default function ClientGalleryPage() {
     if (isPersonal && upload.aiCategorizing) return { text: "폴더 만드는 중", tone: "accent" };
     if (isPersonal && upload.merging) return { text: "폴더 정리 중…", tone: "accent" };
     if (isPersonal && upload.aiActive) return { text: `AI 분석 중 ${upload.aiCounts?.scored ?? 0} / ${upload.aiCounts?.expected ?? 0}`, tone: "accent" };
-    if (isPersonal && upload.aiFailed) return { text: "AI 정리 실패 · 다시 시도할 수 있어요", tone: "error" };
+    if (isPersonal && upload.aiFailed) return { text: upload.aiRetryable ? "AI 정리 실패 · 다시 시도할 수 있어요" : "AI 정리 실패", tone: "error" };
     if (phase === "upload") return { text: "사진 없음", tone: "muted" };
     if (phase === "sort") {
       if (photos === null) return { text: "불러오는 중…", tone: "muted" };

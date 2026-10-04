@@ -31,7 +31,7 @@ import {
 } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ddayLabel, deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
-import { isAnalysisActive } from "@/lib/api/analysis";
+import { isAnalysisActive, isRetryableFailure } from "@/lib/api/analysis";
 import { ApiError } from "@/lib/api/client";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import {
@@ -308,6 +308,8 @@ export default function StudioGalleryShellPage() {
   const aiActive = isAnalysisActive(aiJob);
   const aiCategorizing = aiJob?.status === "CATEGORIZING";
   const aiFailed = aiJob?.status === "FAILED" && !aiActive;
+  // 다시 해도 같은 실패(분석할 사진 없음 · 폴더 생성 실패)에는 "다시 시도"를 보이지 않는다
+  const aiRetryable = isRetryableFailure(aiJob);
   const aiCounts = analysisCounts(aiJob, analysis.summary);
 
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
@@ -554,7 +556,7 @@ export default function StudioGalleryShellPage() {
       if (merging) return { text: "폴더 정리 중…", tone: "accent" };
       if (aiActive)
         return { text: `AI 분석 중 ${aiCounts?.scored ?? 0} / ${aiCounts?.expected ?? 0}`, tone: "accent" };
-      if (aiFailed) return { text: "AI 정리 실패 · 다시 시도할 수 있어요", tone: "error" };
+      if (aiFailed) return { text: aiRetryable ? "AI 정리 실패 · 다시 시도할 수 있어요" : "AI 정리 실패", tone: "error" };
       if (allPhotos.length === 0) return { text: "사진 없음", tone: "muted" };
       if (!folders || folders.length === 0) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return reviewFolderCount > 0
@@ -848,7 +850,7 @@ export default function StudioGalleryShellPage() {
         discarding={discarding}
       />
     ) : null;
-  const stalledNote = analysis.stalled ? "멈춘 것 같아요 · 서버가 다시 시도해요" : null;
+  const stalledNote = analysis.stalled ? "평소보다 오래 걸려요 · 계속 멈춰 있으면 실패로 알려 드려요" : null;
   const aiProgress =
     stageIndex === 0 && !aiFailed && (aiActive || (uploading && aiCounts !== null && aiCounts.expected > 0)) ? (
       aiCategorizing ? (
@@ -904,7 +906,7 @@ export default function StudioGalleryShellPage() {
               실패 {run.failed}장 다시 올리기
             </ShellCta>
           )}
-          {(aiFailed || analysis.error) && (
+          {(aiRetryable || analysis.error) && (
             <ShellCta kind="secondary" onClick={() => void analysis.request(conceptCountRef.current)}>
               <SparkleIcon size={18} />
               AI 정리 다시 시도

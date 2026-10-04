@@ -23,7 +23,7 @@ import { checkFileUploads, describeUploadError, formatEta } from "@/app/(studio)
 import { analysisCounts, useAnalysisWatch } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useAnalysisWatch";
 import { useUploadRun } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useUploadRun";
 import { CloudUploadIcon, ErrorIcon, PauseIcon, PlayIcon, RefreshIcon, SparkleIcon } from "@/components/icons";
-import { isAnalysisActive } from "@/lib/api/analysis";
+import { isAnalysisActive, isRetryableFailure } from "@/lib/api/analysis";
 import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
 
@@ -138,6 +138,7 @@ export function usePersonalUpload({
   const aiActive = isAnalysisActive(aiJob);
   const aiCategorizing = aiJob?.status === "CATEGORIZING";
   const aiFailed = aiJob?.status === "FAILED" && !aiActive;
+  const aiRetryable = isRetryableFailure(aiJob);
   const aiCounts = analysisCounts(aiJob, analysis.summary);
   const aiCanMaterialize = aiFailed && aiCounts !== null && aiCounts.expected > 0 && aiCounts.scored >= aiCounts.expected;
 
@@ -180,7 +181,7 @@ export function usePersonalUpload({
   }
 
   // ── 하단 바 조각 ──
-  const stalledNote = analysis.stalled ? "멈춘 것 같아요 · 서버가 다시 시도해요" : null;
+  const stalledNote = analysis.stalled ? "평소보다 오래 걸려요 · 계속 멈춰 있으면 실패로 알려 드려요" : null;
   const uploadProgress: ReactNode = uploading ? (
     <ProgressBar
       icon={<CloudUploadIcon size={18} />}
@@ -249,7 +250,7 @@ export function usePersonalUpload({
           실패 {run.failed}장 다시 올리기
         </ShellCta>
       )}
-      {(aiFailed || analysis.error) && (
+      {(aiRetryable || analysis.error) && (
         <ShellCta kind="secondary" onClick={() => void analysis.request(conceptCountRef.current)}>
           <SparkleIcon size={18} />
           AI 정리 다시 시도
@@ -314,6 +315,8 @@ export function usePersonalUpload({
     runCounts: { done: run.done, total: run.total },
     aiActive,
     aiFailed,
+    /** 다시 요청하면 될 수 있는 실패인가 — 아니면 상태줄에 "다시 시도"를 말하지 않는다 */
+    aiRetryable,
     aiCategorizing,
     aiCounts,
     merging,
