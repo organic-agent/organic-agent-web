@@ -18,10 +18,11 @@ import { ConceptCountModal } from "@/app/(studio)/studio/gallery/[galleryId]/_sh
 import { UploadModal } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadModal";
 import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/UploadProgress";
 import { forgetUploaded, parseRemembered, readRememberedRaw, readUploadActiveRaw, subscribeRemembered } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadMemory";
-import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadRecovery";
-import { describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
+import { RECOVERY_RECHECK_MS, matchRecoveryFiles, recoverablePending, recoveryNotice } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadRecovery";
+import { UPLOAD_LEAVE_NOTICE, describeUploadError, formatEta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useAnalysisWatch";
 import { useUploadRun } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useUploadRun";
+import { useLeaveGuard } from "@/components/app/LeaveGuard";
 import { CloudUploadIcon, ErrorIcon, PauseIcon, PlayIcon, RefreshIcon, SparkleIcon } from "@/components/icons";
 import { isAnalysisActive } from "@/lib/api/analysis";
 import { listConceptFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
@@ -86,6 +87,8 @@ export function usePersonalUpload({
     },
   });
   const uploading = run.phase === "running" || run.phase === "paused";
+  // 올리는 중(일시정지 포함)에는 다른 화면으로 가지 않는다 — 작가 1단계와 같은 규칙
+  const { leaveToast } = useLeaveGuard(uploading, UPLOAD_LEAVE_NOTICE);
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
   const mergeDuplicates = useCallback(
@@ -156,6 +159,13 @@ export function usePersonalUpload({
     const stale = remembered.filter((item) => !pendingIds.has(item.photoId) && item.issuedAt < photosLoadedAt).map((item) => item.photoId);
     if (stale.length > 0) forgetUploaded(galleryId, stale);
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
+  // 끊긴 사진 가운데 S3에는 올라갔지만 통보만 못 보낸 것은 서버가 곧 옮긴다 — 배너가 뜨면 조금 뒤 목록을 한 번 다시 읽는다
+  const hasRecoverable = recoverable.length > 0;
+  useEffect(() => {
+    if (!hasRecoverable) return;
+    const timer = window.setTimeout(() => void refreshPhotos(), RECOVERY_RECHECK_MS);
+    return () => window.clearTimeout(timer);
+  }, [hasRecoverable, refreshPhotos]);
   function onRecoveryFiles(files: File[]) {
     // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 작가 1단계와 같은 규칙
     const match = matchRecoveryFiles(files, recoverable, remembered, existingNames);
@@ -262,13 +272,14 @@ export function usePersonalUpload({
     </>
   );
   const recoveryBanner: ReactNode | null =
-    recoverable.length > 0 ? <RecoveryBanner count={recoverable.length} onFiles={onRecoveryFiles} onDiscard={() => void discardPending()} discarding={discarding} /> : null;
+    recoverable.length > 0 ? <RecoveryBanner onFiles={onRecoveryFiles} onDiscard={() => void discardPending()} discarding={discarding} /> : null;
   // 작가 1단계와 같은 순서 — 분석 오류 · 폴더 정리 · 업로드 알림 · 끊긴 업로드
   const hint =
     analysis.error ??
     (merging ? "같은 이름의 컨셉 폴더를 하나로 합치고 있어요" : null) ??
     notice ??
-    (recoverable.length > 0 ? `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중` : null);
+    // 끊긴 사진의 장수는 말하지 않는다 — 작가 1단계와 같은 규칙
+    (recoverable.length > 0 ? `${allPhotos.length}장 올라옴` : null);
   // 첫 업로드(사진 0장)는 컨셉 수 모달이 먼저, 더 올리기는 바로 업로드 모달. "바꾸기"는 업로드 모달 위에 컨셉 수 모달을 띄운다
   const firstUpload = allPhotos.length === 0;
   const modal: ReactNode = (
@@ -287,7 +298,10 @@ export function usePersonalUpload({
           onStart={(files) => {
             setUploadOpen(false);
             setNotice(null);
-            void start(files);
+            // 끊긴 사진이 남아 있으면 모달로 올려도 그 자리에 이어 올린다 — 새 사진으로 올라가 끊긴 자리와 배너가 남던 것(2차 QA).
+            // 이름이 겹치는 사진은 모달이 이미 물어봤으므로 여기서는 건너뛰지 않는다(빈 Set)
+            const match = matchRecoveryFiles(files, recoverable, remembered, new Set());
+            void start(match.fresh, match.resume);
           }}
         />
       )}
@@ -302,6 +316,7 @@ export function usePersonalUpload({
           }}
         />
       )}
+      {leaveToast}
     </>
   );
 

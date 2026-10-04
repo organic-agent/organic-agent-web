@@ -23,6 +23,9 @@ export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 /** 파일 선택창의 accept — 브라우저가 HEIC의 MIME을 비우는 경우가 있어 확장자도 같이 */
 export const UPLOAD_ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif";
 
+/** 올리는 중에 다른 화면으로 가려 할 때의 안내(LeaveGuard 토스트) — 작가 1단계 · 개인 갤러리 공용 */
+export const UPLOAD_LEAVE_NOTICE = "업로드가 끝나면 이동할 수 있어요";
+
 /**
  * 발급 · PUT에 쓸 Content-Type. 서명에 들어가 발급 값과 PUT 헤더가 같아야 하고, 서버가
  * 소문자로 비교 · 서명하므로 소문자로 맞춘다. 브라우저가 MIME을 못 알아낸 파일은 확장자로.

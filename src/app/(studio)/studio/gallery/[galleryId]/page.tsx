@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
+import { blockLeave, useLeaveGuard } from "@/components/app/LeaveGuard";
 import { useSidebar } from "@/components/SidebarProvider";
 import {
   CheckCircleIcon,
@@ -94,8 +95,8 @@ import {
   readUploadActiveRaw,
   subscribeRemembered,
 } from "./_shell/uploadMemory";
-import { matchRecoveryFiles, recoverablePending, recoveryNotice } from "./_shell/uploadRecovery";
-import { describeUploadError, formatEta } from "./_shell/uploadSupport";
+import { RECOVERY_RECHECK_MS, matchRecoveryFiles, recoverablePending, recoveryNotice } from "./_shell/uploadRecovery";
+import { UPLOAD_LEAVE_NOTICE, describeUploadError, formatEta } from "./_shell/uploadSupport";
 import { analysisCounts, useAnalysisWatch } from "./_shell/useAnalysisWatch";
 import { useSelectionWatch } from "./_shell/useSelectionWatch";
 import { useUploadRun } from "./_shell/useUploadRun";
@@ -257,6 +258,8 @@ export default function StudioGalleryShellPage() {
     },
   });
   const uploading = run.phase === "running" || run.phase === "paused";
+  // 올리는 중(일시정지 포함)에는 다른 화면으로 가지 않는다 — 링크 · 메뉴 · 알림 · 뒤로 가기 · 새로고침
+  const { leaveToast } = useLeaveGuard(uploading, UPLOAD_LEAVE_NOTICE);
   const uploadFailedIdle = run.phase === "finished" && !run.aborted && run.failed > 0;
 
   // ── 단계 ── 서버 stage가 정본이지만, 선택 앨범이 제출됐으면(SUBMITTED) stage가 아직 셀렉 대기여도 3단계로 본다
@@ -403,6 +406,13 @@ export default function StudioGalleryShellPage() {
       .map((item) => item.photoId);
     if (stale.length > 0) forgetUploaded(galleryId, stale);
   }, [uploading, photos, pendingPhotos, remembered, photosLoadedAt, galleryId]);
+  // 끊긴 사진 가운데 S3에는 올라갔지만 통보만 못 보낸 것은 서버가 곧 옮긴다 — 배너가 뜨면 조금 뒤 목록을 한 번 다시 읽는다
+  const hasRecoverable = recoverable.length > 0;
+  useEffect(() => {
+    if (!hasRecoverable) return;
+    const timer = window.setTimeout(() => void refreshPhotos(), RECOVERY_RECHECK_MS);
+    return () => window.clearTimeout(timer);
+  }, [hasRecoverable, refreshPhotos]);
 
   function onRecoveryFiles(files: File[]) {
     // 이미 올라온 사진과 이름이 같은 파일은 건너뛴다 — 원래 폴더를 통째로 다시 골라도 중복이 생기지 않게
@@ -777,8 +787,8 @@ export default function StudioGalleryShellPage() {
       if (analysis.error) return analysis.error;
       if (merging) return "같은 이름의 컨셉 폴더를 하나로 합치고 있어요";
       if (uploadNotice) return uploadNotice;
-      if (recoverable.length > 0)
-        return `${allPhotos.length} / ${allPhotos.length + recoverable.length} 올라옴 · ${recoverable.length}장은 기다리는 중`;
+      // 끊긴 사진의 장수는 말하지 않는다 — 발급 차례가 안 왔던 사진이 빠져 실제와 달랐다(2차 QA)
+      if (recoverable.length > 0) return `${allPhotos.length}장 올라옴`;
       if (allPhotos.length === 0) return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
       if (!folders || folders.length === 0) return "폴더는 업로드가 끝나면 AI가 만들어요";
       return reviewFolderCount > 0
@@ -841,7 +851,6 @@ export default function StudioGalleryShellPage() {
   const recoveryBanner =
     recoverable.length > 0 ? (
       <RecoveryBanner
-        count={recoverable.length}
         onFiles={onRecoveryFiles}
         onDiscard={() => void discardPending()}
         discarding={discarding}
@@ -1169,7 +1178,10 @@ export default function StudioGalleryShellPage() {
           onStart={(files) => {
             setUploadOpen(false);
             setUploadNotice(null);
-            void startUpload(files);
+            // 끊긴 사진이 남아 있으면 모달로 올려도 그 자리에 이어 올린다 — 새 사진으로 올라가 끊긴 자리와 배너가 남던 것(2차 QA).
+            // 이름이 겹치는 사진은 모달이 이미 물어봤으므로 여기서는 건너뛰지 않는다(빈 Set)
+            const match = matchRecoveryFiles(files, recoverable, remembered, new Set());
+            void startUpload(match.fresh, match.resume);
           }}
         />
       )}
@@ -1239,6 +1251,7 @@ export default function StudioGalleryShellPage() {
           initialTab={inviteTab}
           onClose={() => setInviteTab(null)}
           onManageMembers={() => {
+            if (blockLeave()) return;
             window.location.assign(
               `/settings?studio=${gallery.workspaceId}&tab=members&from=${encodeURIComponent(`/studio/gallery/${gallery.id}`)}`,
             );
@@ -1285,6 +1298,7 @@ export default function StudioGalleryShellPage() {
         />
       )}
       {comingSoonToast}
+      {leaveToast}
       {photoMove.overlay}
     </div>
   );

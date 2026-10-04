@@ -20,6 +20,12 @@ import type { ResumeItem } from "./useUploadRun";
 export const RECOVERY_MIN_AGE_MS = 60_000;
 
 /**
+ * 배너가 뜬 뒤 사진 목록을 한 번 다시 읽기까지의 시간. 탭을 닫거나 새로고침해서 끊기면 S3에는 올라갔지만 완료 통보만
+ * 못 보낸 사진이 PENDING으로 남는다 — 서버가 발급 1분 뒤 직접 확인해 옮기므로 그 뒤에 읽어야 맞는다.
+ */
+export const RECOVERY_RECHECK_MS = 70_000;
+
+/**
  * 복구 대상 PENDING. 이 브라우저가 발급한(기억에 있는) 사진은 나이와 무관하게 — 방금 취소한 업로드를 바로
  * 이어 올릴 수 있게. 기억에 없는 사진은 목록을 읽은 시각 기준 1분 이상 지난 것만.
  */
