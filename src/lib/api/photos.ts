@@ -58,6 +58,16 @@ export type UploadFileRequest = {
   sourceHash?: string;
 };
 
+/** 업로드 실행 하나(끌어다 놓기 한 번)에 붙이는 요청 옵션 */
+export type UploadRequestOptions = {
+  /** 서버 로그가 한 업로드의 요청을 묶는 값(X-Upload-Session, UUID 꼴). 없어도 동작한다 */
+  uploadSession?: string;
+};
+
+function uploadHeaders(options?: UploadRequestOptions): Record<string, string> | undefined {
+  return options?.uploadSession ? { "X-Upload-Session": options.uploadSession } : undefined;
+}
+
 export type UploadCheckResult = {
   sourceHash: string;
   state: UploadState;
@@ -100,10 +110,12 @@ export async function checkUploads(
 export function issueUploadUrls(
   galleryId: number,
   files: UploadFileRequest[],
+  options?: UploadRequestOptions,
 ): Promise<IssueUploadUrlsResponse> {
   return api(`/api/v1/galleries/${galleryId}/photos/upload-urls`, {
     method: "POST",
     body: { files },
+    headers: uploadHeaders(options),
   });
 }
 
@@ -115,10 +127,12 @@ export function issueUploadUrls(
 export function reissueUploadUrls(
   galleryId: number,
   photos: { photoId: number; contentLength: number; crc32c: string }[],
+  options?: UploadRequestOptions,
 ): Promise<IssueUploadUrlsResponse> {
   return api(`/api/v1/galleries/${galleryId}/photos/upload-urls/reissue`, {
     method: "POST",
     body: { photos },
+    headers: uploadHeaders(options),
   });
 }
 
@@ -129,10 +143,12 @@ export function reissueUploadUrls(
 export function completePhotoUploads(
   galleryId: number,
   photoIds: number[],
+  options?: UploadRequestOptions,
 ): Promise<{ count: number }> {
   return api(`/api/v1/galleries/${galleryId}/photos/complete`, {
     method: "POST",
     body: { photoIds },
+    headers: uploadHeaders(options),
   });
 }
 

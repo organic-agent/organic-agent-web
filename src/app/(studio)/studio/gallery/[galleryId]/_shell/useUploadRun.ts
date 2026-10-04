@@ -18,6 +18,9 @@
  * 새 파일은 원본 지문(sourceHash)을 실어 발급한다 — 같은 원본이 올리는 중이면 서버가 그 행에 URL을 다시 주고,
  * 이미 올라왔으면 URL 없이 UPLOADED로 답한다. 그 파일은 PUT 없이 "이미 있음"으로 세고 넘어간다.
  *
+ * 실행 하나마다 UUID를 만들어 발급 · 재발급 · 완료 통보에 X-Upload-Session으로 싣는다 — 서버 로그가 한 업로드의
+ * 요청을 한 줄기로 묶는다. 없어도 동작한다.
+ *
  * 일시정지는 새 PUT을 시작하지 않는 것이다(진행 중인 전송은 끝까지). 취소는 진행 중 전송을 끊고,
  * 이미 올라간 사진은 서버에 남는다(발급만 된 사진은 기억에 남아 복구 배너의 대상이 된다).
  */
@@ -114,6 +117,12 @@ const ETA_MIN_ELAPSED_MS = 3000;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** 업로드 실행 하나의 이름. randomUUID는 보안 컨텍스트(https · localhost)에서만 있어 없으면 비슷한 꼴로 만든다 */
+function newUploadSession(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
   const [run, setRun] = useState<UploadRun>(IDLE);
   const callbacksRef = useRef(callbacks);
@@ -144,6 +153,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
       const controller = new AbortController();
       controllerRef.current = controller;
       failedIssuedRef.current = new Map();
+      const session = { uploadSession: newUploadSession() };
 
       const total = files.length + resume.length;
       const ratioByFile = new Map<File, number>();
@@ -239,6 +249,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
               crc32c: item.crc32c,
               ...(sourceHash ? { sourceHash } : {}),
             })),
+            session,
           );
         } catch (err) {
           // 묶음 전체가 거절됐다(크기 · 형식 · 플랜 한도 등) — 이 묶음만 실패로
@@ -307,6 +318,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
               contentLength: result.blob.size,
               crc32c: result.crc32c,
             })),
+            session,
           );
           const byId = new Map(res.uploads.map((upload) => [upload.photoId, upload.uploadUrl]));
           for (const { item, prepared: result } of ready) {
@@ -335,9 +347,11 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         for (const { item, prepared: result } of ready) {
           if (controller.signal.aborted) break;
           try {
-            const res = await reissueUploadUrls(galleryId, [
-              { photoId: item.photoId, contentLength: result.blob.size, crc32c: result.crc32c },
-            ]);
+            const res = await reissueUploadUrls(
+              galleryId,
+              [{ photoId: item.photoId, contentLength: result.blob.size, crc32c: result.crc32c }],
+              session,
+            );
             const uploadUrl = res.uploads[0]?.uploadUrl;
             if (uploadUrl) issued.push(toIssued(item, result, uploadUrl));
             else failedFiles.push(item.file);
@@ -359,7 +373,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         if (completedIds.length === 0) return;
         const ids = completedIds.splice(0);
         try {
-          await completePhotoUploads(galleryId, ids);
+          await completePhotoUploads(galleryId, ids, session);
           forgetUploaded(galleryId, ids);
           callbacksRef.current.onBatchUploaded?.(ids);
         } catch {
@@ -402,7 +416,7 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
                   contentLength: job.prepared.blob.size,
                   crc32c: job.prepared.crc32c,
                 },
-              ]);
+              ], session);
               url = res.uploads[0]?.uploadUrl ?? url;
               continue;
             }
