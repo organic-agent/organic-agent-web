@@ -41,10 +41,10 @@ export type PlansResponse = {
 };
 
 /**
- * 프로 가격 — 2026-10-03 수민 결정. 서버 플랜 응답의 amount가 아직 null이라 화면이 직접 적는다
- * (서버에 49,900 반영은 백엔드 전달 사항). 서버가 값을 주면 그 값을 쓴다 — planAmount 참고.
+ * 프로 가격 — 2026-10-04 수민 결정(49,900 → 39,900, QA BUG-104). 서버 플랜 응답의 amount가 아직 null이라
+ * 화면이 직접 적는다. 서버가 값을 주면 그 값을 쓴다 — planAmount 참고.
  */
-export const PRO_AMOUNT_FALLBACK = 49_900;
+export const PRO_AMOUNT_FALLBACK = 39_900;
 
 export type ProCouponStatus = "AVAILABLE" | "USED" | "DISABLED";
 

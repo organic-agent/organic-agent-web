@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * 설정 › 개인 갤러리 — 정보(이름 · 선택 마감 · 고를 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
+ * 설정 › 개인 갤러리 — 정보(이름 · 목표일 · 고를 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
  * 위치: src/app/(auth)/settings/_components/PersonalGalleryTabs.tsx
  *
  * 스튜디오 설정과 같은 틀. 소유자: 정보 · 플랜 · 파트너 · 갤러리 삭제 / 파트너: 정보(읽기) · 플랜 · 갤러리 나가기 (이슈 75, 2026-09-23).
  * 저장은 PATCH galleries/{id}/personal — 서버가 소유자만 허용해 파트너는 읽기 전용(파트너도 수정 = 백엔드 전달 사항),
- * 선택 마감은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만. 플랜(사진 상한 · 이용 기간)은 바꿀 수 없어 따로 읽기 탭.
+ * 목표일(서버 필드 selectionDeadline — 개인 갤러리에서는 "선택 마감" 대신 이 이름, QA BUG-1)은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만. 플랜(사진 상한 · 이용 기간)은 바꿀 수 없어 따로 읽기 탭.
  * 삭제는 휴지통 이동(DELETE galleries/{id}) — 복원 UI 없음, 보관 기간 뒤 자동 삭제(작가와 같음). 나가기는 DELETE members/me.
  */
 
@@ -19,6 +19,7 @@ import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import { getGallery, leaveGallery, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
+import { clampSelectableCountInput } from "@/lib/selectableCount";
 import { DangerConfirmModal } from "./DangerConfirmModal";
 import { DangerButton, DangerCard, FieldLabel, ReadOnlyBox, Section } from "./SettingsShell";
 
@@ -71,6 +72,7 @@ export function PersonalInfoTab({
   const timer = useRef(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  // 장수 칸은 적을 때 1~200으로 맞춰진다. 상한이 생기기 전에 저장된 더 큰 값은 건드리기 전까지 그대로 둔다
   const countNumber = count.trim() === "" ? null : Number(count);
   const countValid = countNumber === null || (Number.isInteger(countNumber) && countNumber >= 1);
   const dirty =
@@ -115,7 +117,7 @@ export function PersonalInfoTab({
       </div>
       <div className="mb-5">
         <FieldLabel htmlFor={`${id}-deadline`} optional>
-          선택 마감
+          목표일
         </FieldLabel>
         {readOnly ? (
           <ReadOnlyBox>{deadlineDateLabel(gallery.selectionDeadline) ?? "없음"}</ReadOnlyBox>
@@ -134,7 +136,7 @@ export function PersonalInfoTab({
           <ReadOnlyBox>{gallery.maxSelectablePhotoCount === null ? "정하지 않음" : `${gallery.maxSelectablePhotoCount}장`}</ReadOnlyBox>
         ) : (
           <>
-            <TextField id={`${id}-count`} type="number" min={1} value={count} onChange={setCount} placeholder="비우면 몇 장이든" error={!countValid} className="h-12 px-4" />
+            <TextField id={`${id}-count`} inputMode="numeric" value={count} onChange={(v) => setCount(clampSelectableCountInput(v))} placeholder="예: 50" autoComplete="off" error={!countValid} className="h-12 px-4" />
             <p className="mt-1.5 type-content-xs text-contents-light-bgd-weakness">정하면 그 수를 정확히 채워야 요청서를 내보낼 수 있어요</p>
           </>
         )}

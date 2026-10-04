@@ -4,7 +4,12 @@
  *
  * 상태: 기본 neutral-weak 보더 / focus 검정 2px / error critical 2px (시안 값).
  * 2px 강조는 ring으로 그려 레이아웃 밀림이 없다. 높이는 className으로 오버라이드(예: h-12).
+ * 날짜 칸(type="date")은 max를 주지 않으면 9999-12-31로 막는다 — 브라우저 날짜 입력은 최대 날짜가 없으면 연도를
+ * 6자리까지 받아, 20261020을 이어 적으면 202610이 연도가 되고 월 · 일로 넘어가지 않는다(QA BUG-76).
  */
+
+/** 날짜 칸의 기본 최대 날짜 — 연도를 4자리로 끝내 월로 넘어가게 한다 */
+const DATE_MAX = "9999-12-31";
 
 type TextFieldProps = {
   value: string;
@@ -13,7 +18,11 @@ type TextFieldProps = {
   placeholder?: string;
   error?: boolean;
   disabled?: boolean;
-  min?: number;
+  /** number는 숫자, date는 "YYYY-MM-DD" */
+  min?: number | string;
+  max?: number | string;
+  /** 휴대폰 자판 종류 — 숫자만 받는 text 칸에 "numeric" */
+  inputMode?: "numeric";
   "aria-label"?: string;
   /** <label htmlFor>와 연결할 때 */
   id?: string;
@@ -30,6 +39,8 @@ export function TextField({
   error = false,
   disabled = false,
   min,
+  max,
+  inputMode,
   className = "",
   "aria-label": ariaLabel,
   id,
@@ -42,6 +53,8 @@ export function TextField({
       value={value}
       autoComplete={autoComplete}
       min={min}
+      max={max ?? (type === "date" ? DATE_MAX : undefined)}
+      inputMode={inputMode}
       placeholder={placeholder}
       aria-label={ariaLabel}
       aria-invalid={error || undefined}
