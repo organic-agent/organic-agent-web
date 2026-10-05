@@ -50,6 +50,8 @@ const HOLE_PAD = 4;
 const VIEW_INSET = 6;
 /** 모서리가 각진 대상(폴더 열 · 사진 영역)에 주는 둥글기 */
 const SQUARE_RADIUS = 8;
+/** 대상이 이만큼의 프레임(약 0.2초) 동안 안 보이면 그 단계를 건너뛴다 — 방금 열린 사이드바처럼 곧 그려질 대상을 기다린다 */
+const SKIP_AFTER_FRAMES = 12;
 
 const stores = new Map<string, LocalStore<boolean>>();
 function storeFor(key: string) {
@@ -210,9 +212,15 @@ export function CoachMarks({
     if (targetKey === null) return;
     let frame = 0;
     let seen = false;
+    let misses = 0;
     const tick = () => {
       const el = findTarget(targetKey);
       if (!el && !seen) {
+        misses += 1;
+        if (misses < SKIP_AFTER_FRAMES) {
+          frame = requestAnimationFrame(tick);
+          return;
+        }
         setSkipped((prev) => new Set(prev).add(index));
         if (index === steps.length - 1) doneStore.set(true);
         else setIndex((i) => i + 1);

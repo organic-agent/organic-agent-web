@@ -4,6 +4,8 @@
  *
  * 작가 영역 전체에 사이드바 접힘 상태 Provider를 연결한다.
  * 서버에서 쿠키를 읽어 첫 렌더부터 저장된 사이드바 상태를 반영한다.
+ * 쿠키가 없으면 닫힘으로 그린다 — 갤러리의 사진 업로드 단계는 닫힌 채로 시작하고, 셀렉 대기부터는
+ * 갤러리 화면이 hasPreference=false를 보고 연다(클라이언트 쪽 레이아웃과 같은 방식, 2026-10-05).
  *
  * 주요 책임:
  * - 사이드바 접힘 쿠키 읽기
@@ -25,11 +27,10 @@ export default async function PhotographerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const collapsed = parseCollapsedCookie(
-    (await cookies()).get(SIDEBAR_COOKIE)?.value,
-  );
+  const raw = (await cookies()).get(SIDEBAR_COOKIE)?.value;
+  const collapsed = raw === undefined ? true : parseCollapsedCookie(raw);
   return (
-    <SidebarProvider initialCollapsed={collapsed}>
+    <SidebarProvider initialCollapsed={collapsed} initialHasPreference={raw !== undefined}>
       <AuthGuard>{children}</AuthGuard>
     </SidebarProvider>
   );

@@ -48,6 +48,7 @@ function NavRow({
   selected,
   disabled = false,
   onClick,
+  coach,
 }: {
   icon: ReactNode;
   label: string;
@@ -55,11 +56,14 @@ function NavRow({
   selected: boolean;
   disabled?: boolean;
   onClick: () => void;
+  /** 코치마크가 가리킬 때의 data-coach 값 */
+  coach?: string;
 }) {
   return (
     <button
       type="button"
       data-sidebar-item
+      data-coach={coach}
       aria-current={selected || undefined}
       disabled={disabled}
       onClick={onClick}
@@ -115,7 +119,8 @@ export function ShellSidebar({
       className="flex w-66 shrink-0 flex-col border-r border-divider-default bg-background-default-main max-sm:w-full max-sm:border-r-0"
     >
       <div className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pt-4.5 pb-3">
-        <div>
+        {/* 코치마크가 글자만 감싸게 폭을 내용에 맞춘다 */}
+        <div data-coach="status" className="w-fit max-w-full">
           <h1 className="type-title-s leading-snug text-contents-light-bgd-default">{title}</h1>
           <p className={`mt-0.5 type-label-semibold-xs ${TONE_CLASS[status.tone]}`}>{status.text}</p>
         </div>
@@ -149,6 +154,7 @@ export function ShellSidebar({
             selected={view === "selected"}
             disabled={selectedLocked}
             onClick={() => onViewChange("selected")}
+            coach="picked"
           />
           <NavRow
             icon={<BrushIcon size={18} />}
