@@ -569,7 +569,6 @@ export function FolderColumn({
             <button
               type="button"
               aria-current={selection.kind === "unsorted" || undefined}
-              data-coach="unsorted"
               data-drop={dropping && selection.kind !== "unsorted" ? "unsorted" : undefined}
               data-nodrop={dragging && !(dropping && selection.kind !== "unsorted") ? "" : undefined}
               onClick={() => onSelect({ kind: "unsorted" })}

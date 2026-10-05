@@ -42,6 +42,7 @@ import type { RetouchRequestItem } from "@/lib/api/retouch";
 import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
 import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
+import { PersonalReviewCoachMarks } from "./PersonalReviewCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
@@ -392,7 +393,7 @@ export function ReviewStage({
             }}
             extra={
               overview && rounds.length > 0 ? (
-                <div data-coach="rounds">
+                <div>
                   <RoundList
                     rounds={rounds}
                     activeRoundNo={activeRoundNo}
@@ -567,15 +568,19 @@ export function ReviewStage({
                     보정본 내려받기
                   </ShellCta>
                 )}
-                <ShellCta kind={allDone ? "secondary" : "primary"} disabled={!canUpload} onClick={() => setUploadOpen({ presetPhotoId: null })}>
-                  <UploadIcon size={18} />
-                  {resultCount === 0 ? "보정본 올리기" : allDone ? "보정본 바꾸기" : "보정본 더 올리기"}
-                </ShellCta>
-                {owner && (
-                  <ShellCta kind="outline" onClick={() => setCloseOpen(true)}>
-                    <ArchiveIcon size={18} />
-                    갤러리 마무리
+                <span data-coach="result-upload" className="inline-flex">
+                  <ShellCta kind={allDone ? "secondary" : "primary"} disabled={!canUpload} onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                    <UploadIcon size={18} />
+                    {resultCount === 0 ? "보정본 올리기" : allDone ? "보정본 바꾸기" : "보정본 더 올리기"}
                   </ShellCta>
+                </span>
+                {owner && (
+                  <span data-coach="close" className="inline-flex">
+                    <ShellCta kind="outline" onClick={() => setCloseOpen(true)}>
+                      <ArchiveIcon size={18} />
+                      갤러리 마무리
+                    </ShellCta>
+                  </span>
                 )}
               </>
             )
@@ -590,10 +595,12 @@ export function ReviewStage({
             </>
           ) : resultArrived && isLatest && !archived ? (
             <>
-              <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
-                <DownloadIcon size={18} />
-                보정본 내려받기
-              </ShellCta>
+              <span data-coach="download" className="inline-flex">
+                <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
+                  <DownloadIcon size={18} />
+                  보정본 내려받기
+                </ShellCta>
+              </span>
               <span data-coach="rerequest" title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
                 <ShellCta kind="outline" disabled={!canReRequest} onClick={startPicking}>
                   <EditNoteIcon size={18} />
@@ -627,6 +634,14 @@ export function ReviewStage({
 
       {sharing.modals}
       <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !picking && !lightboxOpen && !confirmOpen && !downloadOpen} />
+      {/* 개인 — 요청서 창(내보낸 직후 저절로 열림)이 닫힌 뒤, 올릴 보정본이 남아 있는 동안 */}
+      <PersonalReviewCoachMarks
+        ready={
+          personal && overview !== null && canUpload && !allDone && !lightboxOpen && uploadOpen === null && !closeOpen && !downloadOpen &&
+          !requestDownloadOpen && !(autoOpenDownload && !autoDownloadHandled)
+        }
+        owner={owner}
+      />
       {personal && (requestDownloadOpen || (autoOpenDownload && !autoDownloadHandled && items.length > 0)) && activeRoundNo !== null && (
         <RetouchDownloadModal
           galleryId={galleryId}

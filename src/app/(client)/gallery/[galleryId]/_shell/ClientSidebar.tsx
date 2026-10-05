@@ -33,7 +33,7 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
   const days = planDaysLeft(plan.expiresAt);
   const ratio = plan.max ? Math.min(1, plan.used / plan.max) : 0;
   return (
-    <div data-coach="plan" className="flex flex-col gap-2 rounded-(--radius-12) border border-border-default bg-surface-default-lightness px-3 py-2.5">
+    <div className="flex flex-col gap-2 rounded-(--radius-12) border border-border-default bg-surface-default-lightness px-3 py-2.5">
       <div className="flex items-center justify-between type-label-semibold-xs text-contents-light-bgd-default">
         플랜
         {days !== null && (

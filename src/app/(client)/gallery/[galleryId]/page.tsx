@@ -69,6 +69,7 @@ export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
   const galleryId = Number(params.galleryId);
   const { collapsed, hasPreference, setCollapsed } = useSidebar();
+  const closeSidebar = useCallback(() => setCollapsed(true), [setCollapsed]);
   const router = useRouter();
   const { result: galleryResult, reload: reloadGallery } = useInvitedGallery(params.galleryId);
   // 볼 수 없는 갤러리(403 · 404 — 내보내졌거나 삭제됐거나 주소 오타) → 소속을 다시 읽고 워크스페이스 목록 또는 랜딩으로
@@ -485,7 +486,7 @@ export default function ClientGalleryPage() {
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={personalOwner || selecting ? () => setInviteOpen(true) : undefined}
         inviteLabel={personalOwner ? "초대" : "게스트 초대"}
-        inviteCoachKey={personalOwner ? "invite" : undefined}
+        inviteCoachKey="invite"
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
 
@@ -686,7 +687,12 @@ export default function ClientGalleryPage() {
         )}
         </>
       )}
-      <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
+      {/* 폴더가 생긴 뒤에 — 개인 갤러리는 첫 사진이 올라온 순간 이 단계가 되지만 AI가 폴더를 만들기 전에는 가리킬 것이 없다 */}
+      <ClientCoachMarks
+        ready={editable && folders !== null && folders.length > 0 && photos !== null && allPhotos.length > 0 && !upload.aiActive}
+        personal={isPersonal}
+        onStart={closeSidebar}
+      />
       <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
       {photoMove.overlay}
       {folderMerge.overlay}

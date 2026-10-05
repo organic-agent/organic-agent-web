@@ -43,7 +43,7 @@ export function StudioTopbar({
               />
             </div>
           )}
-          <div data-coach="bell" className="flex">
+          <div className="flex">
             <NotificationBell />
           </div>
           <ProfileAvatarButton

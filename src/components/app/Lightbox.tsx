@@ -362,12 +362,14 @@ export function Lightbox({
             {zoomOn && (
               <>
                 <Sep />
-                <CtlButton label="축소" disabled={!z.canOut} onClick={z.stepOut}>
-                  <ZoomOutIcon size={20} />
-                </CtlButton>
-                <CtlButton label="확대" disabled={!z.canIn} onClick={z.stepIn}>
-                  <ZoomInIcon size={20} />
-                </CtlButton>
+                <span data-coach="lb-zoom" className="flex items-center gap-0.5">
+                  <CtlButton label="축소" disabled={!z.canOut} onClick={z.stepOut}>
+                    <ZoomOutIcon size={20} />
+                  </CtlButton>
+                  <CtlButton label="확대" disabled={!z.canIn} onClick={z.stepIn}>
+                    <ZoomInIcon size={20} />
+                  </CtlButton>
+                </span>
               </>
             )}
             {tabs.length > 0 && (
@@ -381,6 +383,7 @@ export function Lightbox({
                       pressed={tab === t.key}
                       faded={t.empty !== undefined}
                       badge={t.badge}
+                      coach={`lb-${t.key}`}
                       onClick={() => {
                         if (t.empty !== undefined) setEdge({ text: t.empty });
                         else onTabChange(tab === t.key ? "none" : t.key);
@@ -432,6 +435,7 @@ export function CtlButton({
   disabled = false,
   faded = false,
   badge,
+  coach,
   onClick,
   children,
 }: {
@@ -442,6 +446,8 @@ export function CtlButton({
   faded?: boolean;
   /** 버튼 오른쪽 위에 얹는 수 */
   badge?: number;
+  /** 코치마크가 가리킬 때의 data-coach 값 */
+  coach?: string;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -450,6 +456,7 @@ export function CtlButton({
       type="button"
       aria-label={label}
       title={label}
+      data-coach={coach}
       aria-pressed={pressed || undefined}
       aria-disabled={faded || undefined}
       disabled={disabled}

@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useParams, useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { blockLeave, useLeaveGuard } from "@/components/app/LeaveGuard";
-import { useSidebar } from "@/components/SidebarProvider";
+import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
 import {
   CheckCircleIcon,
   CloudUploadIcon,
@@ -73,6 +73,7 @@ import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "./_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
 import { ShellTopbar } from "./_shell/ShellTopbar";
+import { StudioGalleryCoachMarks, type StudioCoachScene } from "./_shell/StudioGalleryCoachMarks";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
@@ -110,7 +111,11 @@ export default function StudioGalleryShellPage() {
   const params = useParams<{ galleryId: string }>();
   const router = useRouter();
   const galleryId = Number(params.galleryId);
-  const { collapsed } = useSidebar();
+  const { collapsed, hasPreference, setCollapsed } = useSidebar();
+  const closeSidebar = useCallback(() => setCollapsed(true), [setCollapsed]);
+  const openSidebar = useCallback(() => {
+    if (!isSidebarOnlyViewport()) setCollapsed(false);
+  }, [setCollapsed]);
   const { showComingSoon, comingSoonToast } = useComingSoonToast();
 
   const [gallery, setGallery] = useState<GalleryResponse | null>(null);
@@ -307,6 +312,11 @@ export default function StudioGalleryShellPage() {
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
   const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
   const stageIndex = selection?.status === "SUBMITTED" && baseStageIndex === 1 ? 2 : baseStageIndex;
+  // 사이드바 기본값: 사진 업로드 단계는 닫힘 · 셀렉 대기부터 열림. 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다.
+  // 640 미만에서는 사이드바가 사진을 가리므로 저절로 열지 않는다(클라이언트 화면과 같은 규칙)
+  useEffect(() => {
+    if (gallery && stageIndex >= 1 && !hasPreference && collapsed && !isSidebarOnlyViewport()) setCollapsed(false);
+  }, [gallery, stageIndex, hasPreference, collapsed, setCollapsed]);
   useEffect(() => {
     if (!inSelection) return;
     let cancelled = false;
@@ -649,6 +659,18 @@ export default function StudioGalleryShellPage() {
   const isOwner = studio?.role === "OWNER";
   const canOpen = gallery?.status === "DRAFT" && !uploading && allPhotos.length > 0;
   const showFolderColumn = stageIndex === 0 && allPhotos.length > 0 && view === "all";
+  const coachScene: StudioCoachScene | null =
+    !gallery || photos === null || anyModalOpen || conceptOpen || uploading || aiActive || merging
+      ? null
+      : stageIndex === 0
+        ? allPhotos.length === 0
+          ? "empty"
+          : folders && folders.length > 0 && view === "all"
+            ? "folders"
+            : null
+        : stageIndex === 1 && sub === "picking" && selection !== null
+          ? "wait"
+          : null;
   const headerCommon = {
     zoom,
     onZoomChange: writeZoom,
@@ -888,17 +910,21 @@ export default function StudioGalleryShellPage() {
             </ShellCta>
           )}
           {/* 첫 업로드(사진 0장)는 컨셉 수 모달이 먼저, 더 올리기는 바로 업로드 모달 */}
-          <ShellCta
-            kind={allPhotos.length === 0 ? "primary" : "ghost"}
-            onClick={() => (allPhotos.length === 0 ? setConceptOpen(true) : setUploadOpen(true))}
-          >
-            <UploadIcon size={18} />
-            {allPhotos.length === 0 ? "사진 업로드" : "사진 더 올리기"}
-          </ShellCta>
-          {allPhotos.length > 0 && (
-            <ShellCta disabled={!canOpen} short="열기" onClick={() => setOpenConfirm(true)}>
-              갤러리 열기
+          <span data-coach={allPhotos.length === 0 ? "upload" : undefined} className="inline-flex">
+            <ShellCta
+              kind={allPhotos.length === 0 ? "primary" : "ghost"}
+              onClick={() => (allPhotos.length === 0 ? setConceptOpen(true) : setUploadOpen(true))}
+            >
+              <UploadIcon size={18} />
+              {allPhotos.length === 0 ? "사진 업로드" : "사진 더 올리기"}
             </ShellCta>
+          </span>
+          {allPhotos.length > 0 && (
+            <span data-coach="open" className="inline-flex">
+              <ShellCta disabled={!canOpen} short="열기" onClick={() => setOpenConfirm(true)}>
+                갤러리 열기
+              </ShellCta>
+            </span>
           )}
         </>
       )
@@ -958,6 +984,7 @@ export default function StudioGalleryShellPage() {
         stageIndex={gallery ? stageIndex : null}
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={studio ? () => setInviteTab("client") : undefined}
+        inviteCoachKey="invite"
       />
 
       {stageIndex >= 2 && gallery && photos !== null ? (
@@ -1011,37 +1038,39 @@ export default function StudioGalleryShellPage() {
           )}
 
           {showFolderColumn && (
-            <FolderColumn
-              folders={folders}
-              totalPhotos={allPhotos.length}
-              unsortedCount={unsortedCount}
-              selection={folderSel}
-              onSelect={changeFolder}
-              onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
-              onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
-              onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
-              onDeleteDetail={(concept, detail) =>
-                setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
-              }
-              // 사진을 옮길 수 있는 때만 폴더도 합친다
-              onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
-              onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
-              dropping={photoMove.dropping}
-              dropOver={photoMove.dropOver}
-              pendingNote={
-                folders && folders.length === 0 && (uploading || aiActive)
-                  ? aiCategorizing
-                    ? {
-                        label: "만드는 중…",
-                        note: `AI가 ${conceptCount !== null ? `컨셉 ${conceptCount}개 기준으로 ` : ""}컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요.`,
-                      }
-                    : {
-                        label: "대기",
-                        note: `${conceptCount !== null ? `업로드가 끝나면 AI가 컨셉 ${conceptCount}개로 나눠요.` : "폴더는 업로드가 끝나면 AI가 만들어요."} 임베딩 · 점수는 올라오는 대로 매기고 있어요.`,
-                      }
-                  : null
-              }
-            />
+            <div data-coach="folders" className="flex min-h-0">
+              <FolderColumn
+                folders={folders}
+                totalPhotos={allPhotos.length}
+                unsortedCount={unsortedCount}
+                selection={folderSel}
+                onSelect={changeFolder}
+                onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
+                onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
+                onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
+                onDeleteDetail={(concept, detail) =>
+                  setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
+                }
+                // 사진을 옮길 수 있는 때만 폴더도 합친다
+                onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
+                onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
+                dropping={photoMove.dropping}
+                dropOver={photoMove.dropOver}
+                pendingNote={
+                  folders && folders.length === 0 && (uploading || aiActive)
+                    ? aiCategorizing
+                      ? {
+                          label: "만드는 중…",
+                          note: `AI가 ${conceptCount !== null ? `컨셉 ${conceptCount}개 기준으로 ` : ""}컨셉 · 세부 폴더로 나누고 있어요. 끝나면 알림으로 알려 드려요.`,
+                        }
+                      : {
+                          label: "대기",
+                          note: `${conceptCount !== null ? `업로드가 끝나면 AI가 컨셉 ${conceptCount}개로 나눠요.` : "폴더는 업로드가 끝나면 AI가 만들어요."} 임베딩 · 점수는 올라오는 대로 매기고 있어요.`,
+                        }
+                    : null
+                }
+              />
+            </div>
           )}
 
           <main className="flex min-w-0 flex-1 flex-col">
@@ -1082,7 +1111,7 @@ export default function StudioGalleryShellPage() {
                 <ShellMainHeader {...headerCommon} title={allTitle} titleParent={allTitleParent} />
                 {recoveryBanner}
                 {quotaBanner}
-                <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
+                <div data-coach="photos" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
                     <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
                       조건에 맞는 사진이 없어요
@@ -1105,6 +1134,11 @@ export default function StudioGalleryShellPage() {
           </main>
         </div>
 
+        {/* 폴더 묶음은 사이드바를 닫고 시작하고(여는 곳부터 알려 준다), 셀렉 대기 묶음은 사이드바 안을 가리키므로 연다 */}
+        <StudioGalleryCoachMarks
+          scene={coachScene}
+          onStart={coachScene === "folders" ? closeSidebar : coachScene === "wait" ? openSidebar : undefined}
+        />
         <ShellBottomBar
           selectionCount={selected.size}
           visibleCount={visiblePhotos.filter((p) => p.status === "UPLOADED").length}
