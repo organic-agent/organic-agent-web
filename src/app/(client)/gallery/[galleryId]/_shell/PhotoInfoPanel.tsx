@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 싱글뷰 "정보" 탭 — 칩(AI 추천) · 별점 · 파일 · 이 기기에서 본 횟수 · 우리끼리 메모
+ * 싱글뷰 "정보" 탭 — 칩(AI 추천) · 별점 · 이 기기에서 본 횟수 · 우리끼리 메모
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/PhotoInfoPanel.tsx
  *
  * 메모는 작가에게 보이지 않아야 해서(2026-09-12) 지금은 브라우저에만 저장한다(clientMemory). 서버 "내부 사진 댓글"의
@@ -13,22 +13,9 @@ import { SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { memoStore, viewedStore, writeMemo } from "./clientMemory";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function typeLabel(contentType: string): string {
-  const sub = contentType.split("/")[1]?.toUpperCase() ?? contentType;
-  return sub === "JPEG" ? "JPG" : sub;
-}
-
 export function PhotoInfoPanel({
   galleryId,
   photo,
-  folderName,
   score,
   editable,
   aiPicked = false,
@@ -36,7 +23,6 @@ export function PhotoInfoPanel({
 }: {
   galleryId: number;
   photo: PhotoResponse;
-  folderName: string | null;
   score: number | null;
   editable: boolean;
   /** 이번 AI 추천에 든 사진인가(셀렉 화면만 준다) */
@@ -90,9 +76,6 @@ export function PhotoInfoPanel({
       <section className="flex flex-col gap-1.5">
         <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">파일</h4>
         <dl className="flex flex-col gap-1 type-content-s">
-          <Row label="형식" value={typeLabel(photo.contentType)} />
-          <Row label="폴더" value={folderName ?? "미분류"} />
-          <Row label="올린 날" value={formatDate(photo.createdAt)} />
           <Row label="봤어요" value={viewed > 0 ? `${viewed}번 · 이 기기에서` : "처음이에요"} />
         </dl>
       </section>

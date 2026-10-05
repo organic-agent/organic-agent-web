@@ -857,7 +857,6 @@ export function SelectStage({
               <PhotoInfoPanel
                 galleryId={galleryId}
                 photo={currentPhoto}
-                folderName={folderNameOf(currentPhoto)}
                 score={currentPhoto.score}
                 editable={editable}
                 aiPicked={aiByPhotoId.has(currentPhoto.photoId)}

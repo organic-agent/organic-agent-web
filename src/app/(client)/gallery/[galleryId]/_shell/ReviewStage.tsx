@@ -807,7 +807,7 @@ export function ReviewStage({
                   <MyRequestPanel item={currentItem} roundLabel={roundLabel} />
                 )
               ) : (
-                <PhotoInfoPanel galleryId={galleryId} photo={currentItem.photo} folderName={folderNameOf(currentItem.photo)} score={currentItem.photo.score} editable={false} onRate={() => {}} />
+                <PhotoInfoPanel galleryId={galleryId} photo={currentItem.photo} score={currentItem.photo.score} editable={false} onRate={() => {}} />
               )
             ) : (
               <p className="type-content-s text-contents-light-bgd-sub">이 회차의 사진이 아니에요.</p>
