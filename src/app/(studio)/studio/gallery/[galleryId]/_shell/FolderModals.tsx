@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * 검토 동작 모달 4종 — 폴더 이름(컨셉 · 세부 추가) · 폴더 삭제 확인 · 사진 폴더로 이동 · 사진 삭제 확인
+ * 검토 동작 모달 5종 — 폴더 이름(컨셉 · 세부 추가) · 폴더 삭제 확인 · 다른 컨셉으로 합치기 확인 · 사진 폴더로 이동 ·
+ * 사진 삭제 확인
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/FolderModals.tsx
  *
  * 서버 규칙(2026-09-11 실측): 폴더 삭제 → 안의 사진은 지워지지 않고 미분류가 된다. 사진은 세부 폴더 하나에만
@@ -17,6 +18,7 @@ import {
   GalleryModalShell,
 } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import type { ConceptFolderResponse, DetailFolderResponse } from "@/lib/api/conceptFolders";
+import type { DetailFolderRef } from "./FolderColumn";
 import { describeUploadError } from "./uploadSupport";
 
 /** 모달 공통 — 확인 동작의 진행 · 오류 */
@@ -153,6 +155,50 @@ export function FolderDeleteModal({
         onClose={onClose}
         onConfirm={() => void run()}
         confirmLabel={busy ? "삭제 중…" : "폴더 삭제"}
+        confirmVariant="danger"
+        disabled={busy}
+      />
+    </GalleryModalShell>
+  );
+}
+
+// ── 다른 컨셉으로 합치기 확인 (같은 컨셉 안이면 묻지 않고 바로 합친다) ──
+
+export function FolderMergeModal({
+  source,
+  target,
+  onClose,
+  onConfirm,
+}: {
+  source: DetailFolderRef;
+  target: DetailFolderRef;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const { busy, error, run } = useConfirmAction(onConfirm);
+  const photoCount = source.detail.photoIds.length;
+
+  return (
+    <GalleryModalShell title="다른 컨셉 폴더에 합칠까요?" maxWidthClassName="max-w-105" onClose={onClose}>
+      <p className="mb-3 type-content-m leading-relaxed text-contents-light-bgd-sub">
+        <b className="text-contents-light-bgd-default">{source.detail.name}</b> 폴더를{" "}
+        <b className="text-contents-light-bgd-default">
+          {target.concept.name} › {target.detail.name}
+        </b>{" "}
+        폴더에 합쳐요.{" "}
+        {photoCount > 0 && (
+          <>
+            사진 <b className="text-contents-light-bgd-default">{photoCount}장</b>이 옮겨지고{" "}
+          </>
+        )}
+        <b className="text-contents-light-bgd-default">{source.detail.name}</b> 폴더는 사라져요.
+      </p>
+      <p className="mb-6 type-content-s text-function-error-default">친구가 남긴 하트 · 댓글이 지워져요.</p>
+      <ErrorLine text={error} />
+      <GalleryModalButtons
+        onClose={onClose}
+        onConfirm={() => void run()}
+        confirmLabel={busy ? "합치는 중…" : "합치기"}
         confirmVariant="danger"
         disabled={busy}
       />

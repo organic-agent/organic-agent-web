@@ -14,12 +14,15 @@
  * 나머지(모든 사진 · 컨셉 헤더)는 흐려진다. 접힌 컨셉 위에 0.6초 머물면 펼친다 — 2026-09-14 확정.
  * 놓을 수 없는 곳에는 data-nodrop을 달아 그 위에서 커서가 금지 모양이 된다(globals.css) — 대분류 폴더로는
  * 옮길 수 없다는 것이 드러나지 않았다(2차 QA).
+ * 세부 폴더 합치기(#97): onMergeDetail을 주면 세부 폴더 행을 6px 넘게 끌어 다른 세부 폴더 위에 놓을 수 있다.
+ * 끄는 동안은 사진 끌기와 같은 모양(다른 세부 폴더만 점선, 나머지 흐림)이고, Esc로 그만둔다. 합칠지 묻는 것은 쓰는 쪽 몫.
  */
 
 import { useEffect, useRef, useState } from "react";
 import {
   CreateFolderIcon,
   DropdownIcon,
+  FolderIcon,
   FolderOffIcon,
   MoreVertIcon,
   PhotoIcon,
@@ -38,6 +41,35 @@ export type FolderDropTarget =
   | { kind: "detail"; id: number }
   | { kind: "unsorted" }
   | { kind: "concept"; id: number };
+
+/** 놓을 곳 찾기 — 폴더 열의 data-drop을 읽는다(사진 끌기 · 세부 폴더 끌기 공용) */
+export function folderDropTargetAt(x: number, y: number): FolderDropTarget | null {
+  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-drop]");
+  const raw = el?.dataset.drop;
+  if (!raw) return null;
+  if (raw === "unsorted") return { kind: "unsorted" };
+  const [kind, rest] = raw.split(":");
+  const id = Number(rest);
+  if (!Number.isFinite(id)) return null;
+  if (kind === "detail") return { kind: "detail", id };
+  if (kind === "concept") return { kind: "concept", id };
+  return null;
+}
+
+export function sameFolderDropTarget(a: FolderDropTarget | null, b: FolderDropTarget | null) {
+  if (a === null || b === null) return a === b;
+  if (a.kind !== b.kind) return false;
+  return a.kind === "unsorted" || b.kind === "unsorted" || a.id === b.id;
+}
+
+/** 세부 폴더 하나와 그 컨셉 — 합치기의 원본 · 대상 */
+export type DetailFolderRef = { concept: ConceptFolderResponse; detail: DetailFolderResponse };
+
+/** 이만큼 움직여야 끌기다(사진 끌기와 같은 값) */
+const DRAG_THRESHOLD = 6;
+/** 폴더 열 가장자리 이 안에 들어오면 저절로 스크롤 */
+const EDGE = 56;
+const EDGE_STEP = 10;
 
 export type FolderPendingNote = {
   /** 머리 오른쪽 짧은 상태 — "대기" · "만드는 중…" */
@@ -70,6 +102,7 @@ export function FolderColumn({
   onCreateDetail,
   onDeleteConcept,
   onDeleteDetail,
+  onMergeDetail,
   dropping = false,
   dropOver = null,
 }: {
@@ -85,6 +118,8 @@ export function FolderColumn({
   onCreateDetail?: (concept: ConceptFolderResponse) => void;
   onDeleteConcept?: (concept: ConceptFolderResponse) => void;
   onDeleteDetail?: (concept: ConceptFolderResponse, detail: DetailFolderResponse) => void;
+  /** 세부 폴더를 다른 세부 폴더 위에 끌어 놓았다 — 없으면 세부 폴더를 끌 수 없다 */
+  onMergeDetail?: (source: DetailFolderRef, target: DetailFolderRef) => void;
   /** 사진을 끌고 오는 중 — 놓을 수 있는 곳만 또렷하게 */
   dropping?: boolean;
   /** 지금 올라와 있는 곳 */
@@ -94,6 +129,26 @@ export function FolderColumn({
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const editable = Boolean(onCreateDetail || onDeleteConcept || onDeleteDetail);
+
+  // ── 세부 폴더 끌어 합치기 ──
+  const canMerge = Boolean(onMergeDetail);
+  const [mergeSource, setMergeSource] = useState<DetailFolderRef | null>(null);
+  const [mergeOver, setMergeOver] = useState<FolderDropTarget | null>(null);
+  const mergePendingRef = useRef<{ pointerId: number; x: number; y: number; source: DetailFolderRef } | null>(null);
+  const mergeActiveRef = useRef<{ pointerId: number; source: DetailFolderRef } | null>(null);
+  /** 방금 끌기로 끝났다 — 뒤따르는 클릭이 폴더를 열지 않게 */
+  const mergeDraggedRef = useRef(false);
+  const mergeGhostRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // 리스너는 canMerge에만 묶는다(폴더가 다시 읽혀도 끌기가 끊기지 않게) — 최신 값은 여기서 읽는다
+  const latestRef = useRef({ folders, onMergeDetail });
+  useEffect(() => {
+    latestRef.current = { folders, onMergeDetail };
+  });
+  const dragging = dropping || mergeSource !== null;
+  /** 지금 올라와 있는 곳 — 사진 끌기면 dropOver, 폴더 끌기면 mergeOver */
+  const over = dropOver ?? mergeOver;
 
   useEffect(() => {
     if (!menu) return;
@@ -112,8 +167,99 @@ export function FolderColumn({
   }, [menu]);
 
   useEffect(() => {
-    if (!dropOver || dropOver.kind !== "concept") return;
-    const id = dropOver.id;
+    if (!canMerge) return;
+    function stop() {
+      const wasActive = mergeActiveRef.current !== null;
+      mergePendingRef.current = null;
+      mergeActiveRef.current = null;
+      setMergeSource(null);
+      setMergeOver(null);
+      // 사진 끌기가 단 표시는 건드리지 않는다
+      if (wasActive) delete document.documentElement.dataset.dragging;
+    }
+    function onPointerMove(e: PointerEvent) {
+      const pending = mergePendingRef.current;
+      if (pending && e.pointerId === pending.pointerId) {
+        // 손을 뗀 걸 놓쳤으면(창 밖에서 뗌) 여기서 끝낸다
+        if (e.buttons === 0) {
+          mergePendingRef.current = null;
+          return;
+        }
+        if (Math.abs(e.clientX - pending.x) + Math.abs(e.clientY - pending.y) < DRAG_THRESHOLD) return;
+        mergePendingRef.current = null;
+        mergeActiveRef.current = { pointerId: pending.pointerId, source: pending.source };
+        pointerRef.current = { x: e.clientX, y: e.clientY };
+        setMenu(null);
+        setMergeSource(pending.source);
+        document.documentElement.dataset.dragging = "";
+      }
+      const active = mergeActiveRef.current;
+      if (!active || e.pointerId !== active.pointerId) return;
+      if (e.buttons === 0) {
+        stop();
+        return;
+      }
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+      const ghost = mergeGhostRef.current;
+      if (ghost) ghost.style.transform = `translate3d(${e.clientX + 14}px, ${e.clientY + 14}px, 0)`;
+      const found = folderDropTargetAt(e.clientX, e.clientY);
+      setMergeOver((prev) => (sameFolderDropTarget(prev, found) ? prev : found));
+    }
+    function onPointerUp(e: PointerEvent) {
+      mergePendingRef.current = null;
+      const active = mergeActiveRef.current;
+      if (!active || e.pointerId !== active.pointerId) return;
+      const target = e.type === "pointerup" ? folderDropTargetAt(e.clientX, e.clientY) : null;
+      mergeDraggedRef.current = true;
+      stop();
+      // 자기 자신 위에는 놓을 수 없다(행에 data-drop이 없지만 한 번 더 막는다)
+      if (target?.kind !== "detail" || target.id === active.source.detail.id) return;
+      const { folders: list, onMergeDetail: merge } = latestRef.current;
+      const concept = list?.find((c) => c.details.some((d) => d.id === target.id));
+      const detail = concept?.details.find((d) => d.id === target.id);
+      if (concept && detail) merge?.(active.source, { concept, detail });
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && mergeActiveRef.current) stop();
+    }
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("keydown", onKeyDown);
+      stop();
+    };
+  }, [canMerge]);
+
+  // 끌기가 막 시작됐을 때 고스트를 손 옆에 놓고, 폴더 열 가장자리에서는 저절로 스크롤
+  useEffect(() => {
+    if (mergeSource === null) return;
+    const ghost = mergeGhostRef.current;
+    if (ghost) ghost.style.transform = `translate3d(${pointerRef.current.x + 14}px, ${pointerRef.current.y + 14}px, 0)`;
+    let frame = 0;
+    function step() {
+      const column = scrollRef.current;
+      if (column) {
+        const box = column.getBoundingClientRect();
+        const { x, y } = pointerRef.current;
+        if (x >= box.left && x <= box.right) {
+          if (y < box.top + EDGE) column.scrollTop -= EDGE_STEP;
+          else if (y > box.bottom - EDGE) column.scrollTop += EDGE_STEP;
+        }
+      }
+      frame = window.requestAnimationFrame(step);
+    }
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [mergeSource]);
+
+  useEffect(() => {
+    if (!over || over.kind !== "concept") return;
+    const id = over.id;
     if (!collapsed.has(id)) return;
     const timer = window.setTimeout(() => {
       setCollapsed((prev) => {
@@ -124,7 +270,7 @@ export function FolderColumn({
       });
     }, 600);
     return () => window.clearTimeout(timer);
-  }, [dropOver, collapsed]);
+  }, [over, collapsed]);
 
   function toggleConcept(id: number) {
     setCollapsed((prev) => {
@@ -229,6 +375,7 @@ export function FolderColumn({
 
   return (
     <div
+      ref={scrollRef}
       data-folder-scroll
       className="scrollbar-slim flex w-58 shrink-0 flex-col overflow-y-auto border-r border-divider-default bg-background-default-main px-3 py-4"
     >
@@ -287,8 +434,8 @@ export function FolderColumn({
                 selection.kind === "all"
                   ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
-              } ${dropping ? "opacity-40" : ""}`}
-              data-nodrop={dropping ? "" : undefined}
+              } ${dragging ? "opacity-40" : ""}`}
+              data-nodrop={dragging ? "" : undefined}
             >
               <span className="flex shrink-0 text-contents-light-bgd-weakness">
                 <PhotoIcon size={16} />
@@ -305,11 +452,11 @@ export function FolderColumn({
             return (
               <li key={concept.id}>
                 <div
-                  data-drop={dropping && closed ? `concept:${concept.id}` : undefined}
-                  data-nodrop={dropping ? "" : undefined}
+                  data-drop={dragging && closed ? `concept:${concept.id}` : undefined}
+                  data-nodrop={dragging ? "" : undefined}
                   className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
                     conceptSelected ? "bg-brand-secondary-background" : ""
-                  } ${dropping ? "opacity-40" : ""}`}
+                  } ${dragging ? "opacity-40" : ""}`}
                 >
                   <button
                     type="button"
@@ -338,24 +485,46 @@ export function FolderColumn({
                     {concept.details.map((detail) => {
                       const selected = selection.kind === "detail" && selection.detailId === detail.id;
                       const detailTarget: MenuTarget = { kind: "detail", concept, detail };
-                      // 지금 보고 있는 폴더엔 놓을 수 없다(그 폴더 사진을 끌고 온 것이므로)
-                      const droppable = dropping && !selected;
-                      const over = droppable && dropOver?.kind === "detail" && dropOver.id === detail.id;
+                      // 사진: 지금 보고 있는 폴더엔 놓을 수 없다(그 폴더 사진을 끌고 온 것이므로)
+                      // 폴더: 자기 자신 말고는 어느 세부 폴더에나 합칠 수 있다(보고 있는 폴더 포함)
+                      const droppable = mergeSource
+                        ? mergeSource.detail.id !== detail.id
+                        : dropping && !selected;
+                      const isOver = droppable && over?.kind === "detail" && over.id === detail.id;
                       return (
                         <li key={detail.id}>
                           <div
                             data-drop={droppable ? `detail:${detail.id}` : undefined}
-                            data-nodrop={dropping && !droppable ? "" : undefined}
+                            data-nodrop={dragging && !droppable ? "" : undefined}
+                            onPointerDown={
+                              canMerge
+                                ? (e) => {
+                                    mergeDraggedRef.current = false;
+                                    // 케밥은 끌기 손잡이가 아니다
+                                    if (e.button !== 0 || (e.target as HTMLElement).closest("[aria-haspopup]")) return;
+                                    mergePendingRef.current = {
+                                      pointerId: e.pointerId,
+                                      x: e.clientX,
+                                      y: e.clientY,
+                                      source: { concept, detail },
+                                    };
+                                  }
+                                : undefined
+                            }
                             className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
                               selected ? "bg-brand-secondary-background" : ""
-                            } ${dropClass(dropping, droppable, over)}`}
+                            } ${dropClass(dragging, droppable, isOver)}`}
                           >
                             <button
                               type="button"
                               aria-current={selected || undefined}
-                              onClick={() =>
-                                onSelect({ kind: "detail", conceptId: concept.id, detailId: detail.id })
-                              }
+                              onClick={() => {
+                                if (mergeDraggedRef.current) {
+                                  mergeDraggedRef.current = false;
+                                  return;
+                                }
+                                onSelect({ kind: "detail", conceptId: concept.id, detailId: detail.id });
+                              }}
                               className={`flex min-w-0 flex-1 cursor-pointer items-center py-1 pr-1 pl-7 text-left type-content-s ${
                                 selected
                                   ? "font-semibold text-contents-light-bgd-default"
@@ -381,13 +550,13 @@ export function FolderColumn({
               aria-current={selection.kind === "unsorted" || undefined}
               data-coach="unsorted"
               data-drop={dropping && selection.kind !== "unsorted" ? "unsorted" : undefined}
-              data-nodrop={dropping && selection.kind === "unsorted" ? "" : undefined}
+              data-nodrop={dragging && !(dropping && selection.kind !== "unsorted") ? "" : undefined}
               onClick={() => onSelect({ kind: "unsorted" })}
               className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
                 selection.kind === "unsorted"
                   ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
-              } ${dropClass(dropping, dropping && selection.kind !== "unsorted", dropping && dropOver?.kind === "unsorted")}`}
+              } ${dropClass(dragging, dropping && selection.kind !== "unsorted", dropping && dropOver?.kind === "unsorted")}`}
             >
               <span className="flex shrink-0 text-contents-light-bgd-weakness">
                 <FolderOffIcon size={16} />
@@ -397,6 +566,19 @@ export function FolderColumn({
             </button>
           </li>
         </ul>
+      )}
+      {mergeSource && (
+        <div
+          ref={mergeGhostRef}
+          aria-hidden
+          className="pointer-events-none fixed top-0 left-0 z-300 flex max-w-56 items-center gap-1.5 rounded-(--radius-8) border border-divider-default bg-background-default-main px-2.5 py-1.5 type-content-s text-contents-light-bgd-default shadow-(--shadow-hover) will-change-transform"
+        >
+          <span className="flex shrink-0 text-contents-light-bgd-weakness">
+            <FolderIcon size={16} />
+          </span>
+          <span className="min-w-0 truncate">{mergeSource.detail.name}</span>
+          <span className="type-content-xs text-contents-light-bgd-weakness">{mergeSource.detail.photoIds.length}</span>
+        </div>
       )}
     </div>
   );

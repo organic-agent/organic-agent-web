@@ -76,6 +76,7 @@ import { ShellTopbar } from "./_shell/ShellTopbar";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
 import { SHELL_STAGES, stageIndexOf } from "./_shell/stages";
+import { useFolderMerge } from "./_shell/useFolderMerge";
 import { usePhotoMove } from "./_shell/usePhotoMove";
 import { ConceptCountModal } from "./_shell/ConceptCountModal";
 import { UploadModal } from "./_shell/UploadModal";
@@ -593,13 +594,14 @@ export default function StudioGalleryShellPage() {
     folderOf,
     onMoved: refreshFolders,
   });
+  const folderMerge = useFolderMerge({ galleryId, refreshFolders, setSelection: setFolderSel });
   /** 지금 보고 있는 사진 전부 고르기 — 올리는 중인(PENDING) 자리는 제외 */
   const selectAllVisible = useCallback(() => {
     setSelected(new Set(visiblePhotos.filter((p) => p.status === "UPLOADED").map((p) => p.photoId)));
   }, [visiblePhotos]);
   // ⌘/Ctrl+A — 1단계 검토 화면에서, 입력란 · 모달이 아닐 때
   const anyModalOpen =
-    uploadOpen || openConfirm || inviteTab !== null || extendOpen || quotaOpen || confirmKind !== null || folderModal !== null || moveOpen || deletePhotosOpen;
+    uploadOpen || openConfirm || inviteTab !== null || extendOpen || quotaOpen || confirmKind !== null || folderModal !== null || moveOpen || deletePhotosOpen || folderMerge.modalOpen;
   useEffect(() => {
     if (inSelection || anyModalOpen || view !== "all") return;
     function onKeyDown(e: KeyboardEvent) {
@@ -1021,6 +1023,8 @@ export default function StudioGalleryShellPage() {
               onDeleteDetail={(concept, detail) =>
                 setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
               }
+              // 사진을 옮길 수 있는 때만 폴더도 합친다
+              onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
               dropping={photoMove.dropping}
               dropOver={photoMove.dropOver}
               pendingNote={
@@ -1258,6 +1262,7 @@ export default function StudioGalleryShellPage() {
       {comingSoonToast}
       {leaveToast}
       {photoMove.overlay}
+      {folderMerge.overlay}
     </div>
   );
 }
