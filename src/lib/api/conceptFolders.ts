@@ -76,6 +76,24 @@ export function deleteDetailFolder(galleryId: number, conceptId: number, detailI
 }
 
 /**
+ * 세부 폴더 합치기 — 원본(`detailId`)의 사진을 모두 대상 세부 폴더로 옮기고 빈 원본을 지운다(organic-agent-server #245).
+ * 합친 사진은 사용자 배정이 되어 AI 폴더를 다시 만들어도 원래 폴더로 돌아가지 않는다.
+ * 같은 컨셉 안이면 협업 하트 · 댓글이 남고, **다른 컨셉으로 합치면 원본 컨셉에 남긴 하트 · 댓글이 지워진다**.
+ * 같은 폴더끼리는 400 CATEGORY_400_3. 응답은 합친 뒤의 대상 세부 폴더.
+ */
+export function mergeDetailFolder(
+  galleryId: number,
+  conceptId: number,
+  detailId: number,
+  targetDetailFolderId: number,
+): Promise<DetailFolderResponse> {
+  return api(
+    `/api/v1/galleries/${galleryId}/concept-folders/${conceptId}/detail-folders/${detailId}/merge`,
+    { method: "POST", body: { targetDetailFolderId } },
+  );
+}
+
+/**
  * 사진을 세부 폴더로 옮기기. `targetDetailFolderId`가 null이면 폴더에서 빼서 미분류로.
  * 전부-아니면-거부: 이 갤러리 사진이 아닌 id가 섞이면 400, 대상 폴더가 없으면 404.
  * 응답 본문이 없으므로 끝나면 폴더 트리를 다시 조회한다.
