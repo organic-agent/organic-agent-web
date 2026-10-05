@@ -33,6 +33,7 @@ import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[gallery
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
+import { useFolderMerge } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useFolderMerge";
 import { usePhotoMove } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/usePhotoMove";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import { ApiError } from "@/lib/api/client";
@@ -288,7 +289,8 @@ export default function ClientGalleryPage() {
     folderOf,
     onMoved: refreshFolders,
   });
-  const anyModalOpen = folderModal !== null || moveOpen || confirmOpen || deletePhotosOpen;
+  const folderMerge = useFolderMerge({ galleryId, folders, selection: folderSel, refreshFolders, setSelection: setFolderSel });
+  const anyModalOpen = folderModal !== null || moveOpen || confirmOpen || deletePhotosOpen || folderMerge.modalOpen;
   // ⌘/Ctrl+A — 컨셉 분류에서, 입력란 · 모달이 아닐 때 보고 있는 사진 전부
   useEffect(() => {
     if (!editable || anyModalOpen) return;
@@ -558,6 +560,9 @@ export default function ClientGalleryPage() {
                 onDeleteDetail={(concept, detail) =>
                   setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
                 }
+                // 사진을 옮길 수 있는 때만 폴더도 합친다
+                onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
+                onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
                 dropping={photoMove.dropping}
                 dropOver={photoMove.dropOver}
                 pendingNote={
@@ -684,6 +689,7 @@ export default function ClientGalleryPage() {
       <ClientCoachMarks ready={editable && folders !== null && photos !== null && allPhotos.length > 0} />
       <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
       {photoMove.overlay}
+      {folderMerge.overlay}
     </div>
   );
 }

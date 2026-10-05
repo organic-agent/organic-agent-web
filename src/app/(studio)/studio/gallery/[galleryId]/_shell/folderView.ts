@@ -6,19 +6,17 @@
  * 업로드 순으로 정렬한다.
  *
  * 중복 컨셉: 사진을 더 올려 다시 분석하면 서버가 같은 이름의 컨셉 폴더를 뒤에 덧붙인다(2026-09-11 실측,
- * 백엔드 요청 항목). 그때까지는 화면이 정리한다 — 같은 이름 컨셉 중 가장 앞의 것을 남기고, 나머지의 세부 폴더
- * 사진을 같은 이름 세부 폴더로 옮긴 뒤(없으면 만들고) 빈 컨셉을 지운다. 만들기 · 이동 · 삭제 API만 쓴다.
+ * 백엔드 요청 항목). 그때까지는 화면이 정리한다 — 같은 이름 컨셉 중 가장 앞의 것을 남기고, 나머지의 세부 폴더를
+ * 같은 이름 세부 폴더에 합친 뒤(없으면 만들고, 합치기 API #97) 빈 컨셉을 지운다.
  */
 
 import {
   createDetailFolder,
   deleteConceptFolder,
-  moveCategoryPhotos,
+  mergeDetailFolder,
   type ConceptFolderResponse,
 } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
-
-const MOVE_BATCH = 500;
 
 export function normalizeFolders(
   raw: ConceptFolderResponse[],
@@ -60,7 +58,7 @@ export function duplicateConceptGroups(folders: ConceptFolderResponse[]): Concep
 }
 
 /**
- * 중복 컨셉을 합친다. 정규화된(살아 있는 사진만 있는) 폴더를 넣어야 이동이 거절되지 않는다.
+ * 중복 컨셉을 합친다. 정규화된(살아 있는 사진만 있는) 폴더를 넣는다 — 살아 있는 사진이 없는 세부 폴더는 합치지 않고 컨셉과 함께 지운다.
  * 돌려주는 값은 지운 컨셉 수.
  */
 export async function mergeDuplicateConcepts(
@@ -79,9 +77,7 @@ export async function mergeDuplicateConcepts(
             target = await createDetailFolder(galleryId, keeper.id, detail.name);
             keeperDetails.set(detail.name.trim(), target);
           }
-          for (let i = 0; i < detail.photoIds.length; i += MOVE_BATCH) {
-            await moveCategoryPhotos(galleryId, detail.photoIds.slice(i, i + MOVE_BATCH), target.id);
-          }
+          await mergeDetailFolder(galleryId, concept.id, detail.id, target.id);
         }
       }
       await deleteConceptFolder(galleryId, concept.id);

@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Snackbar } from "@/components/app/Snackbar";
 import { moveCategoryPhotos } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
-import type { FolderDropTarget } from "./FolderColumn";
+import { folderDropTargetAt, sameFolderDropTarget, type FolderDropTarget } from "./FolderColumn";
 import type { PhotoDragBinding } from "./PhotoGrid";
 
 /** 이만큼 움직여야 끌기다(PhotoGrid의 칠하기와 같은 값) */
@@ -32,25 +32,6 @@ const EDGE_STEP = 10;
 type Pending = { pointerId: number; x: number; y: number; photoId: number };
 type Session = { pointerId: number; ids: number[] };
 type MoveToast = { text: string; undo: (() => void) | null };
-
-function targetAt(x: number, y: number): FolderDropTarget | null {
-  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-drop]");
-  const raw = el?.dataset.drop;
-  if (!raw) return null;
-  if (raw === "unsorted") return { kind: "unsorted" };
-  const [kind, rest] = raw.split(":");
-  const id = Number(rest);
-  if (!Number.isFinite(id)) return null;
-  if (kind === "detail") return { kind: "detail", id };
-  if (kind === "concept") return { kind: "concept", id };
-  return null;
-}
-
-function sameTarget(a: FolderDropTarget | null, b: FolderDropTarget | null) {
-  if (a === null || b === null) return a === b;
-  if (a.kind !== b.kind) return false;
-  return a.kind === "unsorted" || b.kind === "unsorted" || a.id === b.id;
-}
 
 async function moveInBatches(galleryId: number, photoIds: number[], targetDetailId: number | null) {
   for (let i = 0; i < photoIds.length; i += MOVE_BATCH) {
@@ -184,14 +165,14 @@ export function usePhotoMove({
       pointerRef.current = { x: e.clientX, y: e.clientY };
       const ghost = ghostRef.current;
       if (ghost) ghost.style.transform = `translate3d(${e.clientX + 14}px, ${e.clientY + 14}px, 0)`;
-      const found = targetAt(e.clientX, e.clientY);
-      setOver((prev) => (sameTarget(prev, found) ? prev : found));
+      const found = folderDropTargetAt(e.clientX, e.clientY);
+      setOver((prev) => (sameFolderDropTarget(prev, found) ? prev : found));
     }
     function onPointerUp(e: PointerEvent) {
       pendingRef.current = null;
       const session = sessionRef.current;
       if (!session || e.pointerId !== session.pointerId) return;
-      const target = e.type === "pointerup" ? targetAt(e.clientX, e.clientY) : null;
+      const target = e.type === "pointerup" ? folderDropTargetAt(e.clientX, e.clientY) : null;
       draggedRef.current = true;
       stop();
       if (!target || target.kind === "concept") return;
