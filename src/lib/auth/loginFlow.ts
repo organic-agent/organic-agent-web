@@ -90,7 +90,7 @@ export function sortByRecentActivity(spaces: UserWorkspace[]): UserWorkspace[] {
 /** 랜딩 nav의 소속 칩 — 최근 활동 공간 하나를 이름·꼬리표·링크로 */
 export type SpaceChip = { label: string; tag: string | null; href: string };
 
-export function spaceChip(user: User): SpaceChip {
+export function spaceChip(user: Pick<User, "workspaces">): SpaceChip {
   const spaces = sortByRecentActivity(user.workspaces ?? []);
   if (spaces.length === 0) {
     return { label: "시작하기", tag: null, href: "/onboarding/role" };

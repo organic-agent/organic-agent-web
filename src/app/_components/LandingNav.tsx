@@ -8,8 +8,11 @@
  * 문구는 mode(로그인/회원가입)가, 로그인 뒤 목적지는 intent가 정한다 — nav에서는 역할을 모르니 couple.
  *
  * 로그인 상태의 소속 칩: 최근 활동 공간 이름 + 꼬리표(스튜디오 / 갤러리 / 외 n). 누르면 그 공간으로.
- * 소속이 없으면 "시작하기" → 역할 선택. 인증 복구 중에는 자리표시자만 두어 깜빡임을 막는다.
- * 아바타를 누르면 프로필 메뉴가 펼쳐진다.
+ * 소속이 없으면 "시작하기" → 역할 선택. 아바타를 누르면 프로필 메뉴가 펼쳐진다.
+ *
+ * 인증 복구 중: 지난 방문 때 보관한 이름 · 소속(lastUser)이 있으면 그것으로 칩과 아바타를 먼저 그리고,
+ * 복구가 끝나면 받은 정보로 바꾼다(팀 노션 60번 — 요청 두 번을 기다리는 동안 회색 자리만 보였다).
+ * 보관한 것이 없으면 자리표시자만 둔다. 먼저 그린 아바타는 메뉴가 없다 — 메뉴는 로그인이 확인된 뒤에만 연다.
  */
 
 import Link from "next/link";
@@ -17,8 +20,10 @@ import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { BrandLogo } from "@/components/BrandLogo";
 import { ArrowRightIcon } from "@/components/icons";
 import type { LoginRequest } from "@/components/LoginModal";
+import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/authStore";
+import { useLastUser, type LastUser } from "@/lib/auth/lastUser";
 import { spaceChip } from "@/lib/auth/loginFlow";
 
 export function LandingNav({
@@ -27,6 +32,7 @@ export function LandingNav({
   onOpenLogin: (req: LoginRequest) => void;
 }) {
   const auth = useAuth();
+  const lastUser = useLastUser();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-100 bg-background-default-main border-b border-divider-default">
@@ -43,11 +49,15 @@ export function LandingNav({
 
         <nav className="flex items-center gap-2">
           {auth.status === "loading" ? (
-            // 복구가 끝날 때까지 자리만 — 서버 렌더와 첫 클라이언트 렌더가 같은 모양이다
-            <span
-              aria-hidden
-              className="h-10 w-50 rounded-(--pill) bg-surface-default-light"
-            />
+            lastUser ? (
+              <SpaceChipLink user={lastUser} pending />
+            ) : (
+              // 복구가 끝날 때까지 자리만 — 서버 렌더와 첫 클라이언트 렌더가 같은 모양이다
+              <span
+                aria-hidden
+                className="h-10 w-50 rounded-(--pill) bg-surface-default-light"
+              />
+            )
           ) : auth.status === "guest" ? (
             <>
               <Button
@@ -71,7 +81,8 @@ export function LandingNav({
   );
 }
 
-function SpaceChipLink({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user"]> }) {
+/** pending이면 로그인 확인 전 — 보관한 정보로 그린 것이라 아바타는 메뉴 없이 모양만 둔다 */
+function SpaceChipLink({ user, pending = false }: { user: LastUser; pending?: boolean }) {
   const chip = spaceChip(user);
   return (
     <>
@@ -87,7 +98,13 @@ function SpaceChipLink({ user }: { user: NonNullable<ReturnType<typeof useAuth>[
         )}
         <ArrowRightIcon size={18} className="text-contents-light-bgd-weakness" />
       </Link>
-      <ProfileAvatarButton />
+      {pending ? (
+        <span className="grid size-10 place-items-center">
+          <Avatar initial={user.nickname.trim().slice(0, 1) || "?"} />
+        </span>
+      ) : (
+        <ProfileAvatarButton />
+      )}
     </>
   );
 }
