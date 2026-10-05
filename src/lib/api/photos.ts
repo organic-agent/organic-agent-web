@@ -165,6 +165,39 @@ export function listPhotos(
   );
 }
 
+/** 사진의 촬영 정보(EXIF). 촬영 정보를 남기지 않는 파일이 있어 필드마다 null일 수 있다 */
+export type PhotoMetadataResponse = {
+  /** 촬영 시각 — 타임존 없이 카메라가 적은 그대로다 */
+  takenAt: string | null;
+  cameraMake: string | null;
+  cameraModel: string | null;
+  exposureTime: string | null;
+  fNumber: number | null;
+  iso: number | null;
+  /** 원본의 가로 · 세로 픽셀(EXIF 회전을 반영한 값) */
+  width: number | null;
+  height: number | null;
+  byteSize: number | null;
+};
+
+/** 사진 한 장의 상세 — 목록의 항목과 달리 원본 주소와 촬영 정보가 함께 온다 */
+export type PhotoDetailResponse = PhotoResponse & {
+  /**
+   * 원본을 원래 크기로 여는 서명 URL — 먼저 viewUrl로 그리고 확대 · 내려받기에 이것을 쓴다.
+   * PENDING이면 null. 원본은 형식에 따라(HEIC 등) 브라우저가 그리지 못할 수 있다.
+   */
+  originalUrl: string | null;
+  viewUrlTtlSeconds: number;
+  /** originalUrl이 살아 있는 시간(초). 한 장을 오래 열어 두는 화면용이라 viewUrl보다 길다 */
+  originalUrlTtlSeconds: number;
+  metadata: PhotoMetadataResponse | null;
+};
+
+/** 사진 한 장 조회 — 사진 목록을 볼 수 있는 사람이면 부를 수 있다. 404: 이 갤러리에 없는 사진(휴지통 포함) */
+export function getPhoto(galleryId: number, photoId: number): Promise<PhotoDetailResponse> {
+  return api(`/api/v1/galleries/${galleryId}/photos/${photoId}`);
+}
+
 /**
  * 사진 휴지통 이동 — 담당 작가만, 한 장을 지워도 배치로. 휴지통의 사진은
  * 목록·클러스터·폴더·선택 앨범·협업 화면 어디에도 보이지 않는다.

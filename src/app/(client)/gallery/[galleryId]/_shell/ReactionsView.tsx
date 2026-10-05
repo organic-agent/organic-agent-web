@@ -20,6 +20,7 @@ import { ApiError } from "@/lib/api/client";
 import { listAllSessionPhotoComments, type CollabPhotoResponse, type CollabSessionResponse } from "@/lib/api/collab";
 import type { CollabCommentResponse } from "@/lib/api/collabGuest";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { loadOriginalUrl } from "@/lib/photoOriginal";
 
 type ReactionSort = "likes" | "comments" | "newest";
 const NO_SELECTION: ReadonlySet<number> = new Set();
@@ -157,6 +158,7 @@ export function ReactionsView({ galleryId, session, photos }: { galleryId: numbe
           index={lightboxIndex}
           total={shown.length}
           caption={null}
+          zoom={{ loadOriginal: (target) => loadOriginalUrl(galleryId, target) }}
           tab={tab}
           tabs={tabs}
           middle={

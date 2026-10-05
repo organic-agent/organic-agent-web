@@ -38,6 +38,7 @@ import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import { ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { loadOriginalUrl } from "@/lib/photoOriginal";
 import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
 import { SELECTION_DEADLINE_PASSED } from "@/lib/api/selection";
 import { isDeadlinePassed } from "../../_lib/useInvitedGallery";
@@ -846,6 +847,7 @@ export function SelectStage({
           tab={tab}
           tabs={LIGHTBOX_TABS}
           onImageError={onPhotoUrlError}
+          zoom={{ loadOriginal: (target) => loadOriginalUrl(galleryId, target) }}
           notice={rateError ? { kind: "error", text: rateError.text } : null}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
