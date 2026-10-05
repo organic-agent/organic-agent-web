@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * 사이드바 회차 목록 — "회차" 제목선 + n차 보정 · 장수 · 상태 칩 + 남은 횟수 (작가 · 클라이언트 공용)
+ * 사이드바 회차 목록 — "회차" 제목선 · 남은 횟수 + n차 보정 · 장수 · 상태 칩 (작가 · 클라이언트 공용)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/RoundList.tsx
  *
- * 작가는 "횟수 바꾸기" 링크가 붙고(onChangeRounds), 클라이언트는 목록 · 남은 횟수만(2026-09-12 — 클라이언트도 같은 형식).
+ * 남은 횟수는 회차 하나가 아니라 갤러리 전체의 값이라 제목 줄 오른쪽에 둔다(팀 노션 15번 — 목록 아래에 있으면 고른 회차의
+ * 박스와 떨어져 어디에 딸린 값인지 흐렸다). 작가는 그 옆에 "횟수 바꾸기" 링크가 붙고(onChangeRounds), 클라이언트는 남은 횟수만.
  */
 
 import type { RetouchRoundSummaryResponse } from "@/lib/api/retouch";
@@ -31,7 +32,16 @@ export function RoundList({
   };
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="flex items-center gap-1.5 px-2.5 pt-1 pb-1 type-label-semibold-xs text-contents-light-bgd-weakness after:h-px after:flex-1 after:bg-divider-default after:content-['']">회차</p>
+      <p className="flex items-center gap-1.5 px-2.5 pt-1 pb-1 type-label-semibold-xs whitespace-nowrap text-contents-light-bgd-weakness">
+        회차
+        <span aria-hidden className="h-px min-w-3 flex-1 bg-divider-default" />
+        <span className="type-content-xs tabular-nums">{maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}</span>
+        {onChangeRounds && (
+          <button type="button" onClick={onChangeRounds} className="cursor-pointer type-content-xs text-brand-secondary-dark underline underline-offset-2">
+            횟수 바꾸기
+          </button>
+        )}
+      </p>
       {rounds.map((r) => {
         const active = r.roundNo === activeRoundNo;
         return (
@@ -53,14 +63,6 @@ export function RoundList({
           </button>
         );
       })}
-      <p className="flex items-center gap-2 px-3.5 pt-1 type-content-xs text-contents-light-bgd-weakness">
-        {maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}
-        {onChangeRounds && (
-          <button type="button" onClick={onChangeRounds} className="cursor-pointer text-brand-secondary-dark underline underline-offset-2">
-            횟수 바꾸기
-          </button>
-        )}
-      </p>
     </div>
   );
 }
