@@ -1,17 +1,16 @@
 "use client";
 
 /**
- * 검토 동작 모달 5종 — 폴더 이름(컨셉 · 세부 추가) · 폴더 삭제 확인 · 다른 컨셉으로 합치기 확인 · 사진 폴더로 이동 ·
- * 사진 삭제 확인
- * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/FolderModals.tsx
+ * 검토 동작 모달 6종 — 폴더 이름(컨셉 · 세부 추가) · 폴더 삭제 확인 · 폴더 합치기 확인 · 합칠 폴더 고르기 ·
+ * 사진 폴더로 이동 · 사진 삭제 확인
  *
  * 서버 규칙(2026-09-11 실측): 폴더 삭제 → 안의 사진은 지워지지 않고 미분류가 된다. 사진은 세부 폴더 하나에만
  * 속하고, 이동 대상 null = 미분류로 빼기. 사진 삭제는 휴지통 이동(보관 뒤 서버가 자동 삭제, 복원 UI 없음).
  * 만들기 · 삭제 · 이동은 본문 없이 끝나므로 호출자가 다시 조회한다(onConfirm 안에서).
  */
 
-import { useEffect, useId, useState, type FormEvent } from "react";
-import { FolderOffIcon } from "@/components/icons";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
+import { ArrowRightIcon, FolderOffIcon } from "@/components/icons";
 import { TextField } from "@/components/ui/TextField";
 import {
   GalleryModalButtons,
@@ -162,8 +161,19 @@ export function FolderDeleteModal({
   );
 }
 
-// ── 다른 컨셉으로 합치기 확인 (같은 컨셉 안이면 묻지 않고 바로 합친다) ──
+// ── 폴더 합치기 확인 — 사라지는 폴더 → 남는 폴더를 그림으로 ──
 
+function MergeCard({ concept, name, className, children }: { concept: string; name: string; className: string; children: ReactNode }) {
+  return (
+    <div className={`flex min-w-0 flex-col gap-0.5 rounded-(--radius-12) px-3.5 py-3 ${className}`}>
+      <span className="truncate type-content-xs text-contents-light-bgd-weakness">{concept}</span>
+      <span className="truncate type-label-semibold-m text-contents-light-bgd-default">{name}</span>
+      <span className="type-content-s text-contents-light-bgd-sub tabular-nums">{children}</span>
+    </div>
+  );
+}
+
+/** 끌어 놓았을 때 — 점선 카드(사라지는 폴더)에서 칠한 카드(남는 폴더)로. 문장은 두지 않는다(화면을 읽어 주는 도구용만) */
 export function FolderMergeModal({
   source,
   target,
@@ -176,31 +186,106 @@ export function FolderMergeModal({
   onConfirm: () => Promise<void>;
 }) {
   const { busy, error, run } = useConfirmAction(onConfirm);
-  const photoCount = source.detail.photoIds.length;
+  const moving = source.detail.photoIds.length;
+  const before = target.detail.photoIds.length;
 
   return (
-    <GalleryModalShell title="다른 컨셉 폴더에 합칠까요?" maxWidthClassName="max-w-105" onClose={onClose}>
-      <p className="mb-3 type-content-m leading-relaxed text-contents-light-bgd-sub">
-        <b className="text-contents-light-bgd-default">{source.detail.name}</b> 폴더를{" "}
-        <b className="text-contents-light-bgd-default">
-          {target.concept.name} › {target.detail.name}
-        </b>{" "}
-        폴더에 합쳐요.{" "}
-        {photoCount > 0 && (
-          <>
-            사진 <b className="text-contents-light-bgd-default">{photoCount}장</b>이 옮겨지고{" "}
-          </>
-        )}
-        <b className="text-contents-light-bgd-default">{source.detail.name}</b> 폴더는 사라져요.
+    <GalleryModalShell title="폴더를 합칠까요?" maxWidthClassName="max-w-105" onClose={onClose}>
+      <p className="sr-only">
+        {source.detail.name} 폴더의 사진 {moving}장이 {target.concept.name}의 {target.detail.name} 폴더로 옮겨지고, {source.detail.name} 폴더는 사라져요.
       </p>
-      <p className="mb-6 type-content-s text-function-error-default">친구가 남긴 하트 · 댓글이 지워져요.</p>
+      <div aria-hidden className="mt-4 mb-6 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
+        <MergeCard concept={source.concept.name} name={source.detail.name} className="border border-dashed border-border-default">
+          {moving}장
+        </MergeCard>
+        <span className="grid w-8 place-items-center self-center text-contents-light-bgd-weakness">
+          <ArrowRightIcon size={20} />
+        </span>
+        <MergeCard concept={target.concept.name} name={target.detail.name} className="bg-brand-secondary-background">
+          {before}장 → <b className="text-contents-light-bgd-default">{before + moving}장</b>
+        </MergeCard>
+      </div>
       <ErrorLine text={error} />
       <GalleryModalButtons
         onClose={onClose}
         onConfirm={() => void run()}
         confirmLabel={busy ? "합치는 중…" : "합치기"}
-        confirmVariant="danger"
         disabled={busy}
+      />
+    </GalleryModalShell>
+  );
+}
+
+/** 폴더 메뉴의 "다른 폴더와 합치기" — 합칠 폴더를 고른다. 이 창의 "합치기"가 확인을 겸한다 */
+export function FolderMergePickModal({
+  source,
+  folders,
+  onClose,
+  onConfirm,
+}: {
+  source: DetailFolderRef;
+  folders: ConceptFolderResponse[];
+  onClose: () => void;
+  onConfirm: (target: DetailFolderRef) => Promise<void>;
+}) {
+  const [target, setTarget] = useState<DetailFolderRef | null>(null);
+  const { busy, error, run } = useConfirmAction(async () => {
+    if (target) await onConfirm(target);
+  });
+
+  return (
+    <GalleryModalShell
+      title="어디에 합칠까요?"
+      desc={`${source.detail.name} · ${source.detail.photoIds.length}장`}
+      maxWidthClassName="max-w-110"
+      onClose={onClose}
+    >
+      <div role="radiogroup" aria-label="합칠 폴더" className="scrollbar-slim mb-5 flex max-h-80 flex-col overflow-y-auto pr-1">
+        {folders.map((concept) => (
+          <div key={concept.id} className="mb-1.5">
+            <p className="px-2 pt-1.5 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">{concept.name}</p>
+            {concept.details.length === 0 && (
+              <p className="px-2 py-1 type-content-xs text-contents-light-bgd-disabled">세부 폴더가 없어요</p>
+            )}
+            {concept.details.map((detail) => {
+              const self = detail.id === source.detail.id;
+              const checked = target?.detail.id === detail.id;
+              return (
+                <button
+                  key={detail.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  disabled={self}
+                  onClick={() => setTarget({ concept, detail })}
+                  className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-disabled disabled:hover:bg-transparent ${
+                    checked ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`grid size-4 shrink-0 place-items-center rounded-full border ${
+                      checked ? "border-contents-light-bgd-default" : "border-border-default"
+                    }`}
+                  >
+                    {checked && <span className="size-2 rounded-full bg-contents-light-bgd-default" />}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{detail.name}</span>
+                  <span className="type-content-xs font-normal text-contents-light-bgd-weakness tabular-nums">
+                    {self ? "이 폴더" : detail.photoIds.length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <ErrorLine text={error} />
+      <GalleryModalButtons
+        onClose={onClose}
+        onConfirm={() => void run()}
+        confirmLabel={busy ? "합치는 중…" : "합치기"}
+        disabled={target === null || busy}
       />
     </GalleryModalShell>
   );

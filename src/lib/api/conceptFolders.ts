@@ -75,22 +75,46 @@ export function deleteDetailFolder(galleryId: number, conceptId: number, detailI
   });
 }
 
+/** 합치기 결과 — mergeId는 되돌릴 때 쓰는 열쇠다 */
+export type MergeDetailFolderResponse = {
+  mergeId: number;
+  /** 합친 뒤의 대상 세부 폴더 */
+  target: DetailFolderResponse;
+};
+
 /**
- * 세부 폴더 합치기 — 원본(`detailId`)의 사진을 모두 대상 세부 폴더로 옮기고 빈 원본을 지운다(organic-agent-server #245).
+ * 세부 폴더 합치기 — 원본(`detailId`)의 사진을 모두 대상 세부 폴더로 옮기고 빈 원본을 숨긴다(organic-agent-server #245 · #249).
  * 합친 사진은 사용자 배정이 되어 AI 폴더를 다시 만들어도 원래 폴더로 돌아가지 않는다.
  * 같은 컨셉 안이면 협업 하트 · 댓글이 남고, **다른 컨셉으로 합치면 원본 컨셉에 남긴 하트 · 댓글이 지워진다**.
- * 같은 폴더끼리는 400 CATEGORY_400_3. 응답은 합친 뒤의 대상 세부 폴더.
+ * 같은 폴더끼리는 400 CATEGORY_400_3. 원본은 지우지 않고 숨겨 두어 3분 안에 undoDetailFolderMerge로 되돌릴 수 있다.
  */
 export function mergeDetailFolder(
   galleryId: number,
   conceptId: number,
   detailId: number,
   targetDetailFolderId: number,
-): Promise<DetailFolderResponse> {
+): Promise<MergeDetailFolderResponse> {
   return api(
     `/api/v1/galleries/${galleryId}/concept-folders/${conceptId}/detail-folders/${detailId}/merge`,
     { method: "POST", body: { targetDetailFolderId } },
   );
+}
+
+export type UndoDetailFolderMergeResponse = {
+  /** 되살아난 원본 세부 폴더 — 원래 id · 순서 · 출처, 돌아온 사진 */
+  source: DetailFolderResponse;
+  /** 사진이 빠진 대상 세부 폴더 */
+  target: DetailFolderResponse;
+};
+
+/**
+ * 합치기 되돌리기 — 숨긴 원본 폴더가 원래 id · 순서 · 출처로 돌아오고, 옮긴 사진이 옮기기 전 배정 그대로 원본으로 돌아간다.
+ * 합친 뒤 3분 안에 한 번만 된다. 다른 컨셉으로 합칠 때 지워진 하트 · 댓글은 돌아오지 않는다.
+ * 실패: 409 CATEGORY_409_4(이미 되돌림) · CATEGORY_409_5(3분 지남) · CATEGORY_409_6(그 사이 사진이 다시 옮겨졌거나
+ * 원본의 컨셉 · 대상 폴더가 사라짐) · 404 CATEGORY_404_3(합치기 기록 없음).
+ */
+export function undoDetailFolderMerge(galleryId: number, mergeId: number): Promise<UndoDetailFolderMergeResponse> {
+  return api(`/api/v1/galleries/${galleryId}/detail-folder-merges/${mergeId}/undo`, { method: "POST" });
 }
 
 /**

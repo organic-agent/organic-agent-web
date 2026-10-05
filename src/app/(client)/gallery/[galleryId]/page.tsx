@@ -289,7 +289,7 @@ export default function ClientGalleryPage() {
     folderOf,
     onMoved: refreshFolders,
   });
-  const folderMerge = useFolderMerge({ galleryId, refreshFolders, setSelection: setFolderSel });
+  const folderMerge = useFolderMerge({ galleryId, folders, selection: folderSel, refreshFolders, setSelection: setFolderSel });
   const anyModalOpen = folderModal !== null || moveOpen || confirmOpen || deletePhotosOpen || folderMerge.modalOpen;
   // ⌘/Ctrl+A — 컨셉 분류에서, 입력란 · 모달이 아닐 때 보고 있는 사진 전부
   useEffect(() => {
@@ -562,6 +562,7 @@ export default function ClientGalleryPage() {
                 }
                 // 사진을 옮길 수 있는 때만 폴더도 합친다
                 onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
+                onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
                 dropping={photoMove.dropping}
                 dropOver={photoMove.dropOver}
                 pendingNote={

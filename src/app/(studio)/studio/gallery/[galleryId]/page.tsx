@@ -594,7 +594,7 @@ export default function StudioGalleryShellPage() {
     folderOf,
     onMoved: refreshFolders,
   });
-  const folderMerge = useFolderMerge({ galleryId, refreshFolders, setSelection: setFolderSel });
+  const folderMerge = useFolderMerge({ galleryId, folders, selection: folderSel, refreshFolders, setSelection: setFolderSel });
   /** 지금 보고 있는 사진 전부 고르기 — 올리는 중인(PENDING) 자리는 제외 */
   const selectAllVisible = useCallback(() => {
     setSelected(new Set(visiblePhotos.filter((p) => p.status === "UPLOADED").map((p) => p.photoId)));
@@ -1025,6 +1025,7 @@ export default function StudioGalleryShellPage() {
               }
               // 사진을 옮길 수 있는 때만 폴더도 합친다
               onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
+              onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
               dropping={photoMove.dropping}
               dropOver={photoMove.dropOver}
               pendingNote={

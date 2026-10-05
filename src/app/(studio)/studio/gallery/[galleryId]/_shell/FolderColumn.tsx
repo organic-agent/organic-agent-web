@@ -7,7 +7,7 @@
  * 어느 폴더에도 없는 사진은 맨 아래 "미분류". "검토" 배지와 검토 완료 메뉴는 없앴다(2차 QA — 폴더 단위라 어떤 사진이
  * 왜 문제인지 알 수 없었다. 서버의 needsReview 값은 그대로 오지만 읽지 않는다).
  * 편집(1단계 보드 확정): 머리의 "컨셉 폴더 추가", 행에 마우스를 올리면 숫자 자리에 케밥 —
- * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 폴더 삭제.
+ * 컨셉: 세부 폴더 추가 · 폴더 삭제 / 세부: 다른 폴더와 합치기 · 폴더 삭제.
  * 이름 바꾸기는 서버 API가 없어 두지 않는다(백엔드 요청 항목). 편집 핸들러를 안 주면 읽기 전용이다.
  * 맨 위 "모든 사진" 행으로 폴더에서 빠져나오고, 컨셉 이름을 누르면 그 컨셉의 사진 전체를 본다(2026-09-11 피드백).
  * 사진을 끌고 오면(dropping) 놓을 수 있는 곳(세부 폴더 · 미분류, 지금 보고 있는 폴더는 빼고)만 점선으로 남고
@@ -16,6 +16,7 @@
  * 옮길 수 없다는 것이 드러나지 않았다(2차 QA).
  * 세부 폴더 합치기(#97): onMergeDetail을 주면 세부 폴더 행을 6px 넘게 끌어 다른 세부 폴더 위에 놓을 수 있다.
  * 끄는 동안은 사진 끌기와 같은 모양(다른 세부 폴더만 점선, 나머지 흐림)이고, Esc로 그만둔다. 합칠지 묻는 것은 쓰는 쪽 몫.
+ * onPickMerge를 주면 세부 폴더 메뉴에 "다른 폴더와 합치기"가 생긴다 — 멀리 끌기 어렵거나 키보드로 쓸 때의 길이다(#88).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +26,7 @@ import {
   FolderIcon,
   FolderOffIcon,
   MoreVertIcon,
+  MoveToFolderIcon,
   PhotoIcon,
   TrashIcon,
 } from "@/components/icons";
@@ -103,6 +105,7 @@ export function FolderColumn({
   onDeleteConcept,
   onDeleteDetail,
   onMergeDetail,
+  onPickMerge,
   dropping = false,
   dropOver = null,
 }: {
@@ -120,6 +123,8 @@ export function FolderColumn({
   onDeleteDetail?: (concept: ConceptFolderResponse, detail: DetailFolderResponse) => void;
   /** 세부 폴더를 다른 세부 폴더 위에 끌어 놓았다 — 없으면 세부 폴더를 끌 수 없다 */
   onMergeDetail?: (source: DetailFolderRef, target: DetailFolderRef) => void;
+  /** 세부 폴더 메뉴의 "다른 폴더와 합치기" — 합칠 폴더는 쓰는 쪽이 묻는다 */
+  onPickMerge?: (source: DetailFolderRef) => void;
   /** 사진을 끌고 오는 중 — 놓을 수 있는 곳만 또렷하게 */
   dropping?: boolean;
   /** 지금 올라와 있는 곳 */
@@ -128,7 +133,7 @@ export function FolderColumn({
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const editable = Boolean(onCreateDetail || onDeleteConcept || onDeleteDetail);
+  const editable = Boolean(onCreateDetail || onDeleteConcept || onDeleteDetail || onPickMerge);
 
   // ── 세부 폴더 끌어 합치기 ──
   const canMerge = Boolean(onMergeDetail);
@@ -334,7 +339,7 @@ export function FolderColumn({
       <div
         ref={menuRef}
         role="menu"
-        className="absolute top-full right-1 z-20 mt-0.5 flex w-40 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover)"
+        className="absolute top-full right-1 z-20 mt-0.5 flex w-45 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover)"
       >
         {target.kind === "concept" && onCreateDetail && (
           <button
@@ -350,6 +355,22 @@ export function FolderColumn({
               <CreateFolderIcon size={16} />
             </span>
             세부 폴더 추가
+          </button>
+        )}
+        {target.kind === "detail" && onPickMerge && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenu(null);
+              onPickMerge({ concept: target.concept, detail: target.detail });
+            }}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
+          >
+            <span className="flex text-contents-light-bgd-sub">
+              <MoveToFolderIcon size={16} />
+            </span>
+            다른 폴더와 합치기
           </button>
         )}
         {((target.kind === "concept" && onDeleteConcept) || (target.kind === "detail" && onDeleteDetail)) && (
