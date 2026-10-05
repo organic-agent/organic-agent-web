@@ -7,6 +7,7 @@
  * 하단 컨트롤: 이전 | [middle] | 축소 · 확대 | 탭 아이콘들 | 다음 — 이전 · 다음은 줄의 양 끝에 둔다. 가운데 칸(middle)은 화면이 채운다 —
  * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진과 패널이 사이를 띄우고 나란히 서고(둘 다 네 모서리 둥글게),
  * 닫으면 사진이 가운데 가득. 패널은 패널 머리의 X · 같은 탭 아이콘 · Esc로 닫는다(컨트롤 줄에는 닫기 버튼을 두지 않는다).
+ * 탭 버튼 위에는 수를 얹을 수 있고(badge), 열 것이 없는 탭(empty)은 흐리게 두고 누르면 스낵바로만 알린다.
  * 확대(zoom을 준 화면만, 이슈 88): 사진 더블클릭은 2배 ↔ 원래 크기, 휠은 1~4배, 컨트롤 줄의 축소 · 확대와 + · − 키는
  * 한 단계씩. 확대한 채 끌어서 옮기고, 사진을 넘기면 풀린다. 확대하는 순간 원본 주소로 큰 사진을 받아 미리보기 위에 얹는다
  * (받는 동안 스낵바로 알린다). 사진을 누르는 것이 점 찍기인 동안(onPhotoClick)은 더블클릭 확대를 끈다.
@@ -25,7 +26,15 @@ import { useLightboxZoom } from "@/components/app/useLightboxZoom";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ZoomInIcon, ZoomOutIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
-export type LightboxTabDef = { key: string; label: string; icon: ReactNode };
+export type LightboxTabDef = {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  /** 버튼 위에 얹는 수(게스트 좋아요 수 등). 0이나 없음이면 안 그린다 */
+  badge?: number;
+  /** 지금은 열 것이 없는 패널 — 버튼을 흐리게 하고, 누르면 패널 대신 이 문구를 스낵바로 띄운다 */
+  empty?: string;
+};
 
 export type LightboxZoom = {
   /** 확대할 때 바꿔 끼울 큰 사진의 주소를 받아 온다. 쓸 수 없으면 null — 미리보기를 그대로 확대한다 */
@@ -186,7 +195,7 @@ export function Lightbox({
     };
   }, []);
 
-  /** 처음 · 끝에서 더 넘기려 할 때의 알림 — 누를 때마다 새 값이라 시간이 다시 잡힌다 */
+  /** 잠깐 띄우는 알림(처음 · 끝에서 더 넘기려 할 때, 열 것이 없는 탭을 눌렀을 때) — 누를 때마다 새 값이라 시간이 다시 잡힌다 */
   const [edge, setEdge] = useState<{ text: string } | null>(null);
   useEffect(() => {
     if (!edge) return;
@@ -366,7 +375,17 @@ export function Lightbox({
                 <Sep />
                 <div className="flex items-center gap-0.5" role="tablist" aria-label="패널">
                   {tabs.map((t) => (
-                    <CtlButton key={t.key} label={t.label} pressed={tab === t.key} onClick={() => onTabChange(tab === t.key ? "none" : t.key)}>
+                    <CtlButton
+                      key={t.key}
+                      label={t.label}
+                      pressed={tab === t.key}
+                      faded={t.empty !== undefined}
+                      badge={t.badge}
+                      onClick={() => {
+                        if (t.empty !== undefined) setEdge({ text: t.empty });
+                        else onTabChange(tab === t.key ? "none" : t.key);
+                      }}
+                    >
                       {t.icon}
                     </CtlButton>
                   ))}
@@ -411,12 +430,18 @@ export function CtlButton({
   label,
   pressed = false,
   disabled = false,
+  faded = false,
+  badge,
   onClick,
   children,
 }: {
   label: string;
   pressed?: boolean;
   disabled?: boolean;
+  /** 흐리게 보이지만 누를 수는 있다 — 눌렀을 때 까닭을 알려 주는 버튼 */
+  faded?: boolean;
+  /** 버튼 오른쪽 위에 얹는 수 */
+  badge?: number;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -426,13 +451,23 @@ export function CtlButton({
       aria-label={label}
       title={label}
       aria-pressed={pressed || undefined}
+      aria-disabled={faded || undefined}
       disabled={disabled}
       onClick={onClick}
-      className={`grid size-8 cursor-pointer place-items-center rounded-(--radius-8) text-white transition-colors duration-fast hover:bg-white/15 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent ${
+      className={`relative grid size-8 cursor-pointer place-items-center rounded-(--radius-8) text-white transition-colors duration-fast hover:bg-white/15 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent ${
         pressed ? "bg-white/22" : ""
       }`}
     >
-      {children}
+      <span className={`grid place-items-center ${faded ? "opacity-35" : ""}`}>{children}</span>
+      {badge !== undefined && badge > 0 && (
+        // 16px 안에 넣으려고 타이포 토큰에 없는 10px을 쓴다(알림 벨의 수와 같은 크기)
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-0.75 -right-1.5 grid h-3.75 min-w-3.75 place-items-center rounded-(--pill) bg-brand-secondary-default px-0.75 text-[10px] leading-none font-semibold text-white tabular-nums"
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </button>
   );
 }

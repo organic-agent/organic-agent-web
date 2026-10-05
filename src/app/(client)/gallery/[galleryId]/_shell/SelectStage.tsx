@@ -51,15 +51,17 @@ import { countView, takeRateKeysHint } from "./clientMemory";
 import type { ClientPhase } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
+import { GuestReactionPanel } from "./GuestReactionPanel";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { useAiRecommendations } from "./useAiRecommendations";
+import { reactionGroupsOf } from "./useGuestReactions";
 import { useGuestSharing } from "./useGuestSharing";
 import { useSelectionSync } from "./useSelectionSync";
 
-type LightboxTab = "none" | "info" | "memo";
+type LightboxTab = "none" | "info" | "memo" | "guest";
 const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
@@ -374,6 +376,21 @@ export function SelectStage({
   );
   const currentIndex = currentId === null ? -1 : navPhotos.findIndex((p) => p.photoId === currentId);
   const currentPhoto = currentIndex >= 0 ? navPhotos[currentIndex] : null;
+  // 싱글뷰 "게스트 반응" 패널(이슈 88) — 버튼은 게스트 링크를 만들기 전에도 늘 있고, 버튼 위에 이 사진의 좋아요 수를 얹는다.
+  // 반응이 없는 사진에서는 패널을 열지 않는다: 버튼을 흐리게 두고 누르면 스낵바로만 알린다. 패널을 연 채 그런 사진으로
+  // 넘어가면 패널이 잠시 닫히고, 반응이 있는 사진으로 오면 다시 열린다.
+  const guestGroups = currentPhoto ? reactionGroupsOf(sharing.reactions, currentPhoto.photoId) : [];
+  const lightboxTabs: LightboxTabDef[] = [
+    ...LIGHTBOX_TABS,
+    {
+      key: "guest",
+      label: "게스트 반응",
+      icon: <GroupIcon size={18} />,
+      badge: guestGroups.reduce((n, g) => n + g.likes, 0),
+      empty: guestGroups.length === 0 ? "아직 반응이 없어요" : undefined,
+    },
+  ];
+  const shownTab: LightboxTab = tab === "guest" && guestGroups.length === 0 ? "none" : tab;
   function openPhoto(photoId: number) {
     setNavIds(displayPhotos.map((p) => p.photoId));
     setCurrentId(photoId);
@@ -844,8 +861,8 @@ export function SelectStage({
           index={currentIndex}
           total={navPhotos.length}
           caption={folderNameOf(currentPhoto)}
-          tab={tab}
-          tabs={LIGHTBOX_TABS}
+          tab={shownTab}
+          tabs={lightboxTabs}
           onImageError={onPhotoUrlError}
           zoom={{ loadOriginal: (target) => loadOriginalUrl(galleryId, target) }}
           notice={rateError ? { kind: "error", text: rateError.text } : null}
@@ -884,7 +901,9 @@ export function SelectStage({
           }
           onPhotoClick={tab === "memo" && editable ? (x, y) => addPoint(currentPhoto.photoId, x, y) : undefined}
           panel={
-            tab === "info" ? (
+            shownTab === "guest" ? (
+              <GuestReactionPanel galleryId={galleryId} photoId={currentPhoto.photoId} groups={guestGroups} />
+            ) : shownTab === "info" ? (
               <PhotoInfoPanel
                 galleryId={galleryId}
                 photo={currentPhoto}
