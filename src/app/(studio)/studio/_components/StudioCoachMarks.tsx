@@ -22,21 +22,18 @@ const STEPS: ReadonlyArray<CoachStep> = [
     eyebrow: "필터",
     title: "단계별로 모아 보기",
     body: "업로드부터 전달까지 단계별로 골라 보고, 보관한 갤러리도 여기서 찾아요.",
-    round: true,
   },
   {
     key: "bell",
     eyebrow: "알림",
     title: "클라이언트 활동 알림",
     body: "사진을 고르거나 보정을 요청하면 여기로 알려 드려요.",
-    round: true,
   },
   {
     key: "invite",
     eyebrow: "초대",
     title: "함께 일하는 작가 초대",
     body: "초대 링크로 함께 일하는 작가를 스튜디오에 불러요.",
-    round: true,
   },
 ];
 

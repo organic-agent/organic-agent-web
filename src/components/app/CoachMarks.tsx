@@ -6,9 +6,15 @@
  *
  * 스튜디오 홈(4단계)과 클라이언트 컨셉 분류(5단계)가 같이 쓴다. 한 번만 자동 재생하고 다시 보기는
  * 없다 — 끝내거나 건너뛰면 localStorage(storeKey)에 기록한다. 대상은 data-coach 속성으로 찾고,
- * 화면에 없는 대상은 건너뛴다. 말풍선 자리는 아래 → 위 → 오른쪽 → 왼쪽 순으로 들어가는 곳을 고르고,
- * 어디에도 자리가 없으면(폴더 열·그리드처럼 화면만큼 큰 대상) 대상 안쪽 왼쪽 위에 화살표 없이 둔다.
- * 말풍선 높이는 그려진 뒤 실제 크기를 재서 쓴다(처음 한 프레임만 추정값).
+ * 화면에 없는 대상은 건너뛴다.
+ *
+ * 구멍은 대상에 맞춘다: 자리 · 크기는 대상에서 화면에 보이는 부분보다 사방 4px 크게, 둥글기는 대상의
+ * 모서리에서 읽는다. 떠 있는 동안 프레임마다 다시 잰다 — 사진이 늦게 떠서 자리만 밀리는 경우는 창
+ * 크기 · 스크롤 이벤트로도, 크기 감시로도 잡히지 않는다.
+ *
+ * 말풍선 자리는 아래 → 위 → 오른쪽 → 왼쪽 순으로 들어가는 곳을 고르고, 어디에도 자리가 없으면(폴더
+ * 열·그리드처럼 화면만큼 큰 대상) 대상 안쪽 왼쪽 위에 화살표 없이 둔다. 말풍선 높이는 그려진 뒤 실제
+ * 크기를 재서 쓴다(처음 한 프레임만 추정값).
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -23,11 +29,9 @@ export type CoachStep = {
   eyebrow: string;
   title: string;
   body: string;
-  /** 둥근 대상(아이콘 버튼)이면 구멍도 둥글게 */
-  round?: boolean;
 };
 
-type Box = { left: number; top: number; width: number; height: number };
+type Hole = { left: number; top: number; width: number; height: number; radius: string };
 type Placement = "below" | "above" | "right" | "left" | "inside";
 
 const BUBBLE_WIDTH = 300;
@@ -37,6 +41,12 @@ const MARGIN = 12;
 const BUBBLE_HEIGHT = 180;
 /** 화살표가 말풍선 모서리에 닿지 않게 하는 최소 간격 */
 const ARROW_INSET = 22;
+/** 구멍이 대상보다 바깥으로 나가는 여백 */
+const HOLE_PAD = 4;
+/** 화면 가장자리에 붙은 대상 — 구멍이 화면 밖으로 나가는 쪽만 이만큼 안으로 들여, 둥근 모서리가 잘리지 않게 한다 */
+const VIEW_INSET = 6;
+/** 모서리가 각진 대상(폴더 열 · 사진 영역)에 주는 둥글기 */
+const SQUARE_RADIUS = 8;
 
 const stores = new Map<string, LocalStore<boolean>>();
 function storeFor(key: string) {
@@ -57,6 +67,104 @@ const ARROW_CLASS: Record<Exclude<Placement, "inside">, string> = {
   left: "-right-1.5 border-t border-r",
 };
 
+/** data-coach 값으로 대상을 찾는다 — 같은 값이 여럿이면 화면에 그려진 것(숨긴 쪽은 건너뜀) */
+function findTarget(key: string) {
+  for (const el of document.querySelectorAll<HTMLElement>(`[data-coach="${key}"]`)) {
+    if (el.getClientRects().length > 0) return el;
+  }
+  return null;
+}
+
+const CORNERS = ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"] as const;
+
+/**
+ * 둥글기를 읽을 요소 — 대상이 모양 없는 포장(버튼을 감싼 span · div)이면 그 안을 꽉 채운 자식으로 내려간다.
+ * 알림 배지처럼 작게 얹힌 자식은 세지 않는다.
+ */
+function shapeOf(el: HTMLElement) {
+  let node = el;
+  for (let depth = 0; depth < 4; depth += 1) {
+    const style = getComputedStyle(node);
+    if (CORNERS.some((corner) => style[corner] !== "0px") || node.childElementCount > 4) break;
+    const box = node.getBoundingClientRect();
+    const fills = Array.from(node.children).filter((child) => {
+      const r = child.getBoundingClientRect();
+      return Math.abs(r.width - box.width) <= 1 && Math.abs(r.height - box.height) <= 1;
+    });
+    if (fills.length !== 1) break;
+    node = fills[0] as HTMLElement;
+  }
+  return node;
+}
+
+/** 계산된 border-radius의 한 모서리 값(px · % · 무한대)을 px로 — 짧은 변의 절반을 넘지 않게 */
+function cornerRadius(value: string, short: number) {
+  const first = value.trim().split(" ")[0];
+  if (first.includes("infinity")) return short / 2;
+  const size = parseFloat(first) || 0;
+  return Math.min(first.endsWith("%") ? (size / 100) * short : size, short / 2);
+}
+
+/**
+ * 대상에 꼭 맞는 구멍을 잰다 — 대상보다 사방 HOLE_PAD만큼 크게. 스크롤 영역에 잘린 쪽은 그 경계에서
+ * 끊고(여백 없이), 화면 밖으로 나가는 쪽은 VIEW_INSET만큼 안으로 들인다. 화면에 보이는 부분이 없으면 null.
+ */
+function measureHole(el: HTMLElement): Hole | null {
+  const rect = el.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  let { left, top, right, bottom } = rect;
+  const pad = { left: HOLE_PAD, top: HOLE_PAD, right: HOLE_PAD, bottom: HOLE_PAD };
+  for (let node = el; node.parentElement && node.parentElement !== document.body; node = node.parentElement) {
+    // 화면에 고정된 것(크게 보기 등)은 바깥 스크롤 영역에 잘리지 않는다
+    if (getComputedStyle(node).position === "fixed") break;
+    const parent = node.parentElement;
+    const { overflowX, overflowY } = getComputedStyle(parent);
+    if (overflowX === "visible" && overflowY === "visible") continue;
+    const box = parent.getBoundingClientRect();
+    if (overflowX !== "visible") {
+      const start = box.left + parent.clientLeft;
+      const end = start + parent.clientWidth;
+      if (start > left) {
+        left = start;
+        pad.left = 0;
+      }
+      if (end < right) {
+        right = end;
+        pad.right = 0;
+      }
+    }
+    if (overflowY !== "visible") {
+      const start = box.top + parent.clientTop;
+      const end = start + parent.clientHeight;
+      if (start > top) {
+        top = start;
+        pad.top = 0;
+      }
+      if (end < bottom) {
+        bottom = end;
+        pad.bottom = 0;
+      }
+    }
+  }
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const x1 = left - pad.left <= 0 ? VIEW_INSET : left - pad.left;
+  const y1 = top - pad.top <= 0 ? VIEW_INSET : top - pad.top;
+  const x2 = right + pad.right >= vw ? vw - VIEW_INSET : right + pad.right;
+  const y2 = bottom + pad.bottom >= vh ? vh - VIEW_INSET : bottom + pad.bottom;
+  if (x2 <= x1 || y2 <= y1) return null;
+
+  const shape = shapeOf(el);
+  const style = getComputedStyle(shape);
+  const shapeBox = shape.getBoundingClientRect();
+  const short = Math.min(shapeBox.width, shapeBox.height);
+  const radius = CORNERS.map((corner) => `${(cornerRadius(style[corner], short) || SQUARE_RADIUS) + HOLE_PAD}px`).join(" ");
+  return { left: x1, top: y1, width: x2 - x1, height: y2 - y1, radius };
+}
+
+const sameHole = (a: Hole, b: Hole) =>
+  a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height && a.radius === b.radius;
+
 export function CoachMarks({
   steps,
   storeKey,
@@ -71,56 +179,54 @@ export function CoachMarks({
   const doneStore = useMemo(() => storeFor(storeKey), [storeKey]);
   const done = useSyncExternalStore(doneStore.subscribe, doneStore.get, doneStore.getServerSnapshot);
   const [index, setIndex] = useState(0);
-  const [box, setBox] = useState<Box | null>(null);
+  /** 잰 구멍 — 어느 단계의 것인지 함께 둬서, 단계가 바뀐 첫 프레임에 앞 단계의 자리가 쓰이지 않게 한다 */
+  const [measured, setMeasured] = useState<{ index: number; hole: Hole } | null>(null);
   const [bubbleHeight, setBubbleHeight] = useState(BUBBLE_HEIGHT);
   const active = ready && !done && index < steps.length;
   const step = steps[index];
+  const targetKey = active ? (step.target ?? step.key) : null;
 
-  // 대상 위치 측정 — 창 크기·스크롤이 바뀌면 다시 잰다. 없는 대상은 건너뛴다.
+  // 대상을 따라간다 — 처음부터 없는 대상은 건너뛰고, 있다가 사라지면(다시 그려지는 중) 숨긴 채 기다린다
   useEffect(() => {
-    if (!active) return;
+    if (targetKey === null) return;
     let frame = 0;
-    const measure = () => {
-      const el = document.querySelector<HTMLElement>(`[data-coach="${step.target ?? step.key}"]`);
-      frame = requestAnimationFrame(() => {
-        if (!el) {
-          if (index === steps.length - 1) doneStore.set(true);
-          else setIndex((i) => i + 1);
-          return;
-        }
+    let seen = false;
+    const tick = () => {
+      const el = findTarget(targetKey);
+      if (!el && !seen) {
+        if (index === steps.length - 1) doneStore.set(true);
+        else setIndex((i) => i + 1);
+        return;
+      }
+      if (el && !seen) {
+        seen = true;
         el.scrollIntoView({ block: "nearest" });
-        const r = el.getBoundingClientRect();
-        setBox({ left: r.left, top: r.top, width: r.width, height: r.height });
+      }
+      const next = el ? measureHole(el) : null;
+      setMeasured((prev) => {
+        if (!next) return null;
+        return prev && prev.index === index && sameHole(prev.hole, next) ? prev : { index, hole: next };
       });
+      frame = requestAnimationFrame(tick);
     };
-    measure();
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
-    };
-  }, [active, step, index, steps.length, doneStore]);
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [targetKey, index, steps.length, doneStore]);
+
+  const hole = measured && measured.index === index ? measured.hole : null;
+  const shown = active && hole !== null;
 
   useEffect(() => {
-    if (!active) return;
+    if (!shown) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") doneStore.set(true);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [active, doneStore]);
+  }, [shown, doneStore]);
 
-  if (!active || !box) return null;
+  if (!active || !hole) return null;
 
-  const pad = step.round ? 4 : 6;
-  const hole = {
-    left: box.left - pad,
-    top: box.top - pad,
-    width: box.width + pad * 2,
-    height: box.height + pad * 2,
-  };
   const holeRight = hole.left + hole.width;
   const holeBottom = hole.top + hole.height;
   const vw = window.innerWidth;
@@ -180,10 +286,8 @@ export function CoachMarks({
     <>
       <div
         aria-hidden
-        className={`pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)] ${
-          step.round ? "rounded-full" : "rounded-(--radius-16)"
-        }`}
-        style={hole}
+        className="pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)]"
+        style={{ left: hole.left, top: hole.top, width: hole.width, height: hole.height, borderRadius: hole.radius }}
       />
       <div
         ref={(el) => {
