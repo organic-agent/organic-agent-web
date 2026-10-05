@@ -235,7 +235,7 @@ test("cancel while JSZip writes entries rejects instead of returning an archive"
     return generate.call(this, options, (metadata) => {
       updates++;
       controller.abort();
-      onUpdate(metadata);
+      onUpdate?.(metadata);
     });
   };
   globalThis.fetch = async () => new Response(jpeg);

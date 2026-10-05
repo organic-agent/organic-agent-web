@@ -59,7 +59,8 @@ export async function buildRetouchZip(
   }
   if (missing.length > 0) throw new RetouchZipError(`${missing.length}장의 사진을 받지 못했어요. 화면을 새로 고친 뒤 다시 시도해 주세요 (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? " …" : ""})`);
   signal?.throwIfAborted();
-  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, () => signal?.throwIfAborted());
+  // JSZip 진행 콜백에서 던진 예외는 Promise 밖으로 나갈 수 있다. 생성 후 취소를 확인해 저장을 막는다.
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
   signal?.throwIfAborted();
   return blob;
 }
