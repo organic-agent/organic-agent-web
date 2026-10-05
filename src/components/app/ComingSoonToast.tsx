@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Snackbar } from "@/components/app/Snackbar";
 
 export function useComingSoonToast() {
   const [visible, setVisible] = useState(false);
@@ -24,14 +25,10 @@ export function useComingSoonToast() {
 
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
-  // 스타일은 GalleryCreatedToast와 동일한 문법 (하단 중앙 검정 pill)
   const comingSoonToast = visible ? (
-    <div
-      role="status"
-      className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2 rounded-(--pill) border border-surface-inverse-medium bg-background-inverse-main px-5 py-3 type-label-medium-m text-contents-dark-bgd-default shadow-(--shadow-hover)"
-    >
+    <Snackbar kind="info" className="fixed bottom-8 left-1/2 z-200 -translate-x-1/2">
       아직 준비 중이에요
-    </div>
+    </Snackbar>
   ) : null;
 
   return { showComingSoon, comingSoonToast };
