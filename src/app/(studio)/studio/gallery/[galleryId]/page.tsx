@@ -42,7 +42,10 @@ import {
   deleteDetailFolder,
   listConceptFolders,
   moveCategoryPhotos,
+  renameConceptFolder,
+  renameDetailFolder,
   type ConceptFolderResponse,
+  type DetailFolderResponse,
 } from "@/lib/api/conceptFolders";
 import {
   getGallery,
@@ -155,6 +158,8 @@ export default function StudioGalleryShellPage() {
     | { kind: "createConcept" }
     | { kind: "createDetail"; concept: ConceptFolderResponse }
     | { kind: "delete"; target: FolderDeleteTarget }
+    | { kind: "renameConcept"; concept: ConceptFolderResponse }
+    | { kind: "renameDetail"; concept: ConceptFolderResponse; detail: DetailFolderResponse }
     | null
   >(null);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -415,11 +420,13 @@ export default function StudioGalleryShellPage() {
     if (match.resume.length === 0 && match.fresh.length === 0) return;
     void startUpload(match.fresh, match.resume);
   }
-  // ── 검토 동작 — 폴더 만들기 · 삭제 · 사진 이동 · 사진 삭제 (서버는 본문 없이 끝나므로 다시 조회) ──
+  // ── 검토 동작 — 폴더 만들기 · 이름 바꾸기 · 삭제 · 사진 이동 · 사진 삭제 (서버는 본문 없이 끝나므로 다시 조회) ──
   async function submitFolderName(name: string) {
     if (!folderModal || folderModal.kind === "delete") return;
     if (folderModal.kind === "createConcept") await createConceptFolder(galleryId, name);
-    else await createDetailFolder(galleryId, folderModal.concept.id, name);
+    else if (folderModal.kind === "createDetail") await createDetailFolder(galleryId, folderModal.concept.id, name);
+    else if (folderModal.kind === "renameConcept") await renameConceptFolder(galleryId, folderModal.concept.id, name);
+    else await renameDetailFolder(galleryId, folderModal.concept.id, folderModal.detail.id, name);
     await refreshFolders();
     setFolderModal(null);
   }
@@ -1047,6 +1054,8 @@ export default function StudioGalleryShellPage() {
                 onSelect={changeFolder}
                 onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
                 onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
+                onRenameConcept={(concept) => setFolderModal({ kind: "renameConcept", concept })}
+                onRenameDetail={(concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail })}
                 onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
                 onDeleteDetail={(concept, detail) =>
                   setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
@@ -1197,8 +1206,15 @@ export default function StudioGalleryShellPage() {
 
       {folderModal && folderModal.kind !== "delete" && (
         <FolderNameModal
-          kind={folderModal.kind === "createConcept" ? "concept" : "detail"}
+          kind={folderModal.kind === "createConcept" || folderModal.kind === "renameConcept" ? "concept" : "detail"}
           parentName={folderModal.kind === "createDetail" ? folderModal.concept.name : undefined}
+          currentName={
+            folderModal.kind === "renameConcept"
+              ? folderModal.concept.name
+              : folderModal.kind === "renameDetail"
+                ? folderModal.detail.name
+                : undefined
+          }
           onClose={() => setFolderModal(null)}
           onSubmit={submitFolderName}
         />
