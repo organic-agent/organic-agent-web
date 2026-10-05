@@ -8,12 +8,14 @@
  * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진과 패널이 사이를 띄우고 나란히 서고(둘 다 네 모서리 둥글게),
  * 닫으면 사진이 가운데 가득.
  * 키보드: ← → 넘기기, Esc는 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다. 그 밖의 키는 onKeyDown으로 넘긴다.
+ * 처음 · 끝에서는 돌아가지 않고 멈추며 스낵바로 알린다("마지막 사진이에요").
  * 열려 있는 동안 키보드 초점은 싱글뷰가 갖고(Tab도 안에서 돈다) 닫히면 연 곳으로 돌려준다 — 초점이 뒤의 그리드 타일에 남으면
  * Space · Enter가 그 타일을 다시 눌러 처음 연 사진으로 되돌아갔다(2차 QA). 위에 다른 모달이 떠 있으면 키를 받지 않는다.
  * 사진 · 컨트롤 · 패널 밖의 빈 곳을 누르면 닫힌다. 사진 위 오버레이(점)와 사진 클릭 좌표는 부모가 다룬다.
  */
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Snackbar } from "@/components/app/Snackbar";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -114,6 +116,26 @@ export function Lightbox({
     };
   }, []);
 
+  /** 처음 · 끝에서 더 넘기려 할 때의 알림 — 누를 때마다 새 값이라 시간이 다시 잡힌다 */
+  const [edge, setEdge] = useState<{ text: string } | null>(null);
+  useEffect(() => {
+    if (!edge) return;
+    const timer = window.setTimeout(() => setEdge(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [edge]);
+  const go = useCallback(
+    (delta: -1 | 1) => {
+      if (delta < 0 ? index <= 0 : index >= total - 1) {
+        setEdge({ text: delta < 0 ? "첫 번째 사진이에요" : "마지막 사진이에요" });
+        return;
+      }
+      setEdge(null);
+      if (delta < 0) onPrev();
+      else onNext();
+    },
+    [index, total, onPrev, onNext],
+  );
+
   useEffect(() => {
     function handle(e: KeyboardEvent) {
       const root = rootRef.current;
@@ -127,13 +149,13 @@ export function Lightbox({
         e.preventDefault();
         if (open) onTabChange("none");
         else onClose();
-      } else if (e.key === "ArrowLeft") onPrev();
-      else if (e.key === "ArrowRight") onNext();
+      } else if (e.key === "ArrowLeft") go(-1);
+      else if (e.key === "ArrowRight") go(1);
       else onKeyDown?.(e);
     }
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [open, onClose, onPrev, onNext, onTabChange, onKeyDown]);
+  }, [open, onClose, go, onTabChange, onKeyDown]);
 
   const title = tabs.find((t) => t.key === tab)?.label ?? "";
   const closeOnSelf = (e: React.MouseEvent) => {
@@ -197,9 +219,15 @@ export function Lightbox({
             </button>
           )}
 
+          {edge && (
+            <Snackbar kind="info" className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
+              {edge.text}
+            </Snackbar>
+          )}
+
           {/* 하단 컨트롤 한 줄 */}
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-black/80 px-2 py-1.5 text-white shadow-(--shadow-modal)">
-            <CtlButton label="이전" onClick={onPrev}>
+            <CtlButton label="이전" onClick={() => go(-1)}>
               <ChevronLeftIcon size={20} />
             </CtlButton>
             {middle && (
@@ -209,7 +237,7 @@ export function Lightbox({
               </>
             )}
             <Sep />
-            <CtlButton label="다음" onClick={onNext}>
+            <CtlButton label="다음" onClick={() => go(1)}>
               <ChevronRightIcon size={20} />
             </CtlButton>
             <Sep />
