@@ -34,6 +34,7 @@ export class ApiError extends Error {
 }
 
 type ApiOptions = {
+  signal?: AbortSignal;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** JSON으로 직렬화되어 전송된다. */
   body?: unknown;
@@ -56,7 +57,8 @@ async function toApiError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, code, message);
 }
 
-async function request<T>(path: string, options: ApiOptions): Promise<T> {
+async function request(path: string, options: ApiOptions): Promise<Response> {
+  options.signal?.throwIfAborted();
   const { method = "GET", body, auth = true } = options;
 
   const headers: Record<string, string> = { ...options.headers };
@@ -68,21 +70,21 @@ async function request<T>(path: string, options: ApiOptions): Promise<T> {
 
   const res = await fetch(`${baseUrl()}${path}`, {
     method,
+    signal: options.signal,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   if (!res.ok) throw await toApiError(res);
 
-  // 204나 빈 바디를 json()으로 읽으면 터진다. 텍스트로 받아 있을 때만 파싱한다.
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return res;
 }
 
-export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+async function authorizedResponse(path: string, options: ApiOptions): Promise<Response> {
   try {
-    return await request<T>(path, options);
+    return await request(path, options);
   } catch (err) {
+    options.signal?.throwIfAborted();
     // 재발급이 의미 있는 경우는 딱 하나 — 인증 요청이 "만료"로 거부됐을 때.
     // 위조(AUTH_401_2)·토큰 없음(AUTHZ_401_1) 등은 재발급으로 해결되지 않는다.
     const expired =
@@ -95,6 +97,19 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     if ((await refreshTokens()) !== "refreshed") throw err;
 
     // 딱 1회 재시도. 여기서 또 만료가 나와도 그대로 던져진다 — 루프 차단.
-    return request<T>(path, options);
+    return request(path, options);
   }
+}
+
+export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const res = await authorizedResponse(path, options);
+  // 204나 빈 바디를 json()으로 읽으면 터진다. 텍스트로 받아 있을 때만 파싱한다.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/** PDF 등 바이너리도 같은 Bearer 인증 · 만료 재발급 · 에러 처리를 사용한다. */
+export async function apiBlob(path: string, options: ApiOptions = {}): Promise<Blob> {
+  const res = await authorizedResponse(path, options);
+  return res.blob();
 }

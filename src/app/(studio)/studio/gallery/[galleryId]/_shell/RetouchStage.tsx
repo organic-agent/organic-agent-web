@@ -500,7 +500,7 @@ export function RetouchStage({
       />
 
       {modal === "download" && activeRoundNo !== null && (
-        <RetouchDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setModal(null)} />
+        <RetouchDownloadModal galleryId={galleryId} galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setModal(null)} />
       )}
 
       {modal === "send" && activeRoundNo !== null && (
