@@ -13,6 +13,9 @@
  * 모서리에서 읽는다. 떠 있는 동안 프레임마다 다시 잰다 — 사진이 늦게 떠서 자리만 밀리는 경우는 창
  * 크기 · 스크롤 이벤트로도, 크기 감시로도 잡히지 않는다.
  *
+ * 단계를 넘기면 다음 대상을 잴 때까지 앞 단계를 그대로 둔다. 그 사이에 걷어 내면 화면 전체를 덮은 어두운
+ * 배경이 빠졌다 다시 깔려 화면이 깜빡인다.
+ *
  * 크게 보기처럼 다른 창 위에 띄울 때는 modal을 준다 — 뒤 화면이 눌리지 않게 막고(어두운 곳을 눌러 크게 보기가
  * 닫히는 일이 없게), 말풍선이 aria-modal 대화상자가 되어 크게 보기의 단축키가 쉬고, 초점이 말풍선 안에 머문다.
  * onDark는 이미 어두운 화면에서 구멍이 눈에 띄게 둘레에 밝은 테두리를 두른다.
@@ -201,7 +204,7 @@ export function CoachMarks({
   const doneStore = useMemo(() => (userId === null ? SIGNED_OUT : storeFor(`${storeKey}.${userId}`)), [storeKey, userId]);
   const done = useSyncExternalStore(doneStore.subscribe, doneStore.get, doneStore.getServerSnapshot);
   const [index, setIndex] = useState(0);
-  /** 잰 구멍 — 어느 단계의 것인지 함께 둬서, 단계가 바뀐 첫 프레임에 앞 단계의 자리가 쓰이지 않게 한다 */
+  /** 잰 구멍과 그 단계 — 화면에는 이 단계를 그린다. index가 먼저 바뀌어도 새 대상을 잴 때까지는 앞 단계가 남는다 */
   const [measured, setMeasured] = useState<{ index: number; hole: Hole } | null>(null);
   const [bubbleHeight, setBubbleHeight] = useState(BUBBLE_HEIGHT);
   /** 대상이 없어 건너뛴 단계 — "이전"이 그 단계로 돌아가 다시 튕겨 나오지 않게 한다 */
@@ -251,8 +254,10 @@ export function CoachMarks({
     return () => cancelAnimationFrame(frame);
   }, [targetKey, index, steps.length, doneStore]);
 
-  const hole = measured && measured.index === index ? measured.hole : null;
-  const shown = active && hole !== null;
+  const view = active && measured !== null && measured.index < steps.length ? measured : null;
+  const shown = view !== null;
+  /** 화면에 그리는 단계 — 단계를 넘긴 직후에는 index보다 한 발 늦다 */
+  const at = view?.index ?? -1;
 
   useEffect(() => {
     if (!shown) return;
@@ -274,9 +279,11 @@ export function CoachMarks({
     if (!modal || !shown) return;
     const buttons = bubbleRef.current?.querySelectorAll<HTMLElement>("button");
     buttons?.[buttons.length - 1]?.focus({ preventScroll: true });
-  }, [modal, shown, index]);
+  }, [modal, shown, at]);
 
-  if (!active || !hole) return null;
+  if (!view) return null;
+  const { hole } = view;
+  const shownStep = steps[at];
 
   const holeRight = hole.left + hole.width;
   const holeBottom = hole.top + hole.height;
@@ -326,13 +333,14 @@ export function CoachMarks({
     placement === "below" || placement === "above"
       ? { left: clamp(hole.left + hole.width / 2 - bubbleLeft, ARROW_INSET, BUBBLE_WIDTH - ARROW_INSET) - 6 }
       : { top: clamp(hole.top + hole.height / 2 - bubbleTop, ARROW_INSET, bubbleHeight - ARROW_INSET) - 6 };
-  const last = index === steps.length - 1;
-  let prevIndex = index - 1;
+  const last = at === steps.length - 1;
+  let prevIndex = at - 1;
   while (prevIndex >= 0 && skipped.has(prevIndex)) prevIndex -= 1;
 
+  // 그려진 단계를 기준으로 넘긴다 — 새 대상을 재는 사이에 한 번 더 눌러도 한 단계만 넘어간다
   function next() {
     if (last) doneStore.set(true);
-    else setIndex((i) => i + 1);
+    else setIndex(at + 1);
   }
 
   /** Tab이 말풍선 밖(뒤에 깔린 창)으로 나가지 않게 처음과 끝을 잇는다 */
@@ -367,7 +375,7 @@ export function CoachMarks({
         role="dialog"
         aria-modal={modal || undefined}
         onKeyDown={modal ? keepTabInside : undefined}
-        aria-label={`안내 ${index + 1} / ${steps.length}: ${step.title}`}
+        aria-label={`안내 ${at + 1} / ${steps.length}: ${shownStep.title}`}
         className="fixed z-91 rounded-(--radius-12) border border-divider-default bg-background-default-main p-4 shadow-(--shadow-modal)"
         style={{ width: BUBBLE_WIDTH, left: bubbleLeft, top: bubbleTop }}
       >
@@ -387,16 +395,16 @@ export function CoachMarks({
           <CloseIcon size={18} />
         </button>
         <p className="pr-7 type-label-eyebrow text-brand-secondary-default">
-          {index + 1} / {steps.length} · {step.eyebrow}
+          {at + 1} / {steps.length} · {shownStep.eyebrow}
         </p>
-        <h3 className="mt-1.5 type-label-semibold-m text-contents-light-bgd-default">{step.title}</h3>
-        <p className="mt-1 type-content-s text-contents-light-bgd-sub">{step.body}</p>
+        <h3 className="mt-1.5 type-label-semibold-m text-contents-light-bgd-default">{shownStep.title}</h3>
+        <p className="mt-1 type-content-s text-contents-light-bgd-sub">{shownStep.body}</p>
         <div className="mt-3 flex items-center justify-between">
           <span className="flex gap-1.5" aria-hidden>
             {steps.map((s, i) => (
               <span
                 key={s.key}
-                className={`size-1.5 rounded-full ${i === index ? "bg-brand-secondary-default" : "bg-divider-default"}`}
+                className={`size-1.5 rounded-full ${i === at ? "bg-brand-secondary-default" : "bg-divider-default"}`}
               />
             ))}
           </span>
