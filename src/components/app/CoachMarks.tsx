@@ -5,8 +5,9 @@
  * 위치: src/components/app/CoachMarks.tsx
  *
  * 스튜디오 홈(4단계)과 클라이언트 컨셉 분류(5단계)가 같이 쓴다. 한 번만 자동 재생하고 다시 보기는
- * 없다 — 끝내거나 닫으면(오른쪽 위 × · Esc) localStorage(storeKey)에 기록한다. 대상은 data-coach
- * 속성으로 찾고, 화면에 없는 대상은 건너뛴다. "이전"은 건너뛴 단계를 지나 그 앞 단계로 간다.
+ * 없다 — 끝내거나 닫으면(오른쪽 위 × · Esc) localStorage에 기록한다. 기록은 계정마다 따로다
+ * (storeKey 뒤에 계정 번호) — 같은 브라우저에서 다른 계정으로 들어온 사람도 한 번은 본다. 대상은
+ * data-coach 속성으로 찾고, 화면에 없는 대상은 건너뛴다. "이전"은 건너뛴 단계를 지나 그 앞 단계로 간다.
  *
  * 구멍은 대상에 맞춘다: 자리 · 크기는 대상에서 화면에 보이는 부분보다 사방 4px 크게, 둥글기는 대상의
  * 모서리에서 읽는다. 떠 있는 동안 프레임마다 다시 잰다 — 사진이 늦게 떠서 자리만 밀리는 경우는 창
@@ -20,6 +21,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { CloseIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/lib/auth/authStore";
 import { createLocalStore, type LocalStore } from "@/lib/localStore";
 
 export type CoachStep = {
@@ -58,6 +60,9 @@ function storeFor(key: string) {
   }
   return store;
 }
+
+/** 로그인 정보를 읽기 전 — 누구의 기록을 봐야 할지 모르니 이미 본 것으로 쳐서 띄우지 않는다 */
+const SIGNED_OUT: LocalStore<boolean> = { get: () => true, set: () => {}, subscribe: () => () => {}, getServerSnapshot: () => true };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
 
@@ -172,12 +177,13 @@ export function CoachMarks({
   ready,
 }: {
   steps: ReadonlyArray<CoachStep>;
-  /** 완료 기록 키 — 예: sel.coach.studioHome */
+  /** 완료 기록 키 — 예: sel.coach.studioHome. 실제 키에는 계정 번호가 붙는다(sel.coach.studioHome.12) */
   storeKey: string;
   /** 대상이 화면에 그려진 뒤 true */
   ready: boolean;
 }) {
-  const doneStore = useMemo(() => storeFor(storeKey), [storeKey]);
+  const userId = useAuth().user?.id ?? null;
+  const doneStore = useMemo(() => (userId === null ? SIGNED_OUT : storeFor(`${storeKey}.${userId}`)), [storeKey, userId]);
   const done = useSyncExternalStore(doneStore.subscribe, doneStore.get, doneStore.getServerSnapshot);
   const [index, setIndex] = useState(0);
   /** 잰 구멍 — 어느 단계의 것인지 함께 둬서, 단계가 바뀐 첫 프레임에 앞 단계의 자리가 쓰이지 않게 한다 */
