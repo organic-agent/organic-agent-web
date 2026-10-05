@@ -763,7 +763,7 @@ export function SelectStage({
         actions={
           <>
             {personal ? null : increasePending ? (
-                <span className="inline-flex h-10 items-center gap-1.5 rounded-(--radius-8) border border-border-default px-3 type-label-medium-s text-contents-light-bgd-sub">
+                <span className="inline-flex items-center gap-1.5 type-label-medium-s whitespace-nowrap text-contents-light-bgd-weakness">
                   <AddPhotoIcon size={16} />
                   {increasePending.requestedCount}장 요청함 · 작가 확인 중
                 </span>

@@ -736,7 +736,7 @@ export function ReviewStage({
                 {picked.has(currentItem.photo.photoId) ? "다시 요청" : "담기"}
               </button>
             ) : currentItem ? (
-              <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${currentItem.resultUrl ? "bg-function-success-default text-white" : "bg-white/15 text-white/85"}`}>
+              <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${currentItem.resultUrl ? "bg-function-success-default text-white" : "text-white/60"}`}>
                 {currentItem.resultUrl ? <CheckCircleIcon size={14} /> : <HourglassIcon size={14} />}
                 {currentItem.resultUrl ? `${roundLabel} 결과` : "보정 중"}
               </span>
