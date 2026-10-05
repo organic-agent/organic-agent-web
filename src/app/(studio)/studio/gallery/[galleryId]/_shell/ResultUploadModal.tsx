@@ -125,7 +125,7 @@ export function ResultUploadModal({
             const target = r.photoId !== null ? itemById.get(r.photoId) : null;
             const dup = r.photoId !== null && duplicated.has(r.photoId);
             return (
-              <li key={`${r.file.name}-${i}`} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 px-3 py-2">
+              <li key={`${r.file.name}-${i}`} className="grid grid-cols-[1fr_auto_1fr_auto_auto] items-center gap-2 px-3 py-2">
                 <span className="truncate text-contents-light-bgd-sub" title={r.file.name}>
                   {r.file.name}
                 </span>
@@ -151,7 +151,14 @@ export function ResultUploadModal({
                 <span className={`shrink-0 type-label-semibold-xs ${dup ? "text-function-error-default" : r.photoId === null ? "text-function-warning-default" : target?.hasResult ? "text-function-warning-default" : "text-brand-secondary-dark"}`}>
                   {dup ? "겹침" : r.photoId === null ? "미정" : target?.hasResult ? "바꿈" : r.match?.photoId ? "일치" : "지정"}
                 </span>
-                <button type="button" onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))} aria-label={`${r.file.name} 빼기`} className="col-span-4 hidden" />
+                <button
+                  type="button"
+                  onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label={`${r.file.name} 빼기`}
+                  className="shrink-0 cursor-pointer rounded-(--radius-4) px-1.5 type-content-xs text-contents-light-bgd-weakness hover:bg-surface-default-light hover:text-contents-light-bgd-default"
+                >
+                  빼기
+                </button>
               </li>
             );
           })}
