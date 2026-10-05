@@ -11,6 +11,7 @@
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
+ * 정렬 기본값은 별점 순(2차 QA) — 점수 묶음(★5 → ★1 → 별점 없음)으로 그리되, 별점이 하나도 없으면 묶음 없이 그려 처음 화면은 업로드 순과 같다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
@@ -163,7 +164,7 @@ export function SelectStage({
   const [view, setView] = useState<ClientView>("all");
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
-  const [sort, setSort] = useState<SortKey>("uploaded");
+  const [sort, setSort] = useState<SortKey>("score");
   // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산), 정렬 목록에 "하객 좋아요순"
   const [guestOn, setGuestOn] = useState(false);
   const [guestSort, setGuestSort] = useState(false);
@@ -319,7 +320,7 @@ export function SelectStage({
   const restPhotos = useMemo(() => (showAiGroup ? gridPhotos.filter((p) => !aiIds.has(p.photoId)) : gridPhotos), [showAiGroup, gridPhotos, aiIds]);
   const scopeLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? "모든 사진" : "보는 폴더";
   const aiUnpicked = aiPhotos.filter((p) => !pickedIds.has(p.photoId));
-  /** 별점 순이면 점수별 그룹(5 → 1 → 없음) */
+  /** 별점 순이면 점수별 그룹(5 → 1 → 없음) — 별점이 하나도 없으면 묶지 않는다("별점 없음 n장" 한 묶음만 보이지 않게) */
   const scoreGroups = useMemo(() => {
     if (sort !== "score" || view !== "all") return null;
     const groups: { score: number | null; photos: PhotoResponse[] }[] = [];
@@ -327,6 +328,7 @@ export function SelectStage({
       const ps = restPhotos.filter((p) => p.score === sc);
       if (ps.length > 0) groups.push({ score: sc, photos: ps });
     }
+    if (groups.length === 0) return null;
     const none = restPhotos.filter((p) => !p.score);
     if (none.length > 0) groups.push({ score: null, photos: none });
     return groups;
