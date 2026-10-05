@@ -629,6 +629,7 @@ export function ReviewStage({
       <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !picking && !lightboxOpen && !confirmOpen && !downloadOpen} />
       {personal && (requestDownloadOpen || (autoOpenDownload && !autoDownloadHandled && items.length > 0)) && activeRoundNo !== null && (
         <RetouchDownloadModal
+          galleryId={galleryId}
           galleryTitle={gallery.title}
           roundNo={activeRoundNo}
           items={items}
