@@ -47,24 +47,28 @@ function ErrorLine({ text }: { text: string | null }) {
   );
 }
 
-// ── 폴더 이름 — 컨셉 · 세부 추가 ──
+// ── 폴더 이름 — 컨셉 · 세부 추가 · 이름 바꾸기 ──
 
 export function FolderNameModal({
   kind,
   parentName,
+  currentName,
   onClose,
   onSubmit,
 }: {
   kind: "concept" | "detail";
   /** 세부 폴더일 때 부모 컨셉 이름 */
   parentName?: string;
+  /** 주면 이름 바꾸기 — 지금 이름을 채워 두고, 그대로면 저장할 수 없다 */
+  currentName?: string;
   onClose: () => void;
   onSubmit: (name: string) => Promise<void>;
 }) {
   const id = useId();
-  const [name, setName] = useState("");
+  const renaming = currentName !== undefined;
+  const [name, setName] = useState(currentName ?? "");
   const trimmed = name.trim();
-  const valid = trimmed.length >= 1 && trimmed.length <= 100;
+  const valid = trimmed.length >= 1 && trimmed.length <= 100 && (!renaming || trimmed !== currentName);
   const { busy, error, run } = useConfirmAction(() => onSubmit(trimmed));
 
   useEffect(() => {
@@ -78,11 +82,13 @@ export function FolderNameModal({
 
   return (
     <GalleryModalShell
-      title={kind === "concept" ? "컨셉 폴더 추가" : "세부 폴더 추가"}
+      title={renaming ? "폴더 이름 바꾸기" : kind === "concept" ? "컨셉 폴더 추가" : "세부 폴더 추가"}
       desc={
-        kind === "concept"
-          ? "컨셉은 큰 묶음이에요. 안에 세부 폴더를 두고 사진을 나눠요."
-          : `"${parentName ?? ""}" 아래에 만들어요. 사진은 세부 폴더에 담겨요.`
+        renaming
+          ? "이름만 바뀌고 폴더 안 사진과 공유폴더는 그대로예요."
+          : kind === "concept"
+            ? "컨셉은 큰 묶음이에요. 안에 세부 폴더를 두고 사진을 나눠요."
+            : `"${parentName ?? ""}" 아래에 만들어요. 사진은 세부 폴더에 담겨요.`
       }
       maxWidthClassName="max-w-105"
       onClose={onClose}
@@ -103,7 +109,7 @@ export function FolderNameModal({
         <GalleryModalButtons
           onClose={onClose}
           onConfirm={() => void run()}
-          confirmLabel={busy ? "만드는 중…" : "만들기"}
+          confirmLabel={renaming ? (busy ? "저장 중…" : "저장") : busy ? "만드는 중…" : "만들기"}
           disabled={!valid || busy}
         />
       </form>
@@ -391,10 +397,13 @@ export function MovePhotosModal({
 
 export function DeletePhotosModal({
   count,
+  pickedCount = 0,
   onClose,
   onConfirm,
 }: {
   count: number;
+  /** 지울 사진 중 선택 앨범에 담긴 장수 — 있으면 함께 빠진다고 알린다 */
+  pickedCount?: number;
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }) {
@@ -402,7 +411,9 @@ export function DeletePhotosModal({
   return (
     <GalleryModalShell
       title={`${count}장을 삭제할까요?`}
-      desc="삭제한 사진은 갤러리와 폴더에서 바로 사라져요. 사진이 다 빠져 비게 된 폴더는 함께 사라져요. 화면에서 되살릴 수는 없어요."
+      desc={`삭제한 사진은 갤러리와 폴더에서 바로 사라져요. 사진이 다 빠져 비게 된 폴더는 함께 사라져요. 화면에서 되살릴 수는 없어요.${
+        pickedCount > 0 ? ` 고른 사진 ${pickedCount}장도 선택에서 함께 빠져요.` : ""
+      }`}
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >

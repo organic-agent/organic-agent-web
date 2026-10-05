@@ -18,6 +18,7 @@ export function ConfirmFoldersModal({
   folders,
   photoCount,
   unsortedCount,
+  personal = false,
   onClose,
   onConfirmed,
 }: {
@@ -25,6 +26,8 @@ export function ConfirmFoldersModal({
   folders: ConceptFolderResponse[];
   photoCount: number;
   unsortedCount: number;
+  /** 개인 갤러리 — 확정 뒤에도 "사진 · 폴더 정리"로 바꿀 수 있다고 알린다 */
+  personal?: boolean;
   onClose: () => void;
   onConfirmed: () => void;
 }) {
@@ -53,7 +56,11 @@ export function ConfirmFoldersModal({
   return (
     <GalleryModalShell
       title="폴더를 확정할까요?"
-      desc="확정하면 사진 셀렉이 열려 사진을 고를 수 있어요. 폴더는 확정 뒤에 바꿀 수 없어요 — 옮길 사진이 남아 있으면 먼저 정리해 주세요."
+      desc={
+        personal
+          ? "확정하면 사진 셀렉이 열려 사진을 고를 수 있어요. 확정한 뒤에도 \"사진 · 폴더 정리\"에서 사진을 옮기고 지우거나 폴더 이름을 바꿀 수 있어요."
+          : "확정하면 사진 셀렉이 열려 사진을 고를 수 있어요. 폴더는 확정 뒤에 바꿀 수 없어요 — 옮길 사진이 남아 있으면 먼저 정리해 주세요."
+      }
       maxWidthClassName="max-w-120"
       onClose={onClose}
     >
