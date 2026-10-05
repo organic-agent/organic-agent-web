@@ -5,8 +5,8 @@
  * 위치: src/components/app/CoachMarks.tsx
  *
  * 스튜디오 홈(4단계)과 클라이언트 컨셉 분류(5단계)가 같이 쓴다. 한 번만 자동 재생하고 다시 보기는
- * 없다 — 끝내거나 건너뛰면 localStorage(storeKey)에 기록한다. 대상은 data-coach 속성으로 찾고,
- * 화면에 없는 대상은 건너뛴다.
+ * 없다 — 끝내거나 닫으면(오른쪽 위 × · Esc) localStorage(storeKey)에 기록한다. 대상은 data-coach
+ * 속성으로 찾고, 화면에 없는 대상은 건너뛴다. "이전"은 건너뛴 단계를 지나 그 앞 단계로 간다.
  *
  * 구멍은 대상에 맞춘다: 자리 · 크기는 대상에서 화면에 보이는 부분보다 사방 4px 크게, 둥글기는 대상의
  * 모서리에서 읽는다. 떠 있는 동안 프레임마다 다시 잰다 — 사진이 늦게 떠서 자리만 밀리는 경우는 창
@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { CloseIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { createLocalStore, type LocalStore } from "@/lib/localStore";
 
@@ -182,6 +183,8 @@ export function CoachMarks({
   /** 잰 구멍 — 어느 단계의 것인지 함께 둬서, 단계가 바뀐 첫 프레임에 앞 단계의 자리가 쓰이지 않게 한다 */
   const [measured, setMeasured] = useState<{ index: number; hole: Hole } | null>(null);
   const [bubbleHeight, setBubbleHeight] = useState(BUBBLE_HEIGHT);
+  /** 대상이 없어 건너뛴 단계 — "이전"이 그 단계로 돌아가 다시 튕겨 나오지 않게 한다 */
+  const [skipped, setSkipped] = useState<ReadonlySet<number>>(() => new Set());
   const active = ready && !done && index < steps.length;
   const step = steps[index];
   const targetKey = active ? (step.target ?? step.key) : null;
@@ -194,6 +197,7 @@ export function CoachMarks({
     const tick = () => {
       const el = findTarget(targetKey);
       if (!el && !seen) {
+        setSkipped((prev) => new Set(prev).add(index));
         if (index === steps.length - 1) doneStore.set(true);
         else setIndex((i) => i + 1);
         return;
@@ -276,6 +280,8 @@ export function CoachMarks({
       ? { left: clamp(hole.left + hole.width / 2 - bubbleLeft, ARROW_INSET, BUBBLE_WIDTH - ARROW_INSET) - 6 }
       : { top: clamp(hole.top + hole.height / 2 - bubbleTop, ARROW_INSET, bubbleHeight - ARROW_INSET) - 6 };
   const last = index === steps.length - 1;
+  let prevIndex = index - 1;
+  while (prevIndex >= 0 && skipped.has(prevIndex)) prevIndex -= 1;
 
   function next() {
     if (last) doneStore.set(true);
@@ -305,7 +311,15 @@ export function CoachMarks({
             style={arrowStyle}
           />
         )}
-        <p className="type-label-eyebrow text-brand-secondary-default">
+        <button
+          type="button"
+          aria-label="안내 닫기"
+          onClick={() => doneStore.set(true)}
+          className="absolute top-2.5 right-2.5 grid size-6 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness"
+        >
+          <CloseIcon size={18} />
+        </button>
+        <p className="pr-7 type-label-eyebrow text-brand-secondary-default">
           {index + 1} / {steps.length} · {step.eyebrow}
         </p>
         <h3 className="mt-1.5 type-label-semibold-m text-contents-light-bgd-default">{step.title}</h3>
@@ -320,9 +334,11 @@ export function CoachMarks({
             ))}
           </span>
           <span className="flex gap-1.5">
-            <Button kind="ghost" size="sm" onClick={() => doneStore.set(true)}>
-              건너뛰기
-            </Button>
+            {prevIndex >= 0 && (
+              <Button kind="ghost" size="sm" className="ring-1 ring-border-default ring-inset" onClick={() => setIndex(prevIndex)}>
+                이전
+              </Button>
+            )}
             <Button size="sm" onClick={next}>
               {last ? "완료" : "다음"}
             </Button>
