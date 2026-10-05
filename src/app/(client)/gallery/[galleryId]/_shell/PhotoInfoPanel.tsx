@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * 싱글뷰 "정보" 탭 — 별점 · 파일 · 이 기기에서 본 횟수 · 우리끼리 메모
+ * 싱글뷰 "정보" 탭 — 칩(AI 추천) · 별점 · 파일 · 이 기기에서 본 횟수 · 우리끼리 메모
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/PhotoInfoPanel.tsx
  *
  * 메모는 작가에게 보이지 않아야 해서(2026-09-12) 지금은 브라우저에만 저장한다(clientMemory). 서버 "내부 사진 댓글"의
  * 열람 범위를 확인한 뒤 저장 방식을 정한다(노션 ② 미결). 열람 횟수도 같은 이유로 이 기기 기준.
  */
 
-import { useSyncExternalStore } from "react";
-import { StarFillIcon, StarIcon } from "@/components/icons";
+import { type ReactNode, useSyncExternalStore } from "react";
+import { SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { memoStore, viewedStore, writeMemo } from "./clientMemory";
 
@@ -31,6 +31,7 @@ export function PhotoInfoPanel({
   folderName,
   score,
   editable,
+  aiPicked = false,
   onRate,
 }: {
   galleryId: number;
@@ -38,6 +39,8 @@ export function PhotoInfoPanel({
   folderName: string | null;
   score: number | null;
   editable: boolean;
+  /** 이번 AI 추천에 든 사진인가(셀렉 화면만 준다) */
+  aiPicked?: boolean;
   onRate: (score: number | null) => void;
 }) {
   const memoRaw = useSyncExternalStore(memoStore.subscribe, () => memoStore.readRaw(galleryId), () => "");
@@ -47,6 +50,15 @@ export function PhotoInfoPanel({
 
   return (
     <>
+      {aiPicked && (
+        <div className="flex flex-wrap gap-1.5">
+          <Chip tone="ai">
+            <SparkleIcon size={14} />
+            AI 추천
+          </Chip>
+        </div>
+      )}
+
       <section className="flex flex-col gap-2">
         <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">
           별점 <span className="font-normal">· 함께 매기는 별점</span>
@@ -98,6 +110,15 @@ export function PhotoInfoPanel({
       </section>
     </>
   );
+}
+
+// 연한 칩 — 색을 옅게 깐 바탕에 같은 색의 진한 글자 (2026-10-05 시안)
+const CHIP_TONE = {
+  ai: "bg-brand-secondary-default/14 text-[color:color-mix(in_srgb,var(--brand-secondary-default)_68%,var(--background-inverse-main))]",
+};
+
+function Chip({ tone, children }: { tone: keyof typeof CHIP_TONE; children: ReactNode }) {
+  return <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s whitespace-nowrap ${CHIP_TONE[tone]}`}>{children}</span>;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

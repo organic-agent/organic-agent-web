@@ -5,7 +5,7 @@
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/SelectStage.tsx
  *
  * 폴더 확정 뒤에는 폴더 열이 사라지고 2열이다: 사이드바(기본 열림 — 폴더 | 공유 탭, 체크박스 트리) + 그리드.
- * 그리드에 레일 · 우측 패널은 없고 정보 · AI · 보정 요청은 싱글뷰에서 한다.
+ * 그리드에 레일 · 우측 패널은 없고 정보 · 보정 요청은 싱글뷰에서 한다.
  * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
@@ -15,7 +15,7 @@
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
- * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
+ * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 싱글뷰에서는 정보 탭 맨 위 "AI 추천" 칩.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
  * 개인 갤러리(personal)는 작가가 없어 전달 대신 **"요청서 내보내기"**(ExportSelectionModal: 초안 저장 → export → 잠김)이고
  * 장수 추가 요청이 없다(묶음 C, 2026-09-23).
@@ -53,10 +53,9 @@ import { useAiRecommendations } from "./useAiRecommendations";
 import { useGuestSharing } from "./useGuestSharing";
 import { useSelectionSync } from "./useSelectionSync";
 
-type LightboxTab = "none" | "info" | "ai" | "memo";
+type LightboxTab = "none" | "info" | "memo";
 const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
-  { key: "ai", label: "AI", icon: <SparkleIcon size={18} /> },
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
 ];
 
@@ -861,21 +860,8 @@ export function SelectStage({
                 folderName={folderNameOf(currentPhoto)}
                 score={currentPhoto.score}
                 editable={editable}
+                aiPicked={aiByPhotoId.has(currentPhoto.photoId)}
                 onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
-              />
-            ) : tab === "ai" ? (
-              <AiPanel
-                rec={aiByPhotoId.get(currentPhoto.photoId) ?? null}
-                folderRecs={aiCurrent.filter((r) => r.folderId !== null && r.folderId === (aiByPhotoId.get(currentPhoto.photoId)?.folderId ?? details.find((d) => d.photoIds.includes(currentPhoto.photoId))?.id ?? null))}
-                folderName={folderNameOf(currentPhoto)}
-                pickedIds={pickedIds}
-                editable={editable}
-                busy={aiBusy}
-                jobActive={ai.jobActive}
-                error={ai.error}
-                onPick={toggle}
-                onRequest={() => void ai.request(details.find((d) => d.photoIds.includes(currentPhoto.photoId))?.id ?? null)}
-                onOpen={(id) => setCurrentId(id)}
               />
             ) : (
               <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} />
@@ -883,99 +869,6 @@ export function SelectStage({
           }
         />
       )}
-    </>
-  );
-}
-
-function AiPanel({
-  rec,
-  folderRecs,
-  folderName,
-  pickedIds,
-  editable,
-  busy,
-  jobActive,
-  error,
-  onPick,
-  onRequest,
-  onOpen,
-}: {
-  rec: import("@/lib/api/recommendations").AiRecommendation | null;
-  folderRecs: import("@/lib/api/recommendations").AiRecommendation[];
-  folderName: string | null;
-  pickedIds: ReadonlySet<number>;
-  editable: boolean;
-  /** 사진을 고르는 중(이번 라운드 사진이 아직 없다) */
-  busy: boolean;
-  /** 서버 잡이 아직 도는 중 — 새 요청은 409라 요청 버튼을 끈다 */
-  jobActive: boolean;
-  error: string | null;
-  onPick: (photoId: number) => void;
-  onRequest: () => void;
-  onOpen: (photoId: number) => void;
-}) {
-  return (
-    <>
-      {rec ? (
-        <div className="flex flex-col gap-1 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2.5">
-          <span className="inline-flex items-center gap-1 type-label-semibold-s text-brand-secondary-dark">
-            <SparkleIcon size={14} />
-            AI 추천 {rec.rank}위{folderName ? ` · ${folderName.split(" / ").at(-1)}` : ""}
-          </span>
-        </div>
-      ) : (
-        <p className="type-content-s leading-relaxed text-contents-light-bgd-sub">
-          {busy ? "AI가 고르는 중이에요…" : folderRecs.length > 0 ? "이 사진은 이번 추천에 들지 않았어요." : "아직 이 폴더에서 추천을 받지 않았어요."}
-        </p>
-      )}
-      {folderRecs.length > 0 && (
-        <section className="flex flex-col gap-1.5">
-          <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">이 폴더의 추천 {folderRecs.length}장</h4>
-          <ul className="flex flex-col divide-y divide-divider-default">
-            {folderRecs.map((r) => {
-              const picked = pickedIds.has(r.photo.photoId);
-              return (
-                <li key={r.photo.photoId} className="flex items-center gap-2.5 py-2">
-                  <button type="button" onClick={() => onOpen(r.photo.photoId)} aria-label={`${r.photo.originalFileName} 보기`} className="size-11 shrink-0 cursor-pointer overflow-hidden rounded-(--radius-8) bg-surface-default-light">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {r.photo.viewUrl && <img src={r.photo.viewUrl} alt="" className="size-full object-cover" />}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className="type-label-semibold-xs text-contents-light-bgd-default">
-                      {r.rank}위{rec && rec.photo.photoId === r.photo.photoId ? " · 이 사진" : ""}
-                    </p>
-                  </div>
-                  {picked ? (
-                    <span className="text-brand-secondary-default" aria-label="선택됨">
-                      <CheckCircleIcon size={18} />
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={!editable}
-                      onClick={() => onPick(r.photo.photoId)}
-                      className="h-7 cursor-pointer rounded-(--pill) border border-border-default px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
-                    >
-                      선택
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-      {error && <p className="type-content-xs text-function-error-default">{error}</p>}
-      <button
-        type="button"
-        disabled={!editable || busy || jobActive}
-        onClick={onRequest}
-        className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-(--radius-8) border border-border-default type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
-      >
-        {folderRecs.length > 0 ? <RefreshIcon size={16} /> : <SparkleIcon size={16} />}
-        {folderRecs.length > 0 ? "이 폴더에서 다시 추천" : "이 폴더에서 추천 받기"}
-      </button>
-      <p className="type-content-xs text-contents-light-bgd-weakness">추천은 폴더 단위예요. 최종 선택은 직접 고른 사진만 인정돼요.</p>
     </>
   );
 }
