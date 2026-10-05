@@ -13,6 +13,7 @@
  * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
+ * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
@@ -40,7 +41,7 @@ import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { DeselectConfirmModal } from "./DeselectConfirmModal";
 import { ExportSelectionModal } from "./ExportSelectionModal";
-import { countView } from "./clientMemory";
+import { countView, takeRateKeysHint } from "./clientMemory";
 import type { ClientPhase } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
@@ -148,6 +149,13 @@ export function SelectStage({
   /** 저장 중인 별점 — saved는 서버에 남은 값, want는 화면이 바라는 값 */
   const rateJobsRef = useRef(new Map<number, { saved: number | null; want: number | null }>());
   const [rateError, setRateError] = useState<{ text: string } | null>(null);
+  /** 별점 숫자 키 안내(말풍선) — 방금 마우스로 누른 점수. null이면 안 보인다 */
+  const [keyHint, setKeyHint] = useState<number | null>(null);
+  useEffect(() => {
+    if (keyHint === null) return;
+    const timer = window.setTimeout(() => setKeyHint(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [keyHint]);
   useEffect(() => {
     if (!rateError) return;
     const timer = window.setTimeout(() => setRateError(null), 2400);
@@ -359,6 +367,7 @@ export function SelectStage({
   }
   function closeLightbox() {
     setLightboxOpen(false);
+    setKeyHint(null);
     setNavIds(null);
     setTab("none");
     setScrollToId(currentId);
@@ -367,6 +376,7 @@ export function SelectStage({
     if (navPhotos.length === 0) return;
     const base = currentIndex >= 0 ? currentIndex : 0;
     const next = navPhotos[(base + delta + navPhotos.length) % navPhotos.length];
+    setKeyHint(null);
     setCurrentId(next.photoId);
     countView(galleryId, next.photoId);
   }
@@ -381,6 +391,12 @@ export function SelectStage({
     const job = { saved: photoById.get(photoId)?.score ?? null, want: score };
     rateJobsRef.current.set(photoId, job);
     void saveRating(photoId, job);
+  }
+  /** 마우스로 매긴 별점 — 처음이면 숫자 키 안내를 띄우고, 떠 있는 동안은 누른 점수를 따라간다 */
+  function rateByMouse(photoId: number, score: number | null) {
+    rate(photoId, score);
+    if (!editable || score === null) setKeyHint(null);
+    else if (keyHint !== null || takeRateKeysHint()) setKeyHint(score);
   }
   /** 한 사진의 별점을 서버와 맞춘다 — 요청이 엇갈려 옛 값이 남지 않게 한 번에 하나씩, 바라는 값이 바뀌었으면 이어서 보낸다 */
   async function saveRating(photoId: number, job: { saved: number | null; want: number | null }) {
@@ -812,12 +828,14 @@ export function SelectStage({
               picked={pickedIds.has(currentPhoto.photoId)}
               editable={editable}
               score={currentPhoto.score}
+              keyHint={keyHint}
               onTogglePick={() => requestToggle(currentPhoto.photoId)}
-              onRate={(score) => rate(currentPhoto.photoId, score)}
+              onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
             />
           }
           onKeyDown={(e) => {
             if (!editable) return false;
+            if (/^[0-5]$/.test(e.key)) setKeyHint(null);
             if (/^[1-5]$/.test(e.key)) rate(currentPhoto.photoId, Number(e.key));
             else if (e.key === "0") rate(currentPhoto.photoId, null);
             else if (e.key === " ") {
@@ -843,7 +861,7 @@ export function SelectStage({
                 folderName={folderNameOf(currentPhoto)}
                 score={currentPhoto.score}
                 editable={editable}
-                onRate={(score) => rate(currentPhoto.photoId, score)}
+                onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
               />
             ) : tab === "ai" ? (
               <AiPanel
@@ -967,18 +985,41 @@ function SelectionControls({
   picked,
   editable,
   score,
+  keyHint,
   onTogglePick,
   onRate,
 }: {
   picked: boolean;
   editable: boolean;
   score: number | null;
+  /** 숫자 키 안내 말풍선에서 칠할 키(방금 누른 점수) — null이면 말풍선 없음 */
+  keyHint: number | null;
   onTogglePick: () => void;
   onRate: (score: number | null) => void;
 }) {
   return (
     <>
-      <div role="radiogroup" aria-label="별점" className="flex items-center gap-0.5 px-1">
+      <div role="radiogroup" aria-label="별점" className="relative flex items-center gap-0.5 px-1">
+        {keyHint !== null && (
+          <span
+            role="status"
+            className="pointer-events-none absolute bottom-11 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 rounded-(--radius-12) bg-white px-3.5 py-3 whitespace-nowrap text-[#1a1a1a] shadow-(--shadow-modal) after:absolute after:-bottom-1.25 after:left-1/2 after:size-2.5 after:-translate-x-1/2 after:rotate-45 after:bg-white after:content-['']"
+          >
+            <span aria-hidden className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <kbd
+                  key={n}
+                  className={`grid size-6.5 place-items-center rounded-[6px] border border-b-2 type-label-semibold-s ${
+                    n === keyHint ? "border-[#1a1a1a] bg-[#1a1a1a] text-white" : "border-black/18 bg-white"
+                  }`}
+                >
+                  {n}
+                </kbd>
+              ))}
+            </span>
+            <span className="type-label-medium-xs">숫자 키로도 매길 수 있어요</span>
+          </span>
+        )}
         {[1, 2, 3, 4, 5].map((n) => {
           const on = score !== null && n <= score;
           return (
