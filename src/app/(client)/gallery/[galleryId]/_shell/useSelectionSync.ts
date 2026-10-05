@@ -8,6 +8,7 @@
  * 더블클릭(= 클릭 두 번)은 차이가 없어 서버 호출이 없다. 서버는 통째 거절(한도 초과 400 · 이미 담김 409)이라
  * 실패하면 스냅샷을 다시 읽어 화면을 서버에 맞추고 문구를 남긴다. 한도는 보내기 전에 화면에서 먼저 막는다.
  * 함께 고르는 사람의 변경은 15초마다 · 탭이 다시 보일 때 읽는다(보내는 중이면 스냅샷만 갱신).
+ * 서버가 거절한 오류는 onRejected로도 넘긴다 — 화면이 오류 코드(선택 마감 지남 등)를 보고 잠글 수 있게.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +20,7 @@ const POLL_MS = 15_000;
 
 const idsOf = (s: PhotoSelectionResponse | null) => new Set(s?.photos.map((p) => p.photo.photoId) ?? []);
 
-export function useSelectionSync(galleryId: number, editable: boolean, maxSelectable: number | null) {
+export function useSelectionSync(galleryId: number, editable: boolean, maxSelectable: number | null, onRejected?: (err: unknown) => void) {
   const [server, setServer] = useState<PhotoSelectionResponse | null>(null);
   const [local, setLocal] = useState<Set<number> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export function useSelectionSync(galleryId: number, editable: boolean, maxSelect
             : err.message
           : "네트워크 연결을 확인한 뒤 다시 시도해 주세요";
       setNotice(message);
+      onRejected?.(err);
       dirtyRef.current = false;
       try {
         apply(await getPhotoSelection(galleryId), true);
