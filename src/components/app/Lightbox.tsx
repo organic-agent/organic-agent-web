@@ -8,10 +8,12 @@
  * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진과 패널이 사이를 띄우고 나란히 서고(둘 다 네 모서리 둥글게),
  * 닫으면 사진이 가운데 가득.
  * 키보드: ← → 넘기기, Esc는 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다. 그 밖의 키는 onKeyDown으로 넘긴다.
+ * 열려 있는 동안 키보드 초점은 싱글뷰가 갖고(Tab도 안에서 돈다) 닫히면 연 곳으로 돌려준다 — 초점이 뒤의 그리드 타일에 남으면
+ * Space · Enter가 그 타일을 다시 눌러 처음 연 사진으로 되돌아갔다(2차 QA). 위에 다른 모달이 떠 있으면 키를 받지 않는다.
  * 사진 · 컨트롤 · 패널 밖의 빈 곳을 누르면 닫힌다. 사진 위 오버레이(점)와 사진 클릭 좌표는 부모가 다룬다.
  */
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -20,6 +22,35 @@ export type LightboxTabDef = { key: string; label: string; icon: ReactNode };
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
+
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** 싱글뷰 위에 다른 모달(빼기 확인 등)이 떠 있는가 — 그동안은 키가 그 모달의 것이다 */
+function isCovered(root: HTMLElement) {
+  return [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some((el) => el !== root);
+}
+
+/** Tab이 싱글뷰 밖(뒤에 깔린 화면)으로 나가지 않게 처음과 끝을 잇는다 */
+function keepTabInside(e: KeyboardEvent, root: HTMLElement) {
+  const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
+  if (items.length === 0) {
+    e.preventDefault();
+    return;
+  }
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = document.activeElement;
+  if (active === root || !root.contains(active)) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  } else if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 export function Lightbox({
@@ -40,6 +71,7 @@ export function Lightbox({
   onNext,
   onTabChange,
   onKeyDown,
+  onImageError,
 }: {
   photo: PhotoResponse;
   index: number;
@@ -67,11 +99,29 @@ export function Lightbox({
   onTabChange: (tab: string) => void;
   /** 화면별 키(별점 1~5 · 선택 Space 등). true를 돌려주면 처리된 것으로 본다 */
   onKeyDown?: (e: KeyboardEvent) => boolean | void;
+  /** 사진이 그려지지 않았을 때(주소 만료 등) — 부모가 목록을 다시 읽어 새 주소를 준다 */
+  onImageError?: () => void;
 }) {
   const open = tab !== "none";
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // 열릴 때 초점을 가져오고 닫힐 때 연 곳으로 돌려준다
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    rootRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (before?.isConnected) before.focus({ preventScroll: true });
+    };
+  }, []);
 
   useEffect(() => {
     function handle(e: KeyboardEvent) {
+      const root = rootRef.current;
+      if (root && isCovered(root)) return;
+      if (e.key === "Tab") {
+        if (root) keepTabInside(e, root);
+        return;
+      }
       if (isTyping(e.target)) return;
       if (e.key === "Escape") {
         e.preventDefault();
@@ -91,7 +141,14 @@ export function Lightbox({
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${photo.originalFileName} 한 장 보기`} className="fixed inset-0 z-40 flex bg-black/75 p-7 backdrop-blur-[2px]">
+    <div
+      ref={rootRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${photo.originalFileName} 한 장 보기`}
+      className="fixed inset-0 z-40 flex bg-black/75 p-7 outline-none backdrop-blur-[2px]"
+    >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "" : "justify-center"}`} onClick={closeOnSelf}>
         {/* 사진 무대 — 사진 밖 빈 곳을 누르면 닫힌다 */}
@@ -115,6 +172,7 @@ export function Lightbox({
                     src={photo.viewUrl}
                     alt={photo.originalFileName}
                     draggable={false}
+                    onError={onImageError}
                     className="block max-h-[calc(100dvh-56px)] max-w-full rounded-(--radius-12) object-contain"
                   />
                 ) : (

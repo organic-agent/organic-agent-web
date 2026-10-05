@@ -10,6 +10,7 @@
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
+ * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
@@ -80,6 +81,7 @@ export function SelectStage({
   owner = false,
   partnerName = null,
   onExported,
+  onPhotoUrlError,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -103,6 +105,8 @@ export function SelectStage({
   partnerName?: string | null;
   /** 개인 — 내보낸 뒤(페이지가 보정 확인 화면으로 넘기며 내려받기 모달을 연다) */
   onExported?: () => void;
+  /** 싱글뷰 사진이 그려지지 않았을 때(주소 만료) — 페이지가 목록을 다시 읽는다 */
+  onPhotoUrlError?: () => void;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
@@ -131,6 +135,8 @@ export function SelectStage({
   const { current: aiCurrent, byPhotoId: aiByPhotoId } = ai;
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  /** 싱글뷰를 열 때의 사진 순서 — 보는 중에 별점을 매기거나(별점 순) AI 추천이 도착해도 다음 사진이 바뀌지 않게 붙잡아 둔다 */
+  const [navIds, setNavIds] = useState<number[] | null>(null);
   const [tab, setTab] = useState<LightboxTab>("none");
   const [scrollToId, setScrollToId] = useState<number | null>(null);
   /** 별점 낙관적 갱신 — 서버 답이 오기 전에 화면부터 */
@@ -321,9 +327,19 @@ export function SelectStage({
       : null;
 
   // ── 싱글뷰 ──
-  const currentIndex = currentId === null ? -1 : gridPhotos.findIndex((p) => p.photoId === currentId);
-  const currentPhoto = currentIndex >= 0 ? gridPhotos[currentIndex] : null;
+  /** 화면에 그려진 순서 — AI 추천 묶음이 먼저, 별점 순이면 점수 묶음 순 */
+  const displayPhotos = useMemo(
+    () => [...(showAiGroup ? aiPhotos : []), ...(scoreGroups ? scoreGroups.flatMap((g) => g.photos) : restPhotos)],
+    [showAiGroup, aiPhotos, scoreGroups, restPhotos],
+  );
+  const navPhotos = useMemo(
+    () => (navIds === null ? displayPhotos : navIds.map((id) => photoById.get(id)).filter((p): p is PhotoResponse => p !== undefined)),
+    [navIds, displayPhotos, photoById],
+  );
+  const currentIndex = currentId === null ? -1 : navPhotos.findIndex((p) => p.photoId === currentId);
+  const currentPhoto = currentIndex >= 0 ? navPhotos[currentIndex] : null;
   function openPhoto(photoId: number) {
+    setNavIds(displayPhotos.map((p) => p.photoId));
     setCurrentId(photoId);
     setScrollToId(null);
     setLightboxOpen(true);
@@ -331,13 +347,14 @@ export function SelectStage({
   }
   function closeLightbox() {
     setLightboxOpen(false);
+    setNavIds(null);
     setTab("none");
     setScrollToId(currentId);
   }
   function step(delta: number) {
-    if (gridPhotos.length === 0) return;
+    if (navPhotos.length === 0) return;
     const base = currentIndex >= 0 ? currentIndex : 0;
-    const next = gridPhotos[(base + delta + gridPhotos.length) % gridPhotos.length];
+    const next = navPhotos[(base + delta + navPhotos.length) % navPhotos.length];
     setCurrentId(next.photoId);
     countView(galleryId, next.photoId);
   }
@@ -739,10 +756,11 @@ export function SelectStage({
         <Lightbox
           photo={currentPhoto}
           index={currentIndex}
-          total={gridPhotos.length}
+          total={navPhotos.length}
           caption={folderNameOf(currentPhoto)}
           tab={tab}
           tabs={LIGHTBOX_TABS}
+          onImageError={onPhotoUrlError}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
