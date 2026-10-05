@@ -4,8 +4,7 @@
  *
  * 추천은 "라운드" 단위 잡이다. POST가 큐에 넣으면 AI 워커가 최신 AI 폴더 세트의 자식 폴더마다 계약 장수에 비례한
  * n장(폴더당 최소 1장, 폴더의 절반 이하)을 점수순으로 고른다(연사는 대표 1장). GET은 사진마다 가장 최근 추천을
- * 돌려주므로 **이번 라운드의 답만** 보려면 photos[].round === job.round인 항목을 쓴다. 이유 문장은 잡이 DONE이 된 뒤에도
- * reasonReady=false일 수 있어 잠시 폴링한다.
+ * 돌려주므로 **이번 라운드의 답만** 보려면 photos[].round === job.round인 항목을 쓴다.
  */
 
 import { api } from "@/lib/api/client";
@@ -24,7 +23,6 @@ export type AiSelectionJob = {
   finishedAt: string | null;
   error: string | null;
   createdAt: string | null;
-  prompt: string | null;
   targetCount: number | null;
   recommendedCount: number | null;
   shortfallCount: number | null;
@@ -35,8 +33,6 @@ export type AiRecommendation = {
   folderId: number | null;
   /** 폴더 안 순위, 1이 대표 */
   rank: number;
-  reason: string | null;
-  reasonReady: boolean;
   /** 지금 선택 앨범에 담겨 있는지 */
   selected: boolean;
   photo: PhotoResponse;
