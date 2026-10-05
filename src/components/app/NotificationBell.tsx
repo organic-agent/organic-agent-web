@@ -5,26 +5,23 @@
  * 위치: src/components/app/NotificationBell.tsx
  * 시안: 와이어프레임 11 알림 드롭다운 + 보드 A3 (유형 아이콘 · 전체/안 읽음 탭 · 오늘/이번 주/이전 묶음)
  *
- * 열기 전에도 목록을 한 번 받아 안 읽은 알림이 있으면 벨에 점을 찍는다. 열 때 다시 받고, 탭이 보이는 동안
- * 60초마다 · 다른 탭에서 돌아올 때도 다시 받는다 — 화면을 열어 둔 채 기다려도 새 알림의 점이 생기게(이슈 84).
+ * 열기 전에도 목록을 한 번 받아 안 읽은 알림 수를 벨에 숫자로 적는다(10개부터 9+). 열 때 다시 받고, 탭이 보이는 동안
+ * 60초마다 · 다른 탭에서 돌아올 때도 다시 받는다 — 화면을 열어 둔 채 기다려도 새 알림이 보이게(이슈 84).
+ * 받을 때마다 "아직 카드로 알리지 않은, 안 읽은 알림"을 가려 벨 아래 카드(NotificationPeek)로 한 번 알리고 벨을
+ * 한 번 흔든다(이슈 88). 사이트를 닫아 둔 동안 온 알림도 들어왔을 때 같은 카드로 알린다. 어디까지 알렸는지는
+ * 브라우저에 적어 둬서(notificationMemory) 화면을 옮겨도 같은 알림이 다시 뜨지 않는다.
  * 행을 누르면 읽음 처리(PATCH)하고 범위에 맞는 화면으로 간다 — 갤러리 알림의 주소는 보는 사람의
  * 역할에 따라 다르므로 hrefFor로 바꿔 끼운다(기본은 작가 주소). 내보내짐 · 작업공간 삭제 알림은
  * 갈 곳이 없어(403·404) 어느 역할이든 읽음 처리만 한다.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  BellIcon,
-  BellOffIcon,
-  BrushIcon,
-  CheckCircleIcon,
-  GroupIcon,
-  PhotoIcon,
-  ScheduleIcon,
-  SparkleIcon,
-} from "@/components/icons";
+import { BellIcon, BellOffIcon } from "@/components/icons";
 import { blockLeave } from "@/components/app/LeaveGuard";
+import { NotificationPeek } from "@/components/app/NotificationPeek";
+import { kindStyleOf, relativeTime } from "@/components/app/notificationKinds";
+import { pickUnannounced, readAnnouncedId, writeAnnouncedId } from "@/components/app/notificationMemory";
 import { IconButton } from "@/components/ui/IconButton";
 import {
   listNotifications,
@@ -32,56 +29,7 @@ import {
   type NotificationType,
   type UserNotificationResponse,
 } from "@/lib/api/notifications";
-
-type Kind = "selection" | "retouch" | "member" | "deadline" | "ai" | "gallery";
-
-const KIND_OF: Record<NotificationType, Kind> = {
-  SELECTION_SUBMITTED: "selection",
-  SELECTION_REOPENED: "selection",
-  SELECTION_INCREASE_REQUESTED: "selection",
-  SELECTION_INCREASE_APPROVED: "selection",
-  RETOUCH_REQUESTED: "retouch",
-  RETOUCH_COMPLETED: "retouch",
-  RETOUCH_CONFIRMED: "retouch",
-  INVITE_ACCEPTED: "member",
-  WORKSPACE_MEMBER_LEFT: "member",
-  GALLERY_MEMBER_LEFT: "member",
-  MEMBERSHIP_REMOVED: "member",
-  WORKSPACE_DELETED: "member",
-  DEADLINE_REMINDER: "deadline",
-  PLAN_EXPIRY_REMINDER: "deadline",
-  PLAN_EXPIRED: "deadline",
-  ANALYSIS_COMPLETED: "ai",
-  GALLERY_OPENED: "gallery",
-  GALLERY_REOPENED: "gallery",
-};
-
-const KIND_STYLE: Record<Kind, { icon: ReactNode; className: string }> = {
-  selection: {
-    icon: <CheckCircleIcon size={18} />,
-    className: "bg-brand-secondary-background text-brand-secondary-dark",
-  },
-  retouch: {
-    icon: <BrushIcon size={18} />,
-    className: "bg-function-info-background text-function-info-default",
-  },
-  member: {
-    icon: <GroupIcon size={18} />,
-    className: "bg-function-success-background text-function-success-default",
-  },
-  deadline: {
-    icon: <ScheduleIcon size={18} />,
-    className: "bg-function-warning-background text-function-warning-default",
-  },
-  ai: {
-    icon: <SparkleIcon size={18} />,
-    className: "bg-surface-default-light text-contents-light-bgd-default",
-  },
-  gallery: {
-    icon: <PhotoIcon size={18} />,
-    className: "bg-surface-default-light text-contents-light-bgd-sub",
-  },
-};
+import { useAuth } from "@/lib/auth/authStore";
 
 type Group = "오늘" | "이번 주" | "이전";
 const GROUPS: Group[] = ["오늘", "이번 주", "이전"];
@@ -92,22 +40,6 @@ function studioHref(n: UserNotificationResponse): string | null {
   if (n.scope === "GALLERY") return `/studio/gallery/${n.scopeId}`;
   if (n.scope === "STUDIO") return `/studio/${n.scopeId}`;
   return null;
-}
-
-function relativeTime(iso: string | null, now: number): string {
-  if (!iso) return "";
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "";
-  const minutes = Math.floor((now - t) / 60_000);
-  if (minutes < 1) return "방금";
-  if (minutes < 60) return `${minutes}분 전`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간 전`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "어제";
-  if (days < 7) return `${days}일 전`;
-  const d = new Date(t);
-  return `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function groupOf(iso: string | null, now: number): Group {
@@ -126,6 +58,9 @@ function groupOf(iso: string | null, now: number): Group {
 
 type Loaded = { list: UserNotificationResponse[]; at: number };
 
+/** 벨 아래 카드에 띄울 것 — 가장 새 알림 하나와 함께 온 나머지 수 */
+type Peek = { item: UserNotificationResponse; more: number; at: number };
+
 /** 탭이 보이는 동안 목록을 다시 받는 간격 */
 const REFRESH_MS = 60_000;
 
@@ -143,8 +78,40 @@ export function NotificationBell({
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [data, setData] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
+  const [peek, setPeek] = useState<Peek | null>(null);
+  /** 벨을 한 번 흔들 때마다 올린다 — key로 써서 애니메이션을 다시 건다 */
+  const [ring, setRing] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const loadedOnce = useRef(false);
+  const auth = useAuth();
+  const userId = auth.user?.id ?? null;
+
+  /** 받은 목록을 화면에 반영하고, 아직 알리지 않은 새 알림이 있으면 벨 아래 카드로 알린다 */
+  function receive(list: UserNotificationResponse[]) {
+    const now = Date.now();
+    loadedOnce.current = true;
+    setData({ list, at: now });
+    setFailed(false);
+    if (userId === null) return;
+    const announced = readAnnouncedId(userId);
+    const newest = list.reduce((max, n) => Math.max(max, n.id), 0);
+    if (announced !== null && newest <= announced) return;
+    writeAnnouncedId(userId, newest);
+    // 처음 쓰는 브라우저면 기준만 잡는다 — 오래 쌓인 알림이 한꺼번에 뜨지 않게
+    if (announced === null) return;
+    const fresh = pickUnannounced(list, announced);
+    // 목록을 열어 둔 채면 거기서 보이니 카드는 띄우지 않는다
+    if (fresh.length === 0 || open) return;
+    setPeek({ item: fresh[0], more: fresh.length - 1, at: now });
+    setRing((n) => n + 1);
+  }
+  // 아래 두 effect는 처음 한 번만 걸린다 — 최신 값(사용자 · 열림 여부)은 여기서 읽는다
+  const receiveRef = useRef(receive);
+  useEffect(() => {
+    receiveRef.current = receive;
+  });
+
+  const closePeek = useCallback(() => setPeek(null), []);
 
   // 처음 한 번(배지용), 그리고 열 때마다 새로 받는다. 닫을 때는 다시 받지 않는다.
   useEffect(() => {
@@ -154,9 +121,7 @@ export function NotificationBell({
       try {
         const list = await listNotifications();
         if (cancelled) return;
-        loadedOnce.current = true;
-        setData({ list, at: Date.now() });
-        setFailed(false);
+        receiveRef.current(list);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -174,9 +139,7 @@ export function NotificationBell({
       try {
         const list = await listNotifications();
         if (cancelled) return;
-        loadedOnce.current = true;
-        setData({ list, at: Date.now() });
-        setFailed(false);
+        receiveRef.current(list);
       } catch {
         // 주기 갱신 실패는 조용히 — 다음 차례에 다시
       }
@@ -261,15 +224,44 @@ export function NotificationBell({
     // flex: inline-flex인 IconButton이 라인박스를 만들어 위로 밀리는 것 방지
     <div ref={ref} className="relative flex">
       <IconButton
-        icon={<BellIcon size={20} />}
+        icon={
+          <span key={ring} className={`flex ${ring > 0 ? "bell-ring" : ""}`}>
+            <BellIcon size={20} />
+          </span>
+        }
         selected={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setPeek(null);
+          setOpen((v) => !v);
+        }}
         aria-label={unread > 0 ? `알림 ${unread}개 안 읽음` : "알림"}
       />
       {unread > 0 && (
+        // 한 자리 숫자는 늘 같은 크기의 원(16px), 10개부터 "9+"만 옆으로 늘어난다. 16px 원에 넣으려고 타이포 토큰에 없는 10px을 쓴다
         <span
           aria-hidden
-          className="pointer-events-none absolute top-0.5 right-0.5 size-2 rounded-full border border-background-default-main bg-function-error-default"
+          className={`pointer-events-none absolute -top-1 grid h-4 place-items-center rounded-(--pill) border-[1.5px] border-background-default-main bg-function-error-default text-[10px] leading-none font-semibold text-white tabular-nums ${
+            unread > 9 ? "-right-2.5 px-0.75" : "-right-1.25 w-4"
+          }`}
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+      {peek && !open && (
+        <NotificationPeek
+          key={peek.item.id}
+          item={peek.item}
+          more={peek.more}
+          now={peek.at}
+          onOpen={() => {
+            setPeek(null);
+            void openItem(peek.item);
+          }}
+          onShowAll={() => {
+            setPeek(null);
+            setOpen(true);
+          }}
+          onClose={closePeek}
         />
       )}
 
@@ -335,7 +327,7 @@ export function NotificationBell({
                       {group}
                     </p>
                     {items.map((n) => {
-                      const style = KIND_STYLE[KIND_OF[n.type] ?? "gallery"];
+                      const style = kindStyleOf(n.type);
                       const read = n.readAt !== null;
                       return (
                         <button

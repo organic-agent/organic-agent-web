@@ -229,6 +229,56 @@
   }
 }
 
+/* ─── 새 알림 — 벨 아래 카드 진입 · 벨 한 번 흔들림, prefers-reduced-motion 시 정지 ─── */
+@layer utilities {
+  .notification-peek-enter {
+    animation: notification-peek-in var(--duration-base) var(--ease-out) both;
+  }
+  .bell-ring {
+    transform-origin: 50% 12%;
+    animation: bell-ring 700ms ease-in-out;
+  }
+
+  @keyframes notification-peek-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes bell-ring {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    15% {
+      transform: rotate(14deg);
+    }
+    30% {
+      transform: rotate(-12deg);
+    }
+    45% {
+      transform: rotate(9deg);
+    }
+    60% {
+      transform: rotate(-6deg);
+    }
+    75% {
+      transform: rotate(3deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .notification-peek-enter,
+    .bell-ring {
+      animation: none;
+    }
+  }
+}
+
 /* ─── 하단 바 진행 막대 — 비율을 셀 수 없는 진행(AI 폴더 만드는 중)은 조각이 오간다 ─── */
 @layer utilities {
   @keyframes shell-indeterminate {
