@@ -745,7 +745,7 @@ export function ReviewStage({
               ? tab === "compare"
                 ? <BeforeAfter before={currentItem.photo.viewUrl} after={currentItem.resultUrl} afterLabel={`${roundLabel} 결과`} mode={compareMode} />
                 : // eslint-disable-next-line @next/next/no-img-element
-                  <img src={currentItem.resultUrl} alt={currentItem.photo.originalFileName} draggable={false} className={`block max-h-[calc(100dvh-56px)] max-w-full object-contain ${tab !== "none" ? "rounded-l-(--radius-12)" : "rounded-(--radius-12)"}`} />
+                  <img src={currentItem.resultUrl} alt={currentItem.photo.originalFileName} draggable={false} className="block max-h-[calc(100dvh-56px)] max-w-full rounded-(--radius-12) object-contain" />
               : undefined
           }
           onPhotoClick={picking && currentItem && tab === "request" ? (x, y) => addPoint(currentItem.photo.photoId, x, y) : undefined}

@@ -5,7 +5,8 @@
  * 위치: src/components/app/Lightbox.tsx
  *
  * 하단 컨트롤: 이전 · [middle] · 다음 | 탭 아이콘들 (· 패널 닫기). 가운데 칸(middle)은 화면이 채운다 —
- * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진이 왼쪽으로 붙고(분할) 닫으면 가운데 가득.
+ * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진과 패널이 사이를 띄우고 나란히 서고(둘 다 네 모서리 둥글게),
+ * 닫으면 사진이 가운데 가득.
  * 키보드: ← → 넘기기, Esc는 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다. 그 밖의 키는 onKeyDown으로 넘긴다.
  * 사진 · 컨트롤 · 패널 밖의 빈 곳을 누르면 닫힌다. 사진 위 오버레이(점)와 사진 클릭 좌표는 부모가 다룬다.
  */
@@ -114,7 +115,7 @@ export function Lightbox({
                     src={photo.viewUrl}
                     alt={photo.originalFileName}
                     draggable={false}
-                    className={`block max-h-[calc(100dvh-56px)] max-w-full object-contain ${open ? "rounded-l-(--radius-12)" : "rounded-(--radius-12)"}`}
+                    className="block max-h-[calc(100dvh-56px)] max-w-full rounded-(--radius-12) object-contain"
                   />
                 ) : (
                   <div className="grid h-105 w-160 place-items-center rounded-(--radius-12) bg-surface-default-light text-contents-light-bgd-weakness">미리보기 준비 중</div>
@@ -171,7 +172,7 @@ export function Lightbox({
 
         {/* 오른쪽 패널 */}
         {open && (
-          <aside className="flex w-82.5 shrink-0 flex-col self-stretch overflow-hidden rounded-r-(--radius-12) bg-background-default-main">
+          <aside className="ml-3 flex w-82.5 shrink-0 flex-col self-stretch overflow-hidden rounded-(--radius-12) bg-background-default-main">
             <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-divider-default px-4 type-label-semibold-m text-contents-light-bgd-default">
               <span className="truncate">{panelTitle ?? photo.originalFileName}</span>
               {panelTitle === undefined && <span className="shrink-0 type-content-xs font-normal text-contents-light-bgd-weakness">· {title}</span>}
