@@ -1,10 +1,13 @@
 "use client";
 
 /**
- * 보정 자료 내려받기 모달 — 요청서 CSV / 사진 + 요청서 ZIP, 범위 3
+ * 보정 자료 내려받기 모달 — 요청서 CSV / 사진 + 요청서 ZIP, 범위 2(전체 · 보정 요청 존재)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/RetouchDownloadModal.tsx
  *
- * 어떤 사진에 무엇을 해야 하는지 대조할 자료. 서버에는 업로드 때 줄인 2048px만 있어 보정은 작가 컴퓨터의 원본으로.
+ * 어떤 사진에 무엇을 해야 하는지 대조할 자료. 서버에는 업로드 때 줄인 2048px만 있어 보정은 작가 컴퓨터의 원본으로 —
+ * 그래서 묶음의 사진은 "확인용"이라고만 적는다. 작가의 보정 작업 화면과 개인 갤러리의 보정 확인 화면이 같이 쓰고,
+ * 개인 갤러리(personal)는 제목만 "요청서 내려받기"다. 문구는 설명 문장 없이 짧게(2차 QA).
+ * "결과 없는" 범위는 뺐다 — 남은 사진은 요청서 CSV의 결과 여부 열로 가린다.
  */
 
 import { useRef, useState } from "react";
@@ -14,17 +17,20 @@ import { hasMemo, type RetouchItem } from "./roundItems";
 import { buildRequestCsv, buildRetouchZip, saveBlob } from "./retouchDownload";
 
 type Kind = "csv" | "zip";
-type Scope = "all" | "noResult" | "memo";
+type Scope = "all" | "memo";
 
 export function RetouchDownloadModal({
   galleryTitle,
   roundNo,
   items,
+  personal = false,
   onClose,
 }: {
   galleryTitle: string;
   roundNo: number;
   items: RetouchItem[];
+  /** 개인 갤러리 — 부부가 작가에게 보낼 요청서를 받는다(제목이 다르다) */
+  personal?: boolean;
   onClose: () => void;
 }) {
   const [kind, setKind] = useState<Kind>("csv");
@@ -32,7 +38,7 @@ export function RetouchDownloadModal({
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const scoped = scope === "noResult" ? items.filter((it) => !it.hasResult) : scope === "memo" ? items.filter(hasMemo) : items;
+  const scoped = scope === "memo" ? items.filter(hasMemo) : items;
   const base = `${galleryTitle} ${roundNo}차 보정`;
 
   async function run() {
@@ -62,19 +68,18 @@ export function RetouchDownloadModal({
 
   return (
     <GalleryModalShell
-      title={`${roundNo}차 보정 자료 내려받기`}
-      desc="어떤 사진에 무엇을 해야 하는지 대조할 자료예요. 보정은 컴퓨터에 있는 원본으로 해 주세요 — 서버에는 업로드 때 줄인 2048px만 있어요."
+      title={personal ? "요청서 내려받기" : `${roundNo}차 보정 자료 내려받기`}
       maxWidthClassName="max-w-120"
       onClose={() => {
         abortRef.current?.abort();
         onClose();
       }}
     >
-      <div className="mb-4 flex flex-col gap-2" role="radiogroup" aria-label="내려받을 것">
+      <div className="mt-5 mb-4 flex flex-col gap-2" role="radiogroup" aria-label="내려받을 것">
         {(
           [
-            ["csv", <DocIcon key="i" size={20} />, "요청서 CSV", "photo_id · 파일명 · 전체 요청 · 점 요청(번호 · 위치 · 문장) · 결과 여부"],
-            ["zip", <FolderIcon key="i" size={20} />, "사진 + 요청서 ZIP", `2048px JPG(원본 파일명) + 요청서 CSV · 브라우저에서 묶어요(${scoped.length}장 약 ${Math.max(1, Math.ceil(scoped.length / 40))}분)`],
+            ["csv", <DocIcon key="i" size={20} />, "요청서 (CSV)", "표 파일"],
+            ["zip", <FolderIcon key="i" size={20} />, "사진 + 요청서 (ZIP)", `확인용 사진 ${scoped.length}장`],
           ] as [Kind, React.ReactNode, string, string][]
         ).map(([k, icon, label, sub]) => (
           <button
@@ -99,9 +104,8 @@ export function RetouchDownloadModal({
       <div className="mb-5 flex rounded-(--radius-8) bg-surface-default-medium p-0.75" role="tablist" aria-label="범위">
         {(
           [
-            ["all", `이 회차 전부 ${items.length}`],
-            ["noResult", `결과 없는 ${items.filter((it) => !it.hasResult).length}`],
-            ["memo", `메모 있는 ${items.filter(hasMemo).length}`],
+            ["all", `전체 ${items.length}`],
+            ["memo", `보정 요청 존재 ${items.filter(hasMemo).length}`],
           ] as [Scope, string][]
         ).map(([k, label]) => (
           <button
@@ -134,7 +138,7 @@ export function RetouchDownloadModal({
           onClose();
         }}
         onConfirm={() => void run()}
-        confirmLabel={progress ? "묶는 중…" : kind === "csv" ? "CSV 내려받기" : "ZIP 내려받기"}
+        confirmLabel={progress ? "묶는 중…" : "내려받기"}
         disabled={scoped.length === 0 || progress !== null}
       />
     </GalleryModalShell>

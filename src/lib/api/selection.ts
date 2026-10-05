@@ -38,6 +38,12 @@ export type PhotoSelectionResponse = {
   viewUrlTtlSeconds: number;
 };
 
+/**
+ * 선택 마감이 지나 서버가 담기 · 빼기 · 별점 · 전달을 막을 때의 오류 코드(403 "사진 선택 마감 기한이 지났습니다.").
+ * 화면은 날짜로 미리 잠그지만, 판정이 어긋나는 때(마감 당일 등)는 이 코드를 받고도 잠근다.
+ */
+export const SELECTION_DEADLINE_PASSED = "GALLERY_403_4";
+
 /** 선택 앨범 조회 — 갤러리를 볼 수 있는 누구나(작가는 마감 뒤에도). */
 export function getPhotoSelection(
   galleryId: number,

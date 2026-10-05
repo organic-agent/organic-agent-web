@@ -11,6 +11,7 @@
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
+ * 정렬 기본값은 별점 순(2차 QA) — 점수 묶음(★5 → ★1 → 별점 없음)으로 그리되, 별점이 하나도 없으면 묶음 없이 그려 처음 화면은 업로드 순과 같다.
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
@@ -20,10 +21,12 @@
  * 개인 갤러리(personal)는 작가가 없어 전달 대신 **"요청서 내보내기"**(ExportSelectionModal: 초안 저장 → export → 잠김)이고
  * 장수 추가 요청이 없다(묶음 C, 2026-09-23).
  * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
+ * 선택 마감이 지나면 서버가 담기 · 빼기 · 별점 · 전달을 막는다 — 화면도 체크박스 · 별점 · 전달하기를 잠그고 그리드 위 배너로 알린다
+ * (2차 QA). 날짜로 미리 잠그고, 서버가 마감 오류를 돌려줬을 때도 잠근다. 개인 갤러리의 목표일은 마감이 아니라 잠그지 않는다.
  */
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
@@ -36,6 +39,8 @@ import type { GalleryResponse } from "@/lib/api/galleries";
 import { ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
+import { SELECTION_DEADLINE_PASSED } from "@/lib/api/selection";
+import { isDeadlinePassed } from "../../_lib/useInvitedGallery";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
@@ -112,9 +117,19 @@ export function SelectStage({
   /** 별점 저장이 끝났을 때 서버에 남은 값 — 페이지가 사진 목록에 적는다 */
   onScoreSaved: (photoId: number, score: number | null) => void;
 }) {
-  const editable = phase === "select";
+  const canEdit = phase === "select";
+  /** 서버가 "선택 마감이 지났다"고 거절했을 때의 마감 값 — 갤러리를 다시 읽어 마감이 바뀌어 있으면(작가가 늦춤) 저절로 풀린다 */
+  const [deadlineHit, setDeadlineHit] = useState<string | null>(null);
+  const deadlineKey = gallery.selectionDeadline ?? "";
+  /** 선택 마감이 지나 잠긴 상태(초대 클라이언트만) */
+  const locked = canEdit && !personal && (isDeadlinePassed(gallery.selectionDeadline) || deadlineHit === deadlineKey);
+  const editable = canEdit && !locked;
+  function noteRejection(err: unknown) {
+    if (personal || !(err instanceof ApiError) || err.code !== SELECTION_DEADLINE_PASSED) return;
+    setDeadlineHit(deadlineKey);
+  }
   const maxSelectable = gallery.maxSelectablePhotoCount;
-  const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, editable, maxSelectable);
+  const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, canEdit, maxSelectable, noteRejection);
   const [deselectId, setDeselectId] = useState<number | null>(null);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal && owner ? { galleryTitle: gallery.title } : undefined });
   /** 담기는 바로, 빼기는 확인 뒤 */
@@ -163,7 +178,7 @@ export function SelectStage({
   const [view, setView] = useState<ClientView>("all");
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
-  const [sort, setSort] = useState<SortKey>("uploaded");
+  const [sort, setSort] = useState<SortKey>("score");
   // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산), 정렬 목록에 "하객 좋아요순"
   const [guestOn, setGuestOn] = useState(false);
   const [guestSort, setGuestSort] = useState(false);
@@ -319,7 +334,7 @@ export function SelectStage({
   const restPhotos = useMemo(() => (showAiGroup ? gridPhotos.filter((p) => !aiIds.has(p.photoId)) : gridPhotos), [showAiGroup, gridPhotos, aiIds]);
   const scopeLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? "모든 사진" : "보는 폴더";
   const aiUnpicked = aiPhotos.filter((p) => !pickedIds.has(p.photoId));
-  /** 별점 순이면 점수별 그룹(5 → 1 → 없음) */
+  /** 별점 순이면 점수별 그룹(5 → 1 → 없음) — 별점이 하나도 없으면 묶지 않는다("별점 없음 n장" 한 묶음만 보이지 않게) */
   const scoreGroups = useMemo(() => {
     if (sort !== "score" || view !== "all") return null;
     const groups: { score: number | null; photos: PhotoResponse[] }[] = [];
@@ -327,6 +342,7 @@ export function SelectStage({
       const ps = restPhotos.filter((p) => p.score === sc);
       if (ps.length > 0) groups.push({ score: sc, photos: ps });
     }
+    if (groups.length === 0) return null;
     const none = restPhotos.filter((p) => !p.score);
     if (none.length > 0) groups.push({ score: null, photos: none });
     return groups;
@@ -422,6 +438,7 @@ export function SelectStage({
       return next;
     });
     if (failure !== null) {
+      noteRejection(failure);
       setRateError({ text: "별점을 저장하지 못했어요" });
       setLocalNotice(failure instanceof ApiError ? failure.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
     }
@@ -545,6 +562,16 @@ export function SelectStage({
                 sortable={view === "all"}
                 customSort={guestOn ? guestSortMenu : undefined}
               />
+              {locked && (
+                <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+                  <span className="text-contents-light-bgd-sub">
+                    <LockIcon size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <b className="font-semibold">선택 마감이 지나 사진을 고를 수 없어요</b> · 작가에게 마감 연장을 요청해 주세요
+                  </span>
+                </div>
+              )}
               <div data-coach="pick" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                 {showAiGroup && (
                   <div className="px-5 pt-1 pb-3">
@@ -687,6 +714,8 @@ export function SelectStage({
             <button type="button" onClick={clearNotices} className="cursor-pointer text-left text-function-warning-default">
               {shownNotice}
             </button>
+          ) : locked ? (
+            `선택 마감 · ${ddayLabel(gallery.selectionDeadline)}`
           ) : selectedCount === 0 ? (
             "왼쪽 위 체크로 선택해요 · 사진을 누르면 크게 보며 별점과 보정 요청"
           ) : (

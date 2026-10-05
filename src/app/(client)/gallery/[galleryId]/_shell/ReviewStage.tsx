@@ -632,6 +632,7 @@ export function ReviewStage({
           galleryTitle={gallery.title}
           roundNo={activeRoundNo}
           items={items}
+          personal
           onClose={() => {
             setRequestDownloadOpen(false);
             setAutoDownloadHandled(true);
