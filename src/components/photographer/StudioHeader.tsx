@@ -104,7 +104,6 @@ export function StudioHeader({
         {tickets && <TicketPill tickets={tickets} onClick={onTicketClick} canBuy={canBuy} />}
         <button
           type="button"
-          data-coach="filter"
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -166,7 +165,7 @@ function TicketPill({
 }) {
   if (tickets.state !== "none" && !canBuy) {
     return (
-      <span className="inline-flex h-9 items-center gap-1.5 rounded-(--pill) bg-surface-default-light px-3.5 type-label-semibold-xs text-contents-light-bgd-sub">
+      <span data-coach="tickets" className="inline-flex h-9 items-center gap-1.5 rounded-(--pill) bg-surface-default-light px-3.5 type-label-semibold-xs text-contents-light-bgd-sub">
         <TicketIcon size={16} />
         이용권 {tickets.remaining}개 남음
       </span>
@@ -174,7 +173,7 @@ function TicketPill({
   }
   if (tickets.state === "none") {
     return (
-      <span className="inline-flex h-9 items-center gap-1.5 rounded-(--pill) bg-surface-default-light px-3.5 type-label-semibold-xs text-contents-light-bgd-sub">
+      <span data-coach="tickets" className="inline-flex h-9 items-center gap-1.5 rounded-(--pill) bg-surface-default-light px-3.5 type-label-semibold-xs text-contents-light-bgd-sub">
         <TicketIcon size={16} />
         이용권 없음
       </span>
@@ -184,6 +183,7 @@ function TicketPill({
   return (
     <button
       type="button"
+      data-coach="tickets"
       onClick={onClick}
       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--pill) px-3.5 type-label-semibold-xs transition-colors duration-fast ${
         full

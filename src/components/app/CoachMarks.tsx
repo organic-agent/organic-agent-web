@@ -18,7 +18,7 @@
  * 크기를 재서 쓴다(처음 한 프레임만 추정값).
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CloseIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/authStore";
@@ -175,12 +175,15 @@ export function CoachMarks({
   steps,
   storeKey,
   ready,
+  onStart,
 }: {
   steps: ReadonlyArray<CoachStep>;
   /** 완료 기록 키 — 예: sel.coach.studioHome. 실제 키에는 계정 번호가 붙는다(sel.coach.studioHome.12) */
   storeKey: string;
   /** 대상이 화면에 그려진 뒤 true */
   ready: boolean;
+  /** 처음 뜰 때 한 번 — 화면을 안내에 맞는 상태로 돌려놓는 데 쓴다(사이드바 닫기) */
+  onStart?: () => void;
 }) {
   const userId = useAuth().user?.id ?? null;
   const doneStore = useMemo(() => (userId === null ? SIGNED_OUT : storeFor(`${storeKey}.${userId}`)), [storeKey, userId]);
@@ -194,6 +197,13 @@ export function CoachMarks({
   const active = ready && !done && index < steps.length;
   const step = steps[index];
   const targetKey = active ? (step.target ?? step.key) : null;
+
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (!active || startedRef.current) return;
+    startedRef.current = true;
+    onStart?.();
+  }, [active, onStart]);
 
   // 대상을 따라간다 — 처음부터 없는 대상은 건너뛰고, 있다가 사라지면(다시 그려지는 중) 숨긴 채 기다린다
   useEffect(() => {

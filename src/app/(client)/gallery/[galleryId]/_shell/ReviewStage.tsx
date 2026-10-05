@@ -392,7 +392,7 @@ export function ReviewStage({
             }}
             extra={
               overview && rounds.length > 0 ? (
-                <div data-coach="rounds">
+                <div>
                   <RoundList
                     rounds={rounds}
                     activeRoundNo={activeRoundNo}
@@ -590,10 +590,12 @@ export function ReviewStage({
             </>
           ) : resultArrived && isLatest && !archived ? (
             <>
-              <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
-                <DownloadIcon size={18} />
-                보정본 내려받기
-              </ShellCta>
+              <span data-coach="download" className="inline-flex">
+                <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
+                  <DownloadIcon size={18} />
+                  보정본 내려받기
+                </ShellCta>
+              </span>
               <span data-coach="rerequest" title={canReRequest ? undefined : "남은 보정 횟수가 없어요 · 작가에게 문의해 주세요"} className="inline-flex">
                 <ShellCta kind="outline" disabled={!canReRequest} onClick={startPicking}>
                   <EditNoteIcon size={18} />

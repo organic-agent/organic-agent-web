@@ -540,7 +540,7 @@ export function SelectStage({
                       aria-label={`AI 추천${aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}`}
                       disabled={!editable || aiBusy || ai.jobActive}
                       onClick={() => void ai.request(focusedDetail?.id ?? null)}
-                      title={focusedDetail ? `${focusedDetail.name}에서 약 10%를 이유와 함께 골라 드려요` : "폴더마다 몇 장씩 이유와 함께 골라 드려요"}
+                      title={focusedDetail ? `${focusedDetail.name}에서 몇 장을 골라 드려요` : "폴더마다 몇 장씩 골라 드려요"}
                       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 max-[860px]:px-2.25 ${
                         aiPhotos.length > 0
                           ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default"
@@ -555,6 +555,7 @@ export function SelectStage({
                   )}
                   <button
                     type="button"
+                    data-coach="reactions"
                     aria-pressed={guestOn}
                     aria-label="하객 반응"
                     onClick={() => setGuestOn((v) => !v)}
