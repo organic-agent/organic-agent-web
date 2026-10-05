@@ -13,6 +13,8 @@ import { listAllCollabPhotos, type CollabPhotoResponse, type CollabSessionRespon
 import { isLiveSession } from "./useCollabSessions";
 
 export type GuestReactions = {
+  /** 살아 있는 공유폴더 — 이름과 순서 */
+  live: CollabSessionResponse[];
   /** 공유폴더 id → 그 폴더의 사진(좋아요 · 댓글 수 포함). 아직 못 읽었으면 비어 있다 */
   bySession: ReadonlyMap<number, CollabPhotoResponse[]>;
   likesByPhoto: ReadonlyMap<number, number>;
@@ -64,6 +66,7 @@ export function useGuestReactions(galleryId: number, sessions: CollabSessionResp
   }, [bySession]);
 
   return {
+    live,
     bySession,
     likesByPhoto,
     commentsByPhoto,
@@ -75,4 +78,19 @@ export function useGuestReactions(galleryId: number, sessions: CollabSessionResp
     loading: sessions !== null && !ready,
     reload: () => setNonce((n) => n + 1),
   };
+}
+
+/** 사진 한 장이 한 공유폴더에서 받은 반응 */
+export type PhotoReactionGroup = { sessionId: number; name: string; likes: number; comments: number };
+
+/** 이 사진에 반응(좋아요 · 댓글)이 있는 공유폴더들 — 공유폴더 순서대로. 싱글뷰의 "게스트 반응" 패널이 쓴다 */
+export function reactionGroupsOf(reactions: GuestReactions, photoId: number): PhotoReactionGroup[] {
+  const groups: PhotoReactionGroup[] = [];
+  for (const session of reactions.live) {
+    const photo = reactions.bySession.get(session.sessionId)?.find((p) => p.photoId === photoId);
+    if (photo && (photo.likeCount > 0 || photo.commentCount > 0)) {
+      groups.push({ sessionId: session.sessionId, name: session.name, likes: photo.likeCount, comments: photo.commentCount });
+    }
+  }
+  return groups;
 }
