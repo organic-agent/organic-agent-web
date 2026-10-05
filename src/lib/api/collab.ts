@@ -2,8 +2,8 @@
  * 공유폴더(협업 세션) API — 스웨거 [Collab Session] 계약의 타입화 (게스트 초대 · 공유 탭)
  * 위치: src/lib/api/collab.ts
  *
- * 공유폴더 하나 = 게스트 링크 하나(collabUrl, 7일 유효). 사진은 직접 담거나(MANUAL, photoIds) 컨셉 폴더를 따라간다
- * (CONCEPT_FOLDER, conceptFolderId — 폴더가 바뀌면 같이 바뀜). includeAllAlbums=true면 게스트 첫 화면에 이 갤러리의
+ * 공유폴더 하나 = 게스트 링크 하나(collabUrl, 7일 유효). 공유폴더는 컨셉 · 세부 폴더와 따로 산다 — 컨셉으로 만들어도
+ * 그 순간의 사진을 복사해 담고, 이후 폴더를 정리해도 바뀌지 않는다. includeAllAlbums=true면 게스트 첫 화면에 이 갤러리의
  * 공유폴더 전부가 앨범으로 보인다(부분 집합은 불가 — 고른 공유폴더 몇 개를 링크 하나로 주려면 사진을 합친 새 공유폴더를 만든다).
  * 게스트 쪽(collab/{token})은 C6.
  */
@@ -15,8 +15,6 @@ import type { PhotoResponse } from "@/lib/api/photos";
 export type CollabSessionResponse = {
   sessionId: number;
   galleryId: number;
-  /** 컨셉 폴더를 따라가는 공유폴더면 그 id, 직접 담은 폴더면 null */
-  conceptFolderId: number | null;
   name: string;
   /** 게스트 링크 */
   collabUrl: string;
@@ -28,7 +26,6 @@ export type CollabSessionResponse = {
   coverTitle: string | null;
   coverAuthor: string | null;
   includeAllAlbums: boolean;
-  selectionMode: "MANUAL" | "CONCEPT_FOLDER";
 };
 
 export type CollabPhotoResponse = {
@@ -56,7 +53,7 @@ export function listCollabSessions(galleryId: number): Promise<CollabSessionResp
 export const COLLAB_PHOTO_BATCH = 200;
 
 /**
- * 공유폴더 만들기 — 이름만으로 빈 폴더, photoIds(200장까지)로 처음 사진, conceptFolderId면 그 컨셉을 따라가는 폴더
+ * 공유폴더 만들기 — 이름만으로 빈 폴더, photoIds(200장까지)로 처음 사진, conceptFolderId면 그 컨셉의 지금 사진을 복사한 폴더
  * (같은 컨셉은 기존 세션 재사용 · 이름 갱신). 새 링크는 7일. 보관된 갤러리는 못 만든다. 201 + 세션 본문.
  */
 export function createCollabSession(

@@ -14,7 +14,6 @@ import type { CollabPhotoPageResponse, CollabPhotoResponse } from "@/lib/api/col
 export const GUEST_TOKEN_HEADER = "X-Guest-Token";
 
 export type CollabLandingAlbum = {
-  conceptFolderId: number | null;
   name: string;
   photoCount: number;
   /** 이 앨범(세션)으로 들어가는 토큰 — 사진 · 반응 요청은 이 토큰으로 */
