@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:split-zip": "node --test scripts/split-zip.test.mjs",
     "tokens:build": "node scripts/build-tokens.mjs",
     "icons:build": "node scripts/build-icons.mjs"
   },
   "dependencies": {
+    "@zip.js/zip.js": "^2.23.0",
     "jszip": "^3.10.2",
     "next": "16.2.10",
     "react": "19.2.4",

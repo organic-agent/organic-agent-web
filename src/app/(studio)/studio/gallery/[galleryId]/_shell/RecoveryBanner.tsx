@@ -11,9 +11,10 @@
  * 닫기(X) → PENDING 행을 휴지통으로 보내고 배너를 닫는다(24시간 뒤 서버가 알아서 하는 일을 앞당기는 것).
  */
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CloseIcon, CloudOffIcon } from "@/components/icons";
-import { UPLOAD_ACCEPT_ATTR } from "./uploadSupport";
+import { isAcceptedUpload } from "./uploadSupport";
+import { expandUploadSelection, UPLOAD_SELECTION_ACCEPT_ATTR } from "./uploadSelection";
 
 export function RecoveryBanner({
   onFiles,
@@ -25,6 +26,32 @@ export function RecoveryBanner({
   discarding?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectionRef = useRef<AbortController | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
+  useEffect(() => () => selectionRef.current?.abort(), []);
+
+  async function selectFiles(files: File[]) {
+    if (selectionRef.current || discarding) return;
+    const controller = new AbortController();
+    selectionRef.current = controller;
+    setExtracting(true);
+    setSelectionNotice(null);
+    try {
+      const selection = await expandUploadSelection(files, undefined, controller.signal);
+      controller.signal.throwIfAborted();
+      const photos = selection.files.filter(isAcceptedUpload);
+      setSelectionNotice(selection.errors.join(" ") || (photos.length === 0 ? "업로드할 수 있는 사진이 없어요." : null));
+      if (photos.length > 0) onFiles(photos);
+    } catch {
+      if (!controller.signal.aborted) setSelectionNotice("파일을 가져오지 못했어요. 다시 골라 주세요.");
+    } finally {
+      if (!controller.signal.aborted) {
+        selectionRef.current = null;
+        setExtracting(false);
+      }
+    }
+  }
   return (
     <div
       role="status"
@@ -37,30 +64,33 @@ export function RecoveryBanner({
       <input
         ref={inputRef}
         type="file"
-        accept={UPLOAD_ACCEPT_ATTR}
+        accept={UPLOAD_SELECTION_ACCEPT_ATTR}
         multiple
+        disabled={extracting || discarding}
         className="hidden"
         onChange={(e) => {
-          if (e.target.files?.length) onFiles([...e.target.files]);
+          if (e.target.files?.length) void selectFiles([...e.target.files]);
           e.target.value = "";
         }}
       />
       <button
         type="button"
+        disabled={extracting || discarding}
         onClick={() => inputRef.current?.click()}
         className="inline-flex h-8 cursor-pointer items-center rounded-(--radius-8) border border-function-warning-default/40 bg-background-default-main px-3 type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
       >
-        이어서 올리기
+        {extracting ? "압축을 풀고 사진을 확인하는 중…" : "이어서 올리기"}
       </button>
       <button
         type="button"
-        disabled={discarding}
+        disabled={discarding || extracting}
         onClick={onDiscard}
         aria-label="닫기"
         className="-mr-1.5 inline-flex cursor-pointer items-center justify-center rounded-(--radius-4) p-1 text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-60"
       >
         <CloseIcon size={20} />
       </button>
+      {selectionNotice && <p role="alert" className="basis-full break-words type-content-xs text-function-error-default">{selectionNotice}</p>}
     </div>
   );
 }
