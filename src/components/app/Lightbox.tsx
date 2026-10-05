@@ -8,14 +8,16 @@
  * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진과 패널이 사이를 띄우고 나란히 서고(둘 다 네 모서리 둥글게),
  * 닫으면 사진이 가운데 가득.
  * 키보드: ← → 넘기기, Esc는 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다. 그 밖의 키는 onKeyDown으로 넘긴다.
- * 처음 · 끝에서는 돌아가지 않고 멈추며 스낵바로 알린다("마지막 사진이에요").
+ * 처음 · 끝에서는 돌아가지 않고 멈추며 스낵바로 알린다("마지막 사진이에요"). 화면이 띄울 알림(별점 저장 실패 등)은 notice로 받는다.
+ * 마우스로 누른 버튼에는 초점을 남기지 않는다 — 남으면 다음 Space · Enter가 그 버튼을 다시 눌러 방금 매긴 별점이 지워졌다(2차 QA).
+ * Tab으로 버튼에 초점을 둔 경우의 Space · Enter는 그 버튼만 누른다(단축키와 겹치지 않게).
  * 열려 있는 동안 키보드 초점은 싱글뷰가 갖고(Tab도 안에서 돈다) 닫히면 연 곳으로 돌려준다 — 초점이 뒤의 그리드 타일에 남으면
  * Space · Enter가 그 타일을 다시 눌러 처음 연 사진으로 되돌아갔다(2차 QA). 위에 다른 모달이 떠 있으면 키를 받지 않는다.
  * 사진 · 컨트롤 · 패널 밖의 빈 곳을 누르면 닫힌다. 사진 위 오버레이(점)와 사진 클릭 좌표는 부모가 다룬다.
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Snackbar } from "@/components/app/Snackbar";
+import { Snackbar, type SnackbarKind } from "@/components/app/Snackbar";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -74,6 +76,7 @@ export function Lightbox({
   onTabChange,
   onKeyDown,
   onImageError,
+  notice = null,
 }: {
   photo: PhotoResponse;
   index: number;
@@ -103,6 +106,8 @@ export function Lightbox({
   onKeyDown?: (e: KeyboardEvent) => boolean | void;
   /** 사진이 그려지지 않았을 때(주소 만료 등) — 부모가 목록을 다시 읽어 새 주소를 준다 */
   onImageError?: () => void;
+  /** 컨트롤 위에 띄울 알림 — 띄우고 지우는 때는 부모가 정한다 */
+  notice?: { kind: SnackbarKind; text: string } | null;
 }) {
   const open = tab !== "none";
   const rootRef = useRef<HTMLDivElement>(null);
@@ -145,6 +150,8 @@ export function Lightbox({
         return;
       }
       if (isTyping(e.target)) return;
+      // 초점이 버튼에 있으면 Space · Enter는 그 버튼을 누르는 키다
+      if ((e.key === " " || e.key === "Enter") && e.target !== root && e.target instanceof HTMLElement && e.target.closest("button, a, summary")) return;
       if (e.key === "Escape") {
         e.preventDefault();
         if (open) onTabChange("none");
@@ -170,6 +177,11 @@ export function Lightbox({
       aria-modal="true"
       aria-label={`${photo.originalFileName} 한 장 보기`}
       className="fixed inset-0 z-40 flex bg-black/75 p-7 outline-none backdrop-blur-[2px]"
+      onClick={(e) => {
+        // 마우스로 누른 뒤에는 초점을 싱글뷰로 되돌린다(키보드로 누른 클릭은 detail이 0)
+        const active = document.activeElement;
+        if (e.detail > 0 && !isTyping(active) && !(active instanceof HTMLSelectElement)) rootRef.current?.focus({ preventScroll: true });
+      }}
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "" : "justify-center"}`} onClick={closeOnSelf}>
@@ -219,9 +231,9 @@ export function Lightbox({
             </button>
           )}
 
-          {edge && (
-            <Snackbar kind="info" className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
-              {edge.text}
+          {(notice ?? edge) && (
+            <Snackbar kind={notice?.kind ?? "info"} className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
+              {notice?.text ?? edge?.text}
             </Snackbar>
           )}
 

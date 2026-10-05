@@ -11,7 +11,8 @@
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
- * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
+ * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
+ * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
@@ -20,7 +21,7 @@
  * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
@@ -82,6 +83,7 @@ export function SelectStage({
   partnerName = null,
   onExported,
   onPhotoUrlError,
+  onScoreSaved,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -107,6 +109,8 @@ export function SelectStage({
   onExported?: () => void;
   /** 싱글뷰 사진이 그려지지 않았을 때(주소 만료) — 페이지가 목록을 다시 읽는다 */
   onPhotoUrlError?: () => void;
+  /** 별점 저장이 끝났을 때 서버에 남은 값 — 페이지가 사진 목록에 적는다 */
+  onScoreSaved: (photoId: number, score: number | null) => void;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
@@ -139,8 +143,16 @@ export function SelectStage({
   const [navIds, setNavIds] = useState<number[] | null>(null);
   const [tab, setTab] = useState<LightboxTab>("none");
   const [scrollToId, setScrollToId] = useState<number | null>(null);
-  /** 별점 낙관적 갱신 — 서버 답이 오기 전에 화면부터 */
+  /** 별점 낙관적 갱신 — 서버 답이 오기 전에 화면부터(저장이 끝나면 걷는다) */
   const [scoreOverrides, setScoreOverrides] = useState<Map<number, number | null>>(() => new Map());
+  /** 저장 중인 별점 — saved는 서버에 남은 값, want는 화면이 바라는 값 */
+  const rateJobsRef = useRef(new Map<number, { saved: number | null; want: number | null }>());
+  const [rateError, setRateError] = useState<{ text: string } | null>(null);
+  useEffect(() => {
+    if (!rateError) return;
+    const timer = window.setTimeout(() => setRateError(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [rateError]);
   const [view, setView] = useState<ClientView>("all");
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
@@ -358,16 +370,45 @@ export function SelectStage({
     setCurrentId(next.photoId);
     countView(galleryId, next.photoId);
   }
-  async function rate(photoId: number, score: number | null) {
+  function rate(photoId: number, score: number | null) {
     if (!editable) return;
-    const before = photoById.get(photoId)?.score ?? null;
     setScoreOverrides((prev) => new Map(prev).set(photoId, score));
-    try {
-      if (score === null) await clearPhotoRating(galleryId, photoId);
-      else await ratePhoto(galleryId, photoId, score);
-    } catch (err) {
-      setScoreOverrides((prev) => new Map(prev).set(photoId, before));
-      setLocalNotice(err instanceof ApiError ? err.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
+    const running = rateJobsRef.current.get(photoId);
+    if (running) {
+      running.want = score;
+      return;
+    }
+    const job = { saved: photoById.get(photoId)?.score ?? null, want: score };
+    rateJobsRef.current.set(photoId, job);
+    void saveRating(photoId, job);
+  }
+  /** 한 사진의 별점을 서버와 맞춘다 — 요청이 엇갈려 옛 값이 남지 않게 한 번에 하나씩, 바라는 값이 바뀌었으면 이어서 보낸다 */
+  async function saveRating(photoId: number, job: { saved: number | null; want: number | null }) {
+    let failure: unknown = null;
+    while (job.want !== job.saved) {
+      const sending = job.want;
+      try {
+        if (sending === null) await clearPhotoRating(galleryId, photoId);
+        else await ratePhoto(galleryId, photoId, sending);
+        job.saved = sending;
+      } catch (err) {
+        // 그사이 다시 매겼으면 그 값을 이어서 보내 본다
+        if (job.want !== sending) continue;
+        failure = err;
+        break;
+      }
+    }
+    rateJobsRef.current.delete(photoId);
+    // 서버에 남은 값을 목록에 적고 덮어쓰기를 걷는다 — 실패했으면 화면이 그 값으로 되돌아간다
+    onScoreSaved(photoId, job.saved);
+    setScoreOverrides((prev) => {
+      const next = new Map(prev);
+      next.delete(photoId);
+      return next;
+    });
+    if (failure !== null) {
+      setRateError({ text: "별점을 저장하지 못했어요" });
+      setLocalNotice(failure instanceof ApiError ? failure.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
     }
   }
   function addPoint(photoId: number, x: number, y: number) {
@@ -761,6 +802,7 @@ export function SelectStage({
           tab={tab}
           tabs={LIGHTBOX_TABS}
           onImageError={onPhotoUrlError}
+          notice={rateError ? { kind: "error", text: rateError.text } : null}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
@@ -771,13 +813,13 @@ export function SelectStage({
               editable={editable}
               score={currentPhoto.score}
               onTogglePick={() => requestToggle(currentPhoto.photoId)}
-              onRate={(score) => void rate(currentPhoto.photoId, score)}
+              onRate={(score) => rate(currentPhoto.photoId, score)}
             />
           }
           onKeyDown={(e) => {
             if (!editable) return false;
-            if (/^[1-5]$/.test(e.key)) void rate(currentPhoto.photoId, Number(e.key));
-            else if (e.key === "0") void rate(currentPhoto.photoId, null);
+            if (/^[1-5]$/.test(e.key)) rate(currentPhoto.photoId, Number(e.key));
+            else if (e.key === "0") rate(currentPhoto.photoId, null);
             else if (e.key === " ") {
               e.preventDefault();
               requestToggle(currentPhoto.photoId);
@@ -801,7 +843,7 @@ export function SelectStage({
                 folderName={folderNameOf(currentPhoto)}
                 score={currentPhoto.score}
                 editable={editable}
-                onRate={(score) => void rate(currentPhoto.photoId, score)}
+                onRate={(score) => rate(currentPhoto.photoId, score)}
               />
             ) : tab === "ai" ? (
               <AiPanel
