@@ -5,21 +5,24 @@
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/SelectStage.tsx
  *
  * 폴더 확정 뒤에는 폴더 열이 사라지고 2열이다: 사이드바(기본 열림 — 폴더 | 공유 탭, 체크박스 트리) + 그리드.
- * 그리드에 레일 · 우측 패널은 없고 정보 · AI · 보정 요청은 싱글뷰에서 한다.
+ * 그리드에 레일 · 우측 패널은 없고 정보 · 보정 요청은 싱글뷰에서 한다.
  * 선택 앨범(photo-selection)은 서버가 정본 — 신랑 · 신부가 같이 고르므로 화면이 보일 때 주기적으로 다시 읽는다
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
- * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾼다.
+ * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
+ * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
+ * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
+ * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
  * 보정 요청은 싱글뷰 "보정 요청" 탭에서 사진 위를 눌러 점을 찍고, 초안은 브라우저(retouchDraft)에 두다가 전달하기에 실린다.
- * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 이유는 호버 캡션 · 싱글뷰 AI 탭.
+ * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 싱글뷰에서는 정보 탭 맨 위 "AI 추천" 칩.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
  * 개인 갤러리(personal)는 작가가 없어 전달 대신 **"요청서 내보내기"**(ExportSelectionModal: 초안 저장 → export → 잠김)이고
  * 장수 추가 요청이 없다(묶음 C, 2026-09-23).
  * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
@@ -38,7 +41,7 @@ import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { DeselectConfirmModal } from "./DeselectConfirmModal";
 import { ExportSelectionModal } from "./ExportSelectionModal";
-import { countView } from "./clientMemory";
+import { countView, takeRateKeysHint } from "./clientMemory";
 import type { ClientPhase } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
@@ -50,10 +53,9 @@ import { useAiRecommendations } from "./useAiRecommendations";
 import { useGuestSharing } from "./useGuestSharing";
 import { useSelectionSync } from "./useSelectionSync";
 
-type LightboxTab = "none" | "info" | "ai" | "memo";
+type LightboxTab = "none" | "info" | "memo";
 const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
-  { key: "ai", label: "AI", icon: <SparkleIcon size={18} /> },
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
 ];
 
@@ -80,6 +82,8 @@ export function SelectStage({
   owner = false,
   partnerName = null,
   onExported,
+  onPhotoUrlError,
+  onScoreSaved,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -103,6 +107,10 @@ export function SelectStage({
   partnerName?: string | null;
   /** 개인 — 내보낸 뒤(페이지가 보정 확인 화면으로 넘기며 내려받기 모달을 연다) */
   onExported?: () => void;
+  /** 싱글뷰 사진이 그려지지 않았을 때(주소 만료) — 페이지가 목록을 다시 읽는다 */
+  onPhotoUrlError?: () => void;
+  /** 별점 저장이 끝났을 때 서버에 남은 값 — 페이지가 사진 목록에 적는다 */
+  onScoreSaved: (photoId: number, score: number | null) => void;
 }) {
   const editable = phase === "select";
   const maxSelectable = gallery.maxSelectablePhotoCount;
@@ -131,10 +139,27 @@ export function SelectStage({
   const { current: aiCurrent, byPhotoId: aiByPhotoId } = ai;
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  /** 싱글뷰를 열 때의 사진 순서 — 보는 중에 별점을 매기거나(별점 순) AI 추천이 도착해도 다음 사진이 바뀌지 않게 붙잡아 둔다 */
+  const [navIds, setNavIds] = useState<number[] | null>(null);
   const [tab, setTab] = useState<LightboxTab>("none");
   const [scrollToId, setScrollToId] = useState<number | null>(null);
-  /** 별점 낙관적 갱신 — 서버 답이 오기 전에 화면부터 */
+  /** 별점 낙관적 갱신 — 서버 답이 오기 전에 화면부터(저장이 끝나면 걷는다) */
   const [scoreOverrides, setScoreOverrides] = useState<Map<number, number | null>>(() => new Map());
+  /** 저장 중인 별점 — saved는 서버에 남은 값, want는 화면이 바라는 값 */
+  const rateJobsRef = useRef(new Map<number, { saved: number | null; want: number | null }>());
+  const [rateError, setRateError] = useState<{ text: string } | null>(null);
+  /** 별점 숫자 키 안내(말풍선) — 방금 마우스로 누른 점수. null이면 안 보인다 */
+  const [keyHint, setKeyHint] = useState<number | null>(null);
+  useEffect(() => {
+    if (keyHint === null) return;
+    const timer = window.setTimeout(() => setKeyHint(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [keyHint]);
+  useEffect(() => {
+    if (!rateError) return;
+    const timer = window.setTimeout(() => setRateError(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [rateError]);
   const [view, setView] = useState<ClientView>("all");
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
@@ -321,9 +346,19 @@ export function SelectStage({
       : null;
 
   // ── 싱글뷰 ──
-  const currentIndex = currentId === null ? -1 : gridPhotos.findIndex((p) => p.photoId === currentId);
-  const currentPhoto = currentIndex >= 0 ? gridPhotos[currentIndex] : null;
+  /** 화면에 그려진 순서 — AI 추천 묶음이 먼저, 별점 순이면 점수 묶음 순 */
+  const displayPhotos = useMemo(
+    () => [...(showAiGroup ? aiPhotos : []), ...(scoreGroups ? scoreGroups.flatMap((g) => g.photos) : restPhotos)],
+    [showAiGroup, aiPhotos, scoreGroups, restPhotos],
+  );
+  const navPhotos = useMemo(
+    () => (navIds === null ? displayPhotos : navIds.map((id) => photoById.get(id)).filter((p): p is PhotoResponse => p !== undefined)),
+    [navIds, displayPhotos, photoById],
+  );
+  const currentIndex = currentId === null ? -1 : navPhotos.findIndex((p) => p.photoId === currentId);
+  const currentPhoto = currentIndex >= 0 ? navPhotos[currentIndex] : null;
   function openPhoto(photoId: number) {
+    setNavIds(displayPhotos.map((p) => p.photoId));
     setCurrentId(photoId);
     setScrollToId(null);
     setLightboxOpen(true);
@@ -331,26 +366,64 @@ export function SelectStage({
   }
   function closeLightbox() {
     setLightboxOpen(false);
+    setKeyHint(null);
+    setNavIds(null);
     setTab("none");
     setScrollToId(currentId);
   }
   function step(delta: number) {
-    if (gridPhotos.length === 0) return;
+    if (navPhotos.length === 0) return;
     const base = currentIndex >= 0 ? currentIndex : 0;
-    const next = gridPhotos[(base + delta + gridPhotos.length) % gridPhotos.length];
+    const next = navPhotos[(base + delta + navPhotos.length) % navPhotos.length];
+    setKeyHint(null);
     setCurrentId(next.photoId);
     countView(galleryId, next.photoId);
   }
-  async function rate(photoId: number, score: number | null) {
+  function rate(photoId: number, score: number | null) {
     if (!editable) return;
-    const before = photoById.get(photoId)?.score ?? null;
     setScoreOverrides((prev) => new Map(prev).set(photoId, score));
-    try {
-      if (score === null) await clearPhotoRating(galleryId, photoId);
-      else await ratePhoto(galleryId, photoId, score);
-    } catch (err) {
-      setScoreOverrides((prev) => new Map(prev).set(photoId, before));
-      setLocalNotice(err instanceof ApiError ? err.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
+    const running = rateJobsRef.current.get(photoId);
+    if (running) {
+      running.want = score;
+      return;
+    }
+    const job = { saved: photoById.get(photoId)?.score ?? null, want: score };
+    rateJobsRef.current.set(photoId, job);
+    void saveRating(photoId, job);
+  }
+  /** 마우스로 매긴 별점 — 처음이면 숫자 키 안내를 띄우고, 떠 있는 동안은 누른 점수를 따라간다 */
+  function rateByMouse(photoId: number, score: number | null) {
+    rate(photoId, score);
+    if (!editable || score === null) setKeyHint(null);
+    else if (keyHint !== null || takeRateKeysHint()) setKeyHint(score);
+  }
+  /** 한 사진의 별점을 서버와 맞춘다 — 요청이 엇갈려 옛 값이 남지 않게 한 번에 하나씩, 바라는 값이 바뀌었으면 이어서 보낸다 */
+  async function saveRating(photoId: number, job: { saved: number | null; want: number | null }) {
+    let failure: unknown = null;
+    while (job.want !== job.saved) {
+      const sending = job.want;
+      try {
+        if (sending === null) await clearPhotoRating(galleryId, photoId);
+        else await ratePhoto(galleryId, photoId, sending);
+        job.saved = sending;
+      } catch (err) {
+        // 그사이 다시 매겼으면 그 값을 이어서 보내 본다
+        if (job.want !== sending) continue;
+        failure = err;
+        break;
+      }
+    }
+    rateJobsRef.current.delete(photoId);
+    // 서버에 남은 값을 목록에 적고 덮어쓰기를 걷는다 — 실패했으면 화면이 그 값으로 되돌아간다
+    onScoreSaved(photoId, job.saved);
+    setScoreOverrides((prev) => {
+      const next = new Map(prev);
+      next.delete(photoId);
+      return next;
+    });
+    if (failure !== null) {
+      setRateError({ text: "별점을 저장하지 못했어요" });
+      setLocalNotice(failure instanceof ApiError ? failure.message : "별점을 저장하지 못했어요 · 다시 시도해 주세요");
     }
   }
   function addPoint(photoId: number, x: number, y: number) {
@@ -739,10 +812,12 @@ export function SelectStage({
         <Lightbox
           photo={currentPhoto}
           index={currentIndex}
-          total={gridPhotos.length}
+          total={navPhotos.length}
           caption={folderNameOf(currentPhoto)}
           tab={tab}
           tabs={LIGHTBOX_TABS}
+          onImageError={onPhotoUrlError}
+          notice={rateError ? { kind: "error", text: rateError.text } : null}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
@@ -752,14 +827,16 @@ export function SelectStage({
               picked={pickedIds.has(currentPhoto.photoId)}
               editable={editable}
               score={currentPhoto.score}
+              keyHint={keyHint}
               onTogglePick={() => requestToggle(currentPhoto.photoId)}
-              onRate={(score) => void rate(currentPhoto.photoId, score)}
+              onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
             />
           }
           onKeyDown={(e) => {
             if (!editable) return false;
-            if (/^[1-5]$/.test(e.key)) void rate(currentPhoto.photoId, Number(e.key));
-            else if (e.key === "0") void rate(currentPhoto.photoId, null);
+            if (/^[0-5]$/.test(e.key)) setKeyHint(null);
+            if (/^[1-5]$/.test(e.key)) rate(currentPhoto.photoId, Number(e.key));
+            else if (e.key === "0") rate(currentPhoto.photoId, null);
             else if (e.key === " ") {
               e.preventDefault();
               requestToggle(currentPhoto.photoId);
@@ -780,24 +857,10 @@ export function SelectStage({
               <PhotoInfoPanel
                 galleryId={galleryId}
                 photo={currentPhoto}
-                folderName={folderNameOf(currentPhoto)}
                 score={currentPhoto.score}
                 editable={editable}
-                onRate={(score) => void rate(currentPhoto.photoId, score)}
-              />
-            ) : tab === "ai" ? (
-              <AiPanel
-                rec={aiByPhotoId.get(currentPhoto.photoId) ?? null}
-                folderRecs={aiCurrent.filter((r) => r.folderId !== null && r.folderId === (aiByPhotoId.get(currentPhoto.photoId)?.folderId ?? details.find((d) => d.photoIds.includes(currentPhoto.photoId))?.id ?? null))}
-                folderName={folderNameOf(currentPhoto)}
-                pickedIds={pickedIds}
-                editable={editable}
-                busy={aiBusy}
-                jobActive={ai.jobActive}
-                error={ai.error}
-                onPick={toggle}
-                onRequest={() => void ai.request(details.find((d) => d.photoIds.includes(currentPhoto.photoId))?.id ?? null)}
-                onOpen={(id) => setCurrentId(id)}
+                aiPicked={aiByPhotoId.has(currentPhoto.photoId)}
+                onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
               />
             ) : (
               <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} />
@@ -809,116 +872,46 @@ export function SelectStage({
   );
 }
 
-function AiPanel({
-  rec,
-  folderRecs,
-  folderName,
-  pickedIds,
-  editable,
-  busy,
-  jobActive,
-  error,
-  onPick,
-  onRequest,
-  onOpen,
-}: {
-  rec: import("@/lib/api/recommendations").AiRecommendation | null;
-  folderRecs: import("@/lib/api/recommendations").AiRecommendation[];
-  folderName: string | null;
-  pickedIds: ReadonlySet<number>;
-  editable: boolean;
-  /** 사진을 고르는 중(이번 라운드 사진이 아직 없다) */
-  busy: boolean;
-  /** 서버 잡이 아직 도는 중 — 새 요청은 409라 요청 버튼을 끈다 */
-  jobActive: boolean;
-  error: string | null;
-  onPick: (photoId: number) => void;
-  onRequest: () => void;
-  onOpen: (photoId: number) => void;
-}) {
-  return (
-    <>
-      {rec ? (
-        <div className="flex flex-col gap-1 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2.5">
-          <span className="inline-flex items-center gap-1 type-label-semibold-s text-brand-secondary-dark">
-            <SparkleIcon size={14} />
-            AI 추천 {rec.rank}위{folderName ? ` · ${folderName.split(" / ").at(-1)}` : ""}
-          </span>
-        </div>
-      ) : (
-        <p className="type-content-s leading-relaxed text-contents-light-bgd-sub">
-          {busy ? "AI가 고르는 중이에요…" : folderRecs.length > 0 ? "이 사진은 이번 추천에 들지 않았어요." : "아직 이 폴더에서 추천을 받지 않았어요."}
-        </p>
-      )}
-      {folderRecs.length > 0 && (
-        <section className="flex flex-col gap-1.5">
-          <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">이 폴더의 추천 {folderRecs.length}장</h4>
-          <ul className="flex flex-col divide-y divide-divider-default">
-            {folderRecs.map((r) => {
-              const picked = pickedIds.has(r.photo.photoId);
-              return (
-                <li key={r.photo.photoId} className="flex items-center gap-2.5 py-2">
-                  <button type="button" onClick={() => onOpen(r.photo.photoId)} aria-label={`${r.photo.originalFileName} 보기`} className="size-11 shrink-0 cursor-pointer overflow-hidden rounded-(--radius-8) bg-surface-default-light">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {r.photo.viewUrl && <img src={r.photo.viewUrl} alt="" className="size-full object-cover" />}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className="type-label-semibold-xs text-contents-light-bgd-default">
-                      {r.rank}위{rec && rec.photo.photoId === r.photo.photoId ? " · 이 사진" : ""}
-                    </p>
-                  </div>
-                  {picked ? (
-                    <span className="text-brand-secondary-default" aria-label="선택됨">
-                      <CheckCircleIcon size={18} />
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={!editable}
-                      onClick={() => onPick(r.photo.photoId)}
-                      className="h-7 cursor-pointer rounded-(--pill) border border-border-default px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
-                    >
-                      선택
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-      {error && <p className="type-content-xs text-function-error-default">{error}</p>}
-      <button
-        type="button"
-        disabled={!editable || busy || jobActive}
-        onClick={onRequest}
-        className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-(--radius-8) border border-border-default type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:opacity-50"
-      >
-        {folderRecs.length > 0 ? <RefreshIcon size={16} /> : <SparkleIcon size={16} />}
-        {folderRecs.length > 0 ? "이 폴더에서 다시 추천" : "이 폴더에서 추천 받기"}
-      </button>
-      <p className="type-content-xs text-contents-light-bgd-weakness">추천은 폴더 단위예요. 최종 선택은 직접 고른 사진만 인정돼요.</p>
-    </>
-  );
-}
-
 /** 싱글뷰 하단 컨트롤 가운데 칸 — ★★★★★ | 선택 / 선택됨 (클라이언트 전용) */
 function SelectionControls({
   picked,
   editable,
   score,
+  keyHint,
   onTogglePick,
   onRate,
 }: {
   picked: boolean;
   editable: boolean;
   score: number | null;
+  /** 숫자 키 안내 말풍선에서 칠할 키(방금 누른 점수) — null이면 말풍선 없음 */
+  keyHint: number | null;
   onTogglePick: () => void;
   onRate: (score: number | null) => void;
 }) {
   return (
     <>
-      <div role="radiogroup" aria-label="별점" className="flex items-center gap-0.5 px-1">
+      <div role="radiogroup" aria-label="별점" className="relative flex items-center gap-0.5 px-1">
+        {keyHint !== null && (
+          <span
+            role="status"
+            className="pointer-events-none absolute bottom-11 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 rounded-(--radius-12) bg-white px-3.5 py-3 whitespace-nowrap text-[#1a1a1a] shadow-(--shadow-modal) after:absolute after:-bottom-1.25 after:left-1/2 after:size-2.5 after:-translate-x-1/2 after:rotate-45 after:bg-white after:content-['']"
+          >
+            <span aria-hidden className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <kbd
+                  key={n}
+                  className={`grid size-6.5 place-items-center rounded-[6px] border border-b-2 type-label-semibold-s ${
+                    n === keyHint ? "border-[#1a1a1a] bg-[#1a1a1a] text-white" : "border-black/18 bg-white"
+                  }`}
+                >
+                  {n}
+                </kbd>
+              ))}
+            </span>
+            <span className="type-label-medium-xs">숫자 키로도 매길 수 있어요</span>
+          </span>
+        )}
         {[1, 2, 3, 4, 5].map((n) => {
           const on = score !== null && n <= score;
           return (

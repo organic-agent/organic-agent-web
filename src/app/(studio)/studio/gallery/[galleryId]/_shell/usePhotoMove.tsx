@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Snackbar } from "@/components/app/Snackbar";
 import { moveCategoryPhotos } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
 import type { FolderDropTarget } from "./FolderColumn";
@@ -284,21 +285,13 @@ export function usePhotoMove({
         </div>
       )}
       {toast && (
-        <div
-          role="status"
-          className="fixed bottom-24 left-1/2 z-200 flex -translate-x-1/2 items-center gap-2 rounded-(--pill) border border-surface-inverse-medium bg-background-inverse-main py-2 pr-2 pl-5 type-label-medium-m text-contents-dark-bgd-default shadow-(--shadow-hover)"
+        <Snackbar
+          kind={toast.undo ? "success" : "error"}
+          action={toast.undo ? { label: "실행 취소", onClick: toast.undo } : undefined}
+          className="fixed bottom-24 left-1/2 z-200 -translate-x-1/2"
         >
-          <span>{toast.text}</span>
-          {toast.undo && (
-            <button
-              type="button"
-              onClick={toast.undo}
-              className="cursor-pointer rounded-(--pill) px-3 py-1.5 type-label-semibold-s transition-colors duration-fast hover:bg-surface-inverse-medium"
-            >
-              실행 취소
-            </button>
-          )}
-        </div>
+          {toast.text}
+        </Snackbar>
       )}
     </>
   );

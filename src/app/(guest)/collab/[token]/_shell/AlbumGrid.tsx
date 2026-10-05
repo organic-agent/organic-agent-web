@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { DEFAULT_ZOOM } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
+import { Snackbar } from "@/components/app/Snackbar";
 import { BackIcon, DropdownIcon, FolderIcon, HeartFillIcon, LockIcon, PhotoIcon, SwapVertIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
 import type { CollabPhotoResponse } from "@/lib/api/collab";
@@ -279,9 +280,9 @@ export function AlbumGrid({
         />
       )}
       {notice && (
-        <div role="status" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-(--pill) bg-contents-light-bgd-default px-4 py-2 type-label-medium-s text-contents-dark-bgd-default shadow-(--shadow-modal)">
+        <Snackbar kind="error" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
           {notice}
-        </div>
+        </Snackbar>
       )}
     </main>
   );

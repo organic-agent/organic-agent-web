@@ -1,43 +1,36 @@
 "use client";
 
 /**
- * 싱글뷰 "정보" 탭 — 별점 · 파일 · 이 기기에서 본 횟수 · 우리끼리 메모
+ * 싱글뷰 "정보" 탭 — 칩(AI 추천 · 처음 보는 사진 / n번 봤어요) · 별점 · 우리끼리 메모
+ * 본 횟수는 셀렉 화면의 싱글뷰만 센다 — 세지 않는 보정 확인 화면은 본 횟수 칩을 끈다(showViewed).
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/PhotoInfoPanel.tsx
  *
  * 메모는 작가에게 보이지 않아야 해서(2026-09-12) 지금은 브라우저에만 저장한다(clientMemory). 서버 "내부 사진 댓글"의
  * 열람 범위를 확인한 뒤 저장 방식을 정한다(노션 ② 미결). 열람 횟수도 같은 이유로 이 기기 기준.
  */
 
-import { useSyncExternalStore } from "react";
-import { StarFillIcon, StarIcon } from "@/components/icons";
+import { type ReactNode, useSyncExternalStore } from "react";
+import { SparkleIcon, StarFillIcon, StarIcon, VisibilityIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { memoStore, viewedStore, writeMemo } from "./clientMemory";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function typeLabel(contentType: string): string {
-  const sub = contentType.split("/")[1]?.toUpperCase() ?? contentType;
-  return sub === "JPEG" ? "JPG" : sub;
-}
 
 export function PhotoInfoPanel({
   galleryId,
   photo,
-  folderName,
   score,
   editable,
+  aiPicked = false,
+  showViewed = true,
   onRate,
 }: {
   galleryId: number;
   photo: PhotoResponse;
-  folderName: string | null;
   score: number | null;
   editable: boolean;
+  /** 이번 AI 추천에 든 사진인가(셀렉 화면만 준다) */
+  aiPicked?: boolean;
+  /** 본 횟수 칩을 보일까 — 본 횟수를 세지 않는 화면(보정 확인)은 false */
+  showViewed?: boolean;
   onRate: (score: number | null) => void;
 }) {
   const memoRaw = useSyncExternalStore(memoStore.subscribe, () => memoStore.readRaw(galleryId), () => "");
@@ -47,6 +40,24 @@ export function PhotoInfoPanel({
 
   return (
     <>
+      {(aiPicked || showViewed) && (
+        <div className="flex flex-wrap gap-1.5">
+          {aiPicked && (
+            <Chip tone="brand">
+              <SparkleIcon size={14} />
+              AI 추천
+            </Chip>
+          )}
+          {/* 싱글뷰로 여는 순간 한 번이 세어진다 — 1이면 지금이 처음 */}
+          {showViewed && (
+            <Chip tone={viewed <= 1 ? "brand" : "plain"}>
+              <VisibilityIcon size={14} />
+              {viewed <= 1 ? "처음 보는 사진" : `${viewed}번 봤어요`}
+            </Chip>
+          )}
+        </div>
+      )}
+
       <section className="flex flex-col gap-2">
         <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">
           별점 <span className="font-normal">· 함께 매기는 별점</span>
@@ -76,16 +87,6 @@ export function PhotoInfoPanel({
       </section>
 
       <section className="flex flex-col gap-1.5">
-        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">파일</h4>
-        <dl className="flex flex-col gap-1 type-content-s">
-          <Row label="형식" value={typeLabel(photo.contentType)} />
-          <Row label="폴더" value={folderName ?? "미분류"} />
-          <Row label="올린 날" value={formatDate(photo.createdAt)} />
-          <Row label="봤어요" value={viewed > 0 ? `${viewed}번 · 이 기기에서` : "처음이에요"} />
-        </dl>
-      </section>
-
-      <section className="flex flex-col gap-1.5">
         <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">우리끼리 메모</h4>
         <textarea
           value={memo}
@@ -100,11 +101,12 @@ export function PhotoInfoPanel({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <dt className="shrink-0 text-contents-light-bgd-sub">{label}</dt>
-      <dd className="truncate text-right font-medium text-contents-light-bgd-default">{value}</dd>
-    </div>
-  );
+// 연한 칩 — 브랜드 올리브를 옅게 깐 바탕에 같은 색의 진한 글자, 여러 번 본 사진은 회색 (2026-10-05 시안)
+const CHIP_TONE = {
+  brand: "bg-brand-secondary-default/14 text-[color:color-mix(in_srgb,var(--brand-secondary-default)_68%,var(--background-inverse-main))]",
+  plain: "bg-surface-default-light text-contents-light-bgd-default",
+};
+
+function Chip({ tone, children }: { tone: keyof typeof CHIP_TONE; children: ReactNode }) {
+  return <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s whitespace-nowrap ${CHIP_TONE[tone]}`}>{children}</span>;
 }

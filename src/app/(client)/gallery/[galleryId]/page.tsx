@@ -61,6 +61,7 @@ import { ReviewStage } from "./_shell/ReviewStage";
 import { SelectStage } from "./_shell/SelectStage";
 import { WaitCard } from "./_shell/WaitCard";
 import { usePersonalUpload } from "./_shell/usePersonalUpload";
+import { usePhotoUrlRefresh } from "./_shell/usePhotoUrlRefresh";
 import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf, personalPhaseOf } from "./_shell/clientStages";
 
 export default function ClientGalleryPage() {
@@ -184,6 +185,18 @@ export default function ClientGalleryPage() {
       // 다음 갱신 때 다시
     }
   }, [galleryId]);
+  // 사진 주소는 15분 뒤 만료된다 — 만료 전에 목록을 다시 읽어 새 주소로 바꾼다
+  const refreshPhotoUrls = usePhotoUrlRefresh(opened, photosLoadedAt, refreshPhotos);
+  /** 셀렉 화면이 별점 저장을 마치면 서버에 남은 값을 목록에 적는다 */
+  const patchPhotoScore = useCallback((photoId: number, score: number | null) => {
+    setPhotos((prev) => {
+      const i = prev?.findIndex((p) => p.photoId === photoId) ?? -1;
+      if (!prev || i < 0 || prev[i].score === score) return prev;
+      const next = prev.slice();
+      next[i] = { ...prev[i], score };
+      return next;
+    });
+  }, []);
 
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
@@ -505,6 +518,8 @@ export default function ClientGalleryPage() {
           personal={isPersonal}
           owner={personal?.owner ?? false}
           onExported={() => setAutoDownload(true)}
+          onPhotoUrlError={refreshPhotoUrls}
+          onScoreSaved={patchPhotoScore}
         />
       ) : (
         <>
