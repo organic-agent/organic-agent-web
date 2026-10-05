@@ -10,6 +10,7 @@
  * 받을 때마다 "아직 카드로 알리지 않은, 안 읽은 알림"을 가려 벨 아래 카드(NotificationPeek)로 한 번 알리고 벨을
  * 한 번 흔든다(이슈 88). 사이트를 닫아 둔 동안 온 알림도 들어왔을 때 같은 카드로 알린다. 어디까지 알렸는지는
  * 브라우저에 적어 둬서(notificationMemory) 화면을 옮겨도 같은 알림이 다시 뜨지 않는다.
+ * 목록은 어디서 열어도 내 알림 전부라, 알림마다 어느 갤러리 · 스튜디오 것인지 이름표를 붙인다(notificationSource, 이슈 106).
  * 행을 누르면 읽음 처리(PATCH)하고 범위에 맞는 화면으로 간다 — 갤러리 알림의 주소는 보는 사람의
  * 역할에 따라 다르므로 hrefFor로 바꿔 끼운다(기본은 작가 주소). 내보내짐 · 작업공간 삭제 알림은
  * 갈 곳이 없어(403·404) 어느 역할이든 읽음 처리만 한다.
@@ -22,6 +23,7 @@ import { blockLeave } from "@/components/app/LeaveGuard";
 import { NotificationPeek } from "@/components/app/NotificationPeek";
 import { kindStyleOf, relativeTime } from "@/components/app/notificationKinds";
 import { pickUnannounced, readAnnouncedId, writeAnnouncedId } from "@/components/app/notificationMemory";
+import { NotificationSourceTag, useNotificationSource } from "@/components/app/notificationSource";
 import { IconButton } from "@/components/ui/IconButton";
 import {
   listNotifications,
@@ -172,6 +174,7 @@ export function NotificationBell({
   }, [open]);
 
   const list = data?.list ?? [];
+  const sourceOf = useNotificationSource(list);
   const unread = list.filter((n) => n.readAt === null).length;
   const shown = tab === "unread" ? list.filter((n) => n.readAt === null) : list;
   const at = data?.at ?? 0;
@@ -251,6 +254,7 @@ export function NotificationBell({
         <NotificationPeek
           key={peek.item.id}
           item={peek.item}
+          source={sourceOf(peek.item)}
           more={peek.more}
           now={peek.at}
           onOpen={() => {
@@ -329,6 +333,7 @@ export function NotificationBell({
                     {items.map((n) => {
                       const style = kindStyleOf(n.type);
                       const read = n.readAt !== null;
+                      const source = sourceOf(n);
                       return (
                         <button
                           key={n.id}
@@ -367,6 +372,7 @@ export function NotificationBell({
                             >
                               {n.message}
                             </span>
+                            {source && <NotificationSourceTag name={source} />}
                           </span>
                         </button>
                       );

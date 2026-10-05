@@ -4,7 +4,7 @@
  * 벨 아래 카드 — 새 알림이 왔을 때 잠깐 떴다 사라진다 (이슈 88, 팀 노션 46번)
  * 위치: src/components/app/NotificationPeek.tsx
  *
- * 알림 목록의 한 줄과 같은 짜임(유형 아이콘 · 제목 · 시간 · 내용)이라 같은 것으로 읽힌다. 5초 뒤 스스로 닫히고,
+ * 알림 목록의 한 줄과 같은 짜임(유형 아이콘 · 제목 · 시간 · 내용 · 이름표)이라 같은 것으로 읽힌다. 5초 뒤 스스로 닫히고,
  * 마우스를 올리고 있거나 안에 초점이 있으면 닫히지 않는다. 카드를 누르면 목록에서 누를 때와 같이 움직이고(onOpen),
  * X는 카드만 닫는다 — 읽음으로 바꾸지 않아 벨의 숫자에 남는다. 여러 개가 한 번에 오면 가장 새 것 하나와
  * "새 알림 n개 더"를 보여 주고, "모두 보기"가 알림 목록을 연다.
@@ -15,6 +15,7 @@
 import { useEffect, useState } from "react";
 import { CloseIcon } from "@/components/icons";
 import { kindStyleOf, relativeTime } from "@/components/app/notificationKinds";
+import { NotificationSourceTag } from "@/components/app/notificationSource";
 import type { UserNotificationResponse } from "@/lib/api/notifications";
 
 /** 카드가 떠 있는 시간 */
@@ -22,6 +23,7 @@ const PEEK_MS = 5_000;
 
 export function NotificationPeek({
   item,
+  source,
   more,
   now,
   onOpen,
@@ -29,6 +31,8 @@ export function NotificationPeek({
   onClose,
 }: {
   item: UserNotificationResponse;
+  /** 어느 갤러리 · 스튜디오의 알림인지. 붙일 것이 없으면 null */
+  source: string | null;
   /** 함께 온 나머지 알림 수 */
   more: number;
   /** 시간 표기("방금" · "1시간 전")의 기준 시각 */
@@ -75,6 +79,7 @@ export function NotificationPeek({
               </span>
             </span>
             <span className="mt-0.5 block type-content-s text-contents-light-bgd-sub">{item.message}</span>
+            {source && <NotificationSourceTag name={source} />}
           </span>
         </button>
         <button
