@@ -7,7 +7,7 @@
  * 그리드는 작가 · 부부 셸의 PhotoGrid 그대로(선택 없음). 타일 클릭 = 싱글뷰 열기(게스트는 선택이 없다). 타일에는 내가 누른
  * 하트만 올리브로 — 다른 사람 좋아요 수는 보이지 않는다(2026-09-13). 공유폴더가 1개면 ← 와 드롭다운이 없다.
  * "모든 사진"은 앨범을 합치되 겹치는 사진은 한 번(내 하트가 붙은 쪽 우선). 좋아요는 낙관적으로 바꾸고 실패하면 되돌린다.
- * writable=false면 위에 배너 한 줄, 싱글뷰의 하트 · 댓글 자리는 잠금.
+ * writable=false면 위에 배너 한 줄, 싱글뷰의 댓글 자리는 잠금. 좋아요는 likable로 따로 — 선택 마감이 지나도 누를 수 있다.
  * 헤더 · 배너 · 그리드는 다른 화면처럼 max-w-wrap(1080) + px-6 컨테이너에 가운데 — 넓은 화면에서 사진이 끝까지 붙지 않게
  * (2026-09-15, 이슈 67).
  */
@@ -34,6 +34,7 @@ export function AlbumGrid({
   loading,
   error,
   writable,
+  likable,
   mineOnly,
   onMineOnlyChange,
   onBack,
@@ -48,8 +49,10 @@ export function AlbumGrid({
   photosByToken: ReadonlyMap<string, CollabPhotoResponse[]>;
   loading: boolean;
   error: boolean;
-  /** false면 부부가 고르기를 마친 것 — 좋아요 · 댓글 잠금 */
+  /** false면 선택 마감이 지난 것 — 댓글 잠금 */
   writable: boolean;
+  /** false면 갤러리가 마무리된 것 — 좋아요도 잠금 */
+  likable: boolean;
   mineOnly: boolean;
   onMineOnlyChange: (v: boolean) => void;
   /** 앨범 여러 개일 때만 — 홈으로 */
@@ -238,6 +241,7 @@ export function AlbumGrid({
           <div className="flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
             <LockIcon size={18} className="text-contents-light-bgd-sub" />
             <b className="font-semibold">부부가 사진 고르기를 마쳤어요</b>
+            {likable && <span className="text-contents-light-bgd-sub">좋아요는 계속 누를 수 있어요</span>}
           </div>
         </div>
       )}
@@ -270,6 +274,7 @@ export function AlbumGrid({
           photos={shown}
           index={lightboxIndex}
           writable={writable}
+          likable={likable}
           tokenOf={tokenOf}
           guestTokenOf={guestTokenOf}
           onClose={close}
