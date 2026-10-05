@@ -44,10 +44,11 @@ import { SELECTION_DEADLINE_PASSED } from "@/lib/api/selection";
 import { isDeadlinePassed } from "../../_lib/useInvitedGallery";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientSelectCoachMarks } from "./ClientSelectCoachMarks";
+import { LightboxCoachMarks } from "./LightboxCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
 import { DeselectConfirmModal } from "./DeselectConfirmModal";
 import { ExportSelectionModal } from "./ExportSelectionModal";
-import { countView, takeRateKeysHint } from "./clientMemory";
+import { countView } from "./clientMemory";
 import type { ClientPhase } from "./clientStages";
 import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./increaseMemory";
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
@@ -166,13 +167,6 @@ export function SelectStage({
   /** 저장 중인 별점 — saved는 서버에 남은 값, want는 화면이 바라는 값 */
   const rateJobsRef = useRef(new Map<number, { saved: number | null; want: number | null }>());
   const [rateError, setRateError] = useState<{ text: string } | null>(null);
-  /** 별점 숫자 키 안내(말풍선) — 방금 마우스로 누른 점수. null이면 안 보인다 */
-  const [keyHint, setKeyHint] = useState<number | null>(null);
-  useEffect(() => {
-    if (keyHint === null) return;
-    const timer = window.setTimeout(() => setKeyHint(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [keyHint]);
   useEffect(() => {
     if (!rateError) return;
     const timer = window.setTimeout(() => setRateError(null), 2400);
@@ -400,7 +394,6 @@ export function SelectStage({
   }
   function closeLightbox() {
     setLightboxOpen(false);
-    setKeyHint(null);
     setNavIds(null);
     setTab("none");
     setScrollToId(currentId);
@@ -409,7 +402,6 @@ export function SelectStage({
     if (navPhotos.length === 0) return;
     const base = currentIndex >= 0 ? currentIndex : 0;
     const next = navPhotos[(base + delta + navPhotos.length) % navPhotos.length];
-    setKeyHint(null);
     setCurrentId(next.photoId);
     countView(galleryId, next.photoId);
   }
@@ -424,12 +416,6 @@ export function SelectStage({
     const job = { saved: photoById.get(photoId)?.score ?? null, want: score };
     rateJobsRef.current.set(photoId, job);
     void saveRating(photoId, job);
-  }
-  /** 마우스로 매긴 별점 — 처음이면 숫자 키 안내를 띄우고, 떠 있는 동안은 누른 점수를 따라간다 */
-  function rateByMouse(photoId: number, score: number | null) {
-    rate(photoId, score);
-    if (!editable || score === null) setKeyHint(null);
-    else if (keyHint !== null || takeRateKeysHint()) setKeyHint(score);
   }
   /** 한 사진의 별점을 서버와 맞춘다 — 요청이 엇갈려 옛 값이 남지 않게 한 번에 하나씩, 바라는 값이 바뀌었으면 이어서 보낸다 */
   async function saveRating(photoId: number, job: { saved: number | null; want: number | null }) {
@@ -791,6 +777,8 @@ export function SelectStage({
       />
 
       <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} personal={personal} />
+      {/* 사진을 처음 크게 열었을 때 — 빼기 확인 창이 떠 있는 동안은 미룬다 */}
+      <LightboxCoachMarks ready={editable && lightboxOpen && currentPhoto !== null && deselectId === null} personal={personal} />
 
       {deselectId !== null && photoById.get(deselectId) && (
         <DeselectConfirmModal
@@ -876,14 +864,12 @@ export function SelectStage({
               picked={pickedIds.has(currentPhoto.photoId)}
               editable={editable}
               score={currentPhoto.score}
-              keyHint={keyHint}
               onTogglePick={() => requestToggle(currentPhoto.photoId)}
-              onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
+              onRate={(score) => rate(currentPhoto.photoId, score)}
             />
           }
           onKeyDown={(e) => {
             if (!editable) return false;
-            if (/^[0-5]$/.test(e.key)) setKeyHint(null);
             if (/^[1-5]$/.test(e.key)) rate(currentPhoto.photoId, Number(e.key));
             else if (e.key === "0") rate(currentPhoto.photoId, null);
             else if (e.key === " ") {
@@ -911,7 +897,7 @@ export function SelectStage({
                 score={currentPhoto.score}
                 editable={editable}
                 aiPicked={aiByPhotoId.has(currentPhoto.photoId)}
-                onRate={(score) => rateByMouse(currentPhoto.photoId, score)}
+                onRate={(score) => rate(currentPhoto.photoId, score)}
               />
             ) : (
               <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} />
@@ -928,41 +914,18 @@ function SelectionControls({
   picked,
   editable,
   score,
-  keyHint,
   onTogglePick,
   onRate,
 }: {
   picked: boolean;
   editable: boolean;
   score: number | null;
-  /** 숫자 키 안내 말풍선에서 칠할 키(방금 누른 점수) — null이면 말풍선 없음 */
-  keyHint: number | null;
   onTogglePick: () => void;
   onRate: (score: number | null) => void;
 }) {
   return (
     <>
-      <div role="radiogroup" aria-label="별점" className="relative flex items-center gap-0.5 px-1">
-        {keyHint !== null && (
-          <span
-            role="status"
-            className="pointer-events-none absolute bottom-11 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 rounded-(--radius-12) bg-white px-3.5 py-3 whitespace-nowrap text-[#1a1a1a] shadow-(--shadow-modal) after:absolute after:-bottom-1.25 after:left-1/2 after:size-2.5 after:-translate-x-1/2 after:rotate-45 after:bg-white after:content-['']"
-          >
-            <span aria-hidden className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <kbd
-                  key={n}
-                  className={`grid size-6.5 place-items-center rounded-[6px] border border-b-2 type-label-semibold-s ${
-                    n === keyHint ? "border-[#1a1a1a] bg-[#1a1a1a] text-white" : "border-black/18 bg-white"
-                  }`}
-                >
-                  {n}
-                </kbd>
-              ))}
-            </span>
-            <span className="type-label-medium-xs">숫자 키로도 매길 수 있어요</span>
-          </span>
-        )}
+      <div role="radiogroup" aria-label="별점" data-coach="lb-stars" className="flex items-center gap-0.5 px-1">
         {[1, 2, 3, 4, 5].map((n) => {
           const on = score !== null && n <= score;
           return (
@@ -984,6 +947,7 @@ function SelectionControls({
       <Sep />
       <button
         type="button"
+        data-coach="lb-pick"
         aria-pressed={picked}
         disabled={!editable}
         onClick={onTogglePick}

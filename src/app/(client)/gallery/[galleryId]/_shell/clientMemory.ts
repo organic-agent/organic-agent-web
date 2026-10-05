@@ -5,7 +5,6 @@
  * 메모(sel.memo.{galleryId}): 사진 id → 문장. 작가에게 보이지 않아야 해서(2026-09-12 결정) 서버 "내부 사진 댓글"의
  * 열람 범위를 확인하기 전까지 브라우저에만 둔다 — 신랑 · 신부가 다른 기기면 서로 안 보인다(노션 ② 미결).
  * 열람(sel.viewed.{galleryId}): 사진 id → 싱글뷰로 연 횟수. 공유는 서버 API가 생기면(⑥ 갭 11).
- * 안내(sel.hint.rateKeys): 싱글뷰 별점 숫자 키 말풍선을 봤는지 — 갤러리와 무관하게 브라우저에 한 번.
  * uploadMemory와 같은 구독 방식(useSyncExternalStore) — raw 문자열을 읽고 바뀔 때만 파싱한다.
  */
 
@@ -67,22 +66,6 @@ export function writeMemo(galleryId: number, photoId: number, text: string) {
   if (text.trim()) all[String(photoId)] = text;
   else delete all[String(photoId)];
   memoStore.write(galleryId, all);
-}
-
-const RATE_KEYS_HINT_KEY = "sel.hint.rateKeys";
-let rateKeysHintAsked = false;
-
-/** 별점 숫자 키 안내를 띄워도 되는가 — 묻는 순간 봤다고 적어 이 브라우저에서 한 번만 true (저장소를 못 쓰면 이번 방문에 한 번) */
-export function takeRateKeysHint(): boolean {
-  if (rateKeysHintAsked) return false;
-  rateKeysHintAsked = true;
-  try {
-    if (window.localStorage.getItem(RATE_KEYS_HINT_KEY)) return false;
-    window.localStorage.setItem(RATE_KEYS_HINT_KEY, "1");
-  } catch {
-    // 저장소 불가 — 이번 방문에 한 번
-  }
-  return true;
 }
 
 /** 싱글뷰로 열 때마다 1 — 같은 사진을 연속으로 넘겨 봐도 한 번으로 친다(호출 쪽에서 판단) */

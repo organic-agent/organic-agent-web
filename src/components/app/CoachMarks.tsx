@@ -13,6 +13,10 @@
  * 모서리에서 읽는다. 떠 있는 동안 프레임마다 다시 잰다 — 사진이 늦게 떠서 자리만 밀리는 경우는 창
  * 크기 · 스크롤 이벤트로도, 크기 감시로도 잡히지 않는다.
  *
+ * 크게 보기처럼 다른 창 위에 띄울 때는 modal을 준다 — 뒤 화면이 눌리지 않게 막고(어두운 곳을 눌러 크게 보기가
+ * 닫히는 일이 없게), 말풍선이 aria-modal 대화상자가 되어 크게 보기의 단축키가 쉬고, 초점이 말풍선 안에 머문다.
+ * onDark는 이미 어두운 화면에서 구멍이 눈에 띄게 둘레에 밝은 테두리를 두른다.
+ *
  * 말풍선 자리는 아래 → 위 → 오른쪽 → 왼쪽 순으로 들어가는 곳을 고르고, 어디에도 자리가 없으면(폴더
  * 열·그리드처럼 화면만큼 큰 대상) 대상 안쪽 왼쪽 위에 화살표 없이 둔다. 말풍선 높이는 그려진 뒤 실제
  * 크기를 재서 쓴다(처음 한 프레임만 추정값).
@@ -178,6 +182,8 @@ export function CoachMarks({
   storeKey,
   ready,
   onStart,
+  modal = false,
+  onDark = false,
 }: {
   steps: ReadonlyArray<CoachStep>;
   /** 완료 기록 키 — 예: sel.coach.studioHome. 실제 키에는 계정 번호가 붙는다(sel.coach.studioHome.12) */
@@ -186,6 +192,10 @@ export function CoachMarks({
   ready: boolean;
   /** 처음 뜰 때 한 번 — 화면을 안내에 맞는 상태로 돌려놓는 데 쓴다(사이드바 닫기) */
   onStart?: () => void;
+  /** 다른 창(크게 보기) 위에 띄운다 — 말풍선만 누를 수 있고 초점이 말풍선 안에 머문다 */
+  modal?: boolean;
+  /** 어두운 화면 위 — 구멍 둘레에 밝은 테두리 */
+  onDark?: boolean;
 }) {
   const userId = useAuth().user?.id ?? null;
   const doneStore = useMemo(() => (userId === null ? SIGNED_OUT : storeFor(`${storeKey}.${userId}`)), [storeKey, userId]);
@@ -253,6 +263,19 @@ export function CoachMarks({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [shown, doneStore]);
 
+  // 다른 창 위(modal) — 초점을 말풍선의 "다음"으로 옮기고, 끝나면 있던 곳으로 돌려준다
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!modal || !shown) return;
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => before?.focus({ preventScroll: true });
+  }, [modal, shown]);
+  useEffect(() => {
+    if (!modal || !shown) return;
+    const buttons = bubbleRef.current?.querySelectorAll<HTMLElement>("button");
+    buttons?.[buttons.length - 1]?.focus({ preventScroll: true });
+  }, [modal, shown, index]);
+
   if (!active || !hole) return null;
 
   const holeRight = hole.left + hole.width;
@@ -312,18 +335,38 @@ export function CoachMarks({
     else setIndex((i) => i + 1);
   }
 
+  /** Tab이 말풍선 밖(뒤에 깔린 창)으로 나가지 않게 처음과 끝을 잇는다 */
+  function keepTabInside(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== "Tab") return;
+    const buttons = e.currentTarget.querySelectorAll<HTMLElement>("button");
+    const first = buttons[0];
+    const end = buttons[buttons.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      end.focus();
+    } else if (!e.shiftKey && document.activeElement === end) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
   return (
     <>
+      {/* 뒤 화면 막이 — 누른 것이 뒤로 가지 않게 하고, 초점도 말풍선에서 빼앗기지 않게 한다 */}
+      {modal && <div aria-hidden className="fixed inset-0 z-90" onMouseDown={(e) => e.preventDefault()} />}
       <div
         aria-hidden
-        className="pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)]"
+        className={`pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)] ${onDark ? "outline-2 outline-white/90" : ""}`}
         style={{ left: hole.left, top: hole.top, width: hole.width, height: hole.height, borderRadius: hole.radius }}
       />
       <div
         ref={(el) => {
+          bubbleRef.current = el;
           if (el && el.offsetHeight !== bubbleHeight) setBubbleHeight(el.offsetHeight);
         }}
         role="dialog"
+        aria-modal={modal || undefined}
+        onKeyDown={modal ? keepTabInside : undefined}
         aria-label={`안내 ${index + 1} / ${steps.length}: ${step.title}`}
         className="fixed z-91 rounded-(--radius-12) border border-divider-default bg-background-default-main p-4 shadow-(--shadow-modal)"
         style={{ width: BUBBLE_WIDTH, left: bubbleLeft, top: bubbleTop }}
