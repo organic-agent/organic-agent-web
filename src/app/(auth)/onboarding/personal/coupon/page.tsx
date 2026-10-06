@@ -9,10 +9,8 @@
  * LoginModal(asPage)을 띄우고 코드를 로그인 왕복 컨텍스트에 실어 로그인 뒤 같은 주소로 돌아온다.
  * 등록(POST /coupons/register)은 코드를 보관만 하고 이용 기간은 갤러리를 만들 때 시작한다. 등록되면 쿠폰 id를 실어
  * 갤러리 정보로 간다. 코드 없이 직접 들어오면 빈 입력란이다. ?error=는 OAuth 콜백이 실패를 되돌려보낼 때.
- * 같은 링크를 다시 누른 사람은 이 화면에서 멈추지 않는다(QA BUG-75): 등록해 둔 쿠폰이 하나라도 있는 사람이 링크로
- * 들어오면 버튼을 누르지 않아도 서버에 물어보고(등록은 같은 사람에게 몇 번이든 같은 답을 준다) 이미 갤러리를 만든
- * 쿠폰이면 그 갤러리로, 등록만 해 둔 쿠폰이면 갤러리 정보로 보낸다. 쿠폰이 하나도 없는 사람(처음 받은 사람)은
- * 지금처럼 등록 화면을 본다 — 확인 없이 계정에 쿠폰을 묶지 않기 위해서다.
+ * 링크 조회(POST /coupons/resolve)는 등록 · 소비하지 않는다. 이미 사용한 쿠폰이고 해당 갤러리에 접근 권한이
+ * 있을 때만 사용자 갤러리로 이동한다. 미사용 · 권한 없음은 등록 화면에 남고, 등록 버튼을 누른 뒤 결과를 안내한다.
  * useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다.
  */
 
@@ -26,21 +24,22 @@ import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import {
   formatAmount,
-  getMyBenefits,
   getPlans,
   planDurationLabel,
   registerProCoupon,
+  resolveProCouponLink,
   type Plan,
-  type ProCouponResponse,
+  type ProCouponLinkResponse,
 } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/authStore";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "../_components/PersonalSteps";
 
-/** 등록 결과로 갈 곳 — 이미 갤러리를 만든 쿠폰이면 그 갤러리, 미사용이면 갤러리 정보. 그 밖(비활성 등)은 이 화면에 남는다 */
-function couponDestination(coupon: ProCouponResponse): string | null {
-  if (coupon.status === "USED" && coupon.galleryId !== null) return `/gallery/${coupon.galleryId}`;
-  if (coupon.status === "AVAILABLE") return `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`;
+/** 서버가 갤러리 권한을 확인한 링크 조회 결과만 이동에 사용한다. */
+function usedCouponDestination(coupon: ProCouponLinkResponse): string | null {
+  if (coupon.status === "USED" && coupon.galleryId !== null && Number.isSafeInteger(coupon.galleryId) && coupon.galleryId > 0) {
+    return `/gallery/${coupon.galleryId}`;
+  }
   return null;
 }
 
@@ -60,40 +59,36 @@ function PersonalCoupon() {
   const hash = useCouponCodeFromHash();
   const hashRead = hash.ready;
   const fromLink = hash.code !== null;
-  const [edited, setEdited] = useState<string | null>(null);
-  const code = edited ?? hash.code ?? "";
+  const [edited, setEdited] = useState<{ linkCode: string | null; value: string } | null>(null);
+  const code = edited && edited.linkCode === hash.code ? edited.value : hash.code ?? "";
   const [pro, setPro] = useState<Plan | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
-  /** 링크로 들어온 사람이 이미 쿠폰을 가진 사람인지 확인을 마쳤는가 — 마치기 전에는 등록 화면을 그리지 않는다 */
-  const [linkChecked, setLinkChecked] = useState(false);
+  const [checkedLink, setCheckedLink] = useState<{ code: string; userId: number } | null>(null);
   const linkCode = hash.code;
+  const userId = auth.user?.id;
 
-  // 다시 누른 링크 — 등록해 둔 쿠폰이 있는 사람이면 버튼 없이 바로 그 쿠폰의 자리로 보낸다
+  // 미사용 코드를 자동 등록하지 않고, 사용한 갤러리에 접근 권한이 있을 때만 바로 연결한다.
   useEffect(() => {
-    if (auth.status !== "authenticated" || linkCode === null) return;
+    if (auth.status !== "authenticated" || userId === undefined || linkCode === null) return;
     let cancelled = false;
     (async () => {
       try {
-        const benefits = await getMyBenefits();
+        const destination = usedCouponDestination(await resolveProCouponLink(linkCode));
         if (cancelled) return;
-        if (benefits.coupons.length > 0) {
-          const destination = couponDestination(await registerProCoupon(linkCode));
-          if (cancelled) return;
-          if (destination) {
-            router.replace(destination);
-            return;
-          }
+        if (destination) {
+          router.replace(destination);
+          return;
         }
       } catch {
         // 남이 등록한 쿠폰 · 네트워크 오류 등 — 등록 화면을 보여 주고, 이유는 버튼을 눌렀을 때 안내한다
       }
-      if (!cancelled) setLinkChecked(true);
+      if (!cancelled) setCheckedLink({ code: linkCode, userId });
     })();
     return () => {
       cancelled = true;
     };
-  }, [auth.status, linkCode, router]);
+  }, [auth.status, userId, linkCode, router]);
 
   // 안내 문구의 기간 · 장수는 서버 플랜 값으로 — 못 읽어도 화면은 그대로
   useEffect(() => {
@@ -109,7 +104,8 @@ function PersonalCoupon() {
     };
   }, [auth.status]);
 
-  if (auth.status === "loading" || !hashRead || (auth.status === "authenticated" && fromLink && !linkChecked)) {
+  if (auth.status === "loading" || !hashRead || (auth.status === "authenticated" && fromLink &&
+    (checkedLink?.code !== linkCode || checkedLink?.userId !== userId))) {
     return (
       <main className="grid min-h-dvh place-items-center bg-background-default-main">
         <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">쿠폰을 확인하고 있어요…</p>
@@ -129,7 +125,11 @@ function PersonalCoupon() {
     setBanner(null);
     try {
       const coupon = await registerProCoupon(trimmed);
-      const destination = couponDestination(coupon);
+      const destination = coupon.status === "AVAILABLE"
+        ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`
+        : coupon.status === "USED"
+          ? usedCouponDestination(await resolveProCouponLink(trimmed))
+          : null;
       if (destination) {
         router.replace(destination);
         return;
@@ -176,7 +176,7 @@ function PersonalCoupon() {
             <TextField
               id="coupon-code"
               value={code}
-              onChange={setEdited}
+              onChange={(value) => setEdited({ linkCode, value })}
               placeholder="WES-로 시작하는 코드"
               autoComplete="off"
               className="h-12 px-4"
