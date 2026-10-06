@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 앨범 홈 — 표지 헤더(제목 크게 · 작가 · 앨범 n개 · n장 · 남은 기간 · 좋아요한 사진 칩) + 앨범 카드(개수에 맞춘 열)
+ * 앨범 홈 — 표지 헤더(제목 크게 · 작가 / 앨범 n개 · n장 · 남은 기간 두 줄(이슈 125, 폰 폭에서 한 줄이 끊겼다) · 좋아요한 사진 칩) + 앨범 카드(개수에 맞춘 열)
  * 위치: src/app/(guest)/collab/[token]/_shell/AlbumCards.tsx
  *
  * 앨범이 여러 개(includeAllAlbums)일 때만 그린다 — 1개면 page가 바로 그리드(AlbumGrid)로. 카드 = 대표 1장 + 아래 띠 4장 ·
@@ -58,7 +58,6 @@ export function AlbumCards({
   let mine = 0;
   for (const list of photosByToken.values()) for (const p of list) if (p.liked && !seen.has(p.photoId)) { seen.add(p.photoId); mine++; }
   const days = daysLeftLabel(landing.expiresAt);
-  const meta = [landing.coverAuthor, `앨범 ${albums.length}개 · ${total}장`, days].filter((s): s is string => !!s);
 
   return (
     <main className="scrollbar-slim min-h-0 flex-1 overflow-y-auto">
@@ -66,13 +65,19 @@ export function AlbumCards({
         <div className="mb-5 flex items-end justify-between gap-5 border-b border-divider-default pt-7 pb-5">
           <div className="min-w-0">
             <h1 className="type-title-xl leading-tight text-contents-light-bgd-default text-balance">{title}</h1>
-            <p className="mt-1.5 flex flex-wrap gap-x-2 type-content-s text-contents-light-bgd-weakness">
-              {meta.map((s, i) => (
-                <span key={s} className={i === 0 && landing.coverAuthor ? "font-medium text-contents-light-bgd-sub" : ""}>
-                  {i > 0 && <span aria-hidden className="mr-2">·</span>}
-                  {s}
+            <p className="mt-1.5 flex flex-col gap-0.5 type-content-s text-contents-light-bgd-weakness">
+              {landing.coverAuthor && <span className="font-medium text-contents-light-bgd-sub">{landing.coverAuthor}</span>}
+              <span className="flex flex-wrap gap-x-2">
+                <span>
+                  앨범 {albums.length}개 · {total}장
                 </span>
-              ))}
+                {days && (
+                  <span>
+                    <span aria-hidden className="mr-2">·</span>
+                    {days}
+                  </span>
+                )}
+              </span>
             </p>
           </div>
           <button

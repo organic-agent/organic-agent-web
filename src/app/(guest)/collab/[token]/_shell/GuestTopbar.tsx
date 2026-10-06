@@ -1,21 +1,21 @@
 "use client";
 
 /**
- * 게스트 상단바 — 로고 | 가운데 작은 제목(그리드 화면만) | 프로필(이름 바꾸기 · 링크 복사)
+ * 게스트 상단바 — 로고 | 가운데(그리드 화면만: 앨범 이름 ▾) | 프로필(이름 바꾸기 · 링크 복사)
  * 위치: src/app/(guest)/collab/[token]/_shell/GuestTopbar.tsx
  *
  * 알림 없음(2026-09-13). 로고는 링크가 아니다 — 게스트를 서비스 밖으로 보내지 않는다. 홈(표지 헤더)에서는 가운데를 비우고,
- * 그리드 화면에서만 갤러리 이름을 작게 둔다.
+ * 그리드 화면에서만 앨범 이름(여러 앨범이면 드롭다운 AlbumSwitch)을 둔다 — 갤러리 제목은 표지 · 홈에 있다(이슈 125).
  * 폰 폭(QA 이슈 84): 워드마크는 줄바꿈하지 않고 480 미만에서는 로고만 남긴다. 가운데 이름은 넘치면 말줄임.
  */
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { CheckCircleIcon, EditIcon, LinkIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/Avatar";
 import { guestInitial } from "./randomName";
 
-export function GuestTopbar({ mid, nickname, onRename }: { mid?: string | null; nickname: string | null; onRename?: () => void }) {
+export function GuestTopbar({ mid, nickname, onRename }: { mid?: ReactNode; nickname: string | null; onRename?: () => void }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -61,7 +61,7 @@ export function GuestTopbar({ mid, nickname, onRename }: { mid?: string | null; 
         </span>
         <b className="type-brand-wordmark whitespace-nowrap max-[480px]:hidden">Easy Select</b>
       </span>
-      <span className="min-w-0 truncate px-2 type-content-s text-contents-light-bgd-weakness">{mid ?? ""}</span>
+      <div className="flex min-w-0 items-center justify-center px-2">{mid ?? null}</div>
       <div className="flex items-center justify-end">
         {nickname && (
           <div ref={wrapRef} className="relative">
