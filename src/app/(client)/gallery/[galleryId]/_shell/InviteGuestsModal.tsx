@@ -30,7 +30,6 @@ import { displayUrl, isLiveSession, sessionTermLabel, type CollabSessions } from
 
 export type InviteTab = "new" | "list";
 
-const modeLabel = (s: CollabSessionResponse) => (s.selectionMode === "CONCEPT_FOLDER" ? "컨셉 폴더 따라감" : "직접 담음");
 
 function LinkBox({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
@@ -167,8 +166,6 @@ function SessionCard({
       </div>
       <p className="flex flex-wrap gap-x-2 type-content-xs text-contents-light-bgd-sub">
         <span>사진 {session.photoCount}</span>
-        <span aria-hidden>·</span>
-        <span>{modeLabel(session)}</span>
       </p>
       {term.live && <LinkBox url={session.collabUrl} />}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -338,7 +335,7 @@ export function InviteGuestsBody({
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate type-content-m text-contents-light-bgd-default">{s.name}</span>
                     <span className="type-content-xs text-contents-light-bgd-weakness">
-                      {modeLabel(s)} · {sessionTermLabel(s).text}
+                      {sessionTermLabel(s).text}
                     </span>
                   </span>
                   <span className="shrink-0 type-content-xs text-contents-light-bgd-sub tabular-nums">{s.photoCount}장</span>
