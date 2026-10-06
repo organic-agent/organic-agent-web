@@ -4,7 +4,8 @@
  * 게스트 싱글뷰 — 공용 Lightbox + 가운데 [♥ 좋아요] + 탭은 댓글 하나(처음 열 때 열림)
  * 위치: src/app/(guest)/collab/[token]/_shell/GuestLightbox.tsx
  *
- * 좋아요는 내 하트만(숫자 없음), 낙관적으로 바로 바뀌고 실패하면 되돌린다. writable=false면 하트 · 댓글 탭 자리에 잠금.
+ * 좋아요는 내 하트만(숫자 없음), 낙관적으로 바로 바뀌고 실패하면 되돌린다. writable=false면 댓글 탭 자리에 잠금,
+ * likable=false면 하트 자리에 잠금 — 선택 마감이 지나도 좋아요는 열려 있다(서버 #255).
  * 사진 · 컨트롤 · 패널 밖(여백)을 누르면 닫힘 — 공용 Lightbox 동작.
  */
 
@@ -18,6 +19,7 @@ export function GuestLightbox({
   photos,
   index,
   writable,
+  likable,
   tokenOf,
   guestTokenOf,
   onClose,
@@ -30,6 +32,7 @@ export function GuestLightbox({
   photos: CollabPhotoResponse[];
   index: number;
   writable: boolean;
+  likable: boolean;
   /** 사진이 속한 앨범(세션) 토큰 */
   tokenOf: (photoId: number) => string;
   guestTokenOf: (token: string) => string | null;
@@ -45,7 +48,7 @@ export function GuestLightbox({
   const token = tokenOf(p.photoId);
   const tabs: LightboxTabDef[] = [{ key: "cmt", label: `댓글 ${p.commentCount}`, icon: writable ? <CommentIcon size={20} /> : <LockIcon size={20} /> }];
 
-  const like = writable ? (
+  const like = likable ? (
     <button
       type="button"
       aria-pressed={p.liked}
@@ -56,7 +59,7 @@ export function GuestLightbox({
       좋아요
     </button>
   ) : (
-    <span className="inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s text-white/60" title="부부가 고르기를 마쳤어요">
+    <span className="inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s text-white/60" title="갤러리가 마무리돼 좋아요를 누를 수 없어요">
       <LockIcon size={16} />
       좋아요
     </span>
@@ -88,7 +91,7 @@ export function GuestLightbox({
       onNext={() => onNavigate((index + 1) % photos.length)}
       onTabChange={(next) => setTab(next === "cmt" ? "cmt" : "none")}
       onKeyDown={(e) => {
-        if (e.key === " " && writable) {
+        if (e.key === " " && likable) {
           e.preventDefault();
           onToggleLike(p);
           return true;
