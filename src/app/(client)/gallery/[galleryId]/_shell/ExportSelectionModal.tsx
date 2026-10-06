@@ -93,7 +93,7 @@ export function ExportSelectionModal({
       </dl>
       {unpickedDraftCount > 0 && (
         <p className="mb-4 rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
-          고르지 않은 사진 {unpickedDraftCount}장에 쓴 보정 요청은 실리지 않아요. 필요하면 먼저 그 사진을 골라 주세요.
+          선택하지 않은 사진 {unpickedDraftCount}장에 쓴 보정 요청은 실리지 않아요. 필요하면 먼저 그 사진을 선택해 주세요.
         </p>
       )}
       {error && (

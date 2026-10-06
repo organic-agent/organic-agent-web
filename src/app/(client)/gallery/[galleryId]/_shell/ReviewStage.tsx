@@ -261,7 +261,7 @@ export function ReviewStage({
     }
     if (archived) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정이 확정됐어요</b> · 갤러리는 보관됐고 보정본은 언제든 내려받을 수 있어요</> };
     if (waiting) return { tone: "info" as const, icon: <HourglassIcon size={18} />, text: <><b className="font-semibold">작가가 {roundLabel} 보정을 하고 있어요</b>{memoCount > 0 ? ` · 요청 ${memoCount}장` : ""} · 결과가 오면 알림으로 알려 드려요</> };
-    if (picking) return { tone: "ok" as const, icon: <EditNoteIcon size={18} />, text: <><b className="font-semibold">다시 고칠 사진을 체크하고</b>, 한 장 보기의 요청 탭에서 결과 사진 위에 점을 찍어 적어 주세요</> };
+    if (picking) return { tone: "ok" as const, icon: <EditNoteIcon size={18} />, text: <><b className="font-semibold">다시 고칠 사진을 체크하고</b>, 크게 보기의 요청 탭에서 결과 사진 위에 점을 찍어 적어 주세요</> };
     if (resultArrived && isLatest) return { tone: "ok" as const, icon: <BrushIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 보정 결과 {items.length}장이 도착했어요</b> · {shortDate(activeSummary?.completedAt ?? null)} · 전/후로 확인하고 더 고칠 곳이 있으면 다시 요청하세요{remaining !== null ? `(남은 ${remaining}회)` : ""}</> };
     return null;
   })();
@@ -273,7 +273,7 @@ export function ReviewStage({
     : archived
     ? "보정이 끝났어요 · 갤러리는 보관 상태라 열람만 할 수 있어요"
     : waiting
-      ? "결과가 오면 알림으로 알려 드려요 · 보낸 요청은 한 장 보기의 내 요청 탭에서 볼 수 있어요"
+      ? "결과가 오면 알림으로 알려 드려요 · 보낸 요청은 크게 보기의 내 요청 탭에서 볼 수 있어요"
       : resultArrived
         ? "다 확인했으면 확정하고, 더 고칠 곳이 있으면 다시 요청해요"
         : "";

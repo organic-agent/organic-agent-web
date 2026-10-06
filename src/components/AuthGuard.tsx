@@ -32,7 +32,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
         <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">
           {auth.status === "loading"
             ? "로그인 상태를 확인하고 있어요…"
-            : "로그인이 필요해요. 홈으로 이동합니다…"}
+            : "로그인이 필요해요 · 홈으로 이동할게요…"}
         </p>
       </main>
     );

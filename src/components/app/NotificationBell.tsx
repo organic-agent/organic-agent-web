@@ -382,9 +382,6 @@ export function NotificationBell({
               })
             )}
           </div>
-          <p className="border-t border-divider-default px-4 py-2.5 text-center type-content-xs text-contents-light-bgd-weakness">
-            최근 30일의 알림을 보여줘요
-          </p>
         </div>
       )}
     </div>
