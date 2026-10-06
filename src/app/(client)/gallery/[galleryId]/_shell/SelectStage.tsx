@@ -19,7 +19,7 @@
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 싱글뷰에서는 정보 탭 맨 위 "AI 추천" 칩.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
  * 개인 갤러리(personal)는 작가가 없어 전달 대신 **"요청서 내보내기"**(ExportSelectionModal: 초안 저장 → export → 잠김)이고
- * 장수 추가 요청이 없다(묶음 C, 2026-09-23). 대신 **"사진 · 폴더 정리"**로 페이지가 컨셉 분류 화면을 다시 연다(#114) —
+ * 장수 추가 요청이 없다(묶음 C, 2026-09-23). 대신 **"폴더 다시 정리"**로 페이지가 컨셉 분류 화면을 다시 연다(#114) —
  * 여기 체크박스는 선택 앨범 담기라, 옮기기 · 지우기용 고르기를 섞지 않으려고 화면을 나눴다.
  * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
  * 선택 마감이 지나면 서버가 담기 · 빼기 · 별점 · 전달을 막는다 — 화면도 체크박스 · 별점 · 전달하기를 잠그고 그리드 위 배너로 알린다
@@ -122,8 +122,8 @@ export function SelectStage({
   onPhotoUrlError?: () => void;
   /** 별점 저장이 끝났을 때 서버에 남은 값 — 페이지가 사진 목록에 적는다 */
   onScoreSaved: (photoId: number, score: number | null) => void;
-  /** 개인 — "사진 · 폴더 정리"를 누르면 페이지가 컨셉 분류 화면을 다시 연다(사진 옮기기 · 지우기 · 더 올리기 · 폴더 이름) */
-  onOrganize?: () => void;
+  /** 개인 — "폴더 다시 정리"를 누르면 페이지가 컨셉 분류 화면을 다시 연다. 지금 고른 장수를 넘겨 정리 중 사이드바가 그대로 보이게 한다 */
+  onOrganize?: (pickedCount: number) => void;
 }) {
   const canEdit = phase === "select";
   /** 서버가 "선택 마감이 지났다"고 거절했을 때의 마감 값 — 갤러리를 다시 읽어 마감이 바뀌어 있으면(작가가 늦춤) 저절로 풀린다 */
@@ -765,9 +765,9 @@ export function SelectStage({
                 </ShellCta>
               )}
             {personal && onOrganize && canEdit && (
-              <ShellCta kind="outline" short="정리" onClick={onOrganize}>
+              <ShellCta kind="outline" short="정리" onClick={() => onOrganize(selectedCount)}>
                 <FolderIcon size={18} />
-                사진 · 폴더 정리
+                폴더 다시 정리
               </ShellCta>
             )}
             <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>

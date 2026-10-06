@@ -7,7 +7,7 @@
  * 어느 폴더에도 없는 사진은 맨 아래 "미분류". "검토" 배지와 검토 완료 메뉴는 없앴다(2차 QA — 폴더 단위라 어떤 사진이
  * 왜 문제인지 알 수 없었다. 서버의 needsReview 값은 그대로 오지만 읽지 않는다).
  * 편집(1단계 보드 확정): 머리의 "컨셉 폴더 추가", 행에 마우스를 올리면 숫자 자리에 케밥 —
- * 컨셉: 세부 폴더 추가 · 이름 바꾸기 · 폴더 삭제 / 세부: 이름 바꾸기 · 다른 폴더와 합치기 · 폴더 삭제.
+ * 컨셉: 세부 폴더 추가 · 이름 바꾸기 · 폴더 삭제 / 세부: 다른 폴더와 합치기 · 이름 바꾸기 · 폴더 삭제(순서는 2026-10-06 수민).
  * 이름 바꾸기는 organic-agent-server#260. 편집 핸들러를 안 주면 그 메뉴가 없고, 하나도 없으면 읽기 전용이다.
  * 맨 위 "모든 사진" 행으로 폴더에서 빠져나오고, 컨셉 이름을 누르면 그 컨셉의 사진 전체를 본다(2026-09-11 피드백).
  * 사진을 끌고 오면(dropping) 놓을 수 있는 곳(세부 폴더 · 미분류, 지금 보고 있는 폴더는 빼고)만 점선으로 남고
@@ -362,6 +362,22 @@ export function FolderColumn({
             세부 폴더 추가
           </button>
         )}
+        {target.kind === "detail" && onPickMerge && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenu(null);
+              onPickMerge({ concept: target.concept, detail: target.detail });
+            }}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
+          >
+            <span className="flex text-contents-light-bgd-sub">
+              <MoveToFolderIcon size={16} />
+            </span>
+            다른 폴더와 합치기
+          </button>
+        )}
         {((target.kind === "concept" && onRenameConcept) || (target.kind === "detail" && onRenameDetail)) && (
           <button
             type="button"
@@ -377,22 +393,6 @@ export function FolderColumn({
               <EditIcon size={16} />
             </span>
             이름 바꾸기
-          </button>
-        )}
-        {target.kind === "detail" && onPickMerge && (
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setMenu(null);
-              onPickMerge({ concept: target.concept, detail: target.detail });
-            }}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
-          >
-            <span className="flex text-contents-light-bgd-sub">
-              <MoveToFolderIcon size={16} />
-            </span>
-            다른 폴더와 합치기
           </button>
         )}
         {((target.kind === "concept" && onDeleteConcept) || (target.kind === "detail" && onDeleteDetail)) && (

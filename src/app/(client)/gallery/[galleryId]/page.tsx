@@ -12,8 +12,8 @@
  * 사진 옮기기 · 폴더 추가 · 삭제 · 폴더 확정) → 셀렉 & 보정 요청(WES-312) → 보정 검토(WES-313)
  * → (앨범 구성) → 완료.
  *
- * 개인 갤러리는 셀렉 중에도 "사진 · 폴더 정리"(organizing)로 컨셉 분류 화면을 다시 연다(#114) — 사진 옮기기 · 끌어 합치기 ·
- * 폴더 이름 바꾸기 · 사진 더 올리기 · 삭제. 폴더 추가 · 삭제는 컨셉 분류에서만 한다. "정리 끝내기"로 셀렉 화면에 돌아간다.
+ * 개인 갤러리는 셀렉 중에도 "폴더 다시 정리"(organizing)로 컨셉 분류 화면을 다시 연다(#114) — 폴더 메뉴와 사진 이동 · 더 올리기 ·
+ * 삭제가 컨셉 분류 단계와 같고, 단계 칩도 "컨셉 분류"로 간다. 고른 사진은 그대로다. "정리 끝내기"로 셀렉 화면에 돌아간다.
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -146,8 +146,10 @@ export default function ClientGalleryPage() {
   const [deletePhotosOpen, setDeletePhotosOpen] = useState(false);
   /** 지우려는 사진 중 선택 앨범에 담긴 장수 — 삭제 모달이 함께 빠진다고 알린다 */
   const [deletePickedCount, setDeletePickedCount] = useState(0);
-  /** 개인 갤러리 셀렉 중 "사진 · 폴더 정리" — 컨셉 분류 화면을 다시 연다 */
+  /** 개인 갤러리 셀렉 중 "폴더 다시 정리" — 컨셉 분류 화면을 다시 연다 */
   const [organizingRequested, setOrganizingRequested] = useState(false);
+  /** 정리 중 사이드바에 보일 고른 장수 — 셀렉 화면이 알던 값으로 시작하고, 사진을 지우면 다시 읽는다 */
+  const [organizingPicked, setOrganizingPicked] = useState(0);
   /** 개인 — 요청서를 막 내보냈으면 보정 확인 화면이 열리며 내려받기 모달을 바로 연다 */
   const [autoDownload, setAutoDownload] = useState(false);
 
@@ -371,6 +373,14 @@ export default function ClientGalleryPage() {
     setSelected(new Set());
     setDeletePhotosOpen(false);
     await Promise.all([refreshPhotos(), refreshFolders()]);
+    // 고른 사진을 지웠으면 사이드바의 고른 장수도 줄어든다
+    if (organizing) {
+      try {
+        setOrganizingPicked((await getPhotoSelection(galleryId)).selectedCount);
+      } catch {
+        // 못 읽으면 다음에 셀렉 화면에서 맞춰진다
+      }
+    }
   }
   async function confirmMove(targetDetailId: number | null) {
     await moveCategoryPhotos(galleryId, [...selected], targetDetailId);
@@ -395,7 +405,7 @@ export default function ClientGalleryPage() {
       if (isPersonal && (!folders || folders.length === 0)) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
     }
-    if (organizing) return { text: "사진 · 폴더 정리 중", tone: "accent" };
+    if (organizing) return { text: "폴더 다시 정리 중", tone: "accent" };
     if (phase === "select") return { text: `고르는 중 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
     return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal), tone: "accent" };
   })();
@@ -404,7 +414,7 @@ export default function ClientGalleryPage() {
     if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
     if (phase === "upload") return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
-    if (organizing) return "사진을 옮기거나 지우고 폴더 이름을 바꿀 수 있어요 · 새 사진은 AI가 폴더에 넣어요 · 고른 사진은 그대로예요";
+    if (organizing) return null;
     if (phase === "sort") {
       if (contentBlocked) return "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
       if (isPersonal && (!folders || folders.length === 0)) return "폴더는 업로드가 끝나면 AI가 만들어요";
@@ -532,7 +542,7 @@ export default function ClientGalleryPage() {
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
         stages={clientStagesOf(gallery, isPersonal)}
-        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery, isPersonal) : null}
+        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(organizing ? "sort" : phase, gallery, isPersonal) : null}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={personalOwner || selecting ? () => setInviteOpen(true) : undefined}
@@ -574,7 +584,14 @@ export default function ClientGalleryPage() {
           onExported={() => setAutoDownload(true)}
           onPhotoUrlError={refreshPhotoUrls}
           onScoreSaved={patchPhotoScore}
-          onOrganize={isPersonal ? () => setOrganizingRequested(true) : undefined}
+          onOrganize={
+            isPersonal
+              ? (picked) => {
+                  setOrganizingPicked(picked);
+                  setOrganizingRequested(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>
@@ -588,7 +605,8 @@ export default function ClientGalleryPage() {
               selectedLockNote={isPersonal ? "분류 뒤" : undefined}
               retouchLockNote={isPersonal ? "내보낸 뒤" : undefined}
               photoCount={opened && photos !== null ? allPhotos.length : null}
-              selectedCount={0}
+              selectedCount={organizing ? organizingPicked : 0}
+              selectionClickable={!organizing}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}
               view={view}
               onViewChange={(next) => {
@@ -607,12 +625,11 @@ export default function ClientGalleryPage() {
                 unsortedCount={unsortedCount}
                 selection={folderSel}
                 onSelect={changeFolder}
-                // 폴더 추가 · 삭제는 컨셉 분류에서만 — 셀렉 중 정리는 옮기기 · 합치기 · 이름 바꾸기만 연다
-                onCreateConcept={organizing ? undefined : () => setFolderModal({ kind: "createConcept" })}
-                onCreateDetail={organizing ? undefined : (concept) => setFolderModal({ kind: "createDetail", concept })}
-                onDeleteConcept={organizing ? undefined : (concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
-                onDeleteDetail={
-                  organizing ? undefined : (concept, detail) => setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
+                onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
+                onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
+                onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
+                onDeleteDetail={(concept, detail) =>
+                  setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
                 }
                 onRenameConcept={isPersonal ? (concept) => setFolderModal({ kind: "renameConcept", concept }) : undefined}
                 onRenameDetail={isPersonal ? (concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail }) : undefined}

@@ -68,7 +68,9 @@ export function FolderNameModal({
   const renaming = currentName !== undefined;
   const [name, setName] = useState(currentName ?? "");
   const trimmed = name.trim();
-  const valid = trimmed.length >= 1 && trimmed.length <= 100 && (!renaming || trimmed !== currentName);
+  const lengthOk = trimmed.length >= 1 && trimmed.length <= 100;
+  /** 같은 이름은 저장만 잠근다 — 입력란의 오류 색은 글자 수가 틀릴 때만 */
+  const valid = lengthOk && (!renaming || trimmed !== currentName);
   const { busy, error, run } = useConfirmAction(() => onSubmit(trimmed));
 
   useEffect(() => {
@@ -85,7 +87,7 @@ export function FolderNameModal({
       title={renaming ? "폴더 이름 바꾸기" : kind === "concept" ? "컨셉 폴더 추가" : "세부 폴더 추가"}
       desc={
         renaming
-          ? "이름만 바뀌고 폴더 안 사진과 공유폴더는 그대로예요."
+          ? undefined
           : kind === "concept"
             ? "컨셉은 큰 묶음이에요. 안에 세부 폴더를 두고 사진을 나눠요."
             : `"${parentName ?? ""}" 아래에 만들어요. 사진은 세부 폴더에 담겨요.`
@@ -102,7 +104,7 @@ export function FolderNameModal({
           value={name}
           onChange={setName}
           placeholder={kind === "concept" ? "예: 야외 정원" : "예: 산책 스냅"}
-          error={name.length > 0 && !valid}
+          error={name.length > 0 && !lengthOk}
           className="mb-5 h-11 px-4"
         />
         <ErrorLine text={error} />
@@ -411,12 +413,16 @@ export function DeletePhotosModal({
   return (
     <GalleryModalShell
       title={`${count}장을 삭제할까요?`}
-      desc={`삭제한 사진은 갤러리와 폴더에서 바로 사라져요. 사진이 다 빠져 비게 된 폴더는 함께 사라져요. 화면에서 되살릴 수는 없어요.${
-        pickedCount > 0 ? ` 고른 사진 ${pickedCount}장도 선택에서 함께 빠져요.` : ""
-      }`}
+      desc="삭제한 사진은 갤러리 · 폴더에서 바로 사라지고 되살릴 수 없어요."
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >
+      {pickedCount > 0 && (
+        // 고른 사진이 섞여 있으면 본문과 따로 빨간 상자로 — 삭제 버튼과 같은 색이라 같은 무게로 읽힌다(2026-10-06 수민)
+        <p className="mb-5 rounded-(--radius-8) border border-function-error-default/35 bg-function-error-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+          선택된 사진 <b className="font-semibold text-function-error-default">{pickedCount}장</b>이 선택 사진에서 제외돼요
+        </p>
+      )}
       <ErrorLine text={error} />
       <GalleryModalButtons
         onClose={onClose}
