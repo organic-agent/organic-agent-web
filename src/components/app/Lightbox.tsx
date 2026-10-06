@@ -18,6 +18,8 @@
  * 열려 있는 동안 키보드 초점은 싱글뷰가 갖고(Tab도 안에서 돈다) 닫히면 연 곳으로 돌려준다 — 초점이 뒤의 그리드 타일에 남으면
  * Space · Enter가 그 타일을 다시 눌러 처음 연 사진으로 되돌아갔다(2차 QA). 위에 다른 모달이 떠 있으면 키를 받지 않는다.
  * 사진 · 컨트롤 · 패널 밖의 빈 곳을 누르면 닫힌다. 사진 위 오버레이(점)와 사진 클릭 좌표는 부모가 다룬다.
+ * 좁은 폭(768 미만, 이슈 125): 패널이 옆에 설 자리가 없어 세로로 — 사진 위 · 컨트롤 · 패널은 아래 절반. 바깥 여백은 12px.
+ * 사진 높이 상한은 --lb-photo-max로 두어 패널이 아래에 열리면 절반으로 준다(전/후 비교 그림도 같은 변수를 쓴다).
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -257,7 +259,9 @@ export function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={`${photo.originalFileName} 크게 보기`}
-      className="fixed inset-0 z-40 flex bg-black/75 p-7 outline-none backdrop-blur-[2px]"
+      className={`fixed inset-0 z-40 flex bg-black/75 p-3 outline-none backdrop-blur-[2px] [--lb-photo-max:calc(100dvh-56px)] md:p-7 ${
+        open ? "max-md:[--lb-photo-max:calc(50dvh-60px)]" : ""
+      }`}
       onClick={(e) => {
         // 마우스로 누른 뒤에는 초점을 싱글뷰로 되돌린다(키보드로 누른 클릭은 detail이 0)
         const active = document.activeElement;
@@ -265,7 +269,7 @@ export function Lightbox({
       }}
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "" : "justify-center"}`} onClick={closeOnSelf}>
+      <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "max-md:flex-col" : "justify-center"}`} onClick={closeOnSelf}>
         {/* 사진 무대 — 사진 밖 빈 곳을 누르면 닫힌다 */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" onClick={closeOnSelf}>
           {/* 확대하면 사진이 이 영역 전체로 넓어지고 밖은 잘린다 */}
@@ -300,7 +304,7 @@ export function Lightbox({
                     alt={photo.originalFileName}
                     draggable={false}
                     onError={onImageError}
-                    className="block max-h-[calc(100dvh-56px)] max-w-full rounded-(--radius-12) object-contain"
+                    className="block max-h-(--lb-photo-max) max-w-full rounded-(--radius-12) object-contain"
                   />
                 ) : (
                   <div className="grid h-105 w-160 place-items-center rounded-(--radius-12) bg-surface-default-light text-contents-light-bgd-weakness">미리보기 준비 중</div>
@@ -320,7 +324,7 @@ export function Lightbox({
             </div>
           </div>
 
-          <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5">
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 md:top-3.5 md:left-3.5">
             <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
               {index + 1} / {total}
               {caption && <span className="text-white/60"> · {caption}</span>}
@@ -336,7 +340,7 @@ export function Lightbox({
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              className="absolute top-3.5 right-3.5 grid size-8 cursor-pointer place-items-center rounded-(--radius-8) bg-white/15 text-white transition-colors duration-fast hover:bg-white/25"
+              className="absolute top-2 right-2 grid size-8 cursor-pointer place-items-center rounded-(--radius-8) bg-white/15 text-white transition-colors duration-fast hover:bg-white/25 md:top-3.5 md:right-3.5"
             >
               <CloseIcon size={18} />
             </button>
@@ -349,7 +353,7 @@ export function Lightbox({
           )}
 
           {/* 하단 컨트롤 한 줄 */}
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-black/80 px-2 py-1.5 text-white shadow-(--shadow-modal)">
+          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-black/80 px-2 py-1.5 text-white shadow-(--shadow-modal) md:bottom-4">
             <CtlButton label="이전" onClick={() => go(-1)}>
               <ChevronLeftIcon size={20} />
             </CtlButton>
@@ -404,7 +408,7 @@ export function Lightbox({
 
         {/* 오른쪽 패널 */}
         {open && (
-          <aside className="ml-3 flex w-82.5 shrink-0 flex-col self-stretch overflow-hidden rounded-(--radius-12) bg-background-default-main">
+          <aside className="flex shrink-0 flex-col overflow-hidden rounded-(--radius-12) bg-background-default-main max-md:mt-3 max-md:h-1/2 max-md:w-full md:ml-3 md:w-82.5 md:self-stretch">
             <div className="flex h-12 shrink-0 items-center gap-1.5 border-b border-divider-default px-4 type-label-semibold-m text-contents-light-bgd-default">
               <span className="truncate">{panelTitle ?? photo.originalFileName}</span>
               {panelTitle === undefined && <span className="shrink-0 type-content-xs font-normal text-contents-light-bgd-weakness">· {title}</span>}
