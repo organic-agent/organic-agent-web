@@ -14,7 +14,8 @@
  * 잡 요청은 프론트 몫이다. 업로드가 끝나면 request()를 부르고, 이미 도는 잡이 있으면(409) 그 잡이
  * 새 사진을 흡수한다 — 단 이미 분류(CATEGORIZING)에 들어간 잡은 흡수하지 못해 끝난 뒤 한 번 더 요청한다.
  * 탭이 닫혀 요청을 못 보낸 갤러리(올라온 사진은 있는데 잡이 없거나, 점수가 났는데 분류가 안 된 사진이
- * 있는 경우)는 화면에 들어왔을 때 한 번 자동으로 요청한다.
+ * 있는 경우)는 화면에 들어왔을 때 한 번 자동으로 요청한다. 이 자동 요청은 업로드가 끝난 직후 화면의 요청
+ * (컨셉 수 포함)보다 먼저 나갈 수 있어, 첫 잡일 때는 getConceptCount로 받은 컨셉 수를 같이 싣는다(이슈 128).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -74,7 +75,16 @@ function signatureOf(job: AnalysisJobResponse | null, summary: PhotoSummaryRespo
 
 export function useAnalysisWatch(
   galleryId: number,
-  { enabled, uploading }: { enabled: boolean; uploading: boolean },
+  {
+    enabled,
+    uploading,
+    getConceptCount,
+  }: {
+    enabled: boolean;
+    uploading: boolean;
+    /** 첫 잡의 자동 요청에 실을 컨셉 수 — 화면이 첫 업로드 때 받아 둔 값(이슈 128). 없으면 값 없이 보낸다 */
+    getConceptCount?: () => number | null;
+  },
   callbacks: Callbacks = {},
 ) {
   const [job, setJob] = useState<AnalysisJobResponse | null>(null);
@@ -85,8 +95,10 @@ export function useAnalysisWatch(
   const [nonce, setNonce] = useState(0);
 
   const callbacksRef = useRef(callbacks);
+  const getConceptCountRef = useRef(getConceptCount);
   useEffect(() => {
     callbacksRef.current = callbacks;
+    getConceptCountRef.current = getConceptCount;
   });
   const queuedRef = useRef(false);
   const finishedJobsRef = useRef(new Set<number>());
@@ -100,7 +112,8 @@ export function useAnalysisWatch(
   /**
    * 분석 잡 요청. 이미 도는 잡이 있으면 그 잡이 흡수(CATEGORIZING이면 끝난 뒤 한 번 더).
    * conceptCount는 사용자가 기억하는 컨셉 수 — 화면이 첫 업로드 때 받아 들고 있다가 넘긴다. 훅 안에서 다시 부르는
-   * 요청(예약 · 자동)은 값 없이 보낸다: 그때는 새로 올라온 사진만 처리되어 같은 개수가 맞지 않는다.
+   * 요청(예약 · 끝난 잡 뒤의 자동)은 값 없이 보낸다: 그때는 새로 올라온 사진만 처리되어 같은 개수가 맞지 않는다.
+   * 첫 잡의 자동 요청만은 예외로 getConceptCount의 값을 싣는다(이슈 128).
    */
   const request = useCallback(async (conceptCount?: number | null) => {
     setError(null);
@@ -210,7 +223,9 @@ export function useAnalysisWatch(
           (latest === null ? counts.expected > 0 : counts.scored > counts.categorized);
         if (needsJob && !autoRequestedRef.current) {
           autoRequestedRef.current = true;
-          await request();
+          // 첫 잡이면 컨셉 수를 싣는다 — 업로드 직후 이 요청이 화면의 요청보다 먼저 가 잡에 컨셉 수가 빠졌다(이슈 128).
+          // 끝난 잡이 있고 새 사진만 남은 경우는 새 사진 몇 장에 첫 업로드의 개수가 맞지 않아 값 없이.
+          await request(latest === null ? getConceptCountRef.current?.() ?? null : undefined);
           schedule(POLL_FAST_MS);
           return;
         }
