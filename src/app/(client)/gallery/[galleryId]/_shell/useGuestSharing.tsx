@@ -5,10 +5,12 @@
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/useGuestSharing.tsx
  *
  * 상단 초대 버튼(page)이 inviteOpen으로 열고, 사이드바 카드를 누르면 그 공유폴더의 반응 보기(reactionsView)가 메인을 대신한다.
- * 초대 모달에서 "새 공유폴더"를 누르면 초대 모달을 닫고 만들기 모달을 연 뒤, 만들면 초대 모달(링크 만들기)로 돌아온다.
+ * 초대 모달에서 "새 공유폴더"를 누르면 초대 모달을 닫고 만들기 모달을 연 뒤, 만들면 초대 모달이 방금 만든 링크 카드로
+ * 다시 열린다(팀 노션 73번) — 링크를 바로 복사할 수 있게.
  */
 
 import { useState, type ReactNode } from "react";
+import type { CollabSessionResponse } from "@/lib/api/collab";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { CreateShareFolderModal } from "./CreateShareFolderModal";
@@ -50,6 +52,8 @@ export function useGuestSharing({
   const collab = useCollabSessions(galleryId, true);
   const reactions = useGuestReactions(galleryId, collab.sessions);
   const [sideInvite, setSideInvite] = useState<InviteTab | null>(null);
+  /** 초대 모달에서 만들기로 갔다가 돌아올 때 바로 보여 줄 공유폴더 */
+  const [justMade, setJustMade] = useState<CollabSessionResponse | null>(null);
   const [create, setCreate] = useState<{ returnToInvite: boolean } | null>(null);
   const [reactionSession, setReactionSession] = useState<number | null>(null);
   const openSession = reactionSession !== null ? collab.sessions?.find((s) => s.sessionId === reactionSession) ?? null : null;
@@ -58,6 +62,7 @@ export function useGuestSharing({
   const initialTab: InviteTab = sideInvite ?? "new";
   function closeInvite() {
     setSideInvite(null);
+    setJustMade(null);
     onInviteClose();
   }
 
@@ -86,6 +91,7 @@ export function useGuestSharing({
               galleryId={galleryId}
               collab={collab}
               initialTab={initialTab}
+              initialMade={justMade}
               onClose={closeInvite}
               onCreateShareFolder={() => {
                 closeInvite();
@@ -100,6 +106,7 @@ export function useGuestSharing({
           galleryId={galleryId}
           collab={collab}
           initialTab={initialTab}
+          initialMade={justMade}
           onClose={closeInvite}
           onCreateShareFolder={() => {
             closeInvite();
@@ -118,11 +125,14 @@ export function useGuestSharing({
             setCreate(null);
             if (back) setSideInvite("new");
           }}
-          onCreated={() => {
+          onCreated={(session) => {
             const back = create.returnToInvite;
             setCreate(null);
             void collab.reload();
-            if (back) setSideInvite("new");
+            if (back) {
+              setJustMade(session);
+              setSideInvite("new");
+            }
           }}
         />
       )}

@@ -264,12 +264,15 @@ export function InviteGuestsBody({
   galleryId,
   collab,
   initialTab,
+  initialMade = null,
   onClose,
   onCreateShareFolder,
 }: {
   galleryId: number;
   collab: CollabSessions;
   initialTab: InviteTab;
+  /** 방금 "새 공유폴더"로 만든 것 — 있으면 목록 대신 그 링크 카드로 시작한다(팀 노션 73번) */
+  initialMade?: CollabSessionResponse | null;
   onClose: () => void;
   /** "새 공유폴더" — 이 모달을 닫고 만들기 모달을 연다 */
   onCreateShareFolder: () => void;
@@ -279,7 +282,9 @@ export function InviteGuestsBody({
   const [linkName, setLinkName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [made, setMade] = useState<{ session: CollabSessionResponse; from: string[] } | null>(null);
+  const [made, setMade] = useState<{ session: CollabSessionResponse; from: string[] } | null>(
+    initialMade ? { session: initialMade, from: [] } : null,
+  );
 
   const sessions = collab.sessions;
   const live = (sessions ?? []).filter(isLiveSession);
