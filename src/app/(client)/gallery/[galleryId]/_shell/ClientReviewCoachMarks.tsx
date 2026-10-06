@@ -15,7 +15,7 @@ const STEPS: ReadonlyArray<CoachStep> = [
     key: "results",
     eyebrow: "결과 사진",
     title: "타일이 보정 결과예요",
-    body: "사진을 누르면 크게 열려요. 전/후를 슬라이더로 비교하고, \"내 요청\" 탭에서 보냈던 요청을 다시 볼 수 있어요.",
+    body: "사진을 누르면 크게 열려요. 원본 · 보정본 · 슬라이더 · 분할로 비교하고, \"정보\" 탭에서 보냈던 요청을 다시 볼 수 있어요.",
   },
   {
     key: "download",
@@ -27,7 +27,7 @@ const STEPS: ReadonlyArray<CoachStep> = [
     key: "rerequest",
     eyebrow: "다시 요청",
     title: "더 고칠 곳이 있으면 다시 요청",
-    body: "고칠 사진을 체크하고 결과 사진 위에 점을 찍어 적으면 다음 회차로 보내져요. 남은 횟수만큼 할 수 있어요.",
+    body: "크게 보기의 \"보정 요청\" 탭에서 보정본 위에 점을 찍어 적은 사진이 다음 회차로 보내져요. 남은 횟수만큼 할 수 있어요.",
   },
   {
     key: "confirm",
