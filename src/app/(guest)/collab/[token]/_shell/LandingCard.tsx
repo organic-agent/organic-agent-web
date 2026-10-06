@@ -20,7 +20,7 @@ export function LandingCard({ landing, title, onGo }: { landing: CollabLandingRe
       <BrandLogo size={40} className="mb-1 text-brand-secondary-default" />
       {landing.coverAuthor && <span className="type-label-semibold-xs tracking-wide text-contents-light-bgd-weakness">{landing.coverAuthor}</span>}
       <h1 className="type-title-xl leading-tight text-contents-light-bgd-default text-balance">{title}</h1>
-      <p className="type-content-m text-contents-light-bgd-sub">{albums.length > 1 ? `공유 앨범 ${albums.length}개 · ${total}장` : `${total}장`}</p>
+      <p className="type-content-m text-contents-light-bgd-sub">{albums.length > 1 ? `앨범 ${albums.length}개 · ${total}장` : `${total}장`}</p>
       {albums.length > 0 && (
         <ul className="mt-2 flex w-full flex-col gap-1.5">
           {albums.map((a) => (

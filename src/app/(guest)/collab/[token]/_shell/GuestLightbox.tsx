@@ -25,6 +25,7 @@ export function GuestLightbox({
   onClose,
   onNavigate,
   onToggleLike,
+  onLockedLike,
   onCommentDelta,
   onNeedName,
 }: {
@@ -39,6 +40,8 @@ export function GuestLightbox({
   onClose: () => void;
   onNavigate: (index: number) => void;
   onToggleLike: (photo: CollabPhotoResponse) => void;
+  /** 잠긴 하트를 눌렀을 때 — title은 휴대폰에서 안 보여 알림으로도 알린다(문구 점검 D07) */
+  onLockedLike?: () => void;
   onCommentDelta: (photo: CollabPhotoResponse, delta: number) => void;
   onNeedName: () => void;
 }) {
@@ -59,10 +62,10 @@ export function GuestLightbox({
       좋아요
     </button>
   ) : (
-    <span className="inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s text-white/60" title="갤러리가 마무리돼 좋아요를 누를 수 없어요">
+    <button type="button" onClick={onLockedLike} className="inline-flex h-7 cursor-default items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s text-white/60" title="갤러리가 마무리되어 좋아요를 누를 수 없어요">
       <LockIcon size={16} />
       좋아요
-    </span>
+    </button>
   );
 
   return (

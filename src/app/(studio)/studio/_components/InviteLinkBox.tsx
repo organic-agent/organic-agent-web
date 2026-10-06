@@ -98,7 +98,7 @@ export function InviteLinkBox({
   issue: () => Promise<void>;
   issuing: boolean;
   error: string | null;
-  /** 상자 아래 안내 — 두 줄이면 <br />로 끊어 준다 */
+  /** 상자 아래 안내 — 두 줄이면 <br />로 끊어 준다. null이면 안내 줄을 비운다 */
   hint?: ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -155,6 +155,7 @@ export function InviteLinkBox({
           />
         </div>
       )}
+      {(hint || state.kind === "ready") && (
       <p className="mt-2 flex items-start justify-between gap-3 type-content-xs text-contents-light-bgd-sub">
         <span className="min-w-0 leading-relaxed break-keep">{hint}</span>
         {state.kind === "ready" && (
@@ -168,9 +169,10 @@ export function InviteLinkBox({
           </button>
         )}
       </p>
+      )}
       {(error || copyError) && (
         <p role="alert" className="mt-2 type-content-xs text-function-error-default">
-          {error ?? "복사하지 못했어요. 링크를 직접 선택해 복사해 주세요."}
+          {error ?? "복사하지 못했어요 · 링크를 직접 선택해 복사해 주세요"}
         </p>
       )}
     </div>

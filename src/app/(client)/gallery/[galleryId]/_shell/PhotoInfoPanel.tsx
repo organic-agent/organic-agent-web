@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 싱글뷰 "정보" 탭 — 칩(AI 추천 · 처음 보는 사진 / n번 봤어요) · 별점 · 우리끼리 메모
+ * 싱글뷰 "정보" 탭 — 칩(AI 추천 · 처음 보는 사진 / n번 봤어요) · 별점 · 내 메모(이 기기에만 저장 — 공유는 서버 API가 생기면)
  * 본 횟수는 셀렉 화면의 싱글뷰만 센다 — 세지 않는 보정 확인 화면은 본 횟수 칩을 끈다(showViewed).
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/PhotoInfoPanel.tsx
  *
@@ -59,9 +59,7 @@ export function PhotoInfoPanel({
       )}
 
       <section className="flex flex-col gap-2">
-        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">
-          별점 <span className="font-normal">· 함께 매기는 별점</span>
-        </h4>
+        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">별점</h4>
         <div role="radiogroup" aria-label="별점" className="flex items-center gap-0.5">
           {[1, 2, 3, 4, 5].map((n) => {
             const on = score !== null && n <= score;
@@ -87,15 +85,14 @@ export function PhotoInfoPanel({
       </section>
 
       <section className="flex flex-col gap-1.5">
-        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">우리끼리 메모</h4>
+        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">내 메모</h4>
         <textarea
           value={memo}
           onChange={(e) => writeMemo(galleryId, photo.photoId, e.target.value)}
-          placeholder="작가에게는 보이지 않아요"
           rows={3}
           className="w-full resize-none rounded-(--radius-8) border border-border-default bg-transparent px-2.5 py-2 type-content-s text-contents-light-bgd-default placeholder:text-contents-light-bgd-weakness focus:border-contents-light-bgd-sub focus:outline-none"
         />
-        <p className="type-content-xs text-contents-light-bgd-weakness">지금은 이 기기에만 저장돼요.</p>
+        <p className="type-content-xs text-contents-light-bgd-weakness">이 기기에만 저장돼요</p>
       </section>
     </>
   );

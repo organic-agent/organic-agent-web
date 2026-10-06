@@ -2,7 +2,7 @@
  * 플랜 카드 — 라디오처럼 하나를 고른다. 무료는 점선 테두리(고르면 실선), 잠긴 카드는 흐리게 + 꼬리표
  * 위치: src/app/(auth)/onboarding/personal/_components/PlanCard.tsx
  *
- * 꼬리표(tag)는 왜 못 고르는지 한 마디 — "이미 썼어요"(무료 소진) · "결제 준비 중"(프로, 카드 결제 전)는 회색,
+ * 꼬리표(tag)는 왜 못 고르는지 한 마디 — "이미 사용함"(무료 소진) · "결제 준비 중"(프로, 카드 결제 전)는 회색,
  * 고를 수 있는 이유 "쿠폰 등록됨"은 브랜드 올리브(tagTone "brand" — D-day 칩 · 사이드바 플랜 카드와 같은 토큰).
  * 가격 · 기간 · 장수는 서버 플랜 값으로(프로 가격만 결정값, payments 참고).
  */
@@ -73,7 +73,7 @@ export function PlanCard({
       <ul className="mt-1 flex flex-col gap-1 type-content-xs text-contents-light-bgd-sub">
         <li className="flex items-center gap-1.5">
           <span className="size-1 rounded-full bg-brand-secondary-default" />
-          보관 {planDurationLabel(plan)}
+          이용 기간 {planDurationLabel(plan)}
         </li>
         <li className="flex items-center gap-1.5">
           <span className="size-1 rounded-full bg-brand-secondary-default" />

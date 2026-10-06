@@ -6,8 +6,8 @@
  *
  * 주소의 plan(free · pro)과 coupon(프로일 때 미사용 쿠폰 id)으로 어떤 갤러리를 만들지 정한다. 무료는 내 혜택의
  * freePlanAvailable, 프로는 그 쿠폰이 내 것이고 미사용인지 확인하고, 아니면 앞 화면으로 돌려보낸다.
- * 배지는 플랜 응답 값으로 "프로 · 10,000장 · 1년" / "무료로 시작 · 500장 · 1개월". 단계 표시와 뒤로 가기만
- * 들어온 길에 따라 다르다(쿠폰 등록 · 플랜 선택). 이름·목표일·고를 장수를 받아 planId · couponId로 개설한다.
+ * 배지는 플랜 응답 값으로 "프로 · 1년 · 10,000장" / "무료 · 1개월 · 500장". 단계 표시와 뒤로 가기만
+ * 들어온 길에 따라 다르다(쿠폰 등록 · 플랜 선택). 이름·목표일·선택 장수를 받아 planId · couponId로 개설한다.
  * 목표일(서버 필드 selectionDeadline)은 갤러리가 닫히는 날이 아니라 D-day를 세는 기준이다 — 갤러리는 이용 기간 동안
  * 열려 있어서 "선택 마감"이라는 이름을 쓰지 않는다(QA BUG-1, 2026-10-04). 비우면 서버가 이용 기간 마지막 날을 넣는다.
  * 촬영 종류는 화면에서 받지 않고 본식으로 보낸다 — 갤러리 설정에서 바꿀 수 있다. 이슈 81.
@@ -143,8 +143,8 @@ function PersonalGalleryForm() {
 
   const badge = ticket
     ? pro
-      ? `${ticket.plan.name} · ${formatAmount(ticket.plan.maxPhotoCount)}장 · ${planDurationLabel(ticket.plan)}`
-      : `무료로 시작 · ${formatAmount(ticket.plan.maxPhotoCount)}장 · ${planDurationLabel(ticket.plan)}`
+      ? `${ticket.plan.name} · ${planDurationLabel(ticket.plan)} · ${formatAmount(ticket.plan.maxPhotoCount)}장`
+      : `무료 · ${planDurationLabel(ticket.plan)} · ${formatAmount(ticket.plan.maxPhotoCount)}장`
     : null;
 
   return (
@@ -177,9 +177,6 @@ function PersonalGalleryForm() {
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             갤러리 정보를 알려 주세요
           </h1>
-          <p className="type-content-m text-contents-light-bgd-sub">
-            목표일과 장수는 나중에 갤러리 설정에서 바꿀 수 있어요.
-          </p>
 
           <div className="mt-6 flex flex-col gap-5">
             <div>
@@ -229,7 +226,7 @@ function PersonalGalleryForm() {
                 htmlFor="gallery-count"
                 className="mb-2 block type-label-medium-m text-contents-light-bgd-default"
               >
-                고를 장수
+                선택 장수
                 <span className="ml-1 font-normal text-contents-light-bgd-sub">(선택)</span>
               </label>
               {/* 1~200만 적힌다 — 숫자가 아닌 글자와 0은 지워지고 200을 넘으면 200이 된다. 그래서 오류 문구가 없다 */}

@@ -96,7 +96,7 @@ export function GuestTopbar({ mid, nickname, onRename }: { mid?: string | null; 
                 </button>
                 <button type="button" role="menuitem" onClick={() => void copyLink()} className="flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m text-contents-light-bgd-default hover:bg-surface-default-lightness">
                   {copied ? <CheckCircleIcon size={18} className="text-brand-secondary-dark" /> : <LinkIcon size={18} className="text-contents-light-bgd-sub" />}
-                  {copied ? "복사됨" : "이 앨범 링크 복사"}
+                  {copied ? "복사됨" : "링크 복사"}
                 </button>
               </div>
             )}

@@ -33,7 +33,7 @@ export function CloseGalleryModal({
     try {
       onDone(await closeGallery(galleryId));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+      setError(err instanceof ApiError ? err.message : "마무리하지 못했어요 · 네트워크 연결을 확인한 뒤 다시 시도해 주세요");
       setBusy(false);
     }
   }
@@ -44,7 +44,7 @@ export function CloseGalleryModal({
           {error}
         </p>
       )}
-      <GalleryModalButtons onClose={onClose} onConfirm={() => void confirm()} confirmLabel={busy ? "마무리하는 중…" : "마무리(보관)"} disabled={busy} />
+      <GalleryModalButtons onClose={onClose} onConfirm={() => void confirm()} confirmLabel={busy ? "마무리하는 중…" : "마무리 (보관)"} disabled={busy} />
     </GalleryModalShell>
   );
 }

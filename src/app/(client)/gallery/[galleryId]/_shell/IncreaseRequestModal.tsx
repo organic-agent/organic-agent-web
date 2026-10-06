@@ -50,7 +50,7 @@ export function IncreaseRequestModal({
 
   return (
     <GalleryModalShell
-      title="고를 장수를 늘려 달라고 요청할까요?"
+      title="선택 장수를 늘려 달라고 요청할까요?"
       desc={
         <>
           지금은 <b className="text-contents-light-bgd-default">{currentMax !== null ? `${currentMax}장` : "제한 없이"}</b> 고를 수 있어요.

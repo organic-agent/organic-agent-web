@@ -7,7 +7,7 @@
  * 작가 1단계 · 부부 컨셉 분류 · 개인 업로드가 같은 부품(PhotoGrid · FolderColumn)을 써서 훅 하나로 셋 다 붙는다.
  * 타일을 누른 채 6px 넘게 끌면 시작 — 고른 타일이면 고른 전부, 아니면 그 한 장(안 움직이면 그냥 클릭).
  * 놓을 수 있는 곳은 세부 폴더 · 미분류(FolderColumn의 data-drop)뿐이고, 접힌 컨셉 위에 머물면 폴더 열이 펼친다.
- * 놓으면 moveCategoryPhotos → 폴더 재조회 → 선택 해제, 그리고 "n장 옮겼어요 · 실행 취소"(반대 방향 move 한 번).
+ * 놓으면 moveCategoryPhotos → 폴더 재조회 → 선택 해제, 그리고 "n장 이동했어요 · 실행 취소"(반대 방향 move 한 번).
  * 끌고 있는 동안 폴더 열 가장자리에서는 저절로 스크롤된다.
  *
  * 쓰는 법: const move = usePhotoMove({...}) →
@@ -99,7 +99,7 @@ export function usePhotoMove({
       }
       showToast(
         {
-          text: `${moving.length}장 옮겼어요`,
+          text: `${moving.length}장 이동했어요`,
           undo: () => {
             setToast(null);
             const groups = new Map<number | null, number[]>();

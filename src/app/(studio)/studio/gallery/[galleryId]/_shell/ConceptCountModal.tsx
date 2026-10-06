@@ -44,7 +44,7 @@ export function ConceptCountModal({
   return (
     <GalleryModalShell
       title="컨셉이 몇 개인가요?"
-      desc="AI가 컨셉 개수별로 폴더를 나누며 기억나지 않는다면 건너뛰어도 상관없습니다"
+      desc="AI가 이 개수에 맞춰 폴더를 나눠요 · 기억나지 않으면 건너뛰어도 돼요"
       maxWidthClassName="max-w-[440px]"
       paddingClassName="p-7"
       onClose={onClose}

@@ -42,25 +42,13 @@ const ACCOUNT_TABS = [
   ["profile", "프로필"],
   ["display", "화면"],
   ["notifications", "알림"],
-  ["delete", "계정 삭제"],
+  ["delete", "회원 탈퇴"],
 ] as const satisfies ReadonlyArray<readonly [AccountTab, string]>;
 
 const STUDIO_TAB_KEYS: StudioTab[] = ["info", "members", "tickets", "danger"];
 const ACCOUNT_TAB_KEYS: AccountTab[] = ["profile", "display", "notifications", "delete"];
 
 const ROLE_LABEL = { OWNER: "소유자", MEMBER: "멤버" } as const;
-
-/** 들어온 곳(from)의 이름 — 랜딩 · 역할 선택 · 워크스페이스 · 스튜디오 홈 · 갤러리 */
-function backLabelFor(path: string): string {
-  if (path === "/") return "처음으로";
-  if (path.startsWith("/onboarding/role")) return "역할 선택으로";
-  if (path.startsWith("/onboarding")) return "온보딩으로";
-  if (path.startsWith("/workspace")) return "워크스페이스로";
-  if (path.startsWith("/studio/gallery/") || path.startsWith("/gallery")) return "갤러리로";
-  if (path.startsWith("/studio")) return "스튜디오 홈으로";
-  if (path.startsWith("/invite")) return "초대로";
-  return "돌아가기";
-}
 
 /** from 쿼리는 우리 사이트 안 경로만 믿는다 — 설정 자신으로 되돌아가는 값도 버린다 */
 function safeFrom(raw: string | null): string | null {
@@ -72,22 +60,16 @@ function safeFrom(raw: string | null): string | null {
 /**
  * 설정에서 돌아갈 곳 — 프로필 메뉴에서 들어왔으면 그 화면(from)으로. 주소로 바로 왔으면
  * 보고 있던 스튜디오 홈, 그것도 없으면 소속 규칙대로(하나면 그 공간, 둘 이상이면 워크스페이스 목록, 없으면 랜딩).
+ * 링크 이름은 어디로 가든 "돌아가기" 하나다(문구 점검 A28, 2026-10-06).
  */
-function backTarget(
-  user: User,
-  studio: StudioResponse | null,
-  from: string | null,
-): { href: string; label: string } {
-  if (from) return { href: from, label: backLabelFor(from) };
-  if (studio) return { href: `/studio/${studio.galleryUrl}`, label: `${studio.name} 홈으로` };
+function backTarget(user: User, studio: StudioResponse | null, from: string | null): { href: string; label: string } {
+  const label = "돌아가기";
+  if (from) return { href: from, label };
+  if (studio) return { href: `/studio/${studio.galleryUrl}`, label };
   const spaces = sortByRecentActivity(user.workspaces ?? []);
-  if (spaces.length === 0) return { href: "/", label: "처음으로" };
-  if (spaces.length > 1) return { href: "/workspace", label: "워크스페이스 목록으로" };
-  const space = spaces[0];
-  return {
-    href: workspacePath(space),
-    label: `${space.name}${space.kind === "STUDIO" ? " 홈으로" : "로"}`,
-  };
+  if (spaces.length === 0) return { href: "/", label };
+  if (spaces.length > 1) return { href: "/workspace", label };
+  return { href: workspacePath(spaces[0]), label };
 }
 
 export function SettingsPage() {
@@ -285,7 +267,7 @@ export function SettingsPage() {
 
 /** 설정 › 개인 갤러리 본문 — 갤러리를 읽어 정보 · 파트너 · 삭제 탭에 준다 */
 function PersonalGalleryContent({ galleryId, name, owner, tab, onTab }: { galleryId: number; name: string; owner: boolean; tab: GalleryTab; onTab: (tab: GalleryTab) => void }) {
-  const { gallery, failed, setGallery } = usePersonalGallery(galleryId);
+  const { gallery, failed, setGallery, retry } = usePersonalGallery(galleryId);
   const tabs = (
     owner
       ? [
@@ -309,7 +291,12 @@ function PersonalGalleryContent({ galleryId, name, owner, tab, onTab }: { galler
       </div>
       <SettingsTabs tabs={tabs} current={shownTab} dangerKey="danger" onChange={onTab} />
       {failed ? (
-        <p role="alert" className="type-content-s text-function-error-default">갤러리를 불러오지 못했어요</p>
+        <p role="alert" className="flex items-center gap-3 type-content-s text-function-error-default">
+          갤러리를 불러오지 못했어요
+          <button type="button" onClick={retry} className="cursor-pointer type-content-s font-semibold text-contents-light-bgd-default underline underline-offset-2">
+            다시 시도
+          </button>
+        </p>
       ) : !gallery ? (
         <div className="h-40 animate-pulse rounded-(--radius-12) bg-surface-default-light" />
       ) : shownTab === "info" ? (
