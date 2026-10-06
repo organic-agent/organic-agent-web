@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * 앨범 안 — ← 앨범 · 제목 ▾ 드롭다운(다른 앨범 · 모든 사진) · n장 · 내 하트 칩 · 정렬 · 그리드(내 하트만 표시) · 싱글뷰
+ * 앨범 안 — ← 앨범 · n장 · 내 하트 칩 · 정렬 · 그리드(내 하트만 표시) · 싱글뷰. 앨범 이름 ▾ 드롭다운(다른 앨범 · 모든 사진)은
+ * 상단바 가운데(AlbumSwitch, 이슈 125 — 폰 폭에서 머리에 두면 이름이 잘렸다)
  * 위치: src/app/(guest)/collab/[token]/_shell/AlbumGrid.tsx
  *
  * 그리드는 작가 · 부부 셸의 PhotoGrid 그대로(선택 없음). 타일 클릭 = 싱글뷰 열기(게스트는 선택이 없다). 타일에는 내가 누른
@@ -38,7 +39,6 @@ export function AlbumGrid({
   mineOnly,
   onMineOnlyChange,
   onBack,
-  onSwitch,
   guestTokenOf,
   onPatchPhoto,
   onNeedName,
@@ -57,7 +57,6 @@ export function AlbumGrid({
   onMineOnlyChange: (v: boolean) => void;
   /** 앨범 여러 개일 때만 — 홈으로 */
   onBack?: () => void;
-  onSwitch: (token: string) => void;
   guestTokenOf: (token: string) => string | null;
   /** 좋아요 · 댓글 수를 사진 목록에 반영 */
   onPatchPhoto: (token: string, photoId: number, patch: (p: CollabPhotoResponse) => CollabPhotoResponse) => void;
@@ -66,28 +65,11 @@ export function AlbumGrid({
 }) {
   const multi = albums.length > 1;
   const [newestFirst, setNewestFirst] = useState(true);
-  const [ddOpen, setDdOpen] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [lastViewedId, setLastViewedId] = useState<number | null>(null);
   const [notice, setNotice] = useState<{ text: string; kind: SnackbarKind } | null>(null);
-  const ddRef = useRef<HTMLDivElement>(null);
   const noticeTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
-  useEffect(() => {
-    if (!ddOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!ddRef.current?.contains(e.target as Node)) setDdOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDdOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [ddOpen]);
 
   const album = albums.find((a) => a.collabToken === current) ?? null;
   /** 보고 있는 사진과 각 사진이 속한 앨범 토큰(모든 사진에서는 내 하트가 붙은 쪽 우선) */
@@ -113,7 +95,6 @@ export function AlbumGrid({
   const shown = useMemo(() => sortGuestPhotos(mineOnly ? all.filter((p) => p.liked) : all, newestFirst), [all, mineOnly, newestFirst]);
   const gridPhotos = useMemo<PhotoResponse[]>(() => shown.map((p) => p.photo), [shown]);
   const total = current === ALL_ALBUMS ? all.length : (album?.photoCount ?? all.length);
-  const title = current === ALL_ALBUMS ? "모든 사진" : (album?.name ?? "");
   const tokenOf = (photoId: number) => tokenById.get(photoId) ?? (current === ALL_ALBUMS ? albums[0]?.collabToken ?? "" : current);
   const lightboxIndex = openIndex === null ? null : shown.length === 0 ? null : Math.min(openIndex, shown.length - 1);
 
@@ -167,49 +148,6 @@ export function AlbumGrid({
               <BackIcon size={18} />
               앨범
             </button>
-          )}
-          {multi ? (
-            <div ref={ddRef} className="relative min-w-0">
-              <button type="button" aria-haspopup="menu" aria-expanded={ddOpen} onClick={() => setDdOpen((v) => !v)} className="flex max-w-full cursor-pointer items-center gap-0.5 rounded-(--radius-8) py-1 pr-1 pl-1.5 type-title-s text-contents-light-bgd-default hover:bg-surface-default-lightness">
-                <span className="min-w-0 truncate">{title}</span>
-                <DropdownIcon size={20} className={`shrink-0 text-contents-light-bgd-sub transition-transform duration-fast ${ddOpen ? "rotate-180" : ""}`} />
-              </button>
-              {ddOpen && (
-                <div role="menu" className="absolute top-full left-0 z-20 mt-1 w-66 rounded-(--radius-12) border border-border-default bg-background-default-main p-1.5 shadow-(--shadow-modal)">
-                  {albums.map((a) => (
-                    <button
-                      key={a.sessionId}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setDdOpen(false);
-                        onSwitch(a.collabToken);
-                      }}
-                      className={`flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m hover:bg-surface-default-lightness ${a.collabToken === current ? "bg-surface-default-lightness font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"}`}
-                    >
-                      <FolderIcon size={18} className="text-contents-light-bgd-sub" />
-                      <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                      <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">{a.photoCount}</span>
-                    </button>
-                  ))}
-                  <div className="my-1 h-px bg-divider-default" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setDdOpen(false);
-                      onSwitch(ALL_ALBUMS);
-                    }}
-                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m hover:bg-surface-default-lightness ${current === ALL_ALBUMS ? "bg-surface-default-lightness font-semibold" : ""} text-contents-light-bgd-default`}
-                  >
-                    <PhotoIcon size={18} className="text-contents-light-bgd-sub" />
-                    <span className="flex-1">모든 사진</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <span className="truncate">{title}</span>
           )}
           <small className="ml-1 shrink-0 type-content-s font-normal text-contents-light-bgd-weakness tabular-nums">{total}장</small>
         </h2>
@@ -297,5 +235,68 @@ export function AlbumGrid({
         </Snackbar>
       )}
     </main>
+  );
+}
+
+/** 앨범 이름 ▾ — 다른 앨범 · 모든 사진으로 바꾸는 드롭다운. 상단바 가운데에 둔다(이슈 125) */
+export function AlbumSwitch({ albums, current, onSwitch }: { albums: CollabLandingAlbum[]; current: string; onSwitch: (token: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const title = current === ALL_ALBUMS ? "모든 사진" : (albums.find((a) => a.collabToken === current)?.name ?? "");
+  return (
+    <div ref={ref} className="relative min-w-0">
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="flex max-w-full cursor-pointer items-center gap-0.5 rounded-(--radius-8) py-1 pr-1 pl-1.5 type-title-s text-contents-light-bgd-default hover:bg-surface-default-lightness">
+        <span className="min-w-0 truncate">{title}</span>
+        <DropdownIcon size={20} className={`shrink-0 text-contents-light-bgd-sub transition-transform duration-fast ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute top-full left-1/2 z-20 mt-1 w-66 -translate-x-1/2 rounded-(--radius-12) border border-border-default bg-background-default-main p-1.5 shadow-(--shadow-modal)">
+          {albums.map((a) => (
+            <button
+              key={a.sessionId}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onSwitch(a.collabToken);
+              }}
+              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m hover:bg-surface-default-lightness ${a.collabToken === current ? "bg-surface-default-lightness font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"}`}
+            >
+              <FolderIcon size={18} className="text-contents-light-bgd-sub" />
+              <span className="min-w-0 flex-1 truncate">{a.name}</span>
+              <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">{a.photoCount}</span>
+            </button>
+          ))}
+          <div className="my-1 h-px bg-divider-default" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onSwitch(ALL_ALBUMS);
+            }}
+            className={`flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m hover:bg-surface-default-lightness ${current === ALL_ALBUMS ? "bg-surface-default-lightness font-semibold" : ""} text-contents-light-bgd-default`}
+          >
+            <PhotoIcon size={18} className="text-contents-light-bgd-sub" />
+            <span className="flex-1">모든 사진</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

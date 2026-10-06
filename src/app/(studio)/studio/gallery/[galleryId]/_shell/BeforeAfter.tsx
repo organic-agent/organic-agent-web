@@ -35,7 +35,7 @@ export function BeforeAfter({
         ].map(([src, label]) => (
           <div key={label} className="relative min-w-0 flex-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={label} draggable={false} className="block max-h-[calc(100dvh-56px)] w-full object-contain" />
+            <img src={src} alt={label} draggable={false} className="block max-h-(--lb-photo-max) w-full object-contain" />
             <span className="absolute bottom-2.5 left-2.5 rounded-(--pill) bg-black/55 px-2 py-0.5 type-label-medium-xs text-white">{label}</span>
           </div>
         ))}
@@ -44,7 +44,7 @@ export function BeforeAfter({
   return (
     <div className={`relative inline-block ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={before} alt={beforeLabel} draggable={false} className="block max-h-[calc(100dvh-56px)] max-w-full object-contain" />
+      <img src={before} alt={beforeLabel} draggable={false} className="block max-h-(--lb-photo-max) max-w-full object-contain" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={after}

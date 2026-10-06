@@ -22,7 +22,7 @@ import {
   type GuestLinkProblem,
 } from "@/lib/api/collabGuest";
 import { AlbumCards } from "./_shell/AlbumCards";
-import { ALL_ALBUMS, AlbumGrid } from "./_shell/AlbumGrid";
+import { ALL_ALBUMS, AlbumGrid, AlbumSwitch } from "./_shell/AlbumGrid";
 import { GoneCard, LandingCard } from "./_shell/LandingCard";
 import { GuestTopbar } from "./_shell/GuestTopbar";
 import { NameModal } from "./_shell/NameModal";
@@ -168,7 +168,13 @@ export default function GuestCollabPage() {
 
   const ready = state.landing;
   const nickname = guest?.nickname ?? null;
-  const gridMid = view.kind === "album" ? ready.galleryTitle : null;
+  // 그리드 화면의 상단 가운데 — 앨범 이름(여러 앨범이면 드롭다운). 갤러리 제목은 표지 · 홈에 있다(이슈 125)
+  const gridMid =
+    view.kind !== "album" ? null : multi ? (
+      <AlbumSwitch albums={albums} current={view.token} onSwitch={(t) => setView({ kind: "album", token: t, mineOnly: false })} />
+    ) : (
+      <span className="min-w-0 truncate type-title-s text-contents-light-bgd-default">{view.token === ALL_ALBUMS ? "모든 사진" : albums.find((a) => a.collabToken === view.token)?.name ?? title}</span>
+    );
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
@@ -198,7 +204,6 @@ export default function GuestCollabPage() {
           mineOnly={view.mineOnly}
           onMineOnlyChange={(v) => setView({ ...view, mineOnly: v })}
           onBack={multi ? () => setView({ kind: "home" }) : undefined}
-          onSwitch={(t) => setView({ kind: "album", token: t, mineOnly: false })}
           guestTokenOf={guestTokenOf}
           onPatchPhoto={patchPhoto}
           onNeedName={() => setNameModal("enter")}
