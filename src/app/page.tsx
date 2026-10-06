@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
+import { SUPPORT_CHAT_URL } from "@/lib/support";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
@@ -103,7 +104,8 @@ const AUDIENCES: {
 ];
 
 /* ─── 푸터 링크 데이터 (피그마 Landing/Footer) ───
-   href가 없는 항목은 준비 중 — 클릭 시 준비 중 토스트를 띄운다 (사용자 결정) */
+   href가 없는 항목은 준비 중 — 클릭 시 준비 중 토스트를 띄운다 (사용자 결정).
+   "문의하기"는 카카오톡 채널 채팅(바깥 주소 → 새 탭, 팀 노션 77번) */
 const FOOTER_COLUMNS: {
   title: string;
   links: { label: string; href?: string }[];
@@ -120,7 +122,7 @@ const FOOTER_COLUMNS: {
     title: "지원",
     links: [
       { label: "이용 가이드" },
-      { label: "문의하기" },
+      { label: "문의하기", href: SUPPORT_CHAT_URL },
       { label: "공지사항" },
     ],
   },
@@ -367,6 +369,8 @@ export default function LandingPage() {
                         <a
                           key={link.label}
                           href={link.href}
+                          // 바깥 주소(카카오톡 채널)는 새 탭으로 — 페이지 안 앵커(#…)는 그대로
+                          {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                           className="type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
                         >
                           {link.label}
