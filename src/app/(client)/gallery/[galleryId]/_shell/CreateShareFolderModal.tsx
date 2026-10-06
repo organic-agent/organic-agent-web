@@ -141,7 +141,7 @@ export function CreateShareFolderModal({
           {coverOpen && (
             <div className="flex flex-col gap-1.5">
               <TextField value={coverTitle} onChange={setCoverTitle} placeholder="표지 제목" aria-label="표지 제목" className="h-10" />
-              <TextField value={coverAuthor} onChange={setCoverAuthor} placeholder="작가 이름" aria-label="작가 이름" className="h-10" />
+              <TextField value={coverAuthor} onChange={setCoverAuthor} placeholder="보내는 사람" aria-label="보내는 사람" className="h-10" />
             </div>
           )}
         </div>

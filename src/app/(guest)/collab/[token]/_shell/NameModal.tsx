@@ -28,7 +28,7 @@ export function NameModal({ mode, initial, onClose, onSubmit }: { mode: "enter" 
     try {
       await onSubmit(trimmed);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "잠시 뒤 다시 시도해 주세요");
+      setError(err instanceof ApiError ? err.message : "이름을 저장하지 못했어요 · 잠시 뒤 다시 시도해 주세요");
       setBusy(false);
     }
   }
@@ -51,7 +51,7 @@ export function NameModal({ mode, initial, onClose, onSubmit }: { mode: "enter" 
             aria-label="이름"
             className="min-w-0 flex-1 bg-transparent type-content-l text-contents-light-bgd-default outline-none"
           />
-          <button type="button" aria-label="다른 이름" onClick={() => setName(randomGuestName(name))} className="grid size-9 cursor-pointer place-items-center rounded-full text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness hover:text-contents-light-bgd-default">
+          <button type="button" aria-label="다른 이름으로 바꾸기" onClick={() => setName(randomGuestName(name))} className="grid size-9 cursor-pointer place-items-center rounded-full text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness hover:text-contents-light-bgd-default">
             <RefreshIcon size={18} />
           </button>
         </div>

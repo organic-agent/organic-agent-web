@@ -156,13 +156,13 @@ export function GuestComments({
       ) : (
         <p className="flex shrink-0 items-center gap-2 border-t border-divider-default px-4 py-3 type-content-xs text-contents-light-bgd-weakness">
           <LockIcon size={16} />
-          댓글은 부부가 고르기를 마쳐 닫혔어요
+          사진 선택이 끝나 댓글을 더 남길 수 없어요
         </p>
       )}
 
       {deleting && (
-        <GalleryModalShell title="댓글을 지울까요?" desc="지운 댓글은 되돌릴 수 없어요" maxWidthClassName="max-w-95" onClose={() => setDeleting(null)}>
-          <GalleryModalButtons onClose={() => setDeleting(null)} onConfirm={() => void confirmDelete()} confirmLabel={busyDelete ? "지우는 중…" : "삭제"} confirmVariant="danger" disabled={busyDelete} />
+        <GalleryModalShell title="댓글을 삭제할까요?" desc="삭제한 댓글은 되돌릴 수 없어요" maxWidthClassName="max-w-95" onClose={() => setDeleting(null)}>
+          <GalleryModalButtons onClose={() => setDeleting(null)} onConfirm={() => void confirmDelete()} confirmLabel={busyDelete ? "삭제하는 중…" : "삭제"} confirmVariant="danger" disabled={busyDelete} />
         </GalleryModalShell>
       )}
     </div>
