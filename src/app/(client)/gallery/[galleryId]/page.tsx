@@ -631,8 +631,9 @@ export default function ClientGalleryPage() {
                 onDeleteDetail={(concept, detail) =>
                   setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
                 }
-                onRenameConcept={isPersonal ? (concept) => setFolderModal({ kind: "renameConcept", concept }) : undefined}
-                onRenameDetail={isPersonal ? (concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail }) : undefined}
+                // 이름 바꾸기는 사진 옮기기와 같은 권한 — 초대받은 부부도 컨셉 분류 중에는 바꿀 수 있다(서버 requireFolderEditor)
+                onRenameConcept={(concept) => setFolderModal({ kind: "renameConcept", concept })}
+                onRenameDetail={(concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail })}
                 // 사진을 옮길 수 있는 때만 폴더도 합친다
                 onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
                 onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
