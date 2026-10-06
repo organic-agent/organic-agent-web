@@ -13,7 +13,7 @@ import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_c
 import { Checkbox } from "@/components/ui/Checkbox";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
-import { createCollabSession, openManualCollabSession } from "@/lib/api/collab";
+import { createCollabSession, openManualCollabSession, type CollabSessionResponse } from "@/lib/api/collab";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -54,7 +54,8 @@ export function CreateShareFolderModal({
   /** 선택한 사진 id */
   pickedIds: ReadonlySet<number>;
   onClose: () => void;
-  onCreated: () => void;
+  /** 만들어진 공유폴더(링크 포함) — 초대 모달이 이 링크 카드로 바로 이어진다(팀 노션 73번) */
+  onCreated: (session: CollabSessionResponse) => void;
 }) {
   const concepts = (folders ?? []).map((c) => ({ id: c.id, name: c.name, photoIds: c.details.flatMap((d) => d.photoIds) }));
   const [name, setName] = useState("");
@@ -88,10 +89,13 @@ export function CreateShareFolderModal({
     setError(null);
     try {
       const body = { name: name.trim() || defaultName, coverTitle: coverTitle.trim() || null, coverAuthor: coverAuthor.trim() || null };
-      if (scope === "concept") await createCollabSession(galleryId, { ...body, scope: { type: "CONCEPT_FOLDERS", conceptFolderIds: chosenConcepts.map((c) => c.id) } });
-      else if (scope === "all") await createCollabSession(galleryId, { ...body, scope: { type: "ALL" } });
-      else await openManualCollabSession(galleryId, body, photoIds);
-      onCreated();
+      const created =
+        scope === "concept"
+          ? await createCollabSession(galleryId, { ...body, scope: { type: "CONCEPT_FOLDERS", conceptFolderIds: chosenConcepts.map((c) => c.id) } })
+          : scope === "all"
+            ? await createCollabSession(galleryId, { ...body, scope: { type: "ALL" } })
+            : await openManualCollabSession(galleryId, body, photoIds);
+      onCreated(created);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "공유폴더를 만들지 못했어요 · 다시 시도해 주세요");
       setBusy(false);
@@ -125,7 +129,6 @@ export function CreateShareFolderModal({
                   <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">{c.photoIds.length}</span>
                 </label>
               ))}
-              {chosenConcepts.length === 1 && <p className="px-1.5 pt-1 type-content-xs text-contents-light-bgd-weakness">폴더 따라감 · 사진이 바뀌면 같이 바뀌어요</p>}
             </div>
           )}
           <ScopeRow checked={scope === "all"} label="모든 사진" count={photos.length} onPick={() => setScope("all")} />
