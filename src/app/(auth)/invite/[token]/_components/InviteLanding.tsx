@@ -73,7 +73,7 @@ const KIND: Record<
     label: "파트너 초대",
     Icon: HeartIcon,
     ask: "초대한 분께",
-    headline: () => "파트너의 갤러리에 초대받았어요",
+    headline: () => "갤러리에 파트너로 초대받았어요",
     desc: "수락하면 같은 갤러리에서 함께 고를 수 있어요.",
     destLabel: "갤러리로 가기",
   },
@@ -96,57 +96,74 @@ const KIND: Record<
 // 유효하지 않은 초대 — 수락 버튼 대신 상태별 문구와 버튼
 const STATUS: Record<
   Exclude<InviteStatus, "ACTIVE">,
-  { tone: Tone; title: string; desc: (ask: string) => string; action: "dest" | "home" }
+  { tone: Tone; badge: string; title: string; desc: (ask: string) => string; action: "dest" | "home" }
 > = {
+  // badge는 위쪽 작은 꼬리표 — 제목과 같은 문장을 두 번 쓰지 않는다(문구 점검 D21)
   ALREADY_MEMBER: {
     tone: "ok",
+    badge: "수락한 링크",
     title: "이미 함께하고 있어요",
-    desc: () => "이 초대는 벌써 수락했어요. 바로 들어가면 됩니다.",
+    desc: () => "이미 수락한 초대예요. 바로 들어가면 돼요.",
     action: "dest",
   },
   EXPIRED: {
     tone: "warn",
+    badge: "만료된 링크",
     title: "만료된 초대 링크예요",
-    desc: (ask) => `${ask} 새 초대 링크를 요청해주세요.`,
+    desc: (ask) => `${ask} 새 초대 링크를 요청해 주세요.`,
     action: "home",
   },
   REVOKED: {
     tone: "warn",
-    title: "회수된 초대 링크예요",
-    desc: (ask) => `이 링크는 거둬들여졌어요. ${ask} 새 초대 링크를 요청해주세요.`,
+    badge: "닫힌 링크",
+    title: "닫힌 초대 링크예요",
+    desc: (ask) => `초대한 분이 이 링크를 닫았어요. ${ask} 새 초대 링크를 요청해 주세요.`,
     action: "home",
   },
   FULL: {
     tone: "bad",
+    badge: "정원이 찬 링크",
     title: "정원이 가득 찼어요",
-    desc: (ask) => `이 갤러리에는 더 들어올 자리가 없어요. ${ask} 문의해주세요.`,
+    desc: (ask) => `이 갤러리에는 더 들어올 자리가 없어요. ${ask} 문의해 주세요.`,
     action: "home",
   },
 };
 
 // 조회·수락이 오류로 끝난 경우. 백엔드가 404와 410을 나눠둔 의도를 문구에 반영한다.
-const ERRORS: Record<string, { title: string; desc: string }> = {
+const ERRORS: Record<string, { badge: string; title: string; desc: ReactNode }> = {
   GALLERY_404_3: {
+    badge: "확인되지 않은 링크",
     title: "존재하지 않는 초대 링크예요",
-    desc: "주소가 정확한지 확인해주세요. 링크가 잘린 채 전달됐을 수도 있어요.",
+    desc: "주소가 정확한지 확인해 주세요. 링크가 잘린 채 전달됐을 수도 있어요.",
   },
-  GALLERY_410_1: { title: "만료된 초대 링크예요", desc: "새 초대 링크를 요청해주세요." },
+  GALLERY_410_1: { badge: "만료된 링크", title: "만료된 초대 링크예요", desc: "새 초대 링크를 요청해 주세요." },
   GALLERY_410_2: {
-    title: "회수된 초대 링크예요",
-    desc: "이 링크는 거둬들여졌어요. 새 초대 링크를 요청해주세요.",
+    badge: "닫힌 링크",
+    title: "닫힌 초대 링크예요",
+    desc: "초대한 분이 이 링크를 닫았어요. 초대한 분께 새 초대 링크를 요청해 주세요.",
   },
   GALLERY_403_3: {
-    title: "내가 만든 갤러리의 초대예요",
-    desc: "담당 작가는 자기 갤러리의 초대를 수락할 수 없어요.",
+    badge: "확인되지 않은 링크",
+    title: "내가 만든 갤러리의 초대는 수락할 수 없어요",
+    desc: "",
   },
   GALLERY_403_5: {
+    badge: "정원이 찬 링크",
     title: "정원이 가득 찼어요",
-    desc: "이 갤러리에는 더 들어올 자리가 없어요. 초대한 분께 문의해주세요.",
+    desc: "이 갤러리에는 더 들어올 자리가 없어요. 초대한 분께 문의해 주세요.",
   },
 };
 const FALLBACK_ERROR = {
+  badge: "확인되지 않은 링크",
   title: "초대를 확인하지 못했어요",
-  desc: "네트워크 상태를 확인하고 잠시 후 다시 시도해주세요.",
+  // 한 줄에 안 들어가 문장마다 줄을 바꾼다(문구 점검 D04)
+  desc: (
+    <>
+      잠시 뒤 페이지를 새로 고쳐 주세요
+      <br />
+      계속 안 되면 초대한 분께 새 초대 링크를 요청해 주세요
+    </>
+  ),
 };
 
 const TONE_BG: Record<Tone, string> = {
@@ -241,7 +258,7 @@ export function InviteLanding({ token }: { token: string }) {
         ) : view.kind === "error" ? (
           <Card
             tone="bad"
-            badge={(ERRORS[view.code] ?? FALLBACK_ERROR).title}
+            badge={(ERRORS[view.code] ?? FALLBACK_ERROR).badge}
             Icon={InfoIcon}
             title={(ERRORS[view.code] ?? FALLBACK_ERROR).title}
             desc={(ERRORS[view.code] ?? FALLBACK_ERROR).desc}
@@ -287,7 +304,7 @@ function PreviewCard({
     return (
       <Card
         tone={st.tone}
-        badge={st.title}
+        badge={st.badge}
         Icon={InfoIcon}
         name={name || undefined}
         title={st.title}
@@ -405,7 +422,7 @@ function Card({
         >
           {title}
         </h1>
-        <p className="type-content-m text-contents-light-bgd-sub">{desc}</p>
+        {desc ? <p className="type-content-m text-contents-light-bgd-sub">{desc}</p> : null}
       </div>
 
       {details && details.length > 0 && (

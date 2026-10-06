@@ -194,6 +194,7 @@ export default function GuestCollabPage() {
           loading={photosLoading}
           error={photosError}
           writable={ready.writable}
+          likable={ready.likable}
           mineOnly={view.mineOnly}
           onMineOnlyChange={(v) => setView({ ...view, mineOnly: v })}
           onBack={multi ? () => setView({ kind: "home" }) : undefined}

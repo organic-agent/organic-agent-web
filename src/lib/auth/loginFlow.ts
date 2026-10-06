@@ -146,13 +146,13 @@ export function resolveDestination({
 // provider 취소(access_denied)와 스웨거에서 확인한 백엔드 코드만 매핑한다.
 // 모르는 코드는 일반 문구로 — 없는 코드를 지어내지 않는다.
 const ERROR_MESSAGES: Record<string, string> = {
-  access_denied: "로그인이 취소됐어요. 다시 시도해주세요.",
-  AUTH_400_1: "지원하지 않는 로그인 방식이에요.",
-  AUTH_400_2: "로그인 유효 시간이 지났어요. 다시 시도해주세요.",
+  access_denied: "로그인이 취소됐어요. 다시 시도해 주세요.",
+  AUTH_400_1: "지원하지 않는 로그인 방식이에요. 다른 방법으로 로그인해 주세요.",
+  AUTH_400_2: "로그인 유효 시간이 지났어요. 다시 시도해 주세요.",
 };
 
 export function loginErrorMessage(code: string): string {
   return (
-    ERROR_MESSAGES[code] ?? "로그인에 실패했어요. 잠시 후 다시 시도해주세요."
+    ERROR_MESSAGES[code] ?? "로그인에 실패했어요. 잠시 뒤 다시 시도해 주세요."
   );
 }

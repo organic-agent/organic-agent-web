@@ -41,8 +41,8 @@ export default function MyGalleryPage() {
   const copy =
     state === "none"
       ? {
-          title: "아직 초대받은 갤러리가 없어요",
-          desc: "작가님이 보낸 초대 링크로 들어오면 갤러리가 여기에 열려요.",
+          title: "아직 갤러리가 없어요",
+          desc: "초대 링크로 들어오거나 새 갤러리를 만들면 여기에 열려요",
         }
       : state === "error"
         ? {

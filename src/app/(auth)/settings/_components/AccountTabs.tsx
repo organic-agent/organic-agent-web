@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 설정 › 계정 — 프로필 · 화면 · 알림 · 계정 삭제
+ * 설정 › 계정 — 프로필 · 화면 · 알림 · 회원 탈퇴
  * 위치: src/app/(auth)/settings/_components/AccountTabs.tsx
  */
 
@@ -62,7 +62,7 @@ export function AccountProfileTab({ user }: { user: User }) {
       timer.current = window.setTimeout(() => setSaved(false), 1800);
     } catch (err) {
       setBanner(
-        err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+        err instanceof ApiError ? err.message : "저장하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
       );
     } finally {
       setSaving(false);
@@ -136,7 +136,7 @@ export function AccountDisplayTab() {
   const { theme, setTheme } = useTheme();
   return (
     <Section title="화면">
-      <div role="radiogroup" aria-label="테마" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      <div role="radiogroup" aria-label="테마" className="grid grid-cols-2 gap-2.5">
         {THEMES.map((t) => (
           <button
             key={t.value}
@@ -157,14 +157,6 @@ export function AccountDisplayTab() {
             <span className="-mt-1.5 type-content-xs text-contents-light-bgd-weakness">{t.desc}</span>
           </button>
         ))}
-        <div
-          aria-disabled
-          className="flex flex-col gap-2 rounded-(--radius-12) border border-dashed border-divider-default p-3.5 opacity-60"
-        >
-          <span className="grid h-11 place-items-center rounded-(--radius-8) border border-divider-default bg-[linear-gradient(90deg,#fff_50%,#1A1A1A_50%)]" />
-          <span className="type-label-semibold-s text-contents-light-bgd-default">시스템 설정 따르기</span>
-          <span className="-mt-1.5 type-content-xs text-contents-light-bgd-weakness">준비 중</span>
-        </div>
       </div>
     </Section>
   );
@@ -173,17 +165,17 @@ export function AccountDisplayTab() {
 /**
  * 알림 탭 — 이메일 · 브라우저 알림은 서버에 발송 기능이 없다(알림은 DB에만 쌓인다). 켜진 스위치가 눌리기만 하고
  * 아무것도 오지 않던 것을, 스위치를 두지 않고 안내 한 줄로 바꿨다(QA 2026-09-29 · 이슈 84, 시안 F — 수민 문구).
- * 지금 동작하는 알림은 탑바의 알림 아이콘(NotificationBell)뿐이다. 발송이 생기면 알림 설정 API
+ * 지금 동작하는 알림은 탑바의 알림 아이콘(NotificationBell)뿐이다(설정 · 워크스페이스 화면의 EntryTopbar에도 있다). 발송이 생기면 알림 설정 API
  * (lib/api/notifications의 getNotificationSettings · updateNotificationSettings)로 스위치를 되살린다.
  */
 export function AccountNotificationsTab() {
   return (
-    <Section title="알림 수신">
+    <Section title="알림">
       <p className="flex items-start gap-2 rounded-(--radius-8) bg-function-info-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
         <span className="mt-px shrink-0 text-function-info-default">
           <InfoIcon size={18} />
         </span>
-        이메일 · 브라우저 알림은 준비 중이에요. 지금은 오른쪽 위 알림 아이콘으로 알려 드려요.
+        알림은 오른쪽 위 종 아이콘에서 볼 수 있어요
       </p>
     </Section>
   );
@@ -192,7 +184,24 @@ export function AccountNotificationsTab() {
 export function AccountDeleteTab({ user }: { user: User }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const ownedStudios = user.workspaces.filter((w) => w.kind === "STUDIO" && w.role === "OWNER");
+  // 소속 상황에 따라 무엇이 사라지는지 조합한다 — 만든 스튜디오 · 만든 갤러리 · 초대받아 들어간 곳
+  const ownsStudio = user.workspaces.some((w) => w.kind === "STUDIO" && w.role === "OWNER");
+  const ownsGallery = user.workspaces.some((w) => w.kind === "GALLERY" && w.role === "OWNER");
+  const invited = user.workspaces.some((w) => w.role === "MEMBER");
+  const consequence = [
+    ownsStudio && ownsGallery
+      ? "내가 만든 스튜디오와 갤러리가 사진과 함께 삭제돼요."
+      : ownsStudio
+        ? "내가 만든 스튜디오와 그 안의 갤러리가 사진과 함께 삭제돼요."
+        : ownsGallery
+          ? "내가 만든 갤러리가 사진과 함께 삭제돼요."
+          : null,
+    invited ? "초대받아 들어간 스튜디오 · 갤러리에서는 빠져요." : null,
+    !ownsStudio && !ownsGallery && !invited ? "계정 정보가 삭제돼요." : null,
+    "되돌릴 수 없어요.",
+  ]
+    .filter((line): line is string => line !== null)
+    .join(" ");
 
   async function withdraw() {
     await deleteMyAccount();
@@ -201,10 +210,10 @@ export function AccountDeleteTab({ user }: { user: User }) {
   }
 
   return (
-    <Section title="계정 삭제">
+    <Section title="회원 탈퇴">
       <DangerCard
         title="회원 탈퇴"
-        desc="소유한 스튜디오는 갤러리와 함께 삭제되고, 다른 스튜디오 소속과 클라이언트 갤러리 참여는 해제돼요."
+        desc={consequence}
         action={<DangerButton onClick={() => setOpen(true)}>탈퇴하기</DangerButton>}
       />
       {open && (
@@ -216,17 +225,7 @@ export function AccountDeleteTab({ user }: { user: User }) {
           onConfirm={withdraw}
           onClose={() => setOpen(false)}
         >
-          {ownedStudios.length > 0 && (
-            <>
-              소유한{" "}
-              <span className="font-medium text-contents-light-bgd-default">
-                {ownedStudios.map((w) => w.name).join(", ")}
-              </span>
-              은 갤러리와 함께 삭제돼요.{" "}
-            </>
-          )}
-          다른 스튜디오 소속과 클라이언트 갤러리 참여는 해제되고, 되돌릴 수 없어요. 확인을 위해
-          &ldquo;탈퇴&rdquo;를 입력해 주세요.
+          {consequence} 확인을 위해 &ldquo;탈퇴&rdquo;를 입력해 주세요.
         </DangerConfirmModal>
       )}
     </Section>

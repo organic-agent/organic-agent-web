@@ -69,12 +69,13 @@ const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
 ];
 
+/** 하단 바의 디데이 조각 — 목표일이 없으면 빈 문자열(조각을 뺀다). 상단바 칩과 같은 표기(문구 점검 C02) */
 function ddayLabel(deadline: string | null): string {
   const offset = deadlineOffset(deadline);
-  if (offset === null) return "기한 없음";
+  if (offset === null) return "";
   if (offset < 0) return `D-${-offset}`;
-  if (offset === 0) return "오늘 마감";
-  return `${offset}일 지남`;
+  if (offset === 0) return "D-day";
+  return `D+${offset}`;
 }
 
 export function SelectStage({
@@ -137,7 +138,7 @@ export function SelectStage({
     setDeadlineHit(deadlineKey);
   }
   const maxSelectable = gallery.maxSelectablePhotoCount;
-  const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, canEdit, maxSelectable, noteRejection);
+  const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, canEdit, maxSelectable, noteRejection, personal);
   const [deselectId, setDeselectId] = useState<number | null>(null);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal && owner ? { galleryTitle: gallery.title } : undefined });
   /** 담기는 바로, 빼기는 확인 뒤 */
@@ -187,7 +188,7 @@ export function SelectStage({
   const guestSortMenu: CustomMenu = {
     value: guestSort ? "guest" : sort,
     options: [
-      { key: "guest", label: "하객 좋아요순" },
+      { key: "guest", label: "게스트 좋아요 순" },
       { key: "uploaded", label: "업로드 순" },
       { key: "name", label: "이름 순" },
       { key: "score", label: "별점 순" },
@@ -272,8 +273,9 @@ export function SelectStage({
   // ── 상태줄 · 제목 ──
   const status: StatusLine = (() => {
     if (selection === null) return { text: "불러오는 중…", tone: "muted" };
+    // 디데이는 상단바 칩이 색과 함께 보여 주니 여기서는 장수만(문구 점검 C03)
     const count = maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`;
-    return { text: `${count} 선택했어요 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
+    return { text: `${count} 선택했어요`, tone: "accent" };
   })();
   const focusedDetail = filter.detailIds.size === 1 && !filter.unsorted ? details.find((d) => d.id === [...filter.detailIds][0]) ?? null : null;
   const focusedConcept = focusedDetail ? folders?.find((c) => c.details.some((d) => d.id === focusedDetail.id)) ?? null : null;
@@ -354,13 +356,19 @@ export function SelectStage({
   const requests = useMemo(() => toRequestItems(drafts, pickedIds), [drafts, pickedIds]);
   const unpickedDraftCount = draftCount.photos - requests.length;
   const canSubmit = editable && selectedCount > 0 && (maxSelectable === null || selectedCount === maxSelectable);
-  const verb = personal ? "내보낼" : "전달할";
+  const verb = personal ? "선택을 마칠" : "전달할";
   const submitHint =
-    editable && maxSelectable !== null && selectedCount !== maxSelectable
+    editable && maxSelectable !== null
       ? selectedCount < maxSelectable
         ? `${maxSelectable}장을 채우면 ${verb} 수 있어요 (지금 ${selectedCount}장)`
-        : `${maxSelectable}장까지만 ${verb} 수 있어요 (지금 ${selectedCount}장)`
+        : selectedCount > maxSelectable
+          ? `${maxSelectable}장까지만 ${verb} 수 있어요 (지금 ${selectedCount}장)`
+          : personal
+            ? `${maxSelectable}장을 다 선택했어요 · 선택 마치기를 누르면 요청서를 받아요`
+            : `${maxSelectable}장을 다 선택했어요`
       : null;
+  /** 하단 바 안내 줄 — 디데이 · 보정 요청 장수 · 마치기 안내를 가운뎃점으로 잇고, 없는 조각은 뺀다(문구 점검 C02) */
+  const bottomHint = [ddayLabel(gallery.selectionDeadline), draftCount.photos > 0 ? `보정 요청 ${draftCount.photos}장` : "", submitHint ?? ""].filter(Boolean).join(" · ");
 
   // ── 싱글뷰 ──
   /** 화면에 그려진 순서 — AI 추천 묶음이 먼저, 별점 순이면 점수 묶음 순 */
@@ -500,7 +508,7 @@ export function SelectStage({
                     onToggle={toggleFolder}
                   />
                 ) : (
-                  <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요 — 모든 사진에서 고르면 돼요.</p>
+                  <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요 · 모든 사진에서 선택하면 돼요</p>
                 ),
               share: sharing.shareTab,
             }}
@@ -530,7 +538,6 @@ export function SelectStage({
                       aria-label={`AI 추천${aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}`}
                       disabled={!editable || aiBusy || ai.jobActive}
                       onClick={() => void ai.request(focusedDetail?.id ?? null)}
-                      title={focusedDetail ? `${focusedDetail.name}에서 몇 장을 골라 드려요` : "폴더마다 몇 장씩 골라 드려요"}
                       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 max-[860px]:px-2.25 ${
                         aiPhotos.length > 0
                           ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default"
@@ -547,9 +554,8 @@ export function SelectStage({
                     type="button"
                     data-coach="reactions"
                     aria-pressed={guestOn}
-                    aria-label="하객 반응"
+                    aria-label="게스트 반응"
                     onClick={() => setGuestOn((v) => !v)}
-                    title="공유폴더에서 온 하객 좋아요를 타일에 겹쳐 봐요"
                     className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
                       guestOn ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                     }`}
@@ -557,7 +563,7 @@ export function SelectStage({
                     <span className={guestOn ? "text-brand-secondary-default" : "text-contents-light-bgd-sub"}>
                       <GroupIcon size={18} />
                     </span>
-                    <span className="max-[860px]:hidden">하객 반응</span>
+                    <span className="max-[860px]:hidden">게스트 반응</span>
                   </button>
                   </>
                 }
@@ -594,7 +600,7 @@ export function SelectStage({
                       )}
                       {aiBusy ? (
                         <>
-                          <b className="font-semibold">{scopeLabel}에서 고르는 중…</b>
+                          <b className="font-semibold">{scopeLabel}에서 선택하는 중…</b>
                           <span className="type-content-xs text-contents-light-bgd-weakness">보통 10초 안에 끝나요</span>
                         </>
                       ) : ai.error && aiPhotos.length === 0 ? (
@@ -658,7 +664,7 @@ export function SelectStage({
                 )}
                 {gridPhotos.length === 0 ? (
                   <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">
-                    {view === "selected" ? "아직 고른 사진이 없어요" : "조건에 맞는 사진이 없어요"}
+                    {view === "selected" ? "아직 선택한 사진이 없어요" : "조건에 맞는 사진이 없어요"}
                   </p>
                 ) : restPhotos.length === 0 ? null : scoreGroups ? (
                   scoreGroups.map((g) => (
@@ -724,11 +730,9 @@ export function SelectStage({
               {shownNotice}
             </button>
           ) : locked ? (
-            `선택 마감 · ${ddayLabel(gallery.selectionDeadline)}`
-          ) : selectedCount === 0 ? (
-            "왼쪽 위 체크로 선택해요 · 사진을 누르면 크게 보며 별점과 보정 요청"
-          ) : (
-            `마감 ${ddayLabel(gallery.selectionDeadline)}${draftCount.photos > 0 ? ` · 보정 요청 ${draftCount.photos}장 · 점 ${draftCount.points}개` : ""}${submitHint ? ` · ${submitHint}` : ""}`
+            ["선택 마감", ddayLabel(gallery.selectionDeadline)].filter(Boolean).join(" · ")
+          ) : selectedCount === 0 ? null : (
+            bottomHint
           )
         }
         hintIsNotice={shownNotice !== null}
@@ -774,7 +778,7 @@ export function SelectStage({
               {personal ? (
                 <ShellCta disabled={!canSubmit} onClick={() => setExportOpen(true)}>
                   <DownloadIcon size={18} />
-                  요청서 내보내기
+                  선택 마치기
                 </ShellCta>
               ) : (
                 <ShellCta disabled={!canSubmit} short="전달하기" onClick={() => setSubmitOpen(true)}>
@@ -910,7 +914,7 @@ export function SelectStage({
                 onRate={(score) => rate(currentPhoto.photoId, score)}
               />
             ) : (
-              <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} />
+              <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} personal={personal} />
             )
           }
         />

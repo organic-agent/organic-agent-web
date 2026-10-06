@@ -34,7 +34,7 @@ export function ShareFolderTab({
       </p>
       {sessions === null ? (
         collab.error ? (
-          <p className="px-2 py-2 type-content-xs text-function-error-default">불러오지 못했어요</p>
+          <p className="px-2 py-2 type-content-xs text-function-error-default">공유폴더를 불러오지 못했어요 · 페이지를 새로 고쳐 주세요</p>
         ) : (
           <div className="mx-1 my-1 h-9 animate-pulse rounded-(--radius-8) bg-surface-default-light" aria-busy="true" />
         )
@@ -57,7 +57,7 @@ export function ShareFolderTab({
                 >
                   <span className={`truncate type-content-m ${current ? "font-semibold" : ""} ${term.live ? "text-contents-light-bgd-default" : "text-contents-light-bgd-weakness"}`}>{s.name}</span>
                   <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">
-                    사진 {s.photoCount}
+                    {s.photoCount}장
                     {term.text && ` · ${term.text}`}
                   </span>
                   {sum && (sum.likes > 0 || sum.comments > 0) ? (

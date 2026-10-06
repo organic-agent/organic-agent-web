@@ -50,9 +50,6 @@ export default function WorkspaceListPage() {
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             어디로 갈까요?
           </h1>
-          <p className="mb-6 type-content-m text-contents-light-bgd-sub">
-            소속된 스튜디오와 갤러리예요. 최근에 활동한 순서로 보여요.
-          </p>
 
           <ul className="grid grid-cols-2 gap-3.5 max-[720px]:grid-cols-1" aria-label="내 워크스페이스">
             {spaces.map((space) => {
@@ -101,7 +98,7 @@ export default function WorkspaceListPage() {
             onClick={() => router.push("/onboarding/role")}
             className="mt-4 inline-flex h-11 cursor-pointer items-center gap-2 rounded-(--pill) border border-dashed border-border-default px-5 type-content-s text-contents-light-bgd-sub transition-colors duration-fast hover:border-brand-secondary-light hover:bg-brand-secondary-background hover:text-brand-secondary-dark"
           >
-            <PlusIcon size={18} />새 공간 만들기
+            <PlusIcon size={18} />워크스페이스 추가하기
           </button>
         </div>
       </div>

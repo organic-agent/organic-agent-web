@@ -90,13 +90,16 @@ export function galleryChip(
   return { text: `${label} · D-${-offset}`, tone: "muted" };
 }
 
-/** 마감 기한 → 상단바 칩 문구: 기한 없음 · D-n · D-day · +n일(지남). 셸 상단바 · 사이드바 상태줄이 같이 쓴다. */
-export function ddayLabel(deadline: string | null): string {
+/**
+ * 마감 기한 → 상단바 칩 문구: 기한 없음 · D-n · D-day · D+n(지남). 셸 상단바 · 사이드바 상태줄이 같이 쓴다.
+ * 개인 갤러리는 "마감"이 아니라 목표일이라 비었을 때의 말을 바꿔 준다("목표일 없음" — 문구 점검 B12).
+ */
+export function ddayLabel(deadline: string | null, noDeadline = "기한 없음"): string {
   const offset = deadlineOffset(deadline);
-  if (offset === null) return "기한 없음";
+  if (offset === null) return noDeadline;
   if (offset < 0) return `D-${-offset}`;
   if (offset === 0) return "D-day";
-  return `+${offset}일`;
+  return `D+${offset}`;
 }
 
 /** 마감 일시 → 카드 표시용 날짜(2026.08.30). 기한 없으면 null. */

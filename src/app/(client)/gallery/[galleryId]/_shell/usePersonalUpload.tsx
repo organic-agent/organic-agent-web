@@ -74,7 +74,7 @@ export function usePersonalUpload({
     onBatchUploaded: () => void refreshPhotos(),
     onFinished: async ({ done, failed, aborted }) => {
       await refreshPhotos();
-      if (aborted) setNotice(`업로드를 중단했어요. ${done}장은 올라갔어요.`);
+      if (aborted) setNotice(`업로드를 취소했어요${done > 0 ? ` · ${done}장은 올라갔어요` : ""}`);
       else if (failed === 0) setNotice(`${done}장 업로드 완료 · AI가 폴더로 정리하고 있어요`);
       if (done > 0) void requestAnalysisRef.current();
       if (failed === 0) reset();
@@ -183,7 +183,7 @@ export function usePersonalUpload({
   }
 
   // ── 하단 바 조각 ──
-  const stalledNote = analysis.stalled ? "멈춘 것 같아요 · 서버가 다시 시도해요" : null;
+  const stalledNote = analysis.stalled ? "시간이 걸리고 있어요 · 잠시 기다려 주세요" : null;
   const uploadProgress: ReactNode = uploading ? (
     <ProgressBar
       icon={<CloudUploadIcon size={18} />}
@@ -211,7 +211,7 @@ export function usePersonalUpload({
           icon={<SparkleIcon size={18} />}
           title={`AI 분석 ${aiCounts?.scored ?? 0} / ${aiCounts?.expected ?? 0}`}
           ratio={aiCounts && aiCounts.expected > 0 ? (aiCounts.embedded + aiCounts.scored) / (2 * aiCounts.expected) : null}
-          sub={stalledNote ?? (aiCounts && aiCounts.embedded < aiCounts.expected ? "임베딩 · 점수" : "점수")}
+          sub={stalledNote ?? "사진 분석 중"}
         />
       )
     ) : aiFailed && !uploading ? (
@@ -220,7 +220,7 @@ export function usePersonalUpload({
           <ErrorIcon size={18} />
         </span>
         <span className="min-w-0 truncate">
-          <b className="font-semibold">AI 정리에 실패했어요</b>
+          <b className="font-semibold">AI 분석에 실패했어요</b>
           {aiJob?.error ? ` · ${aiJob.error}` : ""}
         </span>
       </span>
@@ -255,7 +255,7 @@ export function usePersonalUpload({
       {(aiFailed || analysis.error) && (
         <ShellCta kind="secondary" onClick={() => void analysis.request(conceptCountRef.current)}>
           <SparkleIcon size={18} />
-          AI 정리 다시 시도
+          AI 분석 다시 시도
         </ShellCta>
       )}
       {aiCanMaterialize && (
@@ -273,7 +273,7 @@ export function usePersonalUpload({
     (merging ? "같은 이름의 컨셉 폴더를 하나로 합치고 있어요" : null) ??
     notice ??
     // 끊긴 사진의 장수는 말하지 않는다 — 작가 1단계와 같은 규칙
-    (recoverable.length > 0 ? `${allPhotos.length}장 올라옴` : null);
+    (recoverable.length > 0 ? `${allPhotos.length}장이 올라왔어요` : null);
   // 첫 업로드(사진 0장)는 컨셉 수 모달이 먼저, 더 올리기는 바로 업로드 모달. "바꾸기"는 업로드 모달 위에 컨셉 수 모달을 띄운다
   const firstUpload = allPhotos.length === 0;
   const modal: ReactNode = (

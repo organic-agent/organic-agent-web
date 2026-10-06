@@ -26,7 +26,8 @@ function planDaysLeft(expiresAt: string | null): number | null {
 function planUntil(expiresAt: string | null): string {
   if (!expiresAt) return "기한 없음";
   const d = new Date(expiresAt);
-  return Number.isNaN(d.getTime()) ? "" : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}까지`;
+  // 연도를 넘길 수 있어 늘 YYYY.MM.DD(문구 점검 B37)
+  return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}까지`;
 }
 
 function PlanCard({ plan }: { plan: PlanInfo }) {

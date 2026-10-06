@@ -51,14 +51,11 @@ function ErrorLine({ text }: { text: string | null }) {
 
 export function FolderNameModal({
   kind,
-  parentName,
   currentName,
   onClose,
   onSubmit,
 }: {
   kind: "concept" | "detail";
-  /** 세부 폴더일 때 부모 컨셉 이름 */
-  parentName?: string;
   /** 주면 이름 바꾸기 — 지금 이름을 채워 두고, 그대로면 저장할 수 없다 */
   currentName?: string;
   onClose: () => void;
@@ -85,13 +82,6 @@ export function FolderNameModal({
   return (
     <GalleryModalShell
       title={renaming ? "폴더 이름 바꾸기" : kind === "concept" ? "컨셉 폴더 추가" : "세부 폴더 추가"}
-      desc={
-        renaming
-          ? undefined
-          : kind === "concept"
-            ? "컨셉은 큰 묶음이에요. 안에 세부 폴더를 두고 사진을 나눠요."
-            : `"${parentName ?? ""}" 아래에 만들어요. 사진은 세부 폴더에 담겨요.`
-      }
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >
@@ -111,7 +101,7 @@ export function FolderNameModal({
         <GalleryModalButtons
           onClose={onClose}
           onConfirm={() => void run()}
-          confirmLabel={renaming ? (busy ? "저장 중…" : "저장") : busy ? "만드는 중…" : "만들기"}
+          confirmLabel={renaming ? (busy ? "저장 중…" : "저장") : busy ? "추가하는 중…" : "추가"}
           disabled={!valid || busy}
         />
       </form>
@@ -146,7 +136,7 @@ export function FolderDeleteModal({
       <p className="mb-6 type-content-m leading-relaxed text-contents-light-bgd-sub">
         <b className="text-contents-light-bgd-default">{name}</b>
         {target.kind === "concept" && target.concept.details.length > 0
-          ? `와 세부 폴더 ${target.concept.details.length}개가 사라져요.`
+          ? ` 폴더와 세부 폴더 ${target.concept.details.length}개가 사라져요.`
           : " 폴더가 사라져요."}{" "}
         {photoCount > 0 ? (
           <>
@@ -322,12 +312,11 @@ export function MovePhotosModal({
 
   return (
     <GalleryModalShell
-      title={`${count}장을 어디로 옮길까요?`}
-      desc="사진은 세부 폴더 하나에만 담겨요. 옮기면 원래 폴더에서는 빠져요."
+      title={`${count}장을 어디로 이동할까요?`}
       maxWidthClassName="max-w-110"
       onClose={onClose}
     >
-      <div role="radiogroup" aria-label="옮길 폴더" className="scrollbar-slim mb-5 flex max-h-80 flex-col overflow-y-auto pr-1">
+      <div role="radiogroup" aria-label="이동할 폴더" className="scrollbar-slim mb-5 flex max-h-80 flex-col overflow-y-auto pr-1">
         {folders.length === 0 && (
           <p className="px-2 py-3 type-content-s text-contents-light-bgd-sub">아직 폴더가 없어요. 컨셉 폴더를 먼저 만들어 주세요.</p>
         )}
@@ -388,7 +377,7 @@ export function MovePhotosModal({
       <GalleryModalButtons
         onClose={onClose}
         onConfirm={() => void run()}
-        confirmLabel={busy ? "옮기는 중…" : "옮기기"}
+        confirmLabel={busy ? "이동하는 중…" : "이동"}
         disabled={!chosen || busy}
       />
     </GalleryModalShell>
@@ -413,7 +402,7 @@ export function DeletePhotosModal({
   return (
     <GalleryModalShell
       title={`${count}장을 삭제할까요?`}
-      desc="삭제한 사진은 갤러리 · 폴더에서 바로 사라지고 되살릴 수 없어요."
+      desc="삭제한 사진은 갤러리와 폴더에서 바로 사라져요. 화면에서 되살릴 수는 없어요."
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >

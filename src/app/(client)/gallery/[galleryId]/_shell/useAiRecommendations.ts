@@ -69,7 +69,8 @@ export function useAiRecommendations(galleryId: number) {
     setJobActive(active);
     if (job?.status === "FAILED" && !initial) {
       setPhase("failed");
-      setError(job.error ?? "AI 추천을 만들지 못했어요 · 다시 시도해 주세요");
+      // 서버가 남긴 오류 글은 사용자용 문장이 아니라 보여 주지 않는다(문구 점검 C27)
+      setError("AI 추천을 만들지 못했어요 · 다시 시도해 주세요");
       return null;
     }
     if (active) {

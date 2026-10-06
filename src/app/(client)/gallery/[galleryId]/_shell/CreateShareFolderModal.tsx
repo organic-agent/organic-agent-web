@@ -4,8 +4,8 @@
  * 새 공유폴더 — 이름 · 범위(선택한 사진 / 컨셉 폴더 / 모든 사진) · 표지(선택)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/CreateShareFolderModal.tsx
  *
- * 범위가 컨셉 폴더 하나면 서버의 폴더 따라가기(conceptFolderId — 폴더가 바뀌면 같이 바뀜)로 만들고,
- * 그 밖에는 사진 id를 모아 직접 담는다(만든 시점 고정). 만들면 링크(7일)도 같이 생긴다.
+ * 컨셉 폴더 · 모든 사진은 서버에 범위로 보내 한 번에 담고, 선택한 사진은 id를 보낸다. 어느 쪽이든 만든 순간의
+ * 사진을 담을 뿐 원본 폴더를 따라가지 않는다(공유폴더는 폴더와 따로 산다). 만들면 링크(7일)도 같이 생긴다.
  */
 
 import { useState } from "react";
@@ -13,7 +13,7 @@ import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_c
 import { Checkbox } from "@/components/ui/Checkbox";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
-import { createCollabSession, openManualCollabSession } from "@/lib/api/collab";
+import { createCollabSession, openManualCollabSession, type CollabSessionResponse } from "@/lib/api/collab";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
 
@@ -54,7 +54,8 @@ export function CreateShareFolderModal({
   /** 선택한 사진 id */
   pickedIds: ReadonlySet<number>;
   onClose: () => void;
-  onCreated: () => void;
+  /** 만들어진 공유폴더(링크 포함) — 초대 모달이 이 링크 카드로 바로 이어진다(팀 노션 73번) */
+  onCreated: (session: CollabSessionResponse) => void;
 }) {
   const concepts = (folders ?? []).map((c) => ({ id: c.id, name: c.name, photoIds: c.details.flatMap((d) => d.photoIds) }));
   const [name, setName] = useState("");
@@ -87,11 +88,14 @@ export function CreateShareFolderModal({
     setBusy(true);
     setError(null);
     try {
-      const single = scope === "concept" && chosenConcepts.length === 1 ? chosenConcepts[0].id : null;
       const body = { name: name.trim() || defaultName, coverTitle: coverTitle.trim() || null, coverAuthor: coverAuthor.trim() || null };
-      if (single !== null) await createCollabSession(galleryId, { ...body, conceptFolderId: single });
-      else await openManualCollabSession(galleryId, body, photoIds);
-      onCreated();
+      const created =
+        scope === "concept"
+          ? await createCollabSession(galleryId, { ...body, scope: { type: "CONCEPT_FOLDERS", conceptFolderIds: chosenConcepts.map((c) => c.id) } })
+          : scope === "all"
+            ? await createCollabSession(galleryId, { ...body, scope: { type: "ALL" } })
+            : await openManualCollabSession(galleryId, body, photoIds);
+      onCreated(created);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "공유폴더를 만들지 못했어요 · 다시 시도해 주세요");
       setBusy(false);
@@ -125,7 +129,6 @@ export function CreateShareFolderModal({
                   <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">{c.photoIds.length}</span>
                 </label>
               ))}
-              {chosenConcepts.length === 1 && <p className="px-1.5 pt-1 type-content-xs text-contents-light-bgd-weakness">폴더 따라감 · 사진이 바뀌면 같이 바뀌어요</p>}
             </div>
           )}
           <ScopeRow checked={scope === "all"} label="모든 사진" count={photos.length} onPick={() => setScope("all")} />
@@ -138,7 +141,7 @@ export function CreateShareFolderModal({
           {coverOpen && (
             <div className="flex flex-col gap-1.5">
               <TextField value={coverTitle} onChange={setCoverTitle} placeholder="표지 제목" aria-label="표지 제목" className="h-10" />
-              <TextField value={coverAuthor} onChange={setCoverAuthor} placeholder="작가 이름" aria-label="작가 이름" className="h-10" />
+              <TextField value={coverAuthor} onChange={setCoverAuthor} placeholder="보내는 사람" aria-label="보내는 사람" className="h-10" />
             </div>
           )}
         </div>

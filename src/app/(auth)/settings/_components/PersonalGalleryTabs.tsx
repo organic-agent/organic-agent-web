@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 설정 › 개인 갤러리 — 정보(이름 · 목표일 · 고를 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
+ * 설정 › 개인 갤러리 — 정보(이름 · 목표일 · 선택 장수 · 플랜) · 파트너 · 갤러리 삭제 (묶음 D, 2026-09-23)
  * 위치: src/app/(auth)/settings/_components/PersonalGalleryTabs.tsx
  *
  * 스튜디오 설정과 같은 틀. 소유자: 정보 · 플랜 · 파트너 · 갤러리 삭제 / 파트너: 정보(읽기) · 플랜 · 갤러리 나가기 (이슈 75, 2026-09-23).
@@ -17,8 +17,15 @@ import { PartnerInviteBody } from "@/app/(client)/gallery/[galleryId]/_shell/Par
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
-import { getGallery, leaveGallery, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
+import { getGallery, leaveGallery, listGalleryMembers, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
+import { useAuth } from "@/lib/auth/authStore";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
+import {
+  GOAL_DATE_PROBLEM_MESSAGE,
+  goalDateProblem,
+  goalDateRange,
+  goalDateRejectedMessage,
+} from "@/lib/goalDateRange";
 import { clampSelectableCountInput } from "@/lib/selectableCount";
 import { DangerConfirmModal } from "./DangerConfirmModal";
 import { DangerButton, DangerCard, FieldLabel, ReadOnlyBox, Section } from "./SettingsShell";
@@ -34,6 +41,8 @@ function toDateInput(iso: string | null): string {
 export function usePersonalGallery(galleryId: number) {
   const [gallery, setGallery] = useState<GalleryResponse | null>(null);
   const [failed, setFailed] = useState(false);
+  // "다시 시도"가 올리는 번호 — 바뀌면 다시 읽는다
+  const [nonce, setNonce] = useState(0);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -47,8 +56,16 @@ export function usePersonalGallery(galleryId: number) {
     return () => {
       cancelled = true;
     };
-  }, [galleryId]);
-  return { gallery, failed, setGallery };
+  }, [galleryId, nonce]);
+  return {
+    gallery,
+    failed,
+    setGallery,
+    retry: () => {
+      setFailed(false);
+      setNonce((n) => n + 1);
+    },
+  };
 }
 
 export function PersonalInfoTab({
@@ -65,6 +82,9 @@ export function PersonalInfoTab({
   const readOnly = !canEdit || gallery.stage === "ARCHIVED";
   const [title, setTitle] = useState(gallery.title);
   const [deadline, setDeadline] = useState(toDateInput(gallery.selectionDeadline));
+  /** 날짜 칸에 뭔가 적혀 있는데 날짜로 읽히지 않는 상태 — 값은 빈 문자열이라 따로 받는다 */
+  const [deadlineUnreadable, setDeadlineUnreadable] = useState(false);
+  const [now] = useState(() => Date.now());
   const [count, setCount] = useState(gallery.maxSelectablePhotoCount === null ? "" : String(gallery.maxSelectablePhotoCount));
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -75,15 +95,20 @@ export function PersonalInfoTab({
   // 장수 칸은 적을 때 1~200으로 맞춰진다. 상한이 생기기 전에 저장된 더 큰 값은 건드리기 전까지 그대로 둔다
   const countNumber = count.trim() === "" ? null : Number(count);
   const countValid = countNumber === null || (Number.isInteger(countNumber) && countNumber >= 1);
+  const deadlineChanged = deadline !== toDateInput(gallery.selectionDeadline);
   const dirty =
     title.trim() !== gallery.title ||
-    deadline !== toDateInput(gallery.selectionDeadline) ||
+    deadlineChanged ||
     countNumber !== gallery.maxSelectablePhotoCount;
-  const valid = title.trim().length > 0 && countValid;
+  // 목표일은 오늘부터 이용 기간 안에서만. 저장돼 있던 값은 범위 밖일 수 있어(지난 목표일) 손대기 전에는 문제 삼지 않는다
+  const goalRange = goalDateRange(gallery.planExpiresAt, now);
+  const deadlineProblem = deadlineChanged || deadlineUnreadable ? goalDateProblem(deadline, goalRange, deadlineUnreadable) : null;
+  const valid = title.trim().length > 0 && countValid && deadlineProblem === null;
 
   function reset() {
     setTitle(gallery.title);
     setDeadline(toDateInput(gallery.selectionDeadline));
+    setDeadlineUnreadable(false);
     setCount(gallery.maxSelectablePhotoCount === null ? "" : String(gallery.maxSelectablePhotoCount));
   }
 
@@ -94,7 +119,9 @@ export function PersonalInfoTab({
     try {
       const updated = await updatePersonalGallery(gallery.id, {
         title: title.trim(),
-        selectionDeadline: deadline ? toSelectionDeadline(deadline) : null,
+        // 목표일을 건드리지 않았으면 받은 값을 그대로 돌려보낸다 — 서버가 넣어 둔 값(이용 기간 만료 시각)을 날짜로 다시 만들어
+        // 다른 시각으로 바꿔 보내지 않게. 지난 목표일은 서버가 아직 바뀌지 않은 값에도 지난 날짜 검사를 해서 거절한다(서버 이슈로 전달)
+        selectionDeadline: deadlineChanged ? (deadline ? toSelectionDeadline(deadline) : null) : gallery.selectionDeadline,
         maxSelectablePhotoCount: countNumber,
       });
       onUpdated(updated);
@@ -102,8 +129,7 @@ export function PersonalInfoTab({
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setSaved(false), 1800);
     } catch (err) {
-      if (err instanceof ApiError && err.code === "GALLERY_400_INVALID_SELECTION_DEADLINE") setBanner("선택 마감은 이용 기간보다 뒤로 정할 수 없어요.");
-      else setBanner(err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+      setBanner(err instanceof ApiError ? (goalDateRejectedMessage(err.code) ?? err.message) : "저장하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
     } finally {
       setSaving(false);
     }
@@ -120,24 +146,38 @@ export function PersonalInfoTab({
           목표일
         </FieldLabel>
         {readOnly ? (
-          <ReadOnlyBox>{deadlineDateLabel(gallery.selectionDeadline) ?? "없음"}</ReadOnlyBox>
+          <ReadOnlyBox>{deadlineDateLabel(gallery.selectionDeadline) ?? "정하지 않음"}</ReadOnlyBox>
         ) : (
           <>
-            <TextField id={`${id}-deadline`} type="date" value={deadline} onChange={setDeadline} className="h-12 px-4" />
-            {gallery.planExpiresAt && <p className="mt-1.5 type-content-xs text-contents-light-bgd-weakness">이용 기간({deadlineDateLabel(gallery.planExpiresAt)})보다 뒤로는 정할 수 없어요</p>}
+            <TextField
+              id={`${id}-deadline`}
+              type="date"
+              value={deadline}
+              onChange={setDeadline}
+              onBadInput={setDeadlineUnreadable}
+              min={goalRange.min}
+              max={goalRange.max ?? undefined}
+              error={deadlineProblem !== null}
+              className="h-12 px-4"
+            />
+            {deadlineProblem ? (
+              <p className="mt-1.5 type-content-xs text-function-error-default">{GOAL_DATE_PROBLEM_MESSAGE[deadlineProblem]}</p>
+            ) : (
+              gallery.planExpiresAt && <p className="mt-1.5 type-content-xs text-contents-light-bgd-weakness">이용 기간이 끝나는 {deadlineDateLabel(gallery.planExpiresAt)}까지 정할 수 있어요</p>
+            )}
           </>
         )}
       </div>
       <div className="mb-5">
         <FieldLabel htmlFor={`${id}-count`} optional>
-          고를 장수
+          선택 장수
         </FieldLabel>
         {readOnly ? (
           <ReadOnlyBox>{gallery.maxSelectablePhotoCount === null ? "정하지 않음" : `${gallery.maxSelectablePhotoCount}장`}</ReadOnlyBox>
         ) : (
           <>
             <TextField id={`${id}-count`} inputMode="numeric" value={count} onChange={(v) => setCount(clampSelectableCountInput(v))} placeholder="예: 50" autoComplete="off" error={!countValid} className="h-12 px-4" />
-            <p className="mt-1.5 type-content-xs text-contents-light-bgd-weakness">정하면 그 수를 정확히 채워야 요청서를 내보낼 수 있어요</p>
+            <p className="mt-1.5 type-content-xs text-contents-light-bgd-weakness">정하면 그 수를 정확히 채워야 선택을 마칠 수 있어요</p>
           </>
         )}
       </div>
@@ -172,7 +212,7 @@ export function PersonalPlanTab({ gallery }: { gallery: GalleryResponse }) {
     <Section title="플랜">
       <div className="mb-5">
         <FieldLabel>사진</FieldLabel>
-        <ReadOnlyBox>{gallery.planMaxPhotoCount !== null ? `${gallery.planMaxPhotoCount}장까지` : "제한 없음"}</ReadOnlyBox>
+        <ReadOnlyBox>{gallery.planMaxPhotoCount !== null ? `${gallery.planMaxPhotoCount.toLocaleString("ko-KR")}장까지` : "제한 없음"}</ReadOnlyBox>
       </div>
       <div className="mb-5">
         <FieldLabel>이용 기간</FieldLabel>
@@ -180,7 +220,7 @@ export function PersonalPlanTab({ gallery }: { gallery: GalleryResponse }) {
           {gallery.planExpiresAt ? `${deadlineDateLabel(gallery.planExpiresAt)}까지${days !== null ? (days > 0 ? ` · ${days}일 남음` : " · 끝남") : ""}` : "기간 없음"}
         </ReadOnlyBox>
       </div>
-      <p className="type-content-xs text-contents-light-bgd-weakness">플랜은 바꿀 수 없어요 · 기간이 끝나면 갤러리가 보관돼요</p>
+      <p className="type-content-xs text-contents-light-bgd-weakness">플랜은 바꿀 수 없어요. 이용 기간이 끝나면 열람 · 내려받기만 할 수 있어요.</p>
     </Section>
   );
 }
@@ -197,12 +237,12 @@ export function PersonalLeaveTab({ gallery }: { gallery: GalleryResponse }) {
     <Section title="갤러리 나가기">
       <DangerCard
         title={`${gallery.title} 나가기`}
-        desc="나가면 이 갤러리를 볼 수 없어요. 다시 들어오려면 초대 링크가 필요해요."
+        desc="나가면 이 갤러리를 볼 수 없어요."
         action={<DangerButton onClick={() => setOpen(true)}>나가기</DangerButton>}
       />
       {open && (
         <DangerConfirmModal title="갤러리를 나갈까요?" confirmLabel="나가기" busyLabel="나가는 중…" onConfirm={leave} onClose={() => setOpen(false)}>
-          <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>을 더 볼 수 없어요. 다시 들어오려면 초대 링크가 필요해요.
+          이 갤러리를 더 볼 수 없어요. 다시 들어오려면 초대 링크를 새로 받아야 해요.
         </DangerConfirmModal>
       )}
     </Section>
@@ -219,7 +259,25 @@ export function PersonalPartnerTab({ galleryId }: { galleryId: number }) {
 
 export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
   const router = useRouter();
+  const auth = useAuth();
+  const myUserId = auth.status === "authenticated" ? auth.user.id : null;
   const [open, setOpen] = useState(false);
+  // 파트너가 들어와 있을 때만 "알림이 가요"를 붙인다 — 멤버 목록에 나 말고 수락한 사람이 있는지
+  const [hasPartner, setHasPartner] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const members = await listGalleryMembers(gallery.id);
+        if (!cancelled) setHasPartner(members.some((m) => m.userId !== myUserId && m.joinedAt !== null));
+      } catch {
+        /* 못 읽으면 붙이지 않는다 */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gallery.id, myUserId]);
 
   async function remove() {
     await moveGalleryToTrash(gallery.id);
@@ -230,7 +288,7 @@ export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
     <Section title="갤러리 삭제">
       <DangerCard
         title={`${gallery.title} 삭제`}
-        desc="사진 · 폴더 · 셀렉 · 보정본이 휴지통으로 가요. 파트너에게 알림이 가요."
+        desc={`사진 · 폴더 · 선택한 사진 · 보정본이 모두 사라지고 되돌릴 수 없어요.${hasPartner ? " 파트너에게 알림이 가요." : ""}`}
         action={<DangerButton onClick={() => setOpen(true)}>갤러리 삭제</DangerButton>}
       />
       {open && (
@@ -242,7 +300,7 @@ export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
           onConfirm={remove}
           onClose={() => setOpen(false)}
         >
-          <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의 사진 · 폴더 · 셀렉 · 보정본이 휴지통으로 가요.
+          <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의 사진 · 폴더 · 선택한 사진 · 보정본이 모두 사라지고 되돌릴 수 없어요.
           확인을 위해 갤러리 이름을 입력해 주세요.
         </DangerConfirmModal>
       )}

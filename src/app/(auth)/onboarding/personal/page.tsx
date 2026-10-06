@@ -5,7 +5,7 @@
  * 위치: src/app/(auth)/onboarding/personal/page.tsx
  *
  * 서버 플랜(free · pro)을 카드로 그린다. 무료는 계정당 한 번 — 내 혜택(GET /billing/me)의 freePlanAvailable이
- * false면 잠긴다("이미 썼어요"). 프로는 카드 결제가 열릴 때까지 잠긴다("결제 준비 중") — 다만 등록해 둔 미사용
+ * false면 잠긴다("이미 사용함"). 프로는 카드 결제가 열릴 때까지 잠긴다("결제 준비 중") — 다만 등록해 둔 미사용
  * 쿠폰이 있으면 그 쿠폰으로 고를 수 있다("쿠폰 등록됨"). 무료를 고르면 결제 없이 바로 갤러리 정보로, 프로는
  * 쿠폰 id를 실어 갤러리 정보로 간다. 쿠폰 선물 링크(#code=)로 왔으면 이 화면을 그리지 않고 쿠폰 등록 화면으로
  * 바꾼다(OnboardingGate가 먼저 받지만 직접 진입도 대비). 2026-10-03 수민 결정 · 이슈 81.
@@ -71,7 +71,7 @@ export default function PersonalPlanPage() {
   function lockOf(plan: Plan): { disabled: boolean; tag: string | null; tagTone: "muted" | "brand" } {
     if (isFreePlan(plan)) {
       return data && !data.benefits.freePlanAvailable
-        ? { disabled: true, tag: "이미 썼어요", tagTone: "muted" }
+        ? { disabled: true, tag: "이미 사용함", tagTone: "muted" }
         : { disabled: false, tag: null, tagTone: "muted" };
     }
     return coupon
@@ -91,7 +91,7 @@ export default function PersonalPlanPage() {
     if (coupon) router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`);
   }
 
-  const buttonLabel = !picked ? "플랜을 골라 주세요" : pickedFree ? "무료로 시작하기" : "쿠폰으로 계속하기";
+  const buttonLabel = !picked ? "계속" : pickedFree ? "무료로 시작하기" : "쿠폰으로 계속하기";
 
   if (!hashChecked) {
     return (
@@ -116,11 +116,8 @@ export default function PersonalPlanPage() {
           <PersonalSteps variant="plan" current="plan" />
           <p className="type-label-eyebrow text-brand-secondary-default">For Individuals</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
-            플랜을 골라 주세요
+            플랜을 선택해 주세요
           </h1>
-          <p className="type-content-m text-contents-light-bgd-sub">
-            무료로 시작할 수도, 처음부터 더 큰 갤러리로 시작할 수도 있어요.
-          </p>
 
           <div className="mt-6">
             {data === null && !failed && (

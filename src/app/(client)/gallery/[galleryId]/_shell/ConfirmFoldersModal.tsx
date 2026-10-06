@@ -4,7 +4,7 @@
  * 폴더 확정 모달 — 컨셉 분류 → 사진 셀렉 (POST /galleries/{id}/folders/from-clusters, 1회)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ConfirmFoldersModal.tsx
  *
- * 확정하면 사진 셀렉이 열리고 갤러리는 SELECTION_IN_PROGRESS. 확정은 되돌릴 수 없고 두 번째 호출은
+ * 확정하면 사진 선택이 열리고 갤러리는 SELECTION_IN_PROGRESS. 확정은 되돌릴 수 없고 두 번째 호출은
  * 409(GALLERY_409_2)라 문구에 명시한다. 미분류 사진도 그대로 고를 수 있다.
  */
 
@@ -58,8 +58,8 @@ export function ConfirmFoldersModal({
       title="폴더를 확정할까요?"
       desc={
         personal
-          ? "확정하면 사진 셀렉이 열려 사진을 고를 수 있어요. 폴더는 나중에 \"폴더 다시 정리\"로 바꿀 수 있어요."
-          : "확정하면 사진 셀렉이 열려 사진을 고를 수 있어요. 폴더는 확정 뒤에 바꿀 수 없어요 — 옮길 사진이 남아 있으면 먼저 정리해 주세요."
+          ? "확정하면 사진 선택이 열려요. 폴더와 사진은 나중에 \"폴더 다시 정리\"로 바꿀 수 있어요."
+          : "확정하면 사진 선택이 열려요. 확정 뒤에는 폴더를 바꾸거나 사진을 더 올릴 수 없어요."
       }
       maxWidthClassName="max-w-120"
       onClose={onClose}

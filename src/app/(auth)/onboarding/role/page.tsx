@@ -29,7 +29,7 @@ const ROLES: {
   {
     key: "studio",
     title: "스튜디오를 열어요",
-    desc: "갤러리를 만들고 클라이언트를 초대해 관리합니다",
+    desc: "갤러리를 만들고 클라이언트를 초대해 관리해요",
     cta: "스튜디오 만들기",
     href: "/onboarding/studio",
     Icon: PhotoIcon,
@@ -37,7 +37,7 @@ const ROLES: {
   {
     key: "personal",
     title: "내 갤러리를 만들어요",
-    desc: "받은 원본을 올려 파트너와 함께 고릅니다",
+    desc: "받은 원본을 올려 파트너와 함께 골라요",
     cta: "내 갤러리 만들기",
     href: "/onboarding/personal",
     Icon: HeartIcon,
@@ -61,7 +61,7 @@ export default function RoleSelectPage() {
               어떻게 시작할까요?
             </h1>
             <p className="type-content-l text-contents-light-bgd-sub">
-              하나를 고르고 계속하세요. 나중에 바꿀 수 있어요.
+              하나를 선택해 주세요
             </p>
           </div>
 
@@ -110,7 +110,7 @@ export default function RoleSelectPage() {
           <p className="type-content-s text-contents-light-bgd-weakness">
             초대 링크를 받았다면 여기서 고르지 말고 받은 링크를 그대로 열어 주세요.
             <br />
-            역할은 나중에 워크스페이스로 더 추가할 수 있어요.
+            나중에 프로필 메뉴에서 워크스페이스를 추가할 수 있어요.
           </p>
         </div>
       </div>
