@@ -7,8 +7,8 @@
  *
  * 서버가 주는 세부 폴더의 photoIds는 **순서가 없고 휴지통 사진도 섞여 온다** — 화면은
  * 사진 목록에 있는 것만 남기고 displayOrder로 정렬해야 한다. 만들기 · 삭제 · 이동은
- * 본문 없이 끝나므로 다시 조회해야 화면이 맞다. 이름 바꾸기 · 순서 바꾸기 · 검토 해제
- * API는 서버에 없다(백엔드 요청 항목).
+ * 본문 없이 끝나므로 다시 조회해야 화면이 맞다. 이름 바꾸기는 organic-agent-server#260(PATCH).
+ * 순서 바꾸기 · 검토 해제 API는 서버에 없다.
  */
 
 import { api } from "@/lib/api/client";
@@ -57,6 +57,27 @@ export function createDetailFolder(
 ): Promise<DetailFolderResponse> {
   return api(`/api/v1/galleries/${galleryId}/concept-folders/${conceptId}/detail-folders`, {
     method: "POST",
+    body: { name },
+  });
+}
+
+/**
+ * 컨셉 폴더 이름 바꾸기 — 이름만 바뀌고 사진 배정은 그대로. 앞뒤 공백은 서버가 지우고 1~100자가 아니면 400 CATEGORY_400_4.
+ * 권한은 사진 이동과 같다(개인 갤러리 부부는 마무리 전까지, 초대받은 부부는 셀렉 제출 전까지).
+ */
+export function renameConceptFolder(galleryId: number, conceptId: number, name: string): Promise<ConceptFolderResponse> {
+  return api(`/api/v1/galleries/${galleryId}/concept-folders/${conceptId}`, { method: "PATCH", body: { name } });
+}
+
+/** 세부 폴더 이름 바꾸기 — 규칙은 컨셉과 같다 */
+export function renameDetailFolder(
+  galleryId: number,
+  conceptId: number,
+  detailId: number,
+  name: string,
+): Promise<DetailFolderResponse> {
+  return api(`/api/v1/galleries/${galleryId}/concept-folders/${conceptId}/detail-folders/${detailId}`, {
+    method: "PATCH",
     body: { name },
   });
 }

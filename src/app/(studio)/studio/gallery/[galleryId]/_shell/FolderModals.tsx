@@ -47,21 +47,27 @@ function ErrorLine({ text }: { text: string | null }) {
   );
 }
 
-// ── 폴더 이름 — 컨셉 · 세부 추가 ──
+// ── 폴더 이름 — 컨셉 · 세부 추가 · 이름 바꾸기 ──
 
 export function FolderNameModal({
   kind,
+  currentName,
   onClose,
   onSubmit,
 }: {
   kind: "concept" | "detail";
+  /** 주면 이름 바꾸기 — 지금 이름을 채워 두고, 그대로면 저장할 수 없다 */
+  currentName?: string;
   onClose: () => void;
   onSubmit: (name: string) => Promise<void>;
 }) {
   const id = useId();
-  const [name, setName] = useState("");
+  const renaming = currentName !== undefined;
+  const [name, setName] = useState(currentName ?? "");
   const trimmed = name.trim();
-  const valid = trimmed.length >= 1 && trimmed.length <= 100;
+  const lengthOk = trimmed.length >= 1 && trimmed.length <= 100;
+  /** 같은 이름은 저장만 잠근다 — 입력란의 오류 색은 글자 수가 틀릴 때만 */
+  const valid = lengthOk && (!renaming || trimmed !== currentName);
   const { busy, error, run } = useConfirmAction(() => onSubmit(trimmed));
 
   useEffect(() => {
@@ -75,7 +81,7 @@ export function FolderNameModal({
 
   return (
     <GalleryModalShell
-      title={kind === "concept" ? "컨셉 폴더 추가" : "세부 폴더 추가"}
+      title={renaming ? "폴더 이름 바꾸기" : kind === "concept" ? "컨셉 폴더 추가" : "세부 폴더 추가"}
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >
@@ -88,14 +94,14 @@ export function FolderNameModal({
           value={name}
           onChange={setName}
           placeholder={kind === "concept" ? "예: 야외 정원" : "예: 산책 스냅"}
-          error={name.length > 0 && !valid}
+          error={name.length > 0 && !lengthOk}
           className="mb-5 h-11 px-4"
         />
         <ErrorLine text={error} />
         <GalleryModalButtons
           onClose={onClose}
           onConfirm={() => void run()}
-          confirmLabel={busy ? "추가하는 중…" : "추가"}
+          confirmLabel={renaming ? (busy ? "저장 중…" : "저장") : busy ? "추가하는 중…" : "추가"}
           disabled={!valid || busy}
         />
       </form>
@@ -382,10 +388,13 @@ export function MovePhotosModal({
 
 export function DeletePhotosModal({
   count,
+  pickedCount = 0,
   onClose,
   onConfirm,
 }: {
   count: number;
+  /** 지울 사진 중 선택 앨범에 담긴 장수 — 있으면 함께 빠진다고 알린다 */
+  pickedCount?: number;
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }) {
@@ -397,6 +406,12 @@ export function DeletePhotosModal({
       maxWidthClassName="max-w-105"
       onClose={onClose}
     >
+      {pickedCount > 0 && (
+        // 고른 사진이 섞여 있으면 본문과 따로 빨간 상자로 — 삭제 버튼과 같은 색이라 같은 무게로 읽힌다(2026-10-06 수민)
+        <p className="mb-5 rounded-(--radius-8) border border-function-error-default/35 bg-function-error-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+          선택된 사진 <b className="font-semibold text-function-error-default">{pickedCount}장</b>이 선택 사진에서 제외돼요
+        </p>
+      )}
       <ErrorLine text={error} />
       <GalleryModalButtons
         onClose={onClose}

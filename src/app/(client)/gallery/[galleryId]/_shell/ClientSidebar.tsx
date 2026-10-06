@@ -136,6 +136,7 @@ export function ClientSidebar({
   extra,
   plan,
   selectedLockNote = "폴더 확정 뒤",
+  selectionClickable = true,
   retouchLockNote = "셀렉 뒤",
 }: {
   title: string;
@@ -158,6 +159,8 @@ export function ClientSidebar({
   plan?: PlanInfo;
   /** 잠긴 내비 행의 문구 — 개인은 "분류 뒤" · "내보낸 뒤" */
   selectedLockNote?: string;
+  /** false면 "선택한 사진"을 누르지 못한다 — 장수는 보인다(셀렉 중 폴더 다시 정리) */
+  selectionClickable?: boolean;
   retouchLockNote?: string;
 }) {
   const waiting = phase === "wait";
@@ -204,7 +207,7 @@ export function ClientSidebar({
               )
             }
             selected={view === "selected"}
-            disabled={!selectionOpen}
+            disabled={!selectionOpen || !selectionClickable}
             onClick={() => onViewChange("selected")}
           />
           <NavRow

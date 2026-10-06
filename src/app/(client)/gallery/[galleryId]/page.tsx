@@ -11,6 +11,9 @@
  * 단계(clientStages): 대기(DRAFT — 서버가 사진 · 폴더를 주지 않아 안내 카드만) → 컨셉 분류(폴더 확정 전 —
  * 사진 옮기기 · 폴더 추가 · 삭제 · 폴더 확정) → 셀렉 & 보정 요청(WES-312) → 보정 검토(WES-313)
  * → (앨범 구성) → 완료.
+ *
+ * 개인 갤러리는 셀렉 중에도 "폴더 다시 정리"(organizing)로 컨셉 분류 화면을 다시 연다(#114) — 폴더 메뉴와 사진 이동 · 더 올리기 ·
+ * 삭제가 컨셉 분류 단계와 같고, 단계 칩도 "컨셉 분류"로 간다. 고른 사진은 그대로다. "정리 끝내기"로 셀렉 화면에 돌아간다.
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -44,11 +47,15 @@ import {
   deleteDetailFolder,
   listConceptFolders,
   moveCategoryPhotos,
+  renameConceptFolder,
+  renameDetailFolder,
   type ConceptFolderResponse,
+  type DetailFolderResponse,
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { getPhotoSelection } from "@/lib/api/selection";
 import { useAuth } from "@/lib/auth/authStore";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
@@ -127,14 +134,22 @@ export default function ClientGalleryPage() {
     | { kind: "createConcept" }
     | { kind: "createDetail"; concept: ConceptFolderResponse }
     | { kind: "delete"; target: FolderDeleteTarget }
+    | { kind: "renameConcept"; concept: ConceptFolderResponse }
+    | { kind: "renameDetail"; concept: ConceptFolderResponse; detail: DetailFolderResponse }
     | null
   >(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   /** 상단 "게스트 초대" — 2단계부터(공유폴더 · 링크는 SelectStage · ReviewStage의 useGuestSharing이 그린다) */
   const [inviteOpen, setInviteOpen] = useState(false);
-  /** 개인 소유자 — 컨셉 분류에서 고른 사진을 휴지통으로(작가 1단계와 같은 자리) */
+  /** 개인 부부 — 컨셉 분류 · 정리 중 고른 사진을 휴지통으로(작가 1단계와 같은 자리) */
   const [deletePhotosOpen, setDeletePhotosOpen] = useState(false);
+  /** 지우려는 사진 중 선택 앨범에 담긴 장수 — 삭제 모달이 함께 빠진다고 알린다 */
+  const [deletePickedCount, setDeletePickedCount] = useState(0);
+  /** 개인 갤러리 셀렉 중 "폴더 다시 정리" — 컨셉 분류 화면을 다시 연다 */
+  const [organizingRequested, setOrganizingRequested] = useState(false);
+  /** 정리 중 사이드바에 보일 고른 장수 — 셀렉 화면이 알던 값으로 시작하고, 사진을 지우면 다시 읽는다 */
+  const [organizingPicked, setOrganizingPicked] = useState(0);
   /** 개인 — 요청서를 막 내보냈으면 보정 확인 화면이 열리며 내려받기 모달을 바로 연다 */
   const [autoDownload, setAutoDownload] = useState(false);
 
@@ -212,10 +227,13 @@ export default function ClientGalleryPage() {
   const unsortedCount =
     folders && folders.length > 0 ? allPhotos.filter((p) => !sortedIds.has(p.photoId)).length : 0;
 
-  // ── 개인 갤러리 업로드 · AI 정리 — 업로드 · 컨셉 분류 단계에서만 살아 있다(작가 1단계 부품 재사용) ──
+  /** 셀렉 중 정리 — 개인 갤러리 고르는 단계에서만 켜진다(내보낸 뒤 · 마무리 뒤에는 저절로 꺼진다) */
+  const organizing = organizingRequested && isPersonal && phase === "select";
+
+  // ── 개인 갤러리 업로드 · AI 정리 — 업로드 · 컨셉 분류 단계와 셀렉 중 정리에서 살아 있다(작가 1단계 부품 재사용) ──
   const upload = usePersonalUpload({
     galleryId,
-    enabled: isPersonal && (phase === "upload" || phase === "sort"),
+    enabled: isPersonal && (phase === "upload" || phase === "sort" || organizing),
     photos,
     photosLoadedAt,
     setPhotos,
@@ -247,7 +265,7 @@ export default function ClientGalleryPage() {
       ? folders?.find((c) => c.id === folderSel.conceptId) ?? null
       : null;
 
-  const sorting = phase === "sort";
+  const sorting = phase === "sort" || organizing;
   const editable = sorting && !contentBlocked;
 
   function toggleSelect(photoId: number) {
@@ -316,7 +334,9 @@ export default function ClientGalleryPage() {
   async function submitFolderName(name: string) {
     if (!folderModal || folderModal.kind === "delete") return;
     if (folderModal.kind === "createConcept") await createConceptFolder(galleryId, name);
-    else await createDetailFolder(galleryId, folderModal.concept.id, name);
+    else if (folderModal.kind === "createDetail") await createDetailFolder(galleryId, folderModal.concept.id, name);
+    else if (folderModal.kind === "renameConcept") await renameConceptFolder(galleryId, folderModal.concept.id, name);
+    else await renameDetailFolder(galleryId, folderModal.concept.id, folderModal.detail.id, name);
     await refreshFolders();
     setFolderModal(null);
   }
@@ -334,11 +354,33 @@ export default function ClientGalleryPage() {
       setFolderSel({ kind: "all" });
     setFolderModal(null);
   }
+  /** 정리 중이면 지울 사진 중 선택 앨범에 담긴 장수를 먼저 센다 — 못 읽으면 0으로 두고 지우기는 그대로 연다 */
+  async function openDeletePhotos() {
+    let picked = 0;
+    if (organizing) {
+      try {
+        const selection = await getPhotoSelection(galleryId);
+        picked = selection.photos.filter((p) => selected.has(p.photo.photoId)).length;
+      } catch {
+        picked = 0;
+      }
+    }
+    setDeletePickedCount(picked);
+    setDeletePhotosOpen(true);
+  }
   async function confirmDeletePhotos() {
     await deletePhotos(galleryId, [...selected]);
     setSelected(new Set());
     setDeletePhotosOpen(false);
     await Promise.all([refreshPhotos(), refreshFolders()]);
+    // 고른 사진을 지웠으면 사이드바의 고른 장수도 줄어든다
+    if (organizing) {
+      try {
+        setOrganizingPicked((await getPhotoSelection(galleryId)).selectedCount);
+      } catch {
+        // 못 읽으면 다음에 셀렉 화면에서 맞춰진다
+      }
+    }
   }
   async function confirmMove(targetDetailId: number | null) {
     await moveCategoryPhotos(galleryId, [...selected], targetDetailId);
@@ -363,6 +405,7 @@ export default function ClientGalleryPage() {
       if (isPersonal && (!folders || folders.length === 0)) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
     }
+    if (organizing) return { text: "폴더 다시 정리 중", tone: "accent" };
     if (phase === "select") return { text: `선택하는 중 · ${ddayLabel(gallery.selectionDeadline, isPersonal ? "목표일 없음" : undefined)}`, tone: "accent" };
     return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal), tone: "accent" };
   })();
@@ -370,6 +413,7 @@ export default function ClientGalleryPage() {
     if (notice) return notice;
     if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
+    if (organizing) return null;
     if (phase === "sort") {
       if (contentBlocked) return isPersonal ? "사진을 불러오지 못했어요 · 잠시 뒤 화면을 새로 고쳐 주세요" : "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
       if (isPersonal && (!folders || folders.length === 0)) return "폴더가 아직 없어요 · 컨셉 폴더를 추가하거나 그대로 확정할 수 있어요";
@@ -390,6 +434,23 @@ export default function ClientGalleryPage() {
               사진 업로드
             </ShellCta>
           </span>
+        ) : organizing ? (
+          <>
+            <ShellCta kind="ghost" onClick={upload.openUpload}>
+              <UploadIcon size={18} />
+              사진 더 올리기
+            </ShellCta>
+            <ShellCta
+              disabled={upload.aiActive}
+              onClick={() => {
+                setOrganizingRequested(false);
+                setSelected(new Set());
+                setFolderSel({ kind: "all" });
+              }}
+            >
+              정리 끝내기
+            </ShellCta>
+          </>
         ) : phase === "sort" ? (
           <>
             <ShellCta kind="ghost" onClick={upload.openUpload}>
@@ -480,7 +541,7 @@ export default function ClientGalleryPage() {
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
         stages={clientStagesOf(gallery, isPersonal)}
-        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery, isPersonal) : null}
+        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(organizing ? "sort" : phase, gallery, isPersonal) : null}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
         noDeadlineText={isPersonal ? "목표일 없음" : undefined}
@@ -506,7 +567,7 @@ export default function ClientGalleryPage() {
           autoOpenDownload={autoDownload}
           onAutoOpenDownloadHandled={() => setAutoDownload(false)}
         />
-      ) : selecting && gallery && phase ? (
+      ) : selecting && !organizing && gallery && phase ? (
         <SelectStage
           galleryId={galleryId}
           gallery={gallery}
@@ -523,6 +584,14 @@ export default function ClientGalleryPage() {
           onExported={() => setAutoDownload(true)}
           onPhotoUrlError={refreshPhotoUrls}
           onScoreSaved={patchPhotoScore}
+          onOrganize={
+            isPersonal
+              ? (picked) => {
+                  setOrganizingPicked(picked);
+                  setOrganizingRequested(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>
@@ -536,7 +605,8 @@ export default function ClientGalleryPage() {
               selectedLockNote={isPersonal ? "폴더 확정 뒤" : undefined}
               retouchLockNote={isPersonal ? "선택 마친 뒤" : undefined}
               photoCount={opened && photos !== null ? allPhotos.length : null}
-              selectedCount={0}
+              selectedCount={organizing ? organizingPicked : 0}
+              selectionClickable={!organizing}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}
               view={view}
               onViewChange={(next) => {
@@ -561,6 +631,8 @@ export default function ClientGalleryPage() {
                 onDeleteDetail={(concept, detail) =>
                   setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
                 }
+                onRenameConcept={isPersonal ? (concept) => setFolderModal({ kind: "renameConcept", concept }) : undefined}
+                onRenameDetail={isPersonal ? (concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail }) : undefined}
                 // 사진을 옮길 수 있는 때만 폴더도 합친다
                 onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
                 onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
@@ -607,8 +679,8 @@ export default function ClientGalleryPage() {
               </div>
             ) : (
               <>
-                {/* 컨셉 분류 단계에는 아직 별점이 없어 정렬 메뉴에서 별점 순을 뺀다 */}
-                <ShellMainHeader {...headerCommon} scoreSort={false} title={allTitle} titleParent={allTitleParent} />
+                {/* 컨셉 분류 단계에는 아직 별점이 없어 정렬 메뉴에서 별점 순을 뺀다 — 셀렉 중 정리는 별점이 있어 둔다 */}
+                <ShellMainHeader {...headerCommon} scoreSort={organizing} title={allTitle} titleParent={allTitleParent} />
                 {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
@@ -636,7 +708,7 @@ export default function ClientGalleryPage() {
           onSelectAll={selectAllVisible}
           onClearSelection={() => setSelected(new Set())}
           onMoveSelection={() => setMoveOpen(true)}
-          onDeleteSelection={isPersonal && personal.owner && sorting ? () => setDeletePhotosOpen(true) : undefined}
+          onDeleteSelection={isPersonal && sorting ? () => void openDeletePhotos() : undefined}
           hint={bottomHint}
           hintIsNotice={Boolean(notice) || (isPersonal && Boolean(upload.hint))}
           progress={isPersonal ? upload.progress ?? undefined : undefined}
@@ -647,7 +719,14 @@ export default function ClientGalleryPage() {
 
         {folderModal && folderModal.kind !== "delete" && (
           <FolderNameModal
-            kind={folderModal.kind === "createConcept" ? "concept" : "detail"}
+            kind={folderModal.kind === "createConcept" || folderModal.kind === "renameConcept" ? "concept" : "detail"}
+            currentName={
+              folderModal.kind === "renameConcept"
+                ? folderModal.concept.name
+                : folderModal.kind === "renameDetail"
+                  ? folderModal.detail.name
+                  : undefined
+            }
             onClose={() => setFolderModal(null)}
             onSubmit={submitFolderName}
           />
@@ -655,7 +734,7 @@ export default function ClientGalleryPage() {
         {folderModal && folderModal.kind === "delete" && (
           <FolderDeleteModal target={folderModal.target} onClose={() => setFolderModal(null)} onConfirm={confirmFolderDelete} />
         )}
-        {deletePhotosOpen && <DeletePhotosModal count={selected.size} onClose={() => setDeletePhotosOpen(false)} onConfirm={confirmDeletePhotos} />}
+        {deletePhotosOpen && <DeletePhotosModal count={selected.size} pickedCount={deletePickedCount} onClose={() => setDeletePhotosOpen(false)} onConfirm={confirmDeletePhotos} />}
         {personalOwner && inviteOpen && !selecting && !reviewing && gallery && (
           <PersonalInviteModal galleryId={galleryId} galleryTitle={gallery.title} guest={null} onClose={() => setInviteOpen(false)} />
         )}
@@ -674,6 +753,7 @@ export default function ClientGalleryPage() {
             folders={folders ?? []}
             photoCount={allPhotos.length}
             unsortedCount={unsortedCount}
+            personal={isPersonal}
             onClose={() => setConfirmOpen(false)}
             onConfirmed={() => {
               setConfirmOpen(false);
@@ -688,7 +768,7 @@ export default function ClientGalleryPage() {
       )}
       {/* 폴더가 생긴 뒤에 — 개인 갤러리는 첫 사진이 올라온 순간 이 단계가 되지만 AI가 폴더를 만들기 전에는 가리킬 것이 없다 */}
       <ClientCoachMarks
-        ready={editable && folders !== null && folders.length > 0 && photos !== null && allPhotos.length > 0 && !upload.aiActive}
+        ready={editable && !organizing && folders !== null && folders.length > 0 && photos !== null && allPhotos.length > 0 && !upload.aiActive}
         personal={isPersonal}
         onStart={closeSidebar}
       />
