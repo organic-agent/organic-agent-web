@@ -4,9 +4,9 @@
  * 게스트 초대 — 공유폴더를 골라 링크 하나로 · 만든 링크 관리 (설명글 없이, 2026-09-12 수민)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/InviteGuestsModal.tsx
  *
- * 링크 만들기: 사이드바 공유 탭에서 만든 공유폴더만 체크리스트로. 하나면 그 링크를 그대로, 여러 개면 사진을 겹침 없이
- * 모은 새 공유폴더(묶음)를 만들어 링크 하나를 준다(서버가 부분 집합 링크를 못 만들어서 — 사진은 만든 시점 고정).
- * 만든 링크: 이름 · 남은 기간 · 복사 · 재발행(7일 연장, 반응 보존) · 이름 바꾸기 · 폐기 · 폐기된 것은 다시 발행.
+ * 링크 만들기: 사이드바 공유 탭에서 만든 공유폴더만 체크리스트로. 하나면 그 링크를 그대로, 여러 개면 서버가 사진을 겹침 없이
+ * 모은 새 공유폴더(묶음, scope SESSIONS)를 만들어 링크 하나를 준다(서버가 부분 집합 링크를 못 만들어서 — 사진은 만든 시점 고정).
+ * 만든 링크: 이름 · 남은 기간 · 들어온 사람 · 복사 · 재발행(7일 연장, 반응 보존) · 이름 바꾸기 · 폐기 · 폐기된 것은 다시 발행.
  * 본문(InviteGuestsBody)과 껍데기를 나눠 두었다 — 개인 갤러리는 파트너 | 게스트 탭 모달(PersonalInviteModal) 안에 본문만 넣는다.
  */
 
@@ -19,11 +19,12 @@ import { IconButton } from "@/components/ui/IconButton";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import {
-  listAllCollabPhotos,
-  openManualCollabSession,
+  createCollabSession,
+  listCollabParticipants,
   renameCollabSession,
   republishCollabSession,
   revokeCollabSession,
+  type CollabParticipantResponse,
   type CollabSessionResponse,
 } from "@/lib/api/collab";
 import { displayUrl, isLiveSession, sessionTermLabel, type CollabSessions } from "./useCollabSessions";
@@ -75,6 +76,14 @@ function LinkBox({ url }: { url: string }) {
   );
 }
 
+/** 들어온 날 — 파트너 초대 현황(GalleryInviteModal)과 같은 "10.05" 모양 */
+function enteredLabel(at: string | null): string {
+  if (!at) return "";
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function Tag({ children, off = false }: { children: React.ReactNode; off?: boolean }) {
   return (
     <span className={`rounded-(--pill) px-2 py-0.5 type-label-semibold-xs ${off ? "bg-surface-default-light text-contents-light-bgd-sub" : "bg-brand-secondary-background text-brand-secondary-dark"}`}>{children}</span>
@@ -112,6 +121,20 @@ function SessionCard({
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [busy, setBusy] = useState<"rename" | "republish" | "revoke" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<CollabParticipantResponse[] | null>(null);
+
+  async function toggleParticipants() {
+    if (participants) {
+      setParticipants(null);
+      return;
+    }
+    setError(null);
+    try {
+      setParticipants(await listCollabParticipants(galleryId, session.sessionId));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "들어온 사람을 불러오지 못했어요 · 다시 시도해 주세요");
+    }
+  }
 
   async function run(kind: NonNullable<typeof busy>, fn: () => Promise<unknown>) {
     if (busy) return;
@@ -166,7 +189,28 @@ function SessionCard({
       </div>
       <p className="flex flex-wrap gap-x-2 type-content-xs text-contents-light-bgd-sub">
         <span>사진 {session.photoCount}</span>
+        <span aria-hidden>·</span>
+        {session.participantCount > 0 ? (
+          <button type="button" aria-expanded={participants !== null} onClick={() => void toggleParticipants()} className={`${TEXT_LINK} text-contents-light-bgd-sub`}>
+            들어온 사람 {session.participantCount}
+          </button>
+        ) : (
+          <span>들어온 사람 없음</span>
+        )}
       </p>
+      {participants && (
+        <ul className="flex flex-col gap-1 rounded-(--radius-8) bg-surface-default-lightness px-3 py-2 type-content-xs">
+          {participants.map((p) => (
+            <li key={p.participantId} className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-contents-light-bgd-default">
+                {p.nickname}
+                {p.participantType === "USER" && <span className="text-contents-light-bgd-weakness"> · 부부</span>}
+              </span>
+              <span className="shrink-0 text-contents-light-bgd-weakness tabular-nums">{enteredLabel(p.enteredAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {term.live && <LinkBox url={session.collabUrl} />}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {term.live ? (
@@ -260,9 +304,10 @@ export function InviteGuestsBody({
     setBusy(true);
     setError(null);
     try {
-      const lists = await Promise.all(chosenSessions.map((s) => listAllCollabPhotos(galleryId, s.sessionId)));
-      const photoIds = lists.flat().map((p) => p.photoId);
-      const created = await openManualCollabSession(galleryId, { name: linkName.trim() || defaultLinkName }, photoIds);
+      const created = await createCollabSession(galleryId, {
+        name: linkName.trim() || defaultLinkName,
+        scope: { type: "SESSIONS", sessionIds: chosenSessions.map((s) => s.sessionId) },
+      });
       await collab.reload();
       setMade({ session: created, from: chosenSessions.map((s) => s.name) });
       setChosen(new Set());

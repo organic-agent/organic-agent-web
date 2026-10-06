@@ -4,8 +4,8 @@
  * 새 공유폴더 — 이름 · 범위(선택한 사진 / 컨셉 폴더 / 모든 사진) · 표지(선택)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/CreateShareFolderModal.tsx
  *
- * 범위가 컨셉 폴더 하나면 서버의 폴더 따라가기(conceptFolderId — 폴더가 바뀌면 같이 바뀜)로 만들고,
- * 그 밖에는 사진 id를 모아 직접 담는다(만든 시점 고정). 만들면 링크(7일)도 같이 생긴다.
+ * 컨셉 폴더 · 모든 사진은 서버에 범위로 보내 한 번에 담고, 선택한 사진은 id를 보낸다. 어느 쪽이든 만든 순간의
+ * 사진을 담을 뿐 원본 폴더를 따라가지 않는다(공유폴더는 폴더와 따로 산다). 만들면 링크(7일)도 같이 생긴다.
  */
 
 import { useState } from "react";
@@ -87,9 +87,9 @@ export function CreateShareFolderModal({
     setBusy(true);
     setError(null);
     try {
-      const single = scope === "concept" && chosenConcepts.length === 1 ? chosenConcepts[0].id : null;
       const body = { name: name.trim() || defaultName, coverTitle: coverTitle.trim() || null, coverAuthor: coverAuthor.trim() || null };
-      if (single !== null) await createCollabSession(galleryId, { ...body, conceptFolderId: single });
+      if (scope === "concept") await createCollabSession(galleryId, { ...body, scope: { type: "CONCEPT_FOLDERS", conceptFolderIds: chosenConcepts.map((c) => c.id) } });
+      else if (scope === "all") await createCollabSession(galleryId, { ...body, scope: { type: "ALL" } });
       else await openManualCollabSession(galleryId, body, photoIds);
       onCreated();
     } catch (err) {
