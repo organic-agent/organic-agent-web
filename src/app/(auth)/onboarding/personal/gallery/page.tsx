@@ -34,6 +34,13 @@ import {
 } from "@/lib/api/payments";
 import { refreshMe } from "@/lib/auth/refreshMe";
 import { COUPON_PATH } from "@/lib/couponLink";
+import {
+  GOAL_DATE_PROBLEM_MESSAGE,
+  goalDateProblem,
+  goalDateRange,
+  goalDateRejectedMessage,
+  planExpiryFromNow,
+} from "@/lib/goalDateRange";
 import { clampSelectableCountInput } from "@/lib/selectableCount";
 import { PersonalSteps } from "../_components/PersonalSteps";
 
@@ -55,6 +62,9 @@ function PersonalGalleryForm() {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
+  /** 날짜 칸에 뭔가 적혀 있는데 날짜로 읽히지 않는 상태 — 값은 빈 문자열이라 따로 받는다 */
+  const [deadlineUnreadable, setDeadlineUnreadable] = useState(false);
+  const [now] = useState(() => Date.now());
   const [count, setCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -100,7 +110,10 @@ function PersonalGalleryForm() {
   }, [planParam, couponParam, router]);
 
   const pro = ticket !== null && !isFreePlan(ticket.plan);
-  const canSubmit = title.trim().length > 0 && !submitting && ticket !== null;
+  // 목표일은 오늘부터 이용 기간 안에서만 — 달력은 범위만 고르게 막고, 손으로 적은 범위 밖 날짜는 이유를 보여 준다
+  const goalRange = goalDateRange(ticket ? planExpiryFromNow(ticket.plan, now) : null, now);
+  const deadlineProblem = goalDateProblem(deadline, goalRange, deadlineUnreadable);
+  const canSubmit = title.trim().length > 0 && deadlineProblem === null && !submitting && ticket !== null;
 
   async function handleSubmit() {
     if (!canSubmit || !ticket) return;
@@ -122,7 +135,7 @@ function PersonalGalleryForm() {
       setSubmitting(false);
       setBanner(
         err instanceof ApiError
-          ? err.message
+          ? (goalDateRejectedMessage(err.code) ?? err.message)
           : "갤러리를 만들지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
       );
     }
@@ -197,10 +210,18 @@ function PersonalGalleryForm() {
                 type="date"
                 value={deadline}
                 onChange={setDeadline}
+                onBadInput={setDeadlineUnreadable}
+                min={goalRange.min}
+                max={goalRange.max ?? undefined}
+                error={deadlineProblem !== null}
                 className="h-12 px-4"
               />
-              <p className="mt-1.5 type-content-xs text-contents-light-bgd-sub">
-                정하면 남은 날을 D-day로 보여 줘요
+              <p
+                className={`mt-1.5 type-content-xs ${
+                  deadlineProblem ? "text-function-error-default" : "text-contents-light-bgd-sub"
+                }`}
+              >
+                {deadlineProblem ? GOAL_DATE_PROBLEM_MESSAGE[deadlineProblem] : "정하면 남은 날을 D-day로 보여 줘요"}
               </p>
             </div>
             <div>
