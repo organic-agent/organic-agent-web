@@ -46,7 +46,7 @@ type ApiOptions = {
 
 async function toApiError(res: Response): Promise<ApiError> {
   let code = "UNKNOWN";
-  let message = `요청이 실패했습니다 (HTTP ${res.status})`;
+  let message = "요청을 처리하지 못했어요 · 잠시 뒤 다시 시도해 주세요";
   try {
     const body = (await res.json()) as { code?: unknown; message?: unknown };
     if (typeof body.code === "string") code = body.code;
