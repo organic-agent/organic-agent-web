@@ -100,7 +100,7 @@ export function recoveryNotice({ resume, fresh, skipped }: RecoveryMatch): strin
   }
   const upload =
     resume.length === 0
-      ? "짝이 맞는 파일이 없어 새 사진으로 올려요"
+      ? "끊긴 사진과 같은 파일이 없어 새 사진으로 올려요"
       : fresh.length > 0
         ? `${resume.length}장은 이어서, ${fresh.length}장은 새로 올려요`
         : skip

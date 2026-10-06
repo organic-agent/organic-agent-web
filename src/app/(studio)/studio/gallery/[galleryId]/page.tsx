@@ -1198,7 +1198,6 @@ export default function StudioGalleryShellPage() {
       {folderModal && folderModal.kind !== "delete" && (
         <FolderNameModal
           kind={folderModal.kind === "createConcept" ? "concept" : "detail"}
-          parentName={folderModal.kind === "createDetail" ? folderModal.concept.name : undefined}
           onClose={() => setFolderModal(null)}
           onSubmit={submitFolderName}
         />

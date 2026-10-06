@@ -353,30 +353,29 @@ export default function ClientGalleryPage() {
     if (phase === "wait") return { text: "작가가 사진을 준비하고 있어요", tone: "muted" };
     // 개인의 업로드 · AI 구간은 작가 1단계 상태줄과 같은 문구 · 숫자
     if (isPersonal && upload.uploading) return { text: `올리는 중 ${upload.runCounts.done} / ${upload.runCounts.total}`, tone: "accent" };
-    if (isPersonal && upload.aiCategorizing) return { text: "폴더 만드는 중", tone: "accent" };
+    if (isPersonal && upload.aiCategorizing) return { text: "폴더 만드는 중…", tone: "accent" };
     if (isPersonal && upload.merging) return { text: "폴더 정리 중…", tone: "accent" };
     if (isPersonal && upload.aiActive) return { text: `AI 분석 중 ${upload.aiCounts?.scored ?? 0} / ${upload.aiCounts?.expected ?? 0}`, tone: "accent" };
-    if (isPersonal && upload.aiFailed) return { text: "AI 정리 실패 · 다시 시도할 수 있어요", tone: "error" };
+    if (isPersonal && upload.aiFailed) return { text: "AI 분석 실패 · 다시 시도할 수 있어요", tone: "error" };
     if (phase === "upload") return { text: "사진 없음", tone: "muted" };
     if (phase === "sort") {
       if (photos === null) return { text: "불러오는 중…", tone: "muted" };
       if (isPersonal && (!folders || folders.length === 0)) return { text: `${allPhotos.length}장 · 폴더 만들기 전`, tone: "muted" };
       return { text: "컨셉 분류 · 폴더를 확정하면 고를 수 있어요", tone: "accent" };
     }
-    if (phase === "select") return { text: `고르는 중 · ${ddayLabel(gallery.selectionDeadline)}`, tone: "accent" };
+    if (phase === "select") return { text: `선택하는 중 · ${ddayLabel(gallery.selectionDeadline, isPersonal ? "목표일 없음" : undefined)}`, tone: "accent" };
     return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal), tone: "accent" };
   })();
   const bottomHint = (() => {
     if (notice) return notice;
     if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
-    if (phase === "upload") return "원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요";
     if (phase === "sort") {
-      if (contentBlocked) return "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
-      if (isPersonal && (!folders || folders.length === 0)) return "폴더는 업로드가 끝나면 AI가 만들어요";
+      if (contentBlocked) return isPersonal ? "사진을 불러오지 못했어요 · 잠시 뒤 화면을 새로 고쳐 주세요" : "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
+      if (isPersonal && (!folders || folders.length === 0)) return "폴더가 아직 없어요 · 컨셉 폴더를 추가하거나 그대로 확정할 수 있어요";
       return "폴더를 확인하고 확정하면 사진을 고를 수 있어요 · 확정은 한 번만 할 수 있어요";
     }
-    return "사진 셀렉 화면을 준비하고 있어요";
+    return "불러오는 중…";
   })();
   const bottomActions = isPersonal ? (
     upload.uploading ? (
@@ -468,7 +467,7 @@ export default function ClientGalleryPage() {
         {isPersonal && upload.aiActive && (
           <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
             <SparkleIcon size={12} />
-            {upload.aiCategorizing ? "폴더 만드는 중" : "AI 분석 중"}
+            {upload.aiCategorizing ? "폴더 만드는 중…" : "AI 분석 중"}
           </span>
         )}
         <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{allPhotos.length}장</small>
@@ -484,6 +483,7 @@ export default function ClientGalleryPage() {
         stageIndex={phase && phase !== "wait" ? clientStageIndexOf(phase, gallery, isPersonal) : null}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
+        noDeadlineText={isPersonal ? "목표일 없음" : undefined}
         onInviteClick={personalOwner || selecting ? () => setInviteOpen(true) : undefined}
         inviteLabel={personalOwner ? "초대" : "게스트 초대"}
         inviteCoachKey="invite"
@@ -533,8 +533,8 @@ export default function ClientGalleryPage() {
               status={status}
               phase={phase ?? "wait"}
               plan={isPersonal && gallery ? { used: photos?.length ?? 0, max: gallery.planMaxPhotoCount, expiresAt: gallery.planExpiresAt } : undefined}
-              selectedLockNote={isPersonal ? "분류 뒤" : undefined}
-              retouchLockNote={isPersonal ? "내보낸 뒤" : undefined}
+              selectedLockNote={isPersonal ? "폴더 확정 뒤" : undefined}
+              retouchLockNote={isPersonal ? "선택 마친 뒤" : undefined}
               photoCount={opened && photos !== null ? allPhotos.length : null}
               selectedCount={0}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}
@@ -577,9 +577,9 @@ export default function ClientGalleryPage() {
                             }
                           : {
                               label: "대기",
-                              note: `${upload.conceptCount !== null ? `업로드가 끝나면 AI가 컨셉 ${upload.conceptCount}개로 나눠요.` : "폴더는 업로드가 끝나면 AI가 만들어요."} 임베딩 · 점수는 올라오는 대로 매기고 있어요.`,
+                              note: upload.uploading ? "업로드가 끝나면 AI가 폴더를 만들어요" : "AI가 사진을 살펴보고 있어요 · 끝나면 폴더를 만들어요",
                             }
-                        : null
+                        : { label: "없음", note: "폴더가 아직 없어요 · 컨셉 폴더를 추가하거나 그대로 확정할 수 있어요" }
                       : { label: "없음", note: "작가가 아직 폴더를 만들지 않았어요. 미분류 사진은 그대로 고를 수 있어요." }
                     : null
                 }
@@ -595,7 +595,7 @@ export default function ClientGalleryPage() {
             ) : photos === null ? (
               <div className="flex-1" aria-busy="true" />
             ) : contentBlocked ? (
-              <WaitCard gallery={gallery} memberCount={memberCount} />
+              <WaitCard gallery={gallery} memberCount={memberCount} personal={isPersonal} />
             ) : phase === "upload" ? (
               <>
                 {upload.recoveryBanner}
@@ -612,7 +612,7 @@ export default function ClientGalleryPage() {
                 {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
-                    <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">조건에 맞는 사진이 없어요</p>
+                    <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">여기에는 사진이 없어요</p>
                   ) : (
                     <PhotoGrid
                       photos={visiblePhotos}
@@ -648,7 +648,6 @@ export default function ClientGalleryPage() {
         {folderModal && folderModal.kind !== "delete" && (
           <FolderNameModal
             kind={folderModal.kind === "createConcept" ? "concept" : "detail"}
-            parentName={folderModal.kind === "createDetail" ? folderModal.concept.name : undefined}
             onClose={() => setFolderModal(null)}
             onSubmit={submitFolderName}
           />

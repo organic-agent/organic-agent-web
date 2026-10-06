@@ -47,7 +47,7 @@ import {
 
 /** 다른 탭에 "이 갤러리를 올리는 중"이라고 알리는 심장 박동 주기 */
 const ACTIVE_HEARTBEAT_MS = 5000;
-const OVERSIZE_MESSAGE = "20MB를 넘는 사진은 올릴 수 없어요(JPG는 자동으로 줄어들지만 PNG · HEIC는 원본 그대로 올라가요).";
+const OVERSIZE_MESSAGE = "20MB를 넘는 사진은 올릴 수 없어요";
 
 export type UploadPhase = "idle" | "running" | "paused" | "finished";
 

@@ -414,7 +414,7 @@ export function FolderColumn({
               ? "…"
               : folders.length === 0
                 ? pendingNote?.label ?? "없음"
-                : `${folders.length} · ${sortedCount}장`}
+                : `${folders.length}개 · ${sortedCount}장`}
           </span>
           {onCreateConcept && folders !== null && (
             <button
