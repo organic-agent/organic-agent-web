@@ -21,6 +21,11 @@ type TextFieldProps = {
   /** number는 숫자, date는 "YYYY-MM-DD" */
   min?: number | string;
   max?: number | string;
+  /**
+   * 칸에 뭔가 적혀 있는데 값으로 읽히지 않는지(validity.badInput) — 날짜 칸은 범위 밖 숫자나 적다 만 날짜면 값이 빈 문자열이라
+   * onChange만으로는 "비어 있음"과 구분할 수 없다. 적을 때와 칸을 떠날 때 알려 준다
+   */
+  onBadInput?: (bad: boolean) => void;
   /** 휴대폰 자판 종류 — 숫자만 받는 text 칸에 "numeric" */
   inputMode?: "numeric";
   "aria-label"?: string;
@@ -40,6 +45,7 @@ export function TextField({
   disabled = false,
   min,
   max,
+  onBadInput,
   inputMode,
   className = "",
   "aria-label": ariaLabel,
@@ -59,7 +65,11 @@ export function TextField({
       aria-label={ariaLabel}
       aria-invalid={error || undefined}
       disabled={disabled}
-      onChange={(e) => onChange?.(e.target.value)}
+      onChange={(e) => {
+        onChange?.(e.target.value);
+        onBadInput?.(e.target.validity.badInput);
+      }}
+      onBlur={onBadInput ? (e) => onBadInput(e.target.validity.badInput) : undefined}
       className={`h-8 w-full rounded-(--radius-8) border bg-background-default-main px-3 type-content-m text-contents-light-bgd-default outline-none transition-colors duration-fast placeholder:text-contents-light-bgd-sub disabled:cursor-not-allowed disabled:border-divider-default disabled:text-contents-light-bgd-disabled ${
         error
           ? "border-function-error-default ring-1 ring-function-error-default"
