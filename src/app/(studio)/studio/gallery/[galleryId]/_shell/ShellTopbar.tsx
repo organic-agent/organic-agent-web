@@ -37,12 +37,14 @@ function ddayChip(
   stageIndex: number | null,
   stageCount: number,
   deadlineStage: number,
+  noDeadlineText?: string,
 ): { text: string; tone: DdayTone } {
   if (stageIndex !== null && stageIndex === stageCount - 1) return { text: "완료", tone: "gray" };
   const offset = deadlineOffset(deadline);
-  if (offset === null) return { text: ddayLabel(deadline), tone: "gray" };
-  if (offset > 0) return { text: ddayLabel(deadline), tone: stageIndex !== null && stageIndex <= deadlineStage ? "red" : "gray" };
-  return { text: ddayLabel(deadline), tone: "olive" };
+  const text = ddayLabel(deadline, noDeadlineText);
+  if (offset === null) return { text, tone: "gray" };
+  if (offset > 0) return { text, tone: stageIndex !== null && stageIndex <= deadlineStage ? "red" : "gray" };
+  return { text, tone: "olive" };
 }
 
 const DDAY_TONE_CLASS: Record<DdayTone, string> = {
@@ -120,7 +122,10 @@ export function ShellTopbar({
   inviteLabel = "클라이언트 초대",
   inviteCoachKey,
   notificationHrefFor,
+  noDeadlineText,
 }: {
+  /** 마감이 비었을 때 칩에 적는 말 — 개인 갤러리는 "목표일 없음" */
+  noDeadlineText?: string;
   /** 없으면 로고만(클라이언트 셸) */
   studioName?: string;
   studioHref?: string;
@@ -142,7 +147,7 @@ export function ShellTopbar({
   notificationHrefFor?: (n: UserNotificationResponse) => string | null;
 }) {
   const { collapsed, toggle } = useSidebar();
-  const chip = ddayChip(deadline, stageIndex, stages.length, deadlineStage);
+  const chip = ddayChip(deadline, stageIndex, stages.length, deadlineStage, noDeadlineText);
 
   return (
     <header className="grid h-13 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-divider-default bg-background-default-main">

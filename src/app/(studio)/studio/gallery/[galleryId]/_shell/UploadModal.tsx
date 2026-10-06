@@ -5,8 +5,8 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/UploadModal.tsx
  *
  * 옛 모달의 "고르면 즉시 올리기"와 다르다. 끌어다 놓거나 골라 목록에 담고, 버튼을 누르면
- * 모달은 닫히고 진행은 하단 바가 맡는다. 고르는 자리는 하나 — 비었을 땐 중앙 드롭 존("폴더에서 사진 가져오기"),
- * 담긴 뒤엔 하단 "폴더에서 더 가져오기"(2026-09-11 수민 피드백). 담는 순간 첫 묶음(100장)은 뒤에서 미리 줄여 두어
+ * 모달은 닫히고 진행은 하단 바가 맡는다. 고르는 자리는 하나 — 비었을 땐 중앙 드롭 존("기기에서 사진 가져오기"),
+ * 담긴 뒤엔 하단 "사진 더 가져오기"(2026-09-11 수민 피드백). 담는 순간 첫 묶음(100장)은 뒤에서 미리 줄여 두어
  * 버튼을 누른 즉시 첫 PUT이 나간다(전부 미리 줄이면 결과 blob이 GB 단위라 첫 묶음만).
  *
  * 담을 때 검사 둘: 형식(JPG · PNG · WebP · HEIC · HEIF 아니면 제외 표시), 플랜 장수 상한
@@ -152,8 +152,8 @@ export function UploadModal({
   }
 
   const excludedNote = [
-    counts.excludedType > 0 ? `지원하지 않는 형식 ${counts.excludedType}` : null,
-    counts.excludedSize > 0 ? `너무 큰 파일 ${counts.excludedSize}` : null,
+    counts.excludedType > 0 ? `지원하지 않는 형식 ${counts.excludedType}장` : null,
+    counts.excludedSize > 0 ? `용량 초과 ${counts.excludedSize}장(JPG 80MB · 그 밖 20MB까지)` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -162,13 +162,7 @@ export function UploadModal({
     <div onDragEnter={onDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
       <GalleryModalShell
         title="사진 업로드"
-        desc={
-          <>
-            올라오는 대로 AI가 컨셉 · 세부 폴더로 나눠요.
-            <br />
-            원본은 그대로 보관되고 화면에는 줄인 미리보기를 써요.
-          </>
-        }
+        desc="업로드가 끝나면 AI가 컨셉 · 세부 폴더로 나눠요"
         maxWidthClassName="max-w-140"
         onClose={onClose}
       >
@@ -197,10 +191,10 @@ export function UploadModal({
             <span className="mb-1 flex text-contents-light-bgd-weakness">
               <AddPhotoIcon size={36} />
             </span>
-            <p className="type-content-m text-contents-light-bgd-default">여기에 사진을 끌어다 놓으세요</p>
+            <p className="type-content-m text-contents-light-bgd-default">여기에 사진을 끌어다 놓아 주세요</p>
             <p className="type-content-xs text-contents-light-bgd-sub">JPG · PNG · WebP · HEIC · 여러 장 한 번에</p>
             <span className="mt-3 inline-flex h-9 items-center rounded-(--radius-8) border border-border-default px-4 type-label-medium-s text-contents-light-bgd-default">
-              폴더에서 사진 가져오기
+              기기에서 사진 가져오기
             </span>
           </button>
         ) : (
@@ -244,11 +238,11 @@ export function UploadModal({
                             : "bg-function-warning-background text-function-warning-default"
                         }`}
                       >
-                        {includeDuplicates ? "이미 있는 사진 · 그래도 올림" : "건너뜀 · 이미 있는 사진"}
+                        {includeDuplicates ? "올림 · 이미 있는 사진" : "건너뜀 · 이미 있는 사진"}
                       </span>
                     ) : entry.excluded ? (
                       <span className="shrink-0 rounded-(--pill) bg-function-warning-background px-1.5 py-px type-label-semibold-xs text-function-warning-default">
-                        {entry.excluded === "type" ? "제외 · 지원하지 않는 형식" : "제외 · 너무 큼"}
+                        {entry.excluded === "type" ? "제외 · 지원하지 않는 형식" : "제외 · 용량 초과"}
                       </span>
                     ) : null}
                     <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness tabular-nums">
@@ -292,7 +286,7 @@ export function UploadModal({
                 {counts.duplicates > 0 && (
                   <>
                     <span>
-                      {includeDuplicates ? "이미 있는 사진도 올림" : "이미 있는 사진 건너뜀"} {counts.duplicates}
+                      {includeDuplicates ? "이미 있는 사진도 올림" : "이미 있는 사진 건너뜀"} {counts.duplicates}장
                     </span>
                     <button
                       type="button"
@@ -317,7 +311,7 @@ export function UploadModal({
         {entries.length > 0 && (
           <div className="flex gap-2">
             <Button kind="ghost" onClick={() => inputRef.current?.click()} className="flex-1">
-              폴더에서 더 가져오기
+              사진 더 가져오기
             </Button>
             <Button onClick={start} disabled={counts.valid === 0 || overPlan} className="flex-1">
               {counts.valid > 0 ? `${counts.valid}장 업로드하기` : "업로드하기"}

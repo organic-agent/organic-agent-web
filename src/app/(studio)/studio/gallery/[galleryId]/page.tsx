@@ -1207,7 +1207,6 @@ export default function StudioGalleryShellPage() {
       {folderModal && folderModal.kind !== "delete" && (
         <FolderNameModal
           kind={folderModal.kind === "createConcept" || folderModal.kind === "renameConcept" ? "concept" : "detail"}
-          parentName={folderModal.kind === "createDetail" ? folderModal.concept.name : undefined}
           currentName={
             folderModal.kind === "renameConcept"
               ? folderModal.concept.name

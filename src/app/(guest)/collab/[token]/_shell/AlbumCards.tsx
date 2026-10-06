@@ -104,7 +104,7 @@ export function AlbumCards({
                     <span>{a.photoCount}장</span>
                     <span className="inline-flex items-center gap-1 text-brand-secondary-dark">
                       <HeartFillIcon size={13} />
-                      내 하트 {my}
+                      좋아요 {my}
                     </span>
                   </span>
                 </span>

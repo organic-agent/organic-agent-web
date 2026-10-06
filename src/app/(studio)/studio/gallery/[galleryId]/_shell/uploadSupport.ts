@@ -90,14 +90,14 @@ export function releasePrepared(file: File) {
 const UPLOAD_MESSAGE: Record<string, string> = {
   PHOTO_400_1: "한 번에 올릴 수 있는 장수를 넘었어요. 나눠서 올려 주세요.",
   PHOTO_400_2: "지원하지 않는 형식이 있어요. JPG · PNG · WebP · HEIC만 올릴 수 있어요.",
-  PHOTO_400_7: "사진 한 장의 크기가 20MB를 넘었어요. 줄여서 다시 올려 주세요.",
-  PHOTO_400_8: "사진 검증값이 올바르지 않아요. 다시 시도해 주세요.",
+  PHOTO_400_7: "20MB를 넘는 사진은 올릴 수 없어요",
+  PHOTO_400_8: "사진이 업로드 중 손상됐어요. 다시 올려 주세요.",
   PHOTO_409_1: "이미 올라간 사진이 섞여 있어요. 목록을 새로 불러 주세요.",
   GALLERY_409_3: "플랜에서 올릴 수 있는 사진 수를 넘었어요.",
-  GALLERY_403_1: "이 갤러리에 사진을 올릴 권한이 없어요.",
-  GALLERY_403_6: "보관된 갤러리라 더 올릴 수 없어요.",
-  RECOMMENDATION_409_2: "업로드가 끝난 사진이 없어 AI 정리를 시작할 수 없어요.",
-  PHOTO_503_1: "이 서버에는 AI 정리 실행기가 아직 설정되지 않았어요.",
+  GALLERY_403_1: "이 갤러리에는 사진을 올릴 수 없어요",
+  GALLERY_403_6: "이용 기간이 끝났거나 마무리한 갤러리라 바꿀 수 없어요",
+  RECOMMENDATION_409_2: "업로드가 끝난 사진이 없어 AI 분석을 시작할 수 없어요.",
+  PHOTO_503_1: "지금은 AI 분석을 쓸 수 없어요. 잠시 뒤 다시 시도해 주세요.",
 };
 
 export function describeUploadError(error: unknown): string {

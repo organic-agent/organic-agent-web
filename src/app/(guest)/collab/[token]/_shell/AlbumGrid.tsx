@@ -7,7 +7,7 @@
  * 그리드는 작가 · 부부 셸의 PhotoGrid 그대로(선택 없음). 타일 클릭 = 싱글뷰 열기(게스트는 선택이 없다). 타일에는 내가 누른
  * 하트만 올리브로 — 다른 사람 좋아요 수는 보이지 않는다(2026-09-13). 공유폴더가 1개면 ← 와 드롭다운이 없다.
  * "모든 사진"은 앨범을 합치되 겹치는 사진은 한 번(내 하트가 붙은 쪽 우선). 좋아요는 낙관적으로 바꾸고 실패하면 되돌린다.
- * writable=false면 위에 배너 한 줄, 싱글뷰의 하트 · 댓글 자리는 잠금.
+ * writable=false면 위에 배너 한 줄, 싱글뷰의 댓글 자리는 잠금. 좋아요는 likable로 따로 — 선택 마감이 지나도 누를 수 있다.
  * 헤더 · 배너 · 그리드는 다른 화면처럼 max-w-wrap(1080) + px-6 컨테이너에 가운데 — 넓은 화면에서 사진이 끝까지 붙지 않게
  * (2026-09-15, 이슈 67).
  */
@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { DEFAULT_ZOOM } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
-import { Snackbar } from "@/components/app/Snackbar";
+import { Snackbar, type SnackbarKind } from "@/components/app/Snackbar";
 import { BackIcon, DropdownIcon, FolderIcon, HeartFillIcon, LockIcon, PhotoIcon, SwapVertIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api/client";
 import type { CollabPhotoResponse } from "@/lib/api/collab";
@@ -34,6 +34,7 @@ export function AlbumGrid({
   loading,
   error,
   writable,
+  likable,
   mineOnly,
   onMineOnlyChange,
   onBack,
@@ -48,8 +49,10 @@ export function AlbumGrid({
   photosByToken: ReadonlyMap<string, CollabPhotoResponse[]>;
   loading: boolean;
   error: boolean;
-  /** false면 부부가 고르기를 마친 것 — 좋아요 · 댓글 잠금 */
+  /** false면 선택 마감이 지난 것 — 댓글 잠금 */
   writable: boolean;
+  /** false면 갤러리가 마무리된 것 — 좋아요도 잠금 */
+  likable: boolean;
   mineOnly: boolean;
   onMineOnlyChange: (v: boolean) => void;
   /** 앨범 여러 개일 때만 — 홈으로 */
@@ -66,7 +69,7 @@ export function AlbumGrid({
   const [ddOpen, setDdOpen] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [lastViewedId, setLastViewedId] = useState<number | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; kind: SnackbarKind } | null>(null);
   const ddRef = useRef<HTMLDivElement>(null);
   const noticeTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
@@ -114,8 +117,8 @@ export function AlbumGrid({
   const tokenOf = (photoId: number) => tokenById.get(photoId) ?? (current === ALL_ALBUMS ? albums[0]?.collabToken ?? "" : current);
   const lightboxIndex = openIndex === null ? null : shown.length === 0 ? null : Math.min(openIndex, shown.length - 1);
 
-  function showNotice(text: string) {
-    setNotice(text);
+  function showNotice(text: string, kind: SnackbarKind = "error") {
+    setNotice({ text, kind });
     window.clearTimeout(noticeTimer.current);
     noticeTimer.current = window.setTimeout(() => setNotice(null), 2400);
   }
@@ -144,7 +147,7 @@ export function AlbumGrid({
     } catch (err) {
       onPatchPhoto(token, p.photoId, apply(!next));
       if (isGuestNotIdentified(err)) onNeedName();
-      else showNotice(err instanceof ApiError ? err.message : "잠시 뒤 다시 시도해 주세요");
+      else showNotice(err instanceof ApiError ? err.message : "좋아요를 남기지 못했어요 · 잠시 뒤 다시 시도해 주세요");
     }
   }
 
@@ -218,7 +221,7 @@ export function AlbumGrid({
             className={`inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-(--pill) px-3 whitespace-nowrap type-label-medium-s transition-colors duration-fast ${mineOnly ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-default-medium text-contents-light-bgd-default hover:bg-surface-default-light"}`}
           >
             <HeartFillIcon size={16} className={mineOnly ? "" : "text-brand-secondary-default"} />
-            내 하트
+            좋아요한 사진
             <b className={`font-medium tabular-nums ${mineOnly ? "text-contents-dark-bgd-default/80" : "text-contents-light-bgd-sub"}`}>{likedIds.size}</b>
           </button>
           <button
@@ -237,13 +240,20 @@ export function AlbumGrid({
         <div className="mx-auto mb-2 w-full max-w-wrap px-6">
           <div className="flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
             <LockIcon size={18} className="text-contents-light-bgd-sub" />
-            <b className="font-semibold">부부가 사진 고르기를 마쳤어요</b>
+            {likable ? (
+              <>
+                <b className="font-semibold">사진 선택이 끝났어요</b>
+                <span className="text-contents-light-bgd-sub">댓글은 더 남길 수 없어요 · 좋아요는 계속 누를 수 있어요</span>
+              </>
+            ) : (
+              <b className="font-semibold">갤러리가 마무리되어 좋아요와 댓글을 더 남길 수 없어요</b>
+            )}
           </div>
         </div>
       )}
       <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto" aria-busy={loading || undefined}>
         {error && all.length === 0 ? (
-          <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">사진을 불러오지 못했어요</p>
+          <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">사진을 불러오지 못했어요 · 페이지를 새로 고쳐 주세요</p>
         ) : !loading && gridPhotos.length === 0 ? (
           <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{mineOnly ? "좋아요한 사진이 없어요" : "사진이 없어요"}</p>
         ) : (
@@ -270,18 +280,20 @@ export function AlbumGrid({
           photos={shown}
           index={lightboxIndex}
           writable={writable}
+          likable={likable}
           tokenOf={tokenOf}
           guestTokenOf={guestTokenOf}
           onClose={close}
           onNavigate={setOpenIndex}
           onToggleLike={(p) => void toggleLike(p)}
+          onLockedLike={() => showNotice("갤러리가 마무리되어 좋아요를 누를 수 없어요", "info")}
           onCommentDelta={(p, d) => onPatchPhoto(tokenOf(p.photoId), p.photoId, (x) => ({ ...x, commentCount: Math.max(0, x.commentCount + d) }))}
           onNeedName={onNeedName}
         />
       )}
       {notice && (
-        <Snackbar kind="error" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
-          {notice}
+        <Snackbar kind={notice.kind} className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+          {notice.text}
         </Snackbar>
       )}
     </main>

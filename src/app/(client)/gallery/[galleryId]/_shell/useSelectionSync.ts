@@ -20,7 +20,14 @@ const POLL_MS = 15_000;
 
 const idsOf = (s: PhotoSelectionResponse | null) => new Set(s?.photos.map((p) => p.photo.photoId) ?? []);
 
-export function useSelectionSync(galleryId: number, editable: boolean, maxSelectable: number | null, onRejected?: (err: unknown) => void) {
+export function useSelectionSync(
+  galleryId: number,
+  editable: boolean,
+  maxSelectable: number | null,
+  onRejected?: (err: unknown) => void,
+  /** 개인 갤러리 — 장수를 다 채웠을 때 "추가 요청" 대신 설정에서 늘리라고 안내 */
+  personal = false,
+) {
   const [server, setServer] = useState<PhotoSelectionResponse | null>(null);
   const [local, setLocal] = useState<Set<number> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -150,7 +157,7 @@ export function useSelectionSync(galleryId: number, editable: boolean, maxSelect
     if (next.has(photoId)) next.delete(photoId);
     else {
       if (maxSelectable !== null && next.size >= maxSelectable) {
-        setNotice(`${maxSelectable}장까지 고를 수 있어요 · 더 고르려면 "선택 장수 추가 요청"`);
+        setNotice(personal ? `${maxSelectable}장까지 선택할 수 있어요 · 더 선택하려면 갤러리 설정에서 선택 장수를 늘려 주세요` : `${maxSelectable}장까지 고를 수 있어요 · 더 고르려면 "선택 장수 추가 요청"`);
         return;
       }
       next.add(photoId);

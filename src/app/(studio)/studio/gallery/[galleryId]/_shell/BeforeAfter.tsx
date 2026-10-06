@@ -14,7 +14,7 @@ export function BeforeAfter({
   before,
   after,
   beforeLabel = "원본",
-  afterLabel = "결과",
+  afterLabel = "보정본",
   mode = "slider",
   className = "",
 }: {
@@ -66,7 +66,7 @@ export function BeforeAfter({
         max={100}
         value={pos}
         onChange={(e) => setPos(Number(e.target.value))}
-        aria-label="원본과 결과 나누는 위치"
+        aria-label="원본과 보정본 나누는 위치"
         className="absolute inset-0 size-full cursor-ew-resize opacity-0"
       />
       <span className="pointer-events-none absolute bottom-2.5 left-2.5 rounded-(--pill) bg-black/55 px-2 py-0.5 type-label-medium-xs text-white">{beforeLabel}</span>

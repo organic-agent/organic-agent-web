@@ -17,6 +17,7 @@ export function RoundList({
   maxRounds,
   onSelect,
   onChangeRounds,
+  personal = false,
 }: {
   rounds: RetouchRoundSummaryResponse[];
   activeRoundNo: number | null;
@@ -24,6 +25,8 @@ export function RoundList({
   maxRounds: number | null;
   onSelect: (roundNo: number) => void;
   onChangeRounds?: () => void;
+  /** 개인 갤러리 — 다시 요청이 없어 횟수 · 상태 칩을 숨긴다(문구 점검 C11) */
+  personal?: boolean;
 }) {
   const tag: Record<RetouchRoundSummaryResponse["status"], { label: string; cls: string }> = {
     DRAFTING: { label: "작성 중", cls: "bg-surface-default-light text-contents-light-bgd-weakness" },
@@ -35,7 +38,7 @@ export function RoundList({
       <p className="flex items-center gap-1.5 px-2.5 pt-1 pb-1 type-label-semibold-xs whitespace-nowrap text-contents-light-bgd-weakness">
         회차
         <span aria-hidden className="h-px min-w-3 flex-1 bg-divider-default" />
-        <span className="type-content-xs tabular-nums">{maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}</span>
+        {!personal && <span className="type-content-xs tabular-nums">{maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}</span>}
         {onChangeRounds && (
           <button type="button" onClick={onChangeRounds} className="cursor-pointer type-content-xs text-brand-secondary-dark underline underline-offset-2">
             횟수 바꾸기
@@ -59,7 +62,7 @@ export function RoundList({
           >
             {r.roundNo}차 보정
             <span className="type-content-xs text-contents-light-bgd-weakness">{r.photoCount}장</span>
-            <span className={`ml-auto rounded-(--pill) px-1.5 py-px type-label-semibold-xs ${tag[r.status].cls}`}>{tag[r.status].label}</span>
+            {!personal && <span className={`ml-auto rounded-(--pill) px-1.5 py-px type-label-semibold-xs ${tag[r.status].cls}`}>{tag[r.status].label}</span>}
           </button>
         );
       })}

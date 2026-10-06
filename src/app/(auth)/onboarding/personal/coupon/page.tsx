@@ -137,7 +137,7 @@ function PersonalCoupon() {
       setSubmitting(false);
       setBanner(
         coupon.status === "USED"
-          ? "이미 사용한 쿠폰이에요. 갤러리 목록에서 확인해 주세요."
+          ? "이미 사용한 쿠폰이에요"
           : "지금은 사용할 수 없는 쿠폰이에요. 보내 준 사람에게 확인해 주세요.",
       );
     } catch (err) {
@@ -162,7 +162,7 @@ function PersonalCoupon() {
           </h1>
           <p className="type-content-m text-contents-light-bgd-sub">
             {pro
-              ? `등록하면 ${planDurationLabel(pro)} · ${formatAmount(pro.maxPhotoCount)}장 갤러리를 바로 만들 수 있어요.`
+              ? `등록하면 프로 · ${planDurationLabel(pro)} · ${formatAmount(pro.maxPhotoCount)}장 갤러리를 바로 만들 수 있어요.`
               : "등록하면 프로 갤러리를 바로 만들 수 있어요."}
           </p>
 

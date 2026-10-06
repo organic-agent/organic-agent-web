@@ -256,7 +256,7 @@ export function Lightbox({
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-label={`${photo.originalFileName} 한 장 보기`}
+      aria-label={`${photo.originalFileName} 크게 보기`}
       className="fixed inset-0 z-40 flex bg-black/75 p-7 outline-none backdrop-blur-[2px]"
       onClick={(e) => {
         // 마우스로 누른 뒤에는 초점을 싱글뷰로 되돌린다(키보드로 누른 클릭은 detail이 0)

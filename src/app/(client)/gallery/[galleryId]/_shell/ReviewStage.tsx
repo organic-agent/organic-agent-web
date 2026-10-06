@@ -27,19 +27,16 @@ import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/Up
 import { type ResultAssignment, useResultUpload } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useResultUpload";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { hasMemo, normalizeRoundItems, type RetouchItem } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/roundItems";
-import { saveBlob } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/retouchDownload";
 import { RoundList } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/RoundList";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { useRetouchOverview, useRetouchRoundDetail } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useRetouchOverview";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
-import { ApiError } from "@/lib/api/client";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
-import { downloadSelectionCsv } from "@/lib/api/selection";
 import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
 import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { PersonalReviewCoachMarks } from "./PersonalReviewCoachMarks";
@@ -55,7 +52,7 @@ import { useGuestSharing } from "./useGuestSharing";
 
 type Tab = "none" | "compare" | "request" | "info";
 const TABS: LightboxTabDef[] = [
-  { key: "compare", label: "전/후", icon: <CompareIcon size={18} /> },
+  { key: "compare", label: "비교", icon: <CompareIcon size={18} /> },
   { key: "request", label: "내 요청", icon: <EditNoteIcon size={18} /> },
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
 ];
@@ -153,21 +150,6 @@ export function ReviewStage({
   const selectedIds = useMemo(() => new Set(items.map((it) => it.photo.photoId)), [items]);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds: selectedIds, inviteOpen, onInviteClose, personal: personal && owner ? { galleryTitle: gallery.title } : undefined });
   const itemById = useMemo(() => new Map(items.map((it) => [it.photo.photoId, it])), [items]);
-  // 선택 목록 CSV — "선택한 사진" 보기에서(전달한 뒤에도 남는 기록, 2단계에서 옮겨 옴)
-  const [csvBusy, setCsvBusy] = useState(false);
-  const [csvNotice, setCsvNotice] = useState<string | null>(null);
-  async function downloadCsv() {
-    if (csvBusy) return;
-    setCsvBusy(true);
-    setCsvNotice(null);
-    try {
-      saveBlob(await downloadSelectionCsv(galleryId), `${gallery.title} 선택 목록.csv`);
-    } catch (err) {
-      setCsvNotice(err instanceof ApiError ? err.message : "내려받지 못했어요 · 다시 시도해 주세요");
-    } finally {
-      setCsvBusy(false);
-    }
-  }
   const memoCount = items.filter(hasMemo).length;
 
   // ── 하위 상태 ──
@@ -261,8 +243,8 @@ export function ReviewStage({
     if (!overview) return { text: overviewError ?? "불러오는 중…", tone: overviewError ? "error" : "muted" };
     if (personal) {
       if (archived) return { text: planExpired ? "이용 기간 끝 · 보관됨" : "마무리 · 보관됨", tone: "muted" };
-      if (resultCount === 0) return { text: "요청서 내보냄 · 보정본 기다리는 중", tone: "muted" };
-      return { text: `보정본 ${resultCount} / ${items.length}장 · 전/후 확인`, tone: "accent" };
+      if (resultCount === 0) return { text: "선택 완료 · 보정본 기다리는 중", tone: "muted" };
+      return { text: `보정본 ${resultCount} / ${items.length}장 · 원본과 비교할 수 있어요`, tone: "accent" };
     }
     if (archived) return { text: `보정 확정 · ${rounds.length}회 · 보관됨`, tone: "muted" };
     if (waiting) return { text: `${roundLabel} 보정 중${remaining !== null ? ` · 남은 횟수 ${remaining}` : ""}`, tone: "muted" };
@@ -272,27 +254,26 @@ export function ReviewStage({
   const banner = (() => {
     if (!overview) return null;
     if (personal) {
-      if (archived && planExpired) return { tone: "err" as const, icon: <ScheduleIcon size={18} />, text: <><b className="font-semibold">이용 기간이 끝나 갤러리를 보관했어요</b> · 열람 · 내려받기만 할 수 있어요</> };
-      if (archived) return { tone: "lock" as const, icon: <ArchiveIcon size={18} />, text: <><b className="font-semibold">갤러리를 마무리했어요</b> · 보관 상태라 열람 · 내려받기만 할 수 있어요</> };
-      if (resultCount === 0) return { tone: "lock" as const, icon: <LockIcon size={18} />, text: <><b className="font-semibold">요청서를 내보냈어요 · {items.length}장</b> — 선택은 잠겼고, 보정본을 올리면 전/후로 볼 수 있어요</> };
-      return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정본 {resultCount} / {items.length}장</b> · 타일을 누르면 전/후를 비교해요</> };
+      if (archived && planExpired) return { tone: "err" as const, icon: <ScheduleIcon size={18} />, text: <><b className="font-semibold">이용 기간이 끝나 갤러리를 보관했어요.</b> 열람 · 내려받기만 할 수 있어요.</> };
+      if (archived) return { tone: "lock" as const, icon: <ArchiveIcon size={18} />, text: <><b className="font-semibold">갤러리를 마무리했어요.</b> 열람 · 내려받기만 할 수 있어요.</> };
+      if (resultCount === 0) return { tone: "lock" as const, icon: <LockIcon size={18} />, text: <><b className="font-semibold">선택을 마쳤어요 · {items.length}장</b> · 받은 보정본을 올리면 원본과 비교할 수 있어요</> };
+      return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정본 {resultCount} / {items.length}장</b> · 사진을 누르면 원본과 보정본을 비교해요</> };
     }
     if (archived) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정이 확정됐어요</b> · 갤러리는 보관됐고 보정본은 언제든 내려받을 수 있어요</> };
     if (waiting) return { tone: "info" as const, icon: <HourglassIcon size={18} />, text: <><b className="font-semibold">작가가 {roundLabel} 보정을 하고 있어요</b>{memoCount > 0 ? ` · 요청 ${memoCount}장` : ""} · 결과가 오면 알림으로 알려 드려요</> };
-    if (picking) return { tone: "ok" as const, icon: <EditNoteIcon size={18} />, text: <><b className="font-semibold">다시 고칠 사진을 체크하고</b>, 한 장 보기의 요청 탭에서 결과 사진 위에 점을 찍어 적어 주세요</> };
+    if (picking) return { tone: "ok" as const, icon: <EditNoteIcon size={18} />, text: <><b className="font-semibold">다시 고칠 사진을 체크하고</b>, 크게 보기의 요청 탭에서 결과 사진 위에 점을 찍어 적어 주세요</> };
     if (resultArrived && isLatest) return { tone: "ok" as const, icon: <BrushIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 보정 결과 {items.length}장이 도착했어요</b> · {shortDate(activeSummary?.completedAt ?? null)} · 전/후로 확인하고 더 고칠 곳이 있으면 다시 요청하세요{remaining !== null ? `(남은 ${remaining}회)` : ""}</> };
     return null;
   })();
+  // 개인은 배너가 같은 말을 하니 하단 안내는 장수만(문구 점검 C22)
   const bottomHint = personal
-    ? archived
-      ? "보관된 갤러리예요 · 열람 · 내려받기만 할 수 있어요"
-      : resultCount === 0
-        ? "요청서를 작가에게 보내고, 받은 보정본을 올리면 전/후로 볼 수 있어요"
-        : `보정본 ${resultCount} / ${items.length}장${allDone ? "" : ` · ${items.length - resultCount}장은 아직`} · 타일을 누르면 전/후를 비교해요`
+    ? archived || resultCount === 0
+      ? null
+      : `보정본 ${resultCount} / ${items.length}장${allDone ? "" : ` · ${items.length - resultCount}장은 아직`}`
     : archived
     ? "보정이 끝났어요 · 갤러리는 보관 상태라 열람만 할 수 있어요"
     : waiting
-      ? "결과가 오면 알림으로 알려 드려요 · 보낸 요청은 한 장 보기의 내 요청 탭에서 볼 수 있어요"
+      ? "결과가 오면 알림으로 알려 드려요 · 보낸 요청은 크게 보기의 내 요청 탭에서 볼 수 있어요"
       : resultArrived
         ? "다 확인했으면 확정하고, 더 고칠 곳이 있으면 다시 요청해요"
         : "";
@@ -321,7 +302,7 @@ export function ReviewStage({
         </span>
         보정 사진
         <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
-          {roundLabel} {resultArrived ? "결과" : "요청"} · {items.length}장{!resultArrived && memoCount > 0 ? ` · 메모 ${memoCount}` : ""}
+          {roundLabel} {resultArrived ? "보정본" : "요청"} · {items.length}장{!resultArrived && memoCount > 0 ? ` · 보정 요청 ${memoCount}` : ""}
         </small>
       </>
     );
@@ -399,6 +380,7 @@ export function ReviewStage({
                     activeRoundNo={activeRoundNo}
                     remaining={remaining}
                     maxRounds={maxRounds}
+                    personal={personal}
                     onSelect={(n) => {
                       setSelectedRoundNo(n);
                       setView("retouch");
@@ -415,7 +397,7 @@ export function ReviewStage({
                 folders && folders.length > 0 ? (
                   <ClientFolderTree folders={folders} pickedIds={selectedIds} unsortedIds={new Set()} filter={ALL_FILTER} onFocus={() => {}} onToggle={() => {}} />
                 ) : (
-                  <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요.</p>
+                  <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요</p>
                 ),
               share: sharing.shareTab,
             }}
@@ -468,7 +450,7 @@ export function ReviewStage({
               )}
               <div data-coach="results" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                 {gridPhotos.length === 0 ? (
-                  <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{view === "retouch" ? "보정 회차가 아직 없어요" : "사진이 없어요"}</p>
+                  <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">{view === "retouch" ? (personal ? "아직 선택을 마치지 않았어요" : "보정 회차가 아직 없어요") : "사진이 없어요"}</p>
                 ) : (
                   <PhotoGrid
                     photos={gridPhotos}
@@ -482,7 +464,7 @@ export function ReviewStage({
                     toggleOn="check"
                     captionOf={(p) => {
                       const it = itemById.get(p.photoId);
-                      if (view === "retouch" && it) return hasMemo(it) ? it.requestText?.trim() || it.points[0]?.text || `점 ${it.points.length}` : "요청 메모 없음";
+                      if (view === "retouch" && it) return hasMemo(it) ? it.requestText?.trim() || it.points[0]?.text || `핀 ${it.points.length}` : "보정 요청 없음";
                       return folderNameOf(p);
                     }}
                     overlayOf={overlayOf}
@@ -500,18 +482,7 @@ export function ReviewStage({
         selectionCount={0}
         onClearSelection={() => {}}
         onMoveSelection={() => {}}
-        hint={
-          csvNotice ? (
-            <button type="button" onClick={() => setCsvNotice(null)} className="cursor-pointer text-left text-function-warning-default">
-              {csvNotice}
-            </button>
-          ) : picking ? (
-            `고칠 사진을 담고 요청을 적은 뒤 보내요${remaining !== null ? ` · 남은 횟수 ${remaining} 중 1을 써요` : ""}`
-          ) : (
-            bottomHint
-          )
-        }
-        hintIsNotice={csvNotice !== null}
+        hint={picking ? `고칠 사진을 담고 요청을 적은 뒤 보내요${remaining !== null ? ` · 남은 횟수 ${remaining} 중 1을 써요` : ""}` : bottomHint}
         progress={
           upload.state.running ? (
             <ProgressBar
@@ -537,12 +508,6 @@ export function ReviewStage({
         }
         actions={
           <>
-          {view === "selected" && !picking && (
-            <ShellCta kind="outline" disabled={csvBusy || items.length === 0} onClick={() => void downloadCsv()}>
-              <DownloadIcon size={18} />
-              {csvBusy ? "내려받는 중…" : "선택 목록 (CSV)"}
-            </ShellCta>
-          )}
           {personal ? (
             archived ? (
               <>
@@ -552,17 +517,17 @@ export function ReviewStage({
                 </span>
                 <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
                   <DownloadIcon size={18} />
-                  보정본 내려받기 (ZIP)
+                  보정본 내려받기
                 </ShellCta>
               </>
             ) : (
               <>
-                {resultCount === 0 ? (
-                  <ShellCta kind="outline" disabled={items.length === 0} onClick={() => setRequestDownloadOpen(true)}>
-                    <DownloadIcon size={18} />
-                    내려받기
-                  </ShellCta>
-                ) : (
+                {/* 요청서는 보정본을 올린 뒤에도 받을 수 있어야 한다("이어서 요청서를 내려받아요"의 약속 — 문구 점검 C10) */}
+                <ShellCta kind="outline" disabled={items.length === 0} onClick={() => setRequestDownloadOpen(true)}>
+                  <DownloadIcon size={18} />
+                  요청서 내려받기
+                </ShellCta>
+                {resultCount > 0 && (
                   <ShellCta kind="outline" onClick={() => setDownloadOpen(true)}>
                     <DownloadIcon size={18} />
                     보정본 내려받기
@@ -619,7 +584,7 @@ export function ReviewStage({
               </span>
               <ShellCta kind="outline" disabled={resultCount === 0} onClick={() => setDownloadOpen(true)}>
                 <DownloadIcon size={18} />
-                보정본 내려받기 (ZIP)
+                보정본 내려받기
               </ShellCta>
             </>
           ) : resultArrived && !isLatest ? (
@@ -730,7 +695,7 @@ export function ReviewStage({
           photo={currentItem?.photo ?? currentPhoto}
           index={currentIndex}
           total={gridPhotos.length}
-          caption={[folderNameOf(currentPhoto), currentItem ? (hasMemo(currentItem) ? "내 요청 있음" : "요청 메모 없음") : null].filter(Boolean).join(" · ") || null}
+          caption={[folderNameOf(currentPhoto), currentItem ? (hasMemo(currentItem) ? "내 요청 있음" : "보정 요청 없음") : null].filter(Boolean).join(" · ") || null}
           tab={currentItem ? tab : "none"}
           tabs={currentItem ? (picking ? TABS.map((t) => (t.key === "request" ? { ...t, label: "다시 요청" } : t)) : TABS) : []}
           onTabChange={(next) => setTab(next as Tab)}
@@ -753,14 +718,14 @@ export function ReviewStage({
             ) : currentItem ? (
               <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${currentItem.resultUrl ? "bg-function-success-default text-white" : "text-white/60"}`}>
                 {currentItem.resultUrl ? <CheckCircleIcon size={14} /> : <HourglassIcon size={14} />}
-                {currentItem.resultUrl ? `${roundLabel} 결과` : "보정 중"}
+                {currentItem.resultUrl ? `${roundLabel} 보정본` : "보정 중"}
               </span>
             ) : undefined
           }
           photoNode={
             currentItem?.resultUrl && currentItem.photo.viewUrl
               ? tab === "compare"
-                ? <BeforeAfter before={currentItem.photo.viewUrl} after={currentItem.resultUrl} afterLabel={`${roundLabel} 결과`} mode={compareMode} />
+                ? <BeforeAfter before={currentItem.photo.viewUrl} after={currentItem.resultUrl} afterLabel={`${roundLabel} 보정본`} mode={compareMode} />
                 : // eslint-disable-next-line @next/next/no-img-element
                   <img src={currentItem.resultUrl} alt={currentItem.photo.originalFileName} draggable={false} className="block max-h-[calc(100dvh-56px)] max-w-full rounded-(--radius-12) object-contain" />
               : undefined
@@ -805,7 +770,7 @@ export function ReviewStage({
                         </button>
                       ))}
                     </div>
-                    <p className="type-content-xs text-contents-light-bgd-weakness">고칠 곳이 남았으면 하단 &ldquo;다시 요청하기&rdquo;로 이 사진을 담아요.</p>
+                    {!personal && <p className="type-content-xs text-contents-light-bgd-weakness">고칠 곳이 남았으면 하단 &ldquo;다시 요청하기&rdquo;로 이 사진을 담아요.</p>}
                   </>
                 ) : (
                   <p className="type-content-s text-contents-light-bgd-sub">아직 결과가 없어요. 작가가 보정을 마치면 여기서 전/후를 비교할 수 있어요.</p>
@@ -821,7 +786,7 @@ export function ReviewStage({
                     <RetouchPanel galleryId={galleryId} photoId={currentItem.photo.photoId} picked={picked.has(currentItem.photo.photoId)} editable />
                   </>
                 ) : (
-                  <MyRequestPanel item={currentItem} roundLabel={roundLabel} />
+                  <MyRequestPanel item={currentItem} roundLabel={roundLabel} personal={personal} />
                 )
               ) : (
                 <PhotoInfoPanel galleryId={galleryId} photo={currentItem.photo} showViewed={false} score={currentItem.photo.score} editable={false} onRate={() => {}} />
@@ -837,12 +802,12 @@ export function ReviewStage({
 }
 
 /** 싱글뷰 "내 요청" 탭 — 보낸 요청 읽기 */
-function MyRequestPanel({ item, roundLabel }: { item: RetouchItem; roundLabel: string }) {
+function MyRequestPanel({ item, roundLabel, personal }: { item: RetouchItem; roundLabel: string; personal: boolean }) {
   if (!hasMemo(item))
     return (
       <div className="flex flex-col items-center gap-2 rounded-(--radius-12) border border-dashed border-border-default px-4 py-8 text-center">
-        <p className="type-content-s text-contents-light-bgd-sub">이 사진에는 요청 메모를 쓰지 않았어요</p>
-        <p className="type-content-xs text-contents-light-bgd-weakness">선택한 사진은 모두 기본 보정을 받아요</p>
+        <p className="type-content-s text-contents-light-bgd-sub">이 사진에는 보정 요청을 쓰지 않았어요</p>
+        {!personal && <p className="type-content-xs text-contents-light-bgd-weakness">선택한 사진은 모두 기본 보정을 받아요</p>}
       </div>
     );
   return (
@@ -861,7 +826,7 @@ function MyRequestPanel({ item, roundLabel }: { item: RetouchItem; roundLabel: s
               <li key={i} className="flex flex-col gap-1.5 rounded-(--radius-8) border border-border-default p-2.5">
                 <span className="flex items-center gap-2 type-label-semibold-s text-contents-light-bgd-default">
                   <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-white">{i + 1}</span>
-                  포인트 {i + 1}
+                  핀 {i + 1}
                 </span>
                 <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{refined ? pt.refinedText : pt.text}</p>
                 {refined && (
@@ -878,7 +843,7 @@ function MyRequestPanel({ item, roundLabel }: { item: RetouchItem; roundLabel: s
           })}
         </ol>
       )}
-      <p className="type-content-xs text-contents-light-bgd-weakness">{roundLabel}에 보낸 요청이에요.</p>
+      <p className="type-content-xs text-contents-light-bgd-weakness">{personal ? `${roundLabel} 요청서에 실린 내용이에요` : `${roundLabel}에 보낸 요청이에요.`}</p>
     </>
   );
 }

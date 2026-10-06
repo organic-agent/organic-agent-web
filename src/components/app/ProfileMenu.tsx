@@ -5,7 +5,7 @@
  * 위치: src/components/app/ProfileMenu.tsx
  *
  * 이름·이메일 → 워크스페이스(최근 활동순 4개, 현재 공간 표시) → 모두 보기(5개 이상) →
- * 새 공간 만들기 → 다크 모드 토글 → 설정(/settings) → 로그아웃.
+ * 워크스페이스 추가하기 → 다크 모드 토글 → 설정(/settings) → 로그아웃.
  * 열고 닫는 것과 바깥 클릭·ESC는 ProfileAvatarButton이 맡는다.
  */
 
@@ -161,7 +161,7 @@ export function ProfileMenu({
         />
       )}
       <MenuItem
-        label="새 공간 만들기"
+        label="워크스페이스 추가하기"
         icon={<PlusIcon size={20} />}
         onClick={() => go("/onboarding/role")}
       />
