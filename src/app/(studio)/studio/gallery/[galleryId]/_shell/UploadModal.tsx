@@ -15,19 +15,19 @@
  * 누르면 화면이 컨셉 수 모달을 이 모달 위에 다시 띄우고, 담아 둔 파일은 그대로 남는다(이슈 79).
  */
 
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { AddPhotoIcon, PhotoIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { UPLOAD_ISSUE_BATCH } from "@/lib/upload/masterSpec";
 import {
-  UPLOAD_ACCEPT_ATTR,
   UPLOAD_MAX_BYTES,
   formatBytes,
   isAcceptedUpload,
   prepareCached,
   uploadContentType,
 } from "./uploadSupport";
+import { expandUploadSelection, UPLOAD_SELECTION_ACCEPT_ATTR, uploadSelectionKey } from "./uploadSelection";
 
 type Entry = {
   key: string;
@@ -37,10 +37,6 @@ type Entry = {
 };
 
 const MAX_ROWS = 300;
-
-function entryKey(file: File) {
-  return `${file.name}::${file.size}::${file.lastModified}`;
-}
 
 export function UploadModal({
   existingCount,
@@ -68,6 +64,17 @@ export function UploadModal({
   const [dragOver, setDragOver] = useState(false);
   const dragDepthRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectionRef = useRef<AbortController | null>(null);
+  const [extracting, setExtracting] = useState<string | null>(null);
+  const [archiveExcluded, setArchiveExcluded] = useState({ type: 0, size: 0 });
+  const [archiveErrors, setArchiveErrors] = useState<string[]>([]);
+
+  useEffect(() => () => selectionRef.current?.abort(), []);
+  useEffect(() => {
+    // 첫 묶음만 미리 줄인다. 비동기 ZIP 추가는 최신 목록에 합친 뒤 준비한다.
+    entries.filter((entry) => entry.excluded === null).slice(0, UPLOAD_ISSUE_BATCH)
+      .forEach((entry) => void prepareCached(entry.file).catch(() => undefined));
+  }, [entries]);
 
   const counts = useMemo(() => {
     let valid = 0;
@@ -91,13 +98,10 @@ export function UploadModal({
   const remaining = planMaxPhotoCount === null ? null : Math.max(0, planMaxPhotoCount - existingCount);
   const overPlan = remaining !== null && counts.valid > remaining;
 
-  function addFiles(list: Iterable<File>) {
-    const seen = new Set(entries.map((e) => e.key));
+  function stageFiles(list: Iterable<File>) {
     const added: Entry[] = [];
     for (const file of list) {
-      const key = entryKey(file);
-      if (seen.has(key)) continue;
-      seen.add(key);
+      const key = uploadSelectionKey(file);
       // JPG는 2048로 줄여 올라가므로 원본이 커도 되지만(80MB까지), PNG · WebP · HEIC는 원본 그대로라 서버 상한 20MB에서 막는다
       const sizeLimit = uploadContentType(file) === "image/jpeg" ? UPLOAD_MAX_BYTES * 4 : UPLOAD_MAX_BYTES;
       const excluded: Entry["excluded"] = !isAcceptedUpload(file)
@@ -110,13 +114,38 @@ export function UploadModal({
       added.push({ key, file, excluded });
     }
     if (added.length === 0) return;
-    const next = [...entries, ...added];
-    setEntries(next);
-    // 첫 묶음은 뒤에서 미리 줄여 둔다 — 누른 즉시 첫 PUT이 나가도록(전부 줄이면 blob이 GB 단위라 첫 묶음만)
-    next
-      .filter((e) => e.excluded === null)
-      .slice(0, UPLOAD_ISSUE_BATCH)
-      .forEach((e) => void prepareCached(e.file).catch(() => undefined));
+    setEntries((prev) => {
+      const seen = new Set(prev.map((entry) => entry.key));
+      return [...prev, ...added.filter((entry) => {
+        if (seen.has(entry.key)) return false;
+        seen.add(entry.key);
+        return true;
+      })];
+    });
+  }
+
+  async function addFiles(list: Iterable<File>) {
+    if (selectionRef.current) return;
+    const controller = new AbortController();
+    selectionRef.current = controller;
+    setExtracting("사진을 확인하는 중…");
+    setArchiveErrors([]);
+    try {
+      const selection = await expandUploadSelection(Array.from(list), (name, done, total) => {
+        setExtracting(`${name} 압축을 푸는 중…${total > 0 ? ` ${done} / ${total}` : ""}`);
+      }, controller.signal);
+      controller.signal.throwIfAborted();
+      stageFiles(selection.files);
+      setArchiveExcluded((prev) => ({ type: prev.type + selection.excludedType, size: prev.size + selection.excludedSize }));
+      setArchiveErrors(selection.errors);
+    } catch {
+      if (!controller.signal.aborted) setArchiveErrors(["파일을 가져오지 못했어요. 다시 골라 주세요."]);
+    } finally {
+      if (!controller.signal.aborted) {
+        selectionRef.current = null;
+        setExtracting(null);
+      }
+    }
   }
 
   function removeEntry(key: string) {
@@ -140,20 +169,20 @@ export function UploadModal({
     e.preventDefault();
     dragDepthRef.current = 0;
     setDragOver(false);
-    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files.length > 0) void addFiles(e.dataTransfer.files);
   }
 
   function start() {
     const files = entries
       .filter((e) => e.excluded === null || (e.excluded === "duplicate" && includeDuplicates))
       .map((e) => e.file);
-    if (files.length === 0 || overPlan) return;
+    if (files.length === 0 || overPlan || selectionRef.current) return;
     onStart(files);
   }
 
   const excludedNote = [
-    counts.excludedType > 0 ? `지원하지 않는 형식 ${counts.excludedType}장` : null,
-    counts.excludedSize > 0 ? `용량 초과 ${counts.excludedSize}장(JPG 80MB · 그 밖 20MB까지)` : null,
+    counts.excludedType + archiveExcluded.type > 0 ? `지원하지 않는 형식 ${counts.excludedType + archiveExcluded.type}장` : null,
+    counts.excludedSize + archiveExcluded.size > 0 ? `용량 초과 ${counts.excludedSize + archiveExcluded.size}장(JPG 80MB · 그 밖 20MB까지)` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -169,11 +198,12 @@ export function UploadModal({
         <input
           ref={inputRef}
           type="file"
-          accept={UPLOAD_ACCEPT_ATTR}
+          accept={UPLOAD_SELECTION_ACCEPT_ATTR}
           multiple
+          disabled={extracting !== null}
           className="hidden"
           onChange={(e) => {
-            if (e.target.files?.length) addFiles(e.target.files);
+            if (e.target.files?.length) void addFiles(e.target.files);
             e.target.value = "";
           }}
         />
@@ -181,6 +211,7 @@ export function UploadModal({
         {entries.length === 0 ? (
           <button
             type="button"
+            disabled={extracting !== null}
             onClick={() => inputRef.current?.click()}
             className={`mb-6 grid w-full cursor-pointer place-items-center gap-1 rounded-(--radius-16) border-2 border-dashed py-14 text-center transition-colors duration-fast ${
               dragOver
@@ -191,8 +222,8 @@ export function UploadModal({
             <span className="mb-1 flex text-contents-light-bgd-weakness">
               <AddPhotoIcon size={36} />
             </span>
-            <p className="type-content-m text-contents-light-bgd-default">여기에 사진을 끌어다 놓아 주세요</p>
-            <p className="type-content-xs text-contents-light-bgd-sub">JPG · PNG · WebP · HEIC · 여러 장 한 번에</p>
+            <p className="type-content-m text-contents-light-bgd-default">여기에 사진이나 ZIP을 끌어다 놓아 주세요</p>
+            <p className="type-content-xs text-contents-light-bgd-sub">JPG · PNG · WebP · HEIC · ZIP · 여러 장 한 번에</p>
             <span className="mt-3 inline-flex h-9 items-center rounded-(--radius-8) border border-border-default px-4 type-label-medium-s text-contents-light-bgd-default">
               기기에서 사진 가져오기
             </span>
@@ -308,12 +339,22 @@ export function UploadModal({
           </>
         )}
 
+        {entries.length > 0 && <p className="mb-3 type-content-xs text-contents-light-bgd-sub">분할 ZIP은 모든 조각을 한 번에 선택해 주세요 (.z01 · .zip 또는 .zip.001 · .002)</p>}
+
+        {extracting && <p role="status" className="mb-4 break-words type-content-xs text-contents-light-bgd-sub">{extracting}</p>}
+        {entries.length === 0 && excludedNote && <p role="status" className="mb-4 type-content-xs text-contents-light-bgd-sub">제외 · {excludedNote}</p>}
+        {archiveErrors.length > 0 && (
+          <div role="alert" className="mb-4 break-words type-content-xs text-function-error-default">
+            {archiveErrors.map((error, index) => <p key={index}>{error}</p>)}
+          </div>
+        )}
+
         {entries.length > 0 && (
           <div className="flex gap-2">
-            <Button kind="ghost" onClick={() => inputRef.current?.click()} className="flex-1">
+            <Button kind="ghost" onClick={() => inputRef.current?.click()} disabled={extracting !== null} className="flex-1">
               사진 더 가져오기
             </Button>
-            <Button onClick={start} disabled={counts.valid === 0 || overPlan} className="flex-1">
+            <Button onClick={start} disabled={counts.valid === 0 || overPlan || extracting !== null} className="flex-1">
               {counts.valid > 0 ? `${counts.valid}장 업로드하기` : "업로드하기"}
             </Button>
           </div>
