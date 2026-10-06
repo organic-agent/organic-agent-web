@@ -277,6 +277,7 @@ export default function StudioGalleryShellPage() {
     {
       enabled: baseStageIndex === 0 && gallery !== null && (uploading || (photos?.length ?? 0) > 0),
       uploading,
+      getConceptCount: () => conceptCountRef.current,
     },
     {
       onDone: () => {
