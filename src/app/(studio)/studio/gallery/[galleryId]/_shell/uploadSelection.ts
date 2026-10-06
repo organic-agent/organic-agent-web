@@ -1,10 +1,19 @@
 import type { FileEntry } from "@zip.js/zip.js";
 import { groupZipSelection, type ZipSelection } from "@/lib/upload/splitZipSelection";
-import { UPLOAD_MAX_BYTES, isAcceptedUpload, uploadContentType } from "./uploadSupport";
+import { UPLOAD_ACCEPT_ATTR, UPLOAD_MAX_BYTES, isAcceptedUpload, uploadContentType } from "./uploadSupport";
 
-// 분할 파일 확장자(.z01, .zip.001 등)는 번호에 따라 달라 accept로 제한하면 일부 조각을 고를 수 없다.
-// 모든 조각을 고를 수 있게 하고, 실제 이미지 형식은 목록에 담을 때 검사한다.
-export const UPLOAD_SELECTION_ACCEPT_ATTR = "";
+const two = (n: number) => String(n).padStart(2, "0");
+const three = (n: number) => String(n).padStart(3, "0");
+/**
+ * 사진 선택창의 필터 — 이미지 형식에 ZIP과 분할 조각(.z01~.z99 · .zip.001~.099)을 더한다. 조각 확장자는 번호마다 달라
+ * 99개까지만 적는다. 실제 이미지 형식은 목록에 담을 때 다시 검사한다.
+ */
+export const UPLOAD_SELECTION_ACCEPT_ATTR = [
+  UPLOAD_ACCEPT_ATTR,
+  ".zip,application/zip,application/x-zip-compressed",
+  ...Array.from({ length: 99 }, (_, i) => `.z${two(i + 1)}`),
+  ...Array.from({ length: 99 }, (_, i) => `.${three(i + 1)}`),
+].join(",");
 export { isZipUpload } from "@/lib/upload/splitZipSelection";
 
 export type UploadSelection = {
@@ -22,6 +31,33 @@ export function uploadSelectionKey(file: File): string {
 }
 
 class OversizedZipPhoto extends Error {}
+
+const utf8Strict = new TextDecoder("utf-8", { fatal: true });
+/**
+ * 항목의 경로 — 한국 윈도우로 만든 ZIP은 이름이 CP949라 zip.js가 UTF-8로 읽으면 깨진다. UTF-8 표시가 없는 이름은
+ * 먼저 UTF-8로 엄격하게 풀어 보고, 안 되면 euc-kr(브라우저에서는 CP949와 같음)로 푼다.
+ */
+function entryPath(entry: FileEntry): string {
+  let path = entry.filename;
+  if (!entry.filenameUTF8 && entry.rawFilename) {
+    try {
+      path = utf8Strict.decode(entry.rawFilename);
+    } catch {
+      try {
+        path = new TextDecoder("euc-kr").decode(entry.rawFilename);
+      } catch {
+        // 브라우저가 euc-kr을 모르면 zip.js가 푼 이름 그대로
+      }
+    }
+  }
+  return path.replaceAll("\\", "/");
+}
+
+/** 경로의 마지막 조각(파일 이름)과 그 앞 폴더들 */
+function splitPath(path: string): { folders: string[]; name: string } {
+  const segments = path.split("/").filter(Boolean);
+  return { folders: segments.slice(0, -1), name: segments[segments.length - 1] ?? "" };
+}
 
 /** 조각 경계를 넘는 사진도 스트림으로 읽고, 실제 풀린 크기와 CRC를 검사한다. */
 async function extractPhoto(entry: FileEntry, maxBytes: number, signal?: AbortSignal): Promise<Blob> {
@@ -113,15 +149,23 @@ export async function expandUploadSelection(
       const archiveFiles: File[] = [];
       let failed = 0;
       let photos = 0;
+      // 다른 폴더에 같은 이름의 사진이 있으면 올릴 때 이름이 겹쳐 한쪽이 묻힌다 — 겹치는 이름에만 폴더 이름을 앞에 붙인다
+      const nameCount = new Map<string, number>();
+      for (const entry of entries) {
+        if (entry.directory) continue;
+        const { name } = splitPath(entryPath(entry));
+        nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
+      }
       for (let index = 0; index < entries.length; index += 1) {
         signal?.throwIfAborted();
         if (index % 10 === 0) onProgress?.(archive.name, index, entries.length);
         const entry = entries[index];
-        const path = entry.filename.replaceAll("\\", "/");
-        const segments = path.split("/");
-        const name = segments[segments.length - 1];
+        const path = entryPath(entry);
+        const { folders, name: baseName } = splitPath(path);
+        const segments = [...folders, baseName];
         // macOS가 만든 ._사진.jpg는 이미지가 아닌 리소스 포크다.
-        if (segments.includes("__MACOSX") || name === ".DS_Store" || name.startsWith("._")) continue;
+        if (segments.includes("__MACOSX") || baseName === ".DS_Store" || baseName.startsWith("._")) continue;
+        const name = (nameCount.get(baseName) ?? 0) > 1 && folders.length > 0 ? `${folders.join("_")}_${baseName}` : baseName;
         const type = uploadContentType(new File([], name));
         if (!isAcceptedUpload(new File([], name, { type }))) {
           result.excludedType += 1;
