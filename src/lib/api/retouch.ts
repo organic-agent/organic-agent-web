@@ -7,7 +7,7 @@
  * AI 정제(refine)는 원문을 바꾸지 않고 제안만 돌려준다 — LLM이 꺼졌거나 서버가 미리보기를 읽지 못하면 available=false.
  */
 
-import { api } from "@/lib/api/client";
+import { api, apiBlob } from "@/lib/api/client";
 
 export type RetouchPoint = {
   /** 사진 폭 · 높이에 대한 0~1 비율 */
@@ -92,7 +92,7 @@ export function refineRetouchText(
 
 /**
  * 초안 회차에 원본 사진 담기 — 회차가 없으면 이 호출이 만든다. 스튜디오 갤러리의 부부는 셀렉 제출에 requests[]로
- * 실어 보내므로 이 경로가 필요한 곳은 작가가 없는 개인 갤러리다(요청서 CSV를 내보내기 전).
+ * 실어 보내므로 이 경로가 필요한 곳은 작가가 없는 개인 갤러리다(요청서를 내보내기 전).
  * 이번 회차에 이미 담긴 사진이 섞이면 한 장도 담기지 않는다(409) — 부르는 쪽이 진행 중 회차의 사진을 빼고 보낸다.
  */
 export function addRetouchPhotos(galleryId: number, photoIds: number[]): Promise<unknown> {
@@ -171,6 +171,24 @@ export function getRetouchOverview(galleryId: number): Promise<RetouchOverviewRe
 /** 회차 하나의 항목 전부 — 원본 · 주석 · 결과 URL(전/후 비교) */
 export function getRetouchRound(galleryId: number, roundNo: number): Promise<RetouchRoundDetailResponse> {
   return api(`/api/v1/galleries/${galleryId}/retouch/rounds/${roundNo}`);
+}
+
+export type RetouchPdfScope = "all" | "noResult" | "memo";
+
+/** 해당 갤러리 · 회차 · 범위의 사진과 요청을 서버 PDF로 받는다. */
+export async function downloadRetouchPdf(
+  galleryId: number,
+  roundNo: number,
+  scope: RetouchPdfScope = "all",
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const pdf = await apiBlob(`/api/v1/galleries/${galleryId}/retouch/rounds/${roundNo}/requests.pdf?scope=${scope}`, {
+    signal,
+    headers: { Accept: "application/pdf" },
+  });
+  signal?.throwIfAborted();
+  if (await pdf.slice(0, 5).text() !== "%PDF-") throw new Error("요청서 PDF를 받지 못했습니다");
+  return pdf;
 }
 
 export type ResultMatch = {

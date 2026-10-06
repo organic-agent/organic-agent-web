@@ -4,10 +4,14 @@
  * 싱글뷰(라이트박스) — 사진 한 장 + 하단 컨트롤 한 줄 + 오른쪽 패널 (작가 · 클라이언트 공용)
  * 위치: src/components/app/Lightbox.tsx
  *
- * 하단 컨트롤: 이전 · [middle] · 다음 | 탭 아이콘들 (· 패널 닫기). 가운데 칸(middle)은 화면이 채운다 —
+ * 하단 컨트롤: 이전 | [middle] | 축소 · 확대 | 탭 아이콘들 | 다음 — 이전 · 다음은 줄의 양 끝에 둔다. 가운데 칸(middle)은 화면이 채운다 —
  * 클라이언트는 별점 + 선택 토글, 작가는 결과 상태. 패널이 열리면 사진과 패널이 사이를 띄우고 나란히 서고(둘 다 네 모서리 둥글게),
- * 닫으면 사진이 가운데 가득.
- * 키보드: ← → 넘기기, Esc는 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다. 그 밖의 키는 onKeyDown으로 넘긴다.
+ * 닫으면 사진이 가운데 가득. 패널은 패널 머리의 X · 같은 탭 아이콘 · Esc로 닫는다(컨트롤 줄에는 닫기 버튼을 두지 않는다).
+ * 탭 버튼 위에는 수를 얹을 수 있고(badge), 열 것이 없는 탭(empty)은 흐리게 두고 누르면 스낵바로만 알린다.
+ * 확대(zoom을 준 화면만, 이슈 88): 사진 더블클릭은 2배 ↔ 원래 크기, 휠은 1~4배, 컨트롤 줄의 축소 · 확대와 + · − 키는
+ * 한 단계씩. 확대한 채 끌어서 옮기고, 사진을 넘기면 풀린다. 확대하는 순간 원본 주소로 큰 사진을 받아 미리보기 위에 얹는다
+ * (받는 동안 스낵바로 알린다). 사진을 누르는 것이 점 찍기인 동안(onPhotoClick)은 더블클릭 확대를 끈다.
+ * 키보드: ← → 넘기기, Esc는 확대 중이면 확대를, 패널이 열려 있으면 패널을, 아니면 싱글뷰를 닫는다. 그 밖의 키는 onKeyDown으로 넘긴다.
  * 처음 · 끝에서는 돌아가지 않고 멈추며 스낵바로 알린다("마지막 사진이에요"). 화면이 띄울 알림(별점 저장 실패 등)은 notice로 받는다.
  * 마우스로 누른 버튼에는 초점을 남기지 않는다 — 남으면 다음 Space · Enter가 그 버튼을 다시 눌러 방금 매긴 별점이 지워졌다(2차 QA).
  * Tab으로 버튼에 초점을 둔 경우의 Space · Enter는 그 버튼만 누른다(단축키와 겹치지 않게).
@@ -18,10 +22,30 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Snackbar, type SnackbarKind } from "@/components/app/Snackbar";
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
+import { useLightboxZoom } from "@/components/app/useLightboxZoom";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ZoomInIcon, ZoomOutIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 
-export type LightboxTabDef = { key: string; label: string; icon: ReactNode };
+export type LightboxTabDef = {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  /** 버튼 위에 얹는 수(게스트 좋아요 수 등). 0이나 없음이면 안 그린다 */
+  badge?: number;
+  /** 지금은 열 것이 없는 패널 — 버튼을 흐리게 하고, 누르면 패널 대신 이 문구를 스낵바로 띄운다 */
+  empty?: string;
+};
+
+export type LightboxZoom = {
+  /** 확대할 때 바꿔 끼울 큰 사진의 주소를 받아 온다. 쓸 수 없으면 null — 미리보기를 그대로 확대한다 */
+  loadOriginal?: (photo: PhotoResponse) => Promise<string | null>;
+};
+
+/** 큰 사진 — 지금 보는 사진의 것만 든다. slow는 받는 데 시간이 걸려 알림을 띄울 때 */
+type Original = { photoId: number; status: "loading" | "slow" | "none" } | { photoId: number; status: "ready"; url: string };
+
+/** 큰 사진을 이보다 오래 받으면 알린다 — 금방 오면 알림이 깜빡이지 않게 */
+const ORIGINAL_NOTICE_AFTER_MS = 400;
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -77,6 +101,7 @@ export function Lightbox({
   onKeyDown,
   onImageError,
   notice = null,
+  zoom,
 }: {
   photo: PhotoResponse;
   index: number;
@@ -108,9 +133,58 @@ export function Lightbox({
   onImageError?: () => void;
   /** 컨트롤 위에 띄울 알림 — 띄우고 지우는 때는 부모가 정한다 */
   notice?: { kind: SnackbarKind; text: string } | null;
+  /** 사진 확대를 켠다. photoNode를 그리는 동안(전/후 비교)과 미리보기가 없을 때는 꺼진다 */
+  zoom?: LightboxZoom;
 }) {
   const open = tab !== "none";
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const zoomOn = zoom !== undefined && !photoNode && photo.viewUrl !== null;
+  const [original, setOriginal] = useState<Original | null>(null);
+  const shownOriginal = original?.photoId === photo.photoId ? original : null;
+
+  /** 확대하는 순간 큰 사진을 받는다 — 다 받아야 바꿔 끼운다(받는 중에 반쯤 그려진 사진이 보이지 않게) */
+  function startOriginal() {
+    const load = zoom?.loadOriginal;
+    if (!load || shownOriginal) return;
+    const photoId = photo.photoId;
+    const mine = (cur: Original | null) => cur?.photoId === photoId;
+    setOriginal({ photoId, status: "loading" });
+    const slow = window.setTimeout(
+      () => setOriginal((cur) => (mine(cur) && cur?.status === "loading" ? { photoId, status: "slow" } : cur)),
+      ORIGINAL_NOTICE_AFTER_MS,
+    );
+    load(photo)
+      .then(
+        (url) =>
+          new Promise<string>((resolve, reject) => {
+            if (!url) {
+              reject(new Error("원본 없음"));
+              return;
+            }
+            const img = new Image();
+            img.onload = () => resolve(url);
+            img.onerror = () => reject(new Error("원본을 그리지 못함"));
+            img.src = url;
+          }),
+      )
+      .then((url) => setOriginal((cur) => (mine(cur) ? { photoId, status: "ready", url } : cur)))
+      // 받지 못하면 미리보기를 그대로 확대한다 — 이 사진은 다시 받으려 하지 않는다
+      .catch(() => setOriginal((cur) => (mine(cur) ? { photoId, status: "none" } : cur)))
+      .finally(() => window.clearTimeout(slow));
+  }
+
+  const { stageRef, boxRef, ...z } = useLightboxZoom({
+    enabled: zoomOn,
+    photoKey: photo.photoId,
+    doubleClick: zoomOn && !onPhotoClick,
+    onZoomIn: startOriginal,
+  });
+  // 키 리스너는 아래 effect에 한 번 걸린다 — 확대의 최신 상태는 여기서 읽는다
+  const zoomRef = useRef(z);
+  useEffect(() => {
+    zoomRef.current = z;
+  });
 
   // 열릴 때 초점을 가져오고 닫힐 때 연 곳으로 돌려준다
   useEffect(() => {
@@ -121,7 +195,7 @@ export function Lightbox({
     };
   }, []);
 
-  /** 처음 · 끝에서 더 넘기려 할 때의 알림 — 누를 때마다 새 값이라 시간이 다시 잡힌다 */
+  /** 잠깐 띄우는 알림(처음 · 끝에서 더 넘기려 할 때, 열 것이 없는 탭을 눌렀을 때) — 누를 때마다 새 값이라 시간이 다시 잡힌다 */
   const [edge, setEdge] = useState<{ text: string } | null>(null);
   useEffect(() => {
     if (!edge) return;
@@ -154,15 +228,22 @@ export function Lightbox({
       if ((e.key === " " || e.key === "Enter") && e.target !== root && e.target instanceof HTMLElement && e.target.closest("button, a, summary")) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        if (open) onTabChange("none");
+        if (zoomRef.current.zoomed) zoomRef.current.reset();
+        else if (open) onTabChange("none");
         else onClose();
+      } else if (zoomOn && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        zoomRef.current.stepIn();
+      } else if (zoomOn && e.key === "-") {
+        e.preventDefault();
+        zoomRef.current.stepOut();
       } else if (e.key === "ArrowLeft") go(-1);
       else if (e.key === "ArrowRight") go(1);
       else onKeyDown?.(e);
     }
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [open, onClose, go, onTabChange, onKeyDown]);
+  }, [open, zoomOn, onClose, go, onTabChange, onKeyDown]);
 
   const title = tabs.find((t) => t.key === tab)?.label ?? "";
   const closeOnSelf = (e: React.MouseEvent) => {
@@ -175,7 +256,7 @@ export function Lightbox({
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-label={`${photo.originalFileName} 한 장 보기`}
+      aria-label={`${photo.originalFileName} 크게 보기`}
       className="fixed inset-0 z-40 flex bg-black/75 p-7 outline-none backdrop-blur-[2px]"
       onClick={(e) => {
         // 마우스로 누른 뒤에는 초점을 싱글뷰로 되돌린다(키보드로 누른 클릭은 detail이 0)
@@ -187,12 +268,24 @@ export function Lightbox({
       <div className={`relative z-10 mx-auto flex min-h-0 w-full max-w-360 ${open ? "" : "justify-center"}`} onClick={closeOnSelf}>
         {/* 사진 무대 — 사진 밖 빈 곳을 누르면 닫힌다 */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" onClick={closeOnSelf}>
-          <div className="relative flex min-h-0 flex-1 items-center justify-center" onClick={closeOnSelf}>
+          {/* 확대하면 사진이 이 영역 전체로 넓어지고 밖은 잘린다 */}
+          <div
+            ref={stageRef}
+            className={`relative flex min-h-0 flex-1 items-center justify-center ${z.zoomed ? "overflow-hidden rounded-(--radius-12)" : ""}`}
+            onClick={closeOnSelf}
+          >
             <div
-              className={`relative max-h-full max-w-full ${onPhotoClick ? "cursor-crosshair" : ""}`}
+              ref={boxRef}
+              {...(zoomOn ? z.boxProps : {})}
+              style={z.style}
+              className={`relative max-h-full max-w-full ${zoomOn ? "select-none" : ""} ${z.zoomed ? "touch-none" : ""} ${
+                zoomOn && z.smooth ? "motion-safe:transition-transform motion-safe:duration-fast" : ""
+              } ${onPhotoClick ? "cursor-crosshair" : z.zoomed ? (z.dragging ? "cursor-grabbing" : "cursor-grab") : ""}`}
               onClick={
                 onPhotoClick
                   ? (e) => {
+                      // 끌어서 옮긴 뒤의 클릭은 점 찍기가 아니다
+                      if (z.consumeDrag()) return;
                       const r = e.currentTarget.getBoundingClientRect();
                       onPhotoClick((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
                     }
@@ -212,14 +305,32 @@ export function Lightbox({
                 ) : (
                   <div className="grid h-105 w-160 place-items-center rounded-(--radius-12) bg-surface-default-light text-contents-light-bgd-weakness">미리보기 준비 중</div>
                 ))}
+              {/* 큰 사진은 미리보기 위에 같은 크기로 얹는다 — 자리는 미리보기가 잡아 사진 크기가 바뀌지 않는다 */}
+              {zoomOn && shownOriginal?.status === "ready" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={shownOriginal.url}
+                  alt=""
+                  aria-hidden
+                  draggable={false}
+                  className="pointer-events-none absolute inset-0 size-full rounded-(--radius-12) object-contain"
+                />
+              )}
               {overlay}
             </div>
           </div>
 
-          <span className="absolute top-3.5 left-3.5 rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
-            {index + 1} / {total}
-            {caption && <span className="text-white/60"> · {caption}</span>}
-          </span>
+          <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5">
+            <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
+              {index + 1} / {total}
+              {caption && <span className="text-white/60"> · {caption}</span>}
+            </span>
+            {z.zoomed && (
+              <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
+                {z.scale.toFixed(1)}×
+              </span>
+            )}
+          </div>
           {!open && (
             <button
               type="button"
@@ -231,9 +342,9 @@ export function Lightbox({
             </button>
           )}
 
-          {(notice ?? edge) && (
+          {(notice ?? edge ?? (z.zoomed && shownOriginal?.status === "slow" ? shownOriginal : null)) && (
             <Snackbar kind={notice?.kind ?? "info"} className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
-              {notice?.text ?? edge?.text}
+              {notice?.text ?? edge?.text ?? "큰 사진 불러오는 중"}
             </Snackbar>
           )}
 
@@ -248,23 +359,46 @@ export function Lightbox({
                 {middle}
               </>
             )}
+            {zoomOn && (
+              <>
+                <Sep />
+                <span data-coach="lb-zoom" className="flex items-center gap-0.5">
+                  <CtlButton label="축소" disabled={!z.canOut} onClick={z.stepOut}>
+                    <ZoomOutIcon size={20} />
+                  </CtlButton>
+                  <CtlButton label="확대" disabled={!z.canIn} onClick={z.stepIn}>
+                    <ZoomInIcon size={20} />
+                  </CtlButton>
+                </span>
+              </>
+            )}
+            {tabs.length > 0 && (
+              <>
+                <Sep />
+                <div className="flex items-center gap-0.5" role="tablist" aria-label="패널">
+                  {tabs.map((t) => (
+                    <CtlButton
+                      key={t.key}
+                      label={t.label}
+                      pressed={tab === t.key}
+                      faded={t.empty !== undefined}
+                      badge={t.badge}
+                      coach={`lb-${t.key}`}
+                      onClick={() => {
+                        if (t.empty !== undefined) setEdge({ text: t.empty });
+                        else onTabChange(tab === t.key ? "none" : t.key);
+                      }}
+                    >
+                      {t.icon}
+                    </CtlButton>
+                  ))}
+                </div>
+              </>
+            )}
             <Sep />
             <CtlButton label="다음" onClick={() => go(1)}>
               <ChevronRightIcon size={20} />
             </CtlButton>
-            <Sep />
-            <div className="flex items-center gap-0.5" role="tablist" aria-label="패널">
-              {tabs.map((t) => (
-                <CtlButton key={t.key} label={t.label} pressed={tab === t.key} onClick={() => onTabChange(tab === t.key ? "none" : t.key)}>
-                  {t.icon}
-                </CtlButton>
-              ))}
-              {open && (
-                <CtlButton label="패널 닫기" onClick={() => onTabChange("none")} dim>
-                  <CloseIcon size={18} />
-                </CtlButton>
-              )}
-            </div>
           </div>
         </div>
 
@@ -298,13 +432,22 @@ export function Sep() {
 export function CtlButton({
   label,
   pressed = false,
-  dim = false,
+  disabled = false,
+  faded = false,
+  badge,
+  coach,
   onClick,
   children,
 }: {
   label: string;
   pressed?: boolean;
-  dim?: boolean;
+  disabled?: boolean;
+  /** 흐리게 보이지만 누를 수는 있다 — 눌렀을 때 까닭을 알려 주는 버튼 */
+  faded?: boolean;
+  /** 버튼 오른쪽 위에 얹는 수 */
+  badge?: number;
+  /** 코치마크가 가리킬 때의 data-coach 값 */
+  coach?: string;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -313,13 +456,25 @@ export function CtlButton({
       type="button"
       aria-label={label}
       title={label}
+      data-coach={coach}
       aria-pressed={pressed || undefined}
+      aria-disabled={faded || undefined}
+      disabled={disabled}
       onClick={onClick}
-      className={`grid size-8 cursor-pointer place-items-center rounded-(--radius-8) transition-colors duration-fast hover:bg-white/15 ${
-        pressed ? "bg-white/22 text-white" : dim ? "text-white/60" : "text-white"
+      className={`relative grid size-8 cursor-pointer place-items-center rounded-(--radius-8) text-white transition-colors duration-fast hover:bg-white/15 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent ${
+        pressed ? "bg-white/22" : ""
       }`}
     >
-      {children}
+      <span className={`grid place-items-center ${faded ? "opacity-35" : ""}`}>{children}</span>
+      {badge !== undefined && badge > 0 && (
+        // 16px 안에 넣으려고 타이포 토큰에 없는 10px을 쓴다(알림 벨의 수와 같은 크기)
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-0.75 -right-1.5 grid h-3.75 min-w-3.75 place-items-center rounded-(--pill) bg-brand-secondary-default px-0.75 text-[10px] leading-none font-semibold text-white tabular-nums"
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </button>
   );
 }

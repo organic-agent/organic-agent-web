@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
+import { SUPPORT_CHAT_URL } from "@/lib/support";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
@@ -36,23 +37,23 @@ const FEATURES = [
     Icon: UsersIcon,
   },
   {
-    title: "고르기 어려울 땐, AI 셀렉",
+    title: "고르기 어려울 땐, AI 추천",
     desc: "고민되는 컷은 AI 추천으로 시작하세요. 폴더별로 잘 나온 사진을 선택 장수에 맞게 제안하고, 최종 선택은 직접 합니다.",
     Icon: SparkleIcon,
   },
   {
     title: "함께 고르는 협업 셀렉",
-    desc: "가족·지인을 초대해 좋아요와 댓글로 의견을 모읍니다.",
+    desc: "가족 · 지인을 초대해 좋아요와 댓글로 의견을 모읍니다.",
     Icon: CollabIcon,
   },
   {
     title: "사진을 보며 바로 보정 요청",
-    desc: "사진을 보면서 바로 보정 요청을 남기면, 작가에게 깔끔하게 정리되어 전달됩니다.",
+    desc: "사진을 보면서 바로 보정 요청을 남기면, 요청서로 깔끔하게 정리됩니다.",
     Icon: CommentIcon,
   },
   {
     title: "선택본부터 보정본까지 한 곳에서",
-    desc: "고른 컷은 작가에게 바로 전달되고, 완성된 보정본도 같은 곳에서 받습니다.",
+    desc: "고른 사진과 완성된 보정본을 같은 곳에서 주고받습니다.",
     Icon: DocIcon,
   },
 ];
@@ -103,7 +104,8 @@ const AUDIENCES: {
 ];
 
 /* ─── 푸터 링크 데이터 (피그마 Landing/Footer) ───
-   href가 없는 항목은 준비 중 — 클릭 시 준비 중 토스트를 띄운다 (사용자 결정) */
+   href가 없는 항목은 준비 중 — 클릭 시 준비 중 토스트를 띄운다 (사용자 결정).
+   "문의하기"는 카카오톡 채널 채팅(바깥 주소 → 새 탭, 팀 노션 77번) */
 const FOOTER_COLUMNS: {
   title: string;
   links: { label: string; href?: string }[];
@@ -120,7 +122,7 @@ const FOOTER_COLUMNS: {
     title: "지원",
     links: [
       { label: "이용 가이드" },
-      { label: "문의하기" },
+      { label: "문의하기", href: SUPPORT_CHAT_URL },
       { label: "공지사항" },
     ],
   },
@@ -182,7 +184,7 @@ export default function LandingPage() {
                 번거로웠던 전달은 클릭 한 번으로.
                 <br />
                 업로드부터 보정 요청, 마무리까지 사진의 여정이 한 곳에서
-                완성돼요.
+                완성됩니다.
               </p>
 
               {/* 역할별 진입은 Who it's for 카드의 버튼에서 — 히어로는 그리로 안내만 한다 */}
@@ -367,6 +369,8 @@ export default function LandingPage() {
                         <a
                           key={link.label}
                           href={link.href}
+                          // 바깥 주소(카카오톡 채널)는 새 탭으로 — 페이지 안 앵커(#…)는 그대로
+                          {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                           className="type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
                         >
                           {link.label}

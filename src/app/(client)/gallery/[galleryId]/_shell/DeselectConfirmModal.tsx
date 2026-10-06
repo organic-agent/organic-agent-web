@@ -16,9 +16,9 @@ export function DeselectConfirmModal({ photo, onClose, onConfirm }: { photo: Pho
       title="선택에서 뺄까요?"
       desc={
         <>
-          <b className="text-contents-light-bgd-default">{photo.originalFileName}</b>을(를) 선택한 사진에서 빼요.
+          <b className="text-contents-light-bgd-default">{photo.originalFileName}</b> 사진을 선택한 사진에서 빼요
           <br />
-          별점과 보정 요청 초안은 그대로 남아요.
+          별점과 적어 둔 보정 요청은 그대로 남아요
         </>
       }
       maxWidthClassName="max-w-105"

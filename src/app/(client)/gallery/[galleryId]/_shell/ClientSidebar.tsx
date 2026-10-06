@@ -26,14 +26,15 @@ function planDaysLeft(expiresAt: string | null): number | null {
 function planUntil(expiresAt: string | null): string {
   if (!expiresAt) return "기한 없음";
   const d = new Date(expiresAt);
-  return Number.isNaN(d.getTime()) ? "" : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}까지`;
+  // 연도를 넘길 수 있어 늘 YYYY.MM.DD(문구 점검 B37)
+  return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}까지`;
 }
 
 function PlanCard({ plan }: { plan: PlanInfo }) {
   const days = planDaysLeft(plan.expiresAt);
   const ratio = plan.max ? Math.min(1, plan.used / plan.max) : 0;
   return (
-    <div data-coach="plan" className="flex flex-col gap-2 rounded-(--radius-12) border border-border-default bg-surface-default-lightness px-3 py-2.5">
+    <div className="flex flex-col gap-2 rounded-(--radius-12) border border-border-default bg-surface-default-lightness px-3 py-2.5">
       <div className="flex items-center justify-between type-label-semibold-xs text-contents-light-bgd-default">
         플랜
         {days !== null && (
@@ -135,6 +136,7 @@ export function ClientSidebar({
   extra,
   plan,
   selectedLockNote = "폴더 확정 뒤",
+  selectionClickable = true,
   retouchLockNote = "셀렉 뒤",
 }: {
   title: string;
@@ -157,6 +159,8 @@ export function ClientSidebar({
   plan?: PlanInfo;
   /** 잠긴 내비 행의 문구 — 개인은 "분류 뒤" · "내보낸 뒤" */
   selectedLockNote?: string;
+  /** false면 "선택한 사진"을 누르지 못한다 — 장수는 보인다(셀렉 중 폴더 다시 정리) */
+  selectionClickable?: boolean;
   retouchLockNote?: string;
 }) {
   const waiting = phase === "wait";
@@ -203,7 +207,7 @@ export function ClientSidebar({
               )
             }
             selected={view === "selected"}
-            disabled={!selectionOpen}
+            disabled={!selectionOpen || !selectionClickable}
             onClick={() => onViewChange("selected")}
           />
           <NavRow

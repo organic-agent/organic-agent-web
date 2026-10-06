@@ -7,7 +7,7 @@
  * 작가 1단계 · 부부 컨셉 분류 · 개인 업로드가 같은 부품(PhotoGrid · FolderColumn)을 써서 훅 하나로 셋 다 붙는다.
  * 타일을 누른 채 6px 넘게 끌면 시작 — 고른 타일이면 고른 전부, 아니면 그 한 장(안 움직이면 그냥 클릭).
  * 놓을 수 있는 곳은 세부 폴더 · 미분류(FolderColumn의 data-drop)뿐이고, 접힌 컨셉 위에 머물면 폴더 열이 펼친다.
- * 놓으면 moveCategoryPhotos → 폴더 재조회 → 선택 해제, 그리고 "n장 옮겼어요 · 실행 취소"(반대 방향 move 한 번).
+ * 놓으면 moveCategoryPhotos → 폴더 재조회 → 선택 해제, 그리고 "n장 이동했어요 · 실행 취소"(반대 방향 move 한 번).
  * 끌고 있는 동안 폴더 열 가장자리에서는 저절로 스크롤된다.
  *
  * 쓰는 법: const move = usePhotoMove({...}) →
@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Snackbar } from "@/components/app/Snackbar";
 import { moveCategoryPhotos } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
-import type { FolderDropTarget } from "./FolderColumn";
+import { folderDropTargetAt, sameFolderDropTarget, type FolderDropTarget } from "./FolderColumn";
 import type { PhotoDragBinding } from "./PhotoGrid";
 
 /** 이만큼 움직여야 끌기다(PhotoGrid의 칠하기와 같은 값) */
@@ -32,25 +32,6 @@ const EDGE_STEP = 10;
 type Pending = { pointerId: number; x: number; y: number; photoId: number };
 type Session = { pointerId: number; ids: number[] };
 type MoveToast = { text: string; undo: (() => void) | null };
-
-function targetAt(x: number, y: number): FolderDropTarget | null {
-  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-drop]");
-  const raw = el?.dataset.drop;
-  if (!raw) return null;
-  if (raw === "unsorted") return { kind: "unsorted" };
-  const [kind, rest] = raw.split(":");
-  const id = Number(rest);
-  if (!Number.isFinite(id)) return null;
-  if (kind === "detail") return { kind: "detail", id };
-  if (kind === "concept") return { kind: "concept", id };
-  return null;
-}
-
-function sameTarget(a: FolderDropTarget | null, b: FolderDropTarget | null) {
-  if (a === null || b === null) return a === b;
-  if (a.kind !== b.kind) return false;
-  return a.kind === "unsorted" || b.kind === "unsorted" || a.id === b.id;
-}
 
 async function moveInBatches(galleryId: number, photoIds: number[], targetDetailId: number | null) {
   for (let i = 0; i < photoIds.length; i += MOVE_BATCH) {
@@ -118,7 +99,7 @@ export function usePhotoMove({
       }
       showToast(
         {
-          text: `${moving.length}장 옮겼어요`,
+          text: `${moving.length}장 이동했어요`,
           undo: () => {
             setToast(null);
             const groups = new Map<number | null, number[]>();
@@ -184,14 +165,14 @@ export function usePhotoMove({
       pointerRef.current = { x: e.clientX, y: e.clientY };
       const ghost = ghostRef.current;
       if (ghost) ghost.style.transform = `translate3d(${e.clientX + 14}px, ${e.clientY + 14}px, 0)`;
-      const found = targetAt(e.clientX, e.clientY);
-      setOver((prev) => (sameTarget(prev, found) ? prev : found));
+      const found = folderDropTargetAt(e.clientX, e.clientY);
+      setOver((prev) => (sameFolderDropTarget(prev, found) ? prev : found));
     }
     function onPointerUp(e: PointerEvent) {
       pendingRef.current = null;
       const session = sessionRef.current;
       if (!session || e.pointerId !== session.pointerId) return;
-      const target = e.type === "pointerup" ? targetAt(e.clientX, e.clientY) : null;
+      const target = e.type === "pointerup" ? folderDropTargetAt(e.clientX, e.clientY) : null;
       draggedRef.current = true;
       stop();
       if (!target || target.kind === "concept") return;

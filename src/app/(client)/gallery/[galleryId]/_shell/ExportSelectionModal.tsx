@@ -31,7 +31,7 @@ export function ExportSelectionModal({
   galleryId: number;
   selectedCount: number;
   maxSelectable: number | null;
-  /** 고른 사진의 보정 요청(초안 회차에 저장할 것) */
+  /** 선택한 사진의 보정 요청(초안 회차에 저장할 것) */
   requests: RetouchRequestItem[];
   /** 고르지 않은 사진에 남은 초안 수 — 실리지 않는다 */
   unpickedDraftCount: number;
@@ -64,36 +64,36 @@ export function ExportSelectionModal({
       onExported();
     } catch (err) {
       if (err instanceof ApiError && err.code === "SELECTION_400_7")
-        setError(maxSelectable !== null ? `목표 장수 ${maxSelectable}장을 정확히 채워야 내보낼 수 있어요 (지금 ${selectedCount}장).` : err.message);
-      else if (err instanceof ApiError && err.code === "SELECTION_400_6") setError("고른 사진이 없어요.");
-      else if (err instanceof ApiError && err.status === 409) setError("이미 내보냈거나 진행 중인 보정 회차가 있어요 · 화면을 새로 고쳐 주세요.");
-      else setError(err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+        setError(maxSelectable !== null ? `선택 장수 ${maxSelectable}장을 정확히 채워야 선택을 마칠 수 있어요 (지금 ${selectedCount}장)` : err.message);
+      else if (err instanceof ApiError && err.code === "SELECTION_400_6") setError("선택한 사진이 없어요");
+      else if (err instanceof ApiError && err.status === 409) setError("이미 선택을 마쳤어요 · 화면을 새로 고쳐 주세요");
+      else setError(err instanceof ApiError ? err.message : "선택을 마치지 못했어요 · 네트워크 연결을 확인한 뒤 다시 시도해 주세요");
       setBusy(null);
     }
   }
 
   return (
     <GalleryModalShell
-      title="요청서를 내보낼까요?"
+      title="선택을 마칠까요?"
       desc={
         <>
-          내보내면 <b className="text-contents-light-bgd-default">선택이 잠기고 보정 확인 단계로 넘어가요.</b> 요청서는 다시 받을 수 있어요.
+          선택을 마치면 <b className="text-contents-light-bgd-default">사진을 더 선택할 수 없고 보정 확인 단계로 넘어가요</b> · 이어서 요청서(PDF)를 내려받아요
         </>
       }
       maxWidthClassName="max-w-120"
       onClose={onClose}
     >
       <dl className="mb-5 flex flex-col type-content-s">
-        <Row label="고른 사진" value={maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`} />
+        <Row label="선택한 사진" value={maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`} />
         <Row
           label="보정 요청"
-          value={requests.length === 0 ? "없음 · 고른 사진은 모두 기본 보정 대상이에요" : `${requests.length}장 · 점 ${points}개${refined > 0 ? ` (AI 다듬기 ${refined})` : ""}`}
+          value={requests.length === 0 ? "없음" : `${requests.length}장 · 핀 ${points}개${refined > 0 ? ` (AI 다듬기 ${refined})` : ""}`}
         />
         <Row label="별점" value={ratedCount > 0 ? `${ratedCount}장 매김` : "없음"} />
       </dl>
       {unpickedDraftCount > 0 && (
         <p className="mb-4 rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
-          고르지 않은 사진 {unpickedDraftCount}장에 쓴 보정 요청은 실리지 않아요. 필요하면 먼저 그 사진을 골라 주세요.
+          선택하지 않은 사진 {unpickedDraftCount}장에 쓴 보정 요청은 실리지 않아요. 필요하면 먼저 그 사진을 선택해 주세요.
         </p>
       )}
       {error && (
@@ -105,7 +105,7 @@ export function ExportSelectionModal({
       <GalleryModalButtons
         onClose={onClose}
         onConfirm={() => void run()}
-        confirmLabel={busy === "save" ? "요청 저장하는 중…" : busy === "export" ? "내보내는 중…" : "내보내기"}
+        confirmLabel={busy === "save" ? "요청 저장하는 중…" : busy === "export" ? "마치는 중…" : "마치기"}
         disabled={busy !== null}
       />
     </GalleryModalShell>

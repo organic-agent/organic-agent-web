@@ -210,7 +210,6 @@ export function ShellMainHeader({
                         }}
                       />
                     ))}
-              {!customSort && <MenuRow label="촬영 순" trailing="준비 중" disabled onClick={() => {}} />}
               {customFilter ? (
                 <>
                   <div className="my-1 h-px bg-divider-default" />

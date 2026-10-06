@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 싱글뷰 "보정 요청" 탭 — 사진 위 점(번호) + 점마다 한 문장 + AI 내용 다듬기 · 전체 요청 한 칸
+ * 싱글뷰 "보정 요청" 탭 — 사진 위 핀(번호) + 핀마다 한 문장 + AI 내용 다듬기 · 전체 요청 한 칸
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/RetouchPanel.tsx
  *
  * 사진 위를 누르면 점이 생긴다(부모가 좌표를 넘김). 점 제목은 없고 번호만(서버 RetouchPoint에 제목 필드 없음).
@@ -28,7 +28,7 @@ export function RetouchPins({ points, onRemove }: { points: DraftPoint[]; onRemo
         <button
           key={p.id}
           type="button"
-          aria-label={`포인트 ${i + 1}${onRemove ? " — 누르면 지우기" : ""}`}
+          aria-label={`핀 ${i + 1}${onRemove ? " — 누르면 지우기" : ""}`}
           title={p.useRefinedText && p.refinedText ? p.refinedText : p.text}
           onClick={(e) => {
             e.stopPropagation();
@@ -61,12 +61,15 @@ export function RetouchPanel({
   photoId,
   picked,
   editable,
+  personal = false,
 }: {
   galleryId: number;
   photoId: number;
   /** 고른 사진인가 — 아니면 전달되지 않는다는 안내 */
   picked: boolean;
   editable: boolean;
+  /** 개인 갤러리 — 작가가 없어 "전달" 대신 요청서에 실린다고 말한다 */
+  personal?: boolean;
 }) {
   const raw = useSyncExternalStore(retouchDraftStore.subscribe, () => retouchDraftStore.readRaw(galleryId), () => "");
   const draft = draftOf(retouchDraftStore.parse(raw), photoId);
@@ -116,12 +119,20 @@ export function RetouchPanel({
     <>
       {!picked && (
         <p className="rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
-          아직 고르지 않은 사진이에요. 요청은 <b>고른 사진만</b> 작가에게 전달돼요 — 써 두면 나중에 고를 때 함께 가요.
+          {personal ? (
+            <>
+              아직 선택하지 않은 사진이에요 · <b>선택한 사진</b>의 요청만 요청서에 실려요
+            </>
+          ) : (
+            <>
+              아직 고르지 않은 사진이에요. 요청은 <b>고른 사진만</b> 작가에게 전달돼요 — 써 두면 나중에 고를 때 함께 가요.
+            </>
+          )}
         </p>
       )}
 
       <section className="flex flex-col gap-1.5">
-        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">이 사진 전체 요청 (선택)</h4>
+        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">사진 전체 보정 요청</h4>
         <textarea
           value={draft.requestText}
           disabled={!editable}
@@ -139,7 +150,6 @@ export function RetouchPanel({
             <br />
             사진 위에서 눌러 표시해 주세요
           </p>
-          <p className="type-content-xs text-contents-light-bgd-weakness">점마다 한 문장씩 · 작가에게 그대로 전달돼요</p>
         </div>
       ) : (
         <ol className="flex flex-col gap-4">
@@ -150,12 +160,12 @@ export function RetouchPanel({
               <li key={p.id} className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 type-label-semibold-s text-contents-light-bgd-default">
                   <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-white">{i + 1}</span>
-                  포인트 {i + 1}
+                  핀 {i + 1}
                   {editable && (
                     <button
                       type="button"
                       onClick={() => removePoint(p.id)}
-                      aria-label={`포인트 ${i + 1} 지우기`}
+                      aria-label={`핀 ${i + 1} 지우기`}
                       className="ml-auto grid size-6.5 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness transition-colors duration-fast hover:bg-surface-default-lightness hover:text-function-error-default"
                     >
                       <TrashIcon size={16} />
@@ -199,9 +209,7 @@ export function RetouchPanel({
                             <SparkleIcon size={12} />
                             AI 되묻기
                           </span>
-                          <p className="type-content-s leading-relaxed text-contents-light-bgd-default">
-                            {r.question || "어느 쪽을 말씀하신 걸까요? 알려 주시면 작가에게 정확히 전달돼요."}
-                          </p>
+                          {r.question && <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{r.question}</p>}
                           {r.options.length > 0 && (
                             <ul className="flex flex-wrap gap-1.5">
                               {r.options.map((o) => (
@@ -252,7 +260,7 @@ export function RetouchPanel({
                               : r?.state === "unavailable"
                                 ? "지금은 AI 다듬기를 쓸 수 없어요"
                                 : r?.state === "notRequest"
-                                  ? "다듬을 요청 문장이 없어요 — 적으신 내용은 그대로 전달돼요"
+                                  ? "다듬을 요청 문장이 없어요 · 적은 내용 그대로 실려요"
                                   : ""}
                           </span>
                           <button
@@ -276,9 +284,7 @@ export function RetouchPanel({
           })}
         </ol>
       )}
-      <p className="type-content-xs text-contents-light-bgd-weakness">
-        {editable ? "사진 위를 눌러 점을 더 추가할 수 있어요 · 점을 누르면 지워져요" : "전달한 뒤에는 바꿀 수 없어요"}
-      </p>
+      {!editable && <p className="type-content-xs text-contents-light-bgd-weakness">{personal ? "선택을 마친 뒤에는 바꿀 수 없어요" : "전달한 뒤에는 바꿀 수 없어요"}</p>}
     </>
   );
 }

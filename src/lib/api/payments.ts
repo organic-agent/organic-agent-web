@@ -62,6 +62,12 @@ export type ProCouponResponse = {
   expiresAt: string | null;
 };
 
+/** 링크 조회는 쿠폰을 등록하지 않는다. 갤러리 id는 접근 권한이 있을 때만 반환된다. */
+export type ProCouponLinkResponse = {
+  status: ProCouponStatus;
+  galleryId: number | null;
+};
+
 export type MyBenefitsResponse = {
   /** 계정당 한 번인 무료 갤러리를 아직 만들지 않았으면 true. 삭제 · 만료 뒤에도 다시 주지 않는다 */
   freePlanAvailable: boolean;
@@ -85,6 +91,11 @@ export function getMyBenefits(): Promise<MyBenefitsResponse> {
  */
 export function registerProCoupon(code: string): Promise<ProCouponResponse> {
   return api("/api/v1/coupons/register", { method: "POST", body: { code } });
+}
+
+/** 코드가 URL · 접근 로그에 남지 않도록 본문으로 조회한다. */
+export function resolveProCouponLink(code: string): Promise<ProCouponLinkResponse> {
+  return api("/api/v1/coupons/resolve", { method: "POST", body: { code } });
 }
 
 export const isFreePlan = (plan: Pick<Plan, "id" | "amount">): boolean =>

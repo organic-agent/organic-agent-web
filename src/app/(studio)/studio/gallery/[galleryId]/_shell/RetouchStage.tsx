@@ -32,6 +32,7 @@ import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
 import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
+import { StudioGalleryCoachMarks } from "./StudioGalleryCoachMarks";
 import { ProgressBar } from "./UploadProgress";
 import { type ResultAssignment, useResultUpload } from "./useResultUpload";
 import { useRetouchOverview, useRetouchRoundDetail } from "./useRetouchOverview";
@@ -460,20 +461,24 @@ export function RetouchStage({
           ) : canUpload ? (
             resultCount === 0 ? (
               <>
-                <ShellCta kind="outline" onClick={() => setModal("download")}>
-                  <DownloadIcon size={18} />
-                  내려받기
-                </ShellCta>
+                <span data-coach="download" className="inline-flex">
+                  <ShellCta kind="outline" onClick={() => setModal("download")}>
+                    <DownloadIcon size={18} />
+                    내려받기
+                  </ShellCta>
+                </span>
                 {canWithdraw && (
                   <ShellCta kind="outline" onClick={() => setModal("withdraw")}>
                     <ScheduleIcon size={18} />
                     다시 고르게 하기
                   </ShellCta>
                 )}
-                <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
-                  <UploadIcon size={18} />
-                  결과 올리기
-                </ShellCta>
+                <span data-coach="result-upload" className="inline-flex">
+                  <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                    <UploadIcon size={18} />
+                    결과 올리기
+                  </ShellCta>
+                </span>
               </>
             ) : allDone ? (
               <>
@@ -485,14 +490,18 @@ export function RetouchStage({
               </>
             ) : (
               <>
-                <ShellCta kind="outline" onClick={() => setModal("download")}>
-                  <DownloadIcon size={18} />
-                  내려받기
-                </ShellCta>
-                <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
-                  <UploadIcon size={18} />
-                  결과 더 올리기
-                </ShellCta>
+                <span data-coach="download" className="inline-flex">
+                  <ShellCta kind="outline" onClick={() => setModal("download")}>
+                    <DownloadIcon size={18} />
+                    내려받기
+                  </ShellCta>
+                </span>
+                <span data-coach="result-upload" className="inline-flex">
+                  <ShellCta onClick={() => setUploadOpen({ presetPhotoId: null })}>
+                    <UploadIcon size={18} />
+                    결과 더 올리기
+                  </ShellCta>
+                </span>
               </>
             )
           ) : null
@@ -500,7 +509,7 @@ export function RetouchStage({
       />
 
       {modal === "download" && activeRoundNo !== null && (
-        <RetouchDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setModal(null)} />
+        <RetouchDownloadModal galleryId={galleryId} galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setModal(null)} />
       )}
 
       {modal === "send" && activeRoundNo !== null && (
@@ -581,6 +590,7 @@ export function RetouchStage({
         />
       )}
 
+      <StudioGalleryCoachMarks scene={canUpload && !allDone && modal === null && uploadOpen === null && !lightboxOpen ? "retouch" : null} />
       {lightboxOpen && currentPhoto && (
         <Lightbox
           photo={currentPhoto}

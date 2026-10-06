@@ -6,6 +6,9 @@
  * 그 자리에서 말한다 — 없음: "결제하면 바로", 다 씀: 잠금 표시. 갤러리가 하나도 없어도
  * 타일만 있는 그리드가 첫 화면이다(빈 상태 카드 없음, 배너는 페이지가 띄운다).
  * 필터 결과가 없을 때만 안내 카드를 보여준다.
+ *
+ * 타일에 마우스를 올리면 테두리와 글자 색만 바뀐다 — 타일 전체에 색을 깔지 않는다(팀 노션 36번).
+ * 결제할 수 없는 초대 작가에게는 타일 아래 안내 줄을 두지 않는다. 누르면 페이지가 스낵바로 알린다.
  */
 
 import {
@@ -23,7 +26,7 @@ type Props = {
   stageFilter: StageFilter;
   tickets: StudioTickets;
   onCreateClick: () => void;
-  /** false면(초대 작가) 이용권이 없거나 다 썼을 때 타일이 결제로 이어지지 않고 소유자 몫이라고만 말한다 */
+  /** false면(초대 작가) 이용권이 없거나 다 썼을 때 타일이 결제로 이어지지 않는다 — 안내 줄 없이, 누르면 페이지가 알린다 */
   canBuy?: boolean;
   onEditGallery: (gallery: GalleryListItem) => void;
   onArchiveGallery: (gallery: GalleryListItem) => void;
@@ -78,18 +81,15 @@ function NewGalleryTile({
   canBuy: boolean;
 }) {
   const full = tickets.state === "full";
-  const blocked = !canBuy && tickets.state !== "ok";
   return (
     <button
       type="button"
       data-coach="new-gallery"
-      disabled={blocked}
-      aria-disabled={blocked || undefined}
-      onClick={blocked ? undefined : onClick}
-      className={`flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-(--radius-16) border border-dashed px-4 text-center transition-colors duration-fast ${
+      onClick={onClick}
+      className={`flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-(--radius-16) border border-dashed px-4 text-center transition-colors duration-fast hover:border-solid ${
         full
-          ? "border-function-warning-default text-function-warning-default hover:bg-function-warning-background"
-          : "border-divider-default text-contents-light-bgd-sub hover:bg-brand-secondary-background hover:text-brand-secondary-dark"
+          ? "border-function-warning-default text-function-warning-default"
+          : "border-divider-default text-contents-light-bgd-sub hover:border-brand-secondary-light hover:text-brand-secondary-dark"
       }`}
     >
       <span className="grid size-14 place-items-center rounded-full border border-current">
@@ -99,9 +99,9 @@ function NewGalleryTile({
         <span className="type-content-l">
           {full ? "이용권을 모두 썼어요" : "새 갤러리 만들기"}
         </span>
-        {tickets.state !== "ok" && (
+        {canBuy && tickets.state !== "ok" && (
           <span className="type-content-xs text-contents-light-bgd-sub">
-            {canBuy ? (full ? "이용권을 추가하면 만들 수 있어요" : "이용권을 결제하면 바로 만들 수 있어요") : "소유자가 이용권을 추가하면 만들 수 있어요"}
+            {full ? "이용권을 추가하면 만들 수 있어요" : "이용권을 결제하면 바로 만들 수 있어요"}
           </span>
         )}
       </span>

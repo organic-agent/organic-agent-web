@@ -5,12 +5,13 @@
  * 위치: src/components/app/ProfileMenu.tsx
  *
  * 이름·이메일 → 워크스페이스(최근 활동순 4개, 현재 공간 표시) → 모두 보기(5개 이상) →
- * 새 공간 만들기 → 다크 모드 토글 → 설정(/settings) → 로그아웃.
+ * 워크스페이스 추가하기 → 다크 모드 토글 → 설정(/settings) → 문의하기(카카오톡 채널, 새 탭) → 로그아웃.
  * 열고 닫는 것과 바깥 클릭·ESC는 ProfileAvatarButton이 맡는다.
  */
 
 import { useRouter } from "next/navigation";
 import {
+  CommentIcon,
   DarkModeIcon,
   GridViewIcon,
   HeartIcon,
@@ -26,6 +27,7 @@ import { MenuItem } from "@/components/ui/MenuItem";
 import type { User, UserWorkspace } from "@/lib/api/auth";
 import { sortByRecentActivity, workspacePath } from "@/lib/auth/loginFlow";
 import { logout } from "@/lib/auth/logout";
+import { SUPPORT_CHAT_URL } from "@/lib/support";
 import { useTheme } from "@/lib/theme";
 
 /** 지금 보고 있는 공간 — 메뉴가 "현재"를 표시하는 기준 */
@@ -161,7 +163,7 @@ export function ProfileMenu({
         />
       )}
       <MenuItem
-        label="새 공간 만들기"
+        label="워크스페이스 추가하기"
         icon={<PlusIcon size={20} />}
         onClick={() => go("/onboarding/role")}
       />
@@ -203,6 +205,15 @@ export function ProfileMenu({
           // 설정의 "돌아가기"가 여기로 돌아오도록 현재 위치를 실어 보낸다
           const from = `${window.location.pathname}${window.location.search}`;
           router.push(`/settings?from=${encodeURIComponent(from)}`);
+        }}
+      />
+      {/* 문의하기 — 카카오톡 채널 채팅을 새 탭으로. 바깥 주소라 router 대신 window.open(업로드 중이어도 화면을 떠나지 않아 막지 않는다) */}
+      <MenuItem
+        label="문의하기"
+        icon={<CommentIcon size={20} />}
+        onClick={() => {
+          onClose();
+          window.open(SUPPORT_CHAT_URL, "_blank", "noopener,noreferrer");
         }}
       />
       <Divider />

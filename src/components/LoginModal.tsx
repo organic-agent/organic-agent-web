@@ -187,7 +187,7 @@ export function LoginModal({
       // 성공하면 페이지가 provider로 통째로 떠난다 — 로딩을 해제하지 않는 게 맞다.
     } catch {
       setLoadingProvider(null);
-      setStartError("로그인을 시작하지 못했어요. 네트워크 확인 후 다시 시도해주세요.");
+      setStartError("로그인을 시작하지 못했어요 · 네트워크 연결을 확인한 뒤 다시 시도해 주세요");
     }
   }
 
@@ -326,7 +326,7 @@ export function LoginModal({
             href="/privacy"
             className="underline underline-offset-2 transition-colors duration-fast hover:text-contents-light-bgd-default"
           >
-            개인정보 처리방침
+            개인정보처리방침
           </a>
           에 동의합니다
         </p>

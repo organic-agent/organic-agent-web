@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { StageFilter } from "@/app/(studio)/_lib/galleryStatus";
+import { Snackbar } from "@/components/app/Snackbar";
 import { TicketIcon } from "@/components/icons";
 import { StudioHeader } from "@/components/photographer/StudioHeader";
 import { StudioTopbar } from "@/components/photographer/StudioTopbar";
@@ -71,6 +72,8 @@ export default function GalleriesPage() {
   // 초대는 소유자만(2026-09-10 결정) — 멤버에게는 상단바 초대 버튼을 그리지 않는다
   const isOwner = current?.role === "OWNER";
   const [createdToast, setCreatedToast] = useState<string | null>(null);
+  // 초대 작가가 이용권 없이 새 갤러리 타일을 눌렀을 때의 알림 — 누를 때마다 수가 바뀌어 떠 있는 시간을 다시 잰다
+  const [ticketNotice, setTicketNotice] = useState(0);
   const [editingGallery, setEditingGallery] = useState<GalleryListItem | null>(
     null,
   );
@@ -124,6 +127,12 @@ export default function GalleriesPage() {
     return () => window.clearTimeout(timer);
   }, [createdToast]);
 
+  useEffect(() => {
+    if (ticketNotice === 0) return;
+    const timer = window.setTimeout(() => setTicketNotice(0), 1800);
+    return () => window.clearTimeout(timer);
+  }, [ticketNotice]);
+
   // 목록 API는 내 스튜디오 전부의 갤러리를 주므로 이 홈의 스튜디오 것만 남긴다
   const galleries =
     result?.kind === "ready"
@@ -136,9 +145,12 @@ export default function GalleriesPage() {
       : galleries.filter((gallery) => gallery.stage === stageFilter);
   const listReady = result?.kind === "ready" && studioId !== null;
 
-  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다. 초대 작가는 결제 모달을 열지 않는다(이슈 75) */
+  /** 새 갤러리 동선 — 이용권 상태가 결제 모달과 갤러리 모달 중 무엇을 열지 정한다. 초대 작가는 결제 모달을 열지 않고(이슈 75) 알림만 본다 */
   function openNewGallery() {
-    if (!isOwner && tickets.state !== "ok") return;
+    if (!isOwner && tickets.state !== "ok") {
+      setTicketNotice((n) => n + 1);
+      return;
+    }
     if (tickets.state === "none") setTicketModal("first");
     else if (tickets.state === "full") setTicketModal("over");
     else setNewGalleryOpen(true);
@@ -295,6 +307,11 @@ export default function GalleriesPage() {
         />
       )}
       <GalleryCreatedToast galleryName={createdToast} />
+      {ticketNotice > 0 && (
+        <Snackbar kind="info" className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2">
+          소유자가 이용권을 추가하면 만들 수 있어요
+        </Snackbar>
+      )}
       {/* 코치마크는 갤러리가 하나도 없는 첫 진입에만 — 이미 쓰고 있는 작가에겐 띄우지 않는다 */}
       <StudioCoachMarks
         ready={

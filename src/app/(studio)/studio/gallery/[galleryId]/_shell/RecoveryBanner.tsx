@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 끊김 복구 배너 — "업로드가 중단됐어요. 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요."
+ * 끊김 복구 배너 — "업로드가 끊겼어요 · 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요"
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/RecoveryBanner.tsx
  *
  * 서버에 PENDING(발급만 되고 올라오지 않은) 사진이 남아 있을 때 본문 위에 뜬다(1단계 보드 ⑥).
@@ -60,7 +60,7 @@ export function RecoveryBanner({
       <span className="flex shrink-0 text-function-warning-default">
         <CloudOffIcon size={18} />
       </span>
-      <span className="min-w-0 flex-1">업로드가 중단됐어요. 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요.</span>
+      <span className="min-w-0 flex-1">업로드가 끊겼어요 · 전체 사진을 다시 올려도 안 올라간 사진만 골라서 올려요</span>
       <input
         ref={inputRef}
         type="file"

@@ -4,9 +4,9 @@
  * 게스트 초대 — 공유폴더를 골라 링크 하나로 · 만든 링크 관리 (설명글 없이, 2026-09-12 수민)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/InviteGuestsModal.tsx
  *
- * 링크 만들기: 사이드바 공유 탭에서 만든 공유폴더만 체크리스트로. 하나면 그 링크를 그대로, 여러 개면 사진을 겹침 없이
- * 모은 새 공유폴더(묶음)를 만들어 링크 하나를 준다(서버가 부분 집합 링크를 못 만들어서 — 사진은 만든 시점 고정).
- * 만든 링크: 이름 · 남은 기간 · 복사 · 재발행(7일 연장, 반응 보존) · 이름 바꾸기 · 폐기 · 폐기된 것은 다시 발행.
+ * 링크 만들기: 사이드바 공유 탭에서 만든 공유폴더만 체크리스트로. 하나면 그 링크를 그대로, 여러 개면 서버가 사진을 겹침 없이
+ * 모은 새 공유폴더(묶음, scope SESSIONS)를 만들어 링크 하나를 준다(서버가 부분 집합 링크를 못 만들어서 — 사진은 만든 시점 고정).
+ * 만든 링크: 이름 · 남은 기간 · 들어온 사람 · 복사 · 재발행(7일 연장, 반응 보존) · 이름 바꾸기 · 폐기 · 폐기된 것은 다시 발행.
  * 본문(InviteGuestsBody)과 껍데기를 나눠 두었다 — 개인 갤러리는 파트너 | 게스트 탭 모달(PersonalInviteModal) 안에 본문만 넣는다.
  */
 
@@ -19,18 +19,18 @@ import { IconButton } from "@/components/ui/IconButton";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import {
-  listAllCollabPhotos,
-  openManualCollabSession,
+  createCollabSession,
+  listCollabParticipants,
   renameCollabSession,
   republishCollabSession,
   revokeCollabSession,
+  type CollabParticipantResponse,
   type CollabSessionResponse,
 } from "@/lib/api/collab";
 import { displayUrl, isLiveSession, sessionTermLabel, type CollabSessions } from "./useCollabSessions";
 
 export type InviteTab = "new" | "list";
 
-const modeLabel = (s: CollabSessionResponse) => (s.selectionMode === "CONCEPT_FOLDER" ? "컨셉 폴더 따라감" : "직접 담음");
 
 function LinkBox({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
@@ -76,19 +76,30 @@ function LinkBox({ url }: { url: string }) {
   );
 }
 
+/** 들어온 날 — 파트너 초대 현황(GalleryInviteModal)과 같은 "10.05" 모양 */
+function enteredLabel(at: string | null): string {
+  if (!at) return "";
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function Tag({ children, off = false }: { children: React.ReactNode; off?: boolean }) {
   return (
     <span className={`rounded-(--pill) px-2 py-0.5 type-label-semibold-xs ${off ? "bg-surface-default-light text-contents-light-bgd-sub" : "bg-brand-secondary-background text-brand-secondary-dark"}`}>{children}</span>
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+/** 만든 링크 카드의 동작별 실패 문구(문구 점검 D23) */
+const RUN_FAILED = { rename: "이름을 바꾸지 못했어요", republish: "새 링크를 만들지 못했어요", revoke: "링크를 폐기하지 못했어요" } as const;
+
+function EmptyState({ onCreate, label = "아직 공유폴더가 없어요" }: { onCreate: () => void; label?: string }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-(--radius-12) border border-dashed border-border-default px-4 py-8 text-center">
       <span className="grid size-11 place-items-center rounded-full bg-surface-default-lightness text-contents-light-bgd-sub">
         <ShareIcon size={22} />
       </span>
-      <p className="type-label-semibold-s text-contents-light-bgd-default">아직 공유폴더가 없어요</p>
+      <p className="type-label-semibold-s text-contents-light-bgd-default">{label}</p>
       <Button size="sm" onClick={onCreate} icon={<PlusIcon size={16} />}>
         새 공유폴더
       </Button>
@@ -113,6 +124,20 @@ function SessionCard({
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [busy, setBusy] = useState<"rename" | "republish" | "revoke" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<CollabParticipantResponse[] | null>(null);
+
+  async function toggleParticipants() {
+    if (participants) {
+      setParticipants(null);
+      return;
+    }
+    setError(null);
+    try {
+      setParticipants(await listCollabParticipants(galleryId, session.sessionId));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "들어온 사람을 불러오지 못했어요 · 다시 시도해 주세요");
+    }
+  }
 
   async function run(kind: NonNullable<typeof busy>, fn: () => Promise<unknown>) {
     if (busy) return;
@@ -122,7 +147,7 @@ function SessionCard({
       await fn();
       await onChanged();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "처리하지 못했어요 · 다시 시도해 주세요");
+      setError(err instanceof ApiError ? err.message : `${RUN_FAILED[kind]} · 다시 시도해 주세요`);
     } finally {
       setBusy(null);
     }
@@ -166,10 +191,29 @@ function SessionCard({
         {term.text && <Tag off={!term.live}>{term.text}</Tag>}
       </div>
       <p className="flex flex-wrap gap-x-2 type-content-xs text-contents-light-bgd-sub">
-        <span>사진 {session.photoCount}</span>
+        <span>{session.photoCount}장</span>
         <span aria-hidden>·</span>
-        <span>{modeLabel(session)}</span>
+        {session.participantCount > 0 ? (
+          <button type="button" aria-expanded={participants !== null} onClick={() => void toggleParticipants()} className={`${TEXT_LINK} text-contents-light-bgd-sub`}>
+            들어온 사람 {session.participantCount}
+          </button>
+        ) : (
+          <span>들어온 사람 없음</span>
+        )}
       </p>
+      {participants && (
+        <ul className="flex flex-col gap-1 rounded-(--radius-8) bg-surface-default-lightness px-3 py-2 type-content-xs">
+          {participants.map((p) => (
+            <li key={p.participantId} className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-contents-light-bgd-default">
+                {p.nickname}
+                {p.participantType === "USER" && <span className="text-contents-light-bgd-weakness"> · 계정</span>}
+              </span>
+              <span className="shrink-0 text-contents-light-bgd-weakness tabular-nums">{enteredLabel(p.enteredAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {term.live && <LinkBox url={session.collabUrl} />}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {term.live ? (
@@ -194,7 +238,7 @@ function SessionCard({
           ) : (
             <>
               <button type="button" disabled={busy !== null} onClick={() => void run("republish", () => republishCollabSession(galleryId, session.sessionId))} className={`${TEXT_LINK} text-brand-secondary-dark`}>
-                {busy === "republish" ? "재발행 중…" : "재발행 (7일 연장)"}
+                {busy === "republish" ? "재발급 중…" : "링크 재발급"}
               </button>
               <button type="button" disabled={busy !== null || renaming} onClick={() => setRenaming(true)} className={`${TEXT_LINK} text-contents-light-bgd-default`}>
                 이름 바꾸기
@@ -206,7 +250,7 @@ function SessionCard({
           )
         ) : (
           <button type="button" disabled={busy !== null} onClick={() => void run("republish", () => republishCollabSession(galleryId, session.sessionId))} className={`${TEXT_LINK} text-brand-secondary-dark`}>
-            {busy === "republish" ? "발행 중…" : "다시 발행"}
+            {busy === "republish" ? "재발급 중…" : "링크 재발급"}
           </button>
         )}
       </div>
@@ -223,12 +267,15 @@ export function InviteGuestsBody({
   galleryId,
   collab,
   initialTab,
+  initialMade = null,
   onClose,
   onCreateShareFolder,
 }: {
   galleryId: number;
   collab: CollabSessions;
   initialTab: InviteTab;
+  /** 방금 "새 공유폴더"로 만든 것 — 있으면 목록 대신 그 링크 카드로 시작한다(팀 노션 73번) */
+  initialMade?: CollabSessionResponse | null;
   onClose: () => void;
   /** "새 공유폴더" — 이 모달을 닫고 만들기 모달을 연다 */
   onCreateShareFolder: () => void;
@@ -238,7 +285,9 @@ export function InviteGuestsBody({
   const [linkName, setLinkName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [made, setMade] = useState<{ session: CollabSessionResponse; from: string[] } | null>(null);
+  const [made, setMade] = useState<{ session: CollabSessionResponse; from: string[] } | null>(
+    initialMade ? { session: initialMade, from: [] } : null,
+  );
 
   const sessions = collab.sessions;
   const live = (sessions ?? []).filter(isLiveSession);
@@ -263,9 +312,10 @@ export function InviteGuestsBody({
     setBusy(true);
     setError(null);
     try {
-      const lists = await Promise.all(chosenSessions.map((s) => listAllCollabPhotos(galleryId, s.sessionId)));
-      const photoIds = lists.flat().map((p) => p.photoId);
-      const created = await openManualCollabSession(galleryId, { name: linkName.trim() || defaultLinkName }, photoIds);
+      const created = await createCollabSession(galleryId, {
+        name: linkName.trim() || defaultLinkName,
+        scope: { type: "SESSIONS", sessionIds: chosenSessions.map((s) => s.sessionId) },
+      });
       await collab.reload();
       setMade({ session: created, from: chosenSessions.map((s) => s.name) });
       setChosen(new Set());
@@ -293,7 +343,7 @@ export function InviteGuestsBody({
             tab === key ? "border-contents-light-bgd-default text-contents-light-bgd-default" : "border-transparent text-contents-light-bgd-sub hover:text-contents-light-bgd-default"
           }`}
         >
-          {key === "new" ? "링크 만들기" : `만든 링크${sessions ? ` ${sessions.length}` : ""}`}
+          {key === "new" ? "링크 만들기" : `공유폴더 링크${sessions ? ` ${sessions.length}` : ""}`}
         </button>
       ))}
     </div>
@@ -311,7 +361,7 @@ export function InviteGuestsBody({
             <Tag>{sessionTermLabel(made.session).text}</Tag>
           </div>
           <p className="type-content-xs text-contents-light-bgd-sub">
-            사진 {made.session.photoCount}
+            {made.session.photoCount}장
             {made.from.length > 0 && ` · ${made.from.join(" + ")}`}
           </p>
           <LinkBox url={made.session.collabUrl} />
@@ -327,7 +377,7 @@ export function InviteGuestsBody({
   } else if (tab === "new") {
     body =
       live.length === 0 ? (
-        <EmptyState onCreate={onCreateShareFolder} />
+        <EmptyState onCreate={onCreateShareFolder} label={sessions.length > 0 ? "보낼 수 있는 공유폴더가 없어요" : undefined} />
       ) : (
         <div className="flex flex-col gap-4">
           <ul className="flex flex-col gap-1 rounded-(--radius-12) bg-surface-default-lightness p-1.5" aria-label="공유폴더">
@@ -338,7 +388,7 @@ export function InviteGuestsBody({
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate type-content-m text-contents-light-bgd-default">{s.name}</span>
                     <span className="type-content-xs text-contents-light-bgd-weakness">
-                      {modeLabel(s)} · {sessionTermLabel(s).text}
+                      {sessionTermLabel(s).text}
                     </span>
                   </span>
                   <span className="shrink-0 type-content-xs text-contents-light-bgd-sub tabular-nums">{s.photoCount}장</span>
@@ -348,12 +398,6 @@ export function InviteGuestsBody({
           </ul>
           {chosenSessions.length >= 2 && (
             <div className="flex flex-col gap-2">
-              <p className="flex items-center gap-1.5 type-content-s text-contents-light-bgd-default">
-                <span className="text-brand-secondary-dark">
-                  <LinkIcon size={16} />
-                </span>
-                {chosenSessions.length}개를 묶어 <b>링크 하나</b>로
-              </p>
               <TextField value={linkName} onChange={setLinkName} placeholder={defaultLinkName} aria-label="링크 이름" className="h-10" />
             </div>
           )}
@@ -395,7 +439,7 @@ export function InviteGuestsBody({
       {sessions !== null && sessions.length > 0 && !made && tabs}
       {collab.error && sessions === null ? (
         <p role="alert" className="type-content-s text-function-error-default">
-          공유폴더를 불러오지 못했어요
+          공유폴더를 불러오지 못했어요 · 페이지를 새로 고쳐 주세요
         </p>
       ) : (
         body

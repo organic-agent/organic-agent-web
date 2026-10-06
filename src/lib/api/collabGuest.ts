@@ -14,7 +14,6 @@ import type { CollabPhotoPageResponse, CollabPhotoResponse } from "@/lib/api/col
 export const GUEST_TOKEN_HEADER = "X-Guest-Token";
 
 export type CollabLandingAlbum = {
-  conceptFolderId: number | null;
   name: string;
   photoCount: number;
   /** 이 앨범(세션)으로 들어가는 토큰 — 사진 · 반응 요청은 이 토큰으로 */
@@ -27,8 +26,10 @@ export type CollabLandingResponse = {
   galleryTitle: string;
   /** 이 링크(세션)의 사진 수 */
   photoCount: number;
-  /** false면 부부가 고르기를 마친 것 — 하트 · 댓글 입력을 감춘다 */
+  /** 댓글을 남길 수 있는지. false면 선택 마감이 지났거나 갤러리가 마무리된 것 — 댓글 입력을 감춘다 */
   writable: boolean;
+  /** 좋아요를 누를 수 있는지. 선택 마감이 지나도 true, 갤러리가 마무리되거나 이용 기간이 끝나면 false */
+  likable: boolean;
   /** 부부가 정한 표지 제목. 안 정했으면 서버가 세션 이름을 넣어 준다 */
   coverTitle: string | null;
   coverAuthor: string | null;

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 보정 결과 올리기 모달 — 파일 고르기 → 파일명 자동 매칭 → 짝 확인 → 올리기
+ * 보정본 올리기 모달 — 파일 고르기 → 파일명 자동 매칭 → 짝 확인 → 올리기
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/ResultUploadModal.tsx
  *
  * 서버 results/match가 파일명(확장자 제외)으로 회차 항목의 원본 파일명과 맞춘다: 일치 / 후보 여럿(고르기) / 못 찾음(직접 지정).
@@ -82,10 +82,10 @@ export function ResultUploadModal({
 
   return (
     <GalleryModalShell
-      title={preset ? `${preset.photo.originalFileName}의 결과 올리기` : `${roundNo}차 보정 결과 올리기`}
+      title={preset ? `${preset.photo.originalFileName}의 보정본 올리기` : `${roundNo}차 보정본 올리기`}
       desc={
         preset
-          ? "이 사진의 보정 결과 파일 하나를 골라 주세요. 이미 결과가 있으면 바꿔요."
+          ? "이 사진의 보정본 파일 하나를 선택해 주세요. 이미 보정본이 있으면 바꿔요."
           : `${items.length}장 · 파일명(확장자 제외)이 같은 사진에 자동으로 맞춰요. 원본 크기 그대로 올라가요.`
       }
       maxWidthClassName="max-w-140"
@@ -114,7 +114,7 @@ export function ResultUploadModal({
         <span className="grid size-11 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-default">
           <CloudUploadIcon size={22} />
         </span>
-        <p className="type-label-semibold-m text-contents-light-bgd-default">{preset ? "결과 파일을 끌어다 놓거나 고르기" : "결과 파일들을 끌어다 놓거나 고르기"}</p>
+        <p className="type-label-semibold-m text-contents-light-bgd-default">{preset ? "보정본 파일을 끌어다 놓거나 선택하기" : "보정본 파일을 끌어다 놓거나 선택하기"}</p>
         <p className="type-content-xs text-contents-light-bgd-weakness">JPG · PNG · WebP{preset ? "" : " · 한 번에 여러 장"}</p>
       </div>
 
@@ -125,7 +125,7 @@ export function ResultUploadModal({
             const target = r.photoId !== null ? itemById.get(r.photoId) : null;
             const dup = r.photoId !== null && duplicated.has(r.photoId);
             return (
-              <li key={`${r.file.name}-${i}`} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 px-3 py-2">
+              <li key={`${r.file.name}-${i}`} className="grid grid-cols-[1fr_auto_1fr_auto_auto] items-center gap-2 px-3 py-2">
                 <span className="truncate text-contents-light-bgd-sub" title={r.file.name}>
                   {r.file.name}
                 </span>
@@ -139,7 +139,7 @@ export function ResultUploadModal({
                     aria-label={`${r.file.name}의 짝`}
                     className="h-7 min-w-0 cursor-pointer rounded-(--radius-4) bg-surface-default-light px-1.5 text-contents-light-bgd-default focus:outline-none"
                   >
-                    <option value="">{r.match && r.match.candidates.length > 1 ? `후보 ${r.match.candidates.length} — 고르기` : "못 찾음 — 직접 지정"}</option>
+                    <option value="">{r.match && r.match.candidates.length > 1 ? `후보 ${r.match.candidates.length} · 선택해 주세요` : "못 찾음 · 직접 선택해 주세요"}</option>
                     {(r.match && r.match.candidates.length > 1 ? r.match.candidates.map((c) => itemById.get(c.photoId)).filter((it): it is RetouchItem => !!it) : items).map((it) => (
                       <option key={it.photo.photoId} value={it.photo.photoId}>
                         {it.photo.originalFileName}
@@ -151,7 +151,14 @@ export function ResultUploadModal({
                 <span className={`shrink-0 type-label-semibold-xs ${dup ? "text-function-error-default" : r.photoId === null ? "text-function-warning-default" : target?.hasResult ? "text-function-warning-default" : "text-brand-secondary-dark"}`}>
                   {dup ? "겹침" : r.photoId === null ? "미정" : target?.hasResult ? "바꿈" : r.match?.photoId ? "일치" : "지정"}
                 </span>
-                <button type="button" onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))} aria-label={`${r.file.name} 빼기`} className="col-span-4 hidden" />
+                <button
+                  type="button"
+                  onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label={`${r.file.name} 빼기`}
+                  className="shrink-0 cursor-pointer rounded-(--radius-4) px-1.5 type-content-xs text-contents-light-bgd-weakness hover:bg-surface-default-light hover:text-contents-light-bgd-default"
+                >
+                  빼기
+                </button>
               </li>
             );
           })}

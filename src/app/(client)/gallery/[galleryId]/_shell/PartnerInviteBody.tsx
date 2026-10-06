@@ -53,7 +53,7 @@ export function usePartnerInviteLink(galleryId: number) {
     try {
       setState(toInviteLinkState(await issueInvite(galleryId, { kind: "PERSONAL_PARTNER", maxUses: 1 })));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "링크를 만들지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+      setError(err instanceof ApiError ? err.message : "링크를 만들지 못했어요 · 네트워크 연결을 확인한 뒤 다시 시도해 주세요");
     } finally {
       setIssuing(false);
     }
@@ -66,7 +66,7 @@ export function usePartnerInviteLink(galleryId: number) {
       await revokeInvite(galleryId, state.link.id);
       setState({ kind: "none" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "링크를 폐기하지 못했어요.");
+      setError(err instanceof ApiError ? err.message : "링크를 폐기하지 못했어요 · 다시 시도해 주세요");
     }
   }
 
@@ -130,7 +130,7 @@ export function PartnerInviteBody({
       setMembersNonce((n) => n + 1);
       invite.reload(); // 정원이 다시 비면 링크 상태도 바뀐다
     } catch (err) {
-      setRemoveError(err instanceof ApiError ? err.message : "내보내지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+      setRemoveError(err instanceof ApiError ? err.message : "내보내지 못했어요 · 네트워크 연결을 확인한 뒤 다시 시도해 주세요");
     } finally {
       setRemoveBusy(false);
     }
@@ -143,7 +143,14 @@ export function PartnerInviteBody({
           정원이 찼어요 · 링크는 닫혔어요
         </p>
       ) : (
-        <InviteLinkBox state={invite.state} issue={invite.issue} issuing={invite.issuing} error={invite.error} hint="7일 뒤 만료 · 한 사람" />
+        <InviteLinkBox
+          state={invite.state}
+          issue={invite.issue}
+          issuing={invite.issuing}
+          error={invite.error}
+          // 링크가 있을 때만 남은 날과 정원을 — 없을 때는 안내 없음(문구 점검 D01)
+          hint={invite.state.kind === "ready" ? `${invite.state.daysLeft > 0 ? `${invite.state.daysLeft}일 남음` : "오늘 만료"} · 1명` : null}
+        />
       )}
 
       <div className="my-4 h-px bg-divider-default" />
@@ -193,7 +200,7 @@ export function PartnerInviteBody({
           {canManage && invite.state.kind === "ready" && !full ? (
             confirmRevoke ? (
               <span className="flex items-center gap-2 type-content-xs text-contents-light-bgd-sub">
-                전달한 링크가 바로 막혀요.
+                전달한 링크가 바로 막혀요
                 <button
                   type="button"
                   onClick={() => {
@@ -227,7 +234,7 @@ export function PartnerInviteBody({
       {removing && (
         <GalleryModalShell
           title={`${removing.nickname} 님을 내보낼까요?`}
-          desc="이 갤러리를 더 볼 수 없어요. 다시 초대하면 돌아올 수 있어요."
+          desc={`${removing.nickname} 님이 갤러리를 더 볼 수 없게 돼요. 다시 초대하면 돌아올 수 있어요.`}
           maxWidthClassName="max-w-105"
           onClose={() => setRemoving(null)}
         >

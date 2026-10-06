@@ -26,7 +26,7 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Easy Select — 우리의 순간을, 함께 고르다",
   description:
-    "막막했던 셀렉은 함께 고르는 설렘으로, 번거로웠던 전달은 클릭 한 번으로. 업로드부터 보정 요청, 마무리까지 사진의 여정이 한 곳에서 완성돼요.",
+    "막막했던 셀렉은 함께 고르는 설렘으로, 번거로웠던 전달은 클릭 한 번으로. 업로드부터 보정 요청, 마무리까지 사진의 여정이 한 곳에서 완성됩니다.",
   openGraph: {
     title: "Easy Select — 우리의 순간을, 함께 고르다",
     description:

@@ -47,7 +47,7 @@ export function ResultsDownloadModal({ galleryTitle, roundNo, items, onClose }: 
   };
 
   return (
-    <GalleryModalShell title="보정본 내려받기" desc={`${roundNo}차 결과 ${withResult.length}장을 원본 파일명의 JPG로 묶어 받아요.`} maxWidthClassName="max-w-105" onClose={close}>
+    <GalleryModalShell title="보정본 내려받기" desc={`${roundNo}차 보정본 ${withResult.length}장을 원본 파일명의 JPG로 묶어 받아요.`} maxWidthClassName="max-w-105" onClose={close}>
       {progress && (
         <p className="mb-3 type-content-xs text-contents-light-bgd-sub" aria-live="polite">
           받는 중 {progress.done} / {progress.total}
@@ -58,7 +58,7 @@ export function ResultsDownloadModal({ galleryTitle, roundNo, items, onClose }: 
           {notice}
         </p>
       )}
-      <GalleryModalButtons onClose={close} onConfirm={() => void run()} confirmLabel={progress ? "묶는 중…" : "ZIP 내려받기"} disabled={withResult.length === 0 || progress !== null} />
+      <GalleryModalButtons onClose={close} onConfirm={() => void run()} confirmLabel={progress ? "묶는 중…" : "내려받기"} disabled={withResult.length === 0 || progress !== null} />
     </GalleryModalShell>
   );
 }

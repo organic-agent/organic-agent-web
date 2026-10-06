@@ -1,29 +1,12 @@
 /**
- * 보정 자료 내려받기 — 요청서 CSV · 사진 + 요청서 ZIP (작가 3단계)
+ * 보정 자료 내려받기 — 요청서 PDF · 사진 + 요청서 ZIP (작가 3단계)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/_shell/retouchDownload.ts
  *
- * CSV는 회차 항목에서 직접 만든다(UTF-8 BOM, photo_id · filename · request · point_requests · has_result) — 서버 export는
- * 선택 앨범 기준이라 2차 회차를 못 담는다. ZIP은 서버에 있는 2048px JPG(업로드 때 줄인 것)를 원본 파일명으로 묶고 CSV를 동봉한다.
+ * ZIP에는 서버가 만든 회차 요청서 PDF와 같은 범위의 2048px JPG(업로드 때 줄인 것)를 함께 담는다.
  * 보정 자체는 작가 컴퓨터의 원본으로 해야 하므로 ZIP은 "어떤 사진에 무엇을 해야 하는지" 대조용이다.
  */
 
 import type { RetouchItem } from "./roundItems";
-
-function csvCell(v: string | number | null): string {
-  const s = v === null ? "" : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-export function buildRequestCsv(items: RetouchItem[]): string {
-  const head = ["photo_id", "filename", "request", "point_requests", "has_result"];
-  const rows = items.map((it) => {
-    const points = it.points
-      .map((p, i) => `${i + 1}(${Math.round(p.x * 100)}%,${Math.round(p.y * 100)}%): ${p.useRefinedText && p.refinedText ? p.refinedText : p.text}`)
-      .join(" | ");
-    return [it.photo.photoId, it.photo.originalFileName, it.requestText ?? "", points, it.hasResult ? "Y" : "N"].map(csvCell).join(",");
-  });
-  return "﻿" + [head.join(","), ...rows].join("\r\n");
-}
 
 export function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -34,38 +17,52 @@ export function saveBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-/** 사진 + CSV를 ZIP으로 — 진행은 onProgress(받은 장수). 못 받은 사진은 건너뛰고 목록을 돌려준다 */
+export class RetouchZipError extends Error {}
+
+/** 서버 PDF + 해당 사진을 ZIP으로. 사진이 빠지면 불완전한 ZIP을 저장하지 않는다. */
 export async function buildRetouchZip(
   items: RetouchItem[],
-  csv: string,
+  pdf: Blob,
   onProgress: (done: number) => void,
   signal?: AbortSignal,
-): Promise<{ blob: Blob; missing: string[] }> {
+): Promise<Blob> {
+  signal?.throwIfAborted();
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
-  zip.file("requests.csv", csv);
+  zip.file("요청서.pdf", await pdf.arrayBuffer());
   const missing: string[] = [];
   const used = new Set<string>();
   let done = 0;
   for (const it of items) {
-    if (signal?.aborted) throw new DOMException("중단", "AbortError");
-    let name = it.photo.originalFileName.replace(/\.[^.]+$/, "") + ".jpg";
-    if (used.has(name)) name = name.replace(/\.jpg$/, `_${it.photo.photoId}.jpg`);
-    used.add(name);
+    signal?.throwIfAborted();
+    const raw = it.photo.originalFileName.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "").replace(/[<>:"|?*]/g, "_") ?? "";
+    const base = Array.from(raw).filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127)
+      .join("").replace(/[ .]+$/, "").slice(0, 120) || `photo_${it.photo.photoId}`;
+    let name = `${base}.jpg`;
+    for (let duplicate = 1; used.has(name.toLowerCase()); duplicate++) name = `${base}_${it.photo.photoId}_${duplicate}.jpg`;
+    used.add(name.toLowerCase());
     try {
       if (!it.photo.viewUrl) throw new Error("no url");
-      const res = await fetch(it.photo.viewUrl, { signal });
+      // <img>가 Origin 없이 저장한 S3 응답을 재사용하면 CORS 헤더가 빠질 수 있다.
+      const res = await fetch(it.photo.viewUrl, { signal, cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
-      zip.file(name, await res.blob());
+      const bytes = await res.arrayBuffer();
+      if (bytes.byteLength === 0) throw new Error("empty photo");
+      zip.file(`photos/${name}`, bytes);
     } catch (err) {
+      signal?.throwIfAborted();
       if (err instanceof DOMException && err.name === "AbortError") throw err;
       missing.push(it.photo.originalFileName);
     }
     done++;
     onProgress(done);
   }
+  if (missing.length > 0) throw new RetouchZipError(`${missing.length}장의 사진을 받지 못했어요. 화면을 새로 고친 뒤 다시 시도해 주세요 (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? " …" : ""})`);
+  signal?.throwIfAborted();
+  // JSZip 진행 콜백에서 던진 예외는 Promise 밖으로 나갈 수 있다. 생성 후 취소를 확인해 저장을 막는다.
   const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
-  return { blob, missing };
+  signal?.throwIfAborted();
+  return blob;
 }
 
 /** 이름 · URL 목록을 ZIP으로(보정본 내려받기 등) — 진행은 onProgress(받은 수). 못 받은 것은 건너뛰고 이름을 돌려준다 */

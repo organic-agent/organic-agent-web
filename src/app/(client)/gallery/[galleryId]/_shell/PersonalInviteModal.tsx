@@ -32,7 +32,8 @@ export function PersonalInviteModal({
 }) {
   const [tab, setTab] = useState<PersonalInviteTab>(guest ? initialTab : "partner");
   return (
-    <GalleryModalShell title="초대" desc={galleryTitle} maxWidthClassName={tab === "guest" ? "max-w-140" : "max-w-[460px]"} onClose={onClose}>
+    // 두 탭의 폭은 같게(560), 본문에 최소 높이를 둬 탭을 오갈 때 모달이 출렁이지 않게 한다(게스트 초대 시안 4판, 2026-10-05)
+    <GalleryModalShell title="초대" desc={galleryTitle} maxWidthClassName="max-w-140" onClose={onClose}>
       <div role="tablist" className="mb-4 flex rounded-(--radius-8) bg-surface-default-light p-0.75">
         {(["partner", "guest"] as const).map((key) => {
           const locked = key === "guest" && guest === null;
@@ -59,7 +60,9 @@ export function PersonalInviteModal({
           );
         })}
       </div>
-      {tab === "partner" || guest === null ? <PartnerInviteBody galleryId={galleryId} canManage onClose={onClose} /> : guest}
+      <div className="min-h-62">
+        {tab === "partner" || guest === null ? <PartnerInviteBody galleryId={galleryId} canManage onClose={onClose} /> : guest}
+      </div>
     </GalleryModalShell>
   );
 }

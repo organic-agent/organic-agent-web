@@ -132,7 +132,7 @@ export function ClientFolderTree({
   return (
     <div className="flex flex-col rounded-(--radius-12) bg-surface-default-lightness px-1.5 pt-2 pb-1.5">
       <p className="flex items-center justify-between px-2 pb-0.5 type-label-semibold-xs text-contents-light-bgd-sub">
-        컨셉 폴더
+        폴더
         <span className="font-normal text-contents-light-bgd-weakness">{detailCount}</span>
       </p>
       {folders.map((concept) => {
@@ -187,7 +187,6 @@ export function ClientFolderTree({
           />
         </div>
       )}
-      <p className="px-2 pt-2 pb-0.5 type-content-xs text-contents-light-bgd-weakness">체크하면 여러 폴더를 겹쳐 볼 수 있어요.</p>
     </div>
   );
 }

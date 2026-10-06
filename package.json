@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:retouch-download": "node --test scripts/retouch-download.test.mjs",
     "test:split-zip": "node --test scripts/split-zip.test.mjs",
     "tokens:build": "node scripts/build-tokens.mjs",
     "icons:build": "node scripts/build-icons.mjs"
