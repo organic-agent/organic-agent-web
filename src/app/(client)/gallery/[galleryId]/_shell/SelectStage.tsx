@@ -12,6 +12,7 @@
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
  * 정렬 기본값은 별점 순(2차 QA) — 점수 묶음(★5 → ★1 → 별점 없음)으로 그리되, 별점이 하나도 없으면 묶음 없이 그려 처음 화면은 업로드 순과 같다.
+ * 정렬 메뉴의 필터는 별점 하나(★n만) · 별점 없음만 — 받은 목록을 화면에서 거르고, 별점을 바꾸면 그 사진은 바로 빠진다(장수는 보는 폴더 기준).
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
@@ -68,6 +69,21 @@ const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
 ];
+
+/** 별점 필터 — 점수 하나만(이상이 아니라 정확히 그 점수) · 별점 없음만 */
+type ScoreFilter = "none" | "5" | "4" | "3" | "2" | "1" | "unrated";
+const SCORE_FILTERS: Exclude<ScoreFilter, "none">[] = ["5", "4", "3", "2", "1", "unrated"];
+const SCORE_FILTER_LABEL: Record<Exclude<ScoreFilter, "none">, string> = {
+  "5": "★5만",
+  "4": "★4만",
+  "3": "★3만",
+  "2": "★2만",
+  "1": "★1만",
+  unrated: "별점 없음만",
+};
+function matchesScore(photo: PhotoResponse, filter: Exclude<ScoreFilter, "none">): boolean {
+  return filter === "unrated" ? !photo.score : photo.score === Number(filter);
+}
 
 /** 하단 바의 디데이 조각 — 목표일이 없으면 빈 문자열(조각을 뺀다). 상단바 칩과 같은 표기(문구 점검 C02) */
 function ddayLabel(deadline: string | null): string {
@@ -181,6 +197,8 @@ export function SelectStage({
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sort, setSort] = useState<SortKey>("score");
+  // 별점 필터 — 점수 하나(★n만) 또는 별점 없음만. 이미 받은 목록을 화면에서 거른다(정렬과 같은 방식)
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("none");
   // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산), 정렬 목록에 "하객 좋아요순"
   const [guestOn, setGuestOn] = useState(false);
   const [guestSort, setGuestSort] = useState(false);
@@ -242,17 +260,28 @@ export function SelectStage({
     for (const c of folders ?? []) for (const d of c.details) for (const id of d.photoIds) map.set(id, `${c.name} / ${d.name}`);
     return (photo: PhotoResponse) => map.get(photo.photoId) ?? (unsortedIds.has(photo.photoId) ? "미분류" : null);
   }, [folders, unsortedIds]);
+  /** 폴더 필터까지 건 사진 — 별점 필터 메뉴의 장수는 이 범위에서 센다 */
+  const folderPhotos = useMemo(() => {
+    if (isAllFilter(filter)) return scoredPhotos;
+    const ids = new Set<number>();
+    for (const d of details) if (filter.detailIds.has(d.id)) for (const id of d.photoIds) ids.add(id);
+    if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
+    return scoredPhotos.filter((p) => ids.has(p.photoId));
+  }, [scoredPhotos, filter, details, unsortedIds]);
   const visiblePhotos = useMemo(() => {
-    let list = scoredPhotos;
-    if (!isAllFilter(filter)) {
-      const ids = new Set<number>();
-      for (const d of details) if (filter.detailIds.has(d.id)) for (const id of d.photoIds) ids.add(id);
-      if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
-      list = list.filter((p) => ids.has(p.photoId));
-    }
+    const list = scoreFilter === "none" ? folderPhotos : folderPhotos.filter((p) => matchesScore(p, scoreFilter));
     if (guestOn && guestSort) return [...sortPhotos(list, "uploaded")].sort((a, b) => (likesByPhoto.get(b.photoId) ?? 0) - (likesByPhoto.get(a.photoId) ?? 0));
     return sortPhotos(list, sort);
-  }, [scoredPhotos, filter, details, unsortedIds, sort, guestOn, guestSort, likesByPhoto]);
+  }, [folderPhotos, scoreFilter, sort, guestOn, guestSort, likesByPhoto]);
+  const scoreFilterMenu: CustomMenu = {
+    value: scoreFilter,
+    options: SCORE_FILTERS.map((key) => ({
+      key,
+      label: SCORE_FILTER_LABEL[key],
+      trailing: String(folderPhotos.filter((p) => matchesScore(p, key)).length),
+    })),
+    onChange: (key) => setScoreFilter(key as ScoreFilter),
+  };
 
   // ── 폴더 필터 ──
   function focusFolder(key: FolderKey) {
@@ -316,7 +345,7 @@ export function SelectStage({
           <PhotoIcon size={18} />
         </span>
         모든 사진
-        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{photos.length}장</small>
+        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{scoreFilter === "none" ? photos.length : visiblePhotos.length}장</small>
       </>
     );
   })();
@@ -576,6 +605,7 @@ export function SelectStage({
                 showFilters={false}
                 sortable={view === "all"}
                 customSort={guestOn ? guestSortMenu : undefined}
+                customFilter={scoreFilterMenu}
               />
               {locked && (
                 <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
