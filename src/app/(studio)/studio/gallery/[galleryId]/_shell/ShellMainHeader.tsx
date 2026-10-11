@@ -7,6 +7,7 @@
  * 장수는 사이드바가 보여주고 여기서는 보는 방법만 다룬다. 촬영 순은 사진에 촬영 시각이 없어
  * 준비 중(백엔드 요청). 정렬 · 필터 항목은 기본(업로드 · 이름 · 별점 / 미분류)이고, 화면이 다른 항목을
  * 쓰면(보정 작업: 결과 없는 것 먼저 · 메모 있는 것만) customSort · customFilter로 같은 버튼 · 메뉴에 바꿔 끼운다.
+ * 항목 label은 글자나 아이콘(클라이언트 셀렉의 별점 필터는 별 다섯 개)이고, 아이콘이면 text로 읽어 주는 이름을 준다(이슈 130).
  * 보기 전환(그리드 · 한 장 보기) 버튼은 두지 않는다 — 디자이너 시안의 헤더에 없고, 크게 보기는 썸네일을 눌러 여는
  * 팝업이라 전환할 상태가 없다(늘 선택된 그리드 버튼 · 화면마다 다르게 돌던 한 장 보기 버튼을 뺌, QA 2026-09-29 · 이슈 84).
  * 좁은 폭(QA 이슈 84): 제목은 줄바꿈하지 않는다. 상위 폴더 이름(titleParent)은 1024 미만이면 늘, 그 이상이면 자리가
@@ -26,7 +27,8 @@ import type { PhotoResponse } from "@/lib/api/photos";
 
 export type SortKey = "uploaded" | "name" | "score";
 export type FilterKey = "none" | "unsorted";
-export type MenuOption = { key: string; label: string; trailing?: string };
+/** 메뉴 한 줄 — label은 글자나 아이콘(클라이언트 셀렉의 별점 필터는 별 다섯 개)이고, 아이콘이면 읽어 주는 이름 text를 함께 준다 */
+export type MenuOption = { key: string; label: ReactNode; text?: string; trailing?: string };
 export type CustomMenu = { value: string; options: MenuOption[]; onChange: (key: string) => void };
 
 const SORT_LABEL: Record<SortKey, string> = { uploaded: "업로드 순", name: "이름 순", score: "별점 순" };
@@ -42,6 +44,10 @@ export function sortPhotos(list: PhotoResponse[], sort: SortKey): PhotoResponse[
 const FILTER_LABEL: Record<Exclude<FilterKey, "none">, string> = {
   unsorted: "미분류만",
 };
+/** 메뉴 항목의 읽어 주는 이름 — text가 없으면 글자 label, 그것도 아니면 key */
+function optionText(o: MenuOption): string {
+  return o.text ?? (typeof o.label === "string" ? o.label : o.key);
+}
 
 export function ShellMainHeader({
   title,
@@ -102,13 +108,16 @@ export function ShellMainHeader({
   }, [menuOpen]);
 
   const filterActive = customFilter ? customFilter.value !== "none" : filter !== "none";
-  const buttonLabel = customFilter && customFilter.value !== "none"
-    ? customFilter.options.find((o) => o.key === customFilter.value)?.label ?? ""
+  // 버튼에 보이는 것(아이콘일 수 있음)과 읽어 주는 이름(글자)을 따로 둔다
+  const activeOption: MenuOption | undefined = customFilter && customFilter.value !== "none"
+    ? customFilter.options.find((o) => o.key === customFilter.value)
     : !customFilter && filter !== "none"
-      ? FILTER_LABEL[filter]
+      ? { key: filter, label: FILTER_LABEL[filter] }
       : customSort
-        ? customSort.options.find((o) => o.key === customSort.value)?.label ?? ""
-        : SORT_LABEL[sort];
+        ? customSort.options.find((o) => o.key === customSort.value)
+        : { key: sort, label: SORT_LABEL[sort] };
+  const buttonLabel: ReactNode = activeOption?.label ?? "";
+  const buttonText = activeOption ? optionText(activeOption) : "";
 
   return (
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-5 max-[480px]:px-3">
@@ -166,8 +175,8 @@ export function ShellMainHeader({
             type="button"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            aria-label={buttonLabel}
-            title={buttonLabel}
+            aria-label={buttonText}
+            title={buttonText}
             onClick={() => setMenuOpen((v) => !v)}
             className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-surface-default-light px-3 whitespace-nowrap type-content-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-medium max-sm:px-2.25 ${
               filterActive ? "font-semibold" : ""
@@ -189,6 +198,7 @@ export function ShellMainHeader({
                     <MenuRow
                       key={o.key}
                       label={o.label}
+                      text={o.text}
                       trailing={o.trailing}
                       checked={customSort.value === o.key}
                       onClick={() => {
@@ -218,6 +228,7 @@ export function ShellMainHeader({
                     <MenuRow
                       key={o.key}
                       label={o.label}
+                      text={o.text}
                       trailing={o.trailing}
                       checked={customFilter.value === o.key}
                       onClick={() => {
@@ -256,12 +267,15 @@ export function ShellMainHeader({
 
 function MenuRow({
   label,
+  text,
   checked = false,
   trailing,
   disabled = false,
   onClick,
 }: {
-  label: string;
+  label: ReactNode;
+  /** label이 아이콘이면 읽어 주는 이름 */
+  text?: string;
   checked?: boolean;
   trailing?: string;
   disabled?: boolean;
@@ -272,6 +286,7 @@ function MenuRow({
       type="button"
       role="menuitemradio"
       aria-checked={checked}
+      aria-label={text}
       disabled={disabled}
       onClick={onClick}
       className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-(--radius-4) px-2.5 py-2 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-disabled disabled:hover:bg-transparent ${

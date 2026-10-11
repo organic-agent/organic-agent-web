@@ -12,6 +12,9 @@
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
  * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
  * 정렬 기본값은 별점 순(2차 QA) — 점수 묶음(★5 → ★1 → 별점 없음)으로 그리되, 별점이 하나도 없으면 묶음 없이 그려 처음 화면은 업로드 순과 같다.
+ * 정렬 메뉴의 필터는 별점 하나 · 별점 없음만(항목은 묶음 머리글과 같은 별 다섯 개, 장수는 보는 폴더 기준) — 받은 목록을 화면에서 거르고,
+ * 별점을 바꾸면 그 사진은 바로 빠진다. 걸린 동안은 정렬과 무관하게 그 점수 묶음 머리글 하나를 그리드 위에 두고(별점 없음 포함)
+ * AI 추천 묶음 아래 "나머지 n장" 줄은 뺀다. 폴더를 바꿔도 남고 새로고침하면 풀린다(저장 안 함, 이슈 130 · 2026-10-11 결정).
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
@@ -68,6 +71,34 @@ const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
 ];
+
+/** 별점 필터 — 점수 하나만(이상이 아니라 정확히 그 점수) · 별점 없음만 */
+type ScoreFilter = "none" | "5" | "4" | "3" | "2" | "1" | "unrated";
+const SCORE_FILTERS: Exclude<ScoreFilter, "none">[] = ["5", "4", "3", "2", "1", "unrated"];
+/** 메뉴 · 버튼이 읽어 주는 이름 — 보이는 건 점수 묶음 머리글과 같은 별 다섯 개(ScoreStars) · "별점 없음" */
+const SCORE_FILTER_TEXT: Record<Exclude<ScoreFilter, "none">, string> = {
+  "5": "별점 5점만",
+  "4": "별점 4점만",
+  "3": "별점 3점만",
+  "2": "별점 2점만",
+  "1": "별점 1점만",
+  unrated: "별점 없음만",
+};
+/** 필터 값 → 묶음 머리글의 점수(별점 없음은 null) */
+function scoreOfFilter(filter: Exclude<ScoreFilter, "none">): number | null {
+  return filter === "unrated" ? null : Number(filter);
+}
+function matchesScore(photo: PhotoResponse, filter: Exclude<ScoreFilter, "none">): boolean {
+  return filter === "unrated" ? !photo.score : photo.score === Number(filter);
+}
+/** 별 다섯 개(채움 = 점수) — 점수 묶음 머리글 · 정렬 메뉴의 별점 필터 · 헤더 버튼이 같이 쓴다 */
+function ScoreStars({ score, size = 14 }: { score: number; size?: number }) {
+  return (
+    <span className="flex text-brand-secondary-default" aria-label={`별점 ${score}`}>
+      {[1, 2, 3, 4, 5].map((n) => (n <= score ? <StarFillIcon key={n} size={size} /> : <StarIcon key={n} size={size} className="text-border-default" />))}
+    </span>
+  );
+}
 
 /** 하단 바의 디데이 조각 — 목표일이 없으면 빈 문자열(조각을 뺀다). 상단바 칩과 같은 표기(문구 점검 C02) */
 function ddayLabel(deadline: string | null): string {
@@ -181,6 +212,8 @@ export function SelectStage({
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sort, setSort] = useState<SortKey>("score");
+  // 별점 필터 — 점수 하나(★n만) 또는 별점 없음만. 이미 받은 목록을 화면에서 거른다(정렬과 같은 방식)
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("none");
   // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산), 정렬 목록에 "하객 좋아요순"
   const [guestOn, setGuestOn] = useState(false);
   const [guestSort, setGuestSort] = useState(false);
@@ -242,17 +275,32 @@ export function SelectStage({
     for (const c of folders ?? []) for (const d of c.details) for (const id of d.photoIds) map.set(id, `${c.name} / ${d.name}`);
     return (photo: PhotoResponse) => map.get(photo.photoId) ?? (unsortedIds.has(photo.photoId) ? "미분류" : null);
   }, [folders, unsortedIds]);
+  /** 폴더 필터까지 건 사진 — 별점 필터 메뉴의 장수는 이 범위에서 센다 */
+  const folderPhotos = useMemo(() => {
+    if (isAllFilter(filter)) return scoredPhotos;
+    const ids = new Set<number>();
+    for (const d of details) if (filter.detailIds.has(d.id)) for (const id of d.photoIds) ids.add(id);
+    if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
+    return scoredPhotos.filter((p) => ids.has(p.photoId));
+  }, [scoredPhotos, filter, details, unsortedIds]);
   const visiblePhotos = useMemo(() => {
-    let list = scoredPhotos;
-    if (!isAllFilter(filter)) {
-      const ids = new Set<number>();
-      for (const d of details) if (filter.detailIds.has(d.id)) for (const id of d.photoIds) ids.add(id);
-      if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
-      list = list.filter((p) => ids.has(p.photoId));
-    }
+    const list = scoreFilter === "none" ? folderPhotos : folderPhotos.filter((p) => matchesScore(p, scoreFilter));
     if (guestOn && guestSort) return [...sortPhotos(list, "uploaded")].sort((a, b) => (likesByPhoto.get(b.photoId) ?? 0) - (likesByPhoto.get(a.photoId) ?? 0));
     return sortPhotos(list, sort);
-  }, [scoredPhotos, filter, details, unsortedIds, sort, guestOn, guestSort, likesByPhoto]);
+  }, [folderPhotos, scoreFilter, sort, guestOn, guestSort, likesByPhoto]);
+  const scoreFilterMenu: CustomMenu = {
+    value: scoreFilter,
+    options: SCORE_FILTERS.map((key) => {
+      const score = scoreOfFilter(key);
+      return {
+        key,
+        label: score === null ? "별점 없음" : <ScoreStars score={score} />,
+        text: SCORE_FILTER_TEXT[key],
+        trailing: String(folderPhotos.filter((p) => matchesScore(p, key)).length),
+      };
+    }),
+    onChange: (key) => setScoreFilter(key as ScoreFilter),
+  };
 
   // ── 폴더 필터 ──
   function focusFolder(key: FolderKey) {
@@ -316,7 +364,7 @@ export function SelectStage({
           <PhotoIcon size={18} />
         </span>
         모든 사진
-        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{photos.length}장</small>
+        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
       </>
     );
   })();
@@ -337,9 +385,15 @@ export function SelectStage({
   const restPhotos = useMemo(() => (showAiGroup ? gridPhotos.filter((p) => !aiIds.has(p.photoId)) : gridPhotos), [showAiGroup, gridPhotos, aiIds]);
   const scopeLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? "모든 사진" : "보는 폴더";
   const aiUnpicked = aiPhotos.filter((p) => !pickedIds.has(p.photoId));
-  /** 별점 순이면 점수별 그룹(5 → 1 → 없음) — 별점이 하나도 없으면 묶지 않는다("별점 없음 n장" 한 묶음만 보이지 않게) */
+  /**
+   * 별점 순이면 점수별 그룹(5 → 1 → 없음) — 별점이 하나도 없으면 묶지 않는다("별점 없음 n장" 한 묶음만 보이지 않게).
+   * 별점 필터가 걸리면 정렬과 무관하게 그 점수(별점 없음 포함) 묶음 하나 — 머리글이 "지금 이 점수만 보는 중"을 알리고,
+   * AI 추천 묶음 아래 "나머지 n장" 줄의 자리를 대신한다(이슈 130).
+   */
   const scoreGroups = useMemo(() => {
-    if (sort !== "score" || view !== "all") return null;
+    if (view !== "all") return null;
+    if (scoreFilter !== "none") return restPhotos.length > 0 ? [{ score: scoreOfFilter(scoreFilter), photos: restPhotos }] : null;
+    if (sort !== "score") return null;
     const groups: { score: number | null; photos: PhotoResponse[] }[] = [];
     for (const sc of [5, 4, 3, 2, 1]) {
       const ps = restPhotos.filter((p) => p.score === sc);
@@ -349,7 +403,7 @@ export function SelectStage({
     const none = restPhotos.filter((p) => !p.score);
     if (none.length > 0) groups.push({ score: null, photos: none });
     return groups;
-  }, [sort, view, restPhotos]);
+  }, [sort, view, restPhotos, scoreFilter]);
 
   // ── 전달하기 ──
   const ratedCount = scoredPhotos.filter((p) => p.score !== null).length;
@@ -576,6 +630,7 @@ export function SelectStage({
                 showFilters={false}
                 sortable={view === "all"}
                 customSort={guestOn ? guestSortMenu : undefined}
+                customFilter={scoreFilterMenu}
               />
               {locked && (
                 <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
@@ -655,7 +710,7 @@ export function SelectStage({
                         overlayOf={guestOverlay}
                       />
                     )}
-                    {aiPhotos.length > 0 && restPhotos.length > 0 && (
+                    {aiPhotos.length > 0 && restPhotos.length > 0 && scoreFilter === "none" && (
                       <p className="flex items-center gap-2 px-0 pt-1 type-content-xs text-contents-light-bgd-weakness after:h-px after:flex-1 after:bg-divider-default after:content-['']">
                         나머지 {restPhotos.length}장
                       </p>
@@ -671,9 +726,7 @@ export function SelectStage({
                     <div key={g.score ?? "none"} className="pt-1">
                       <p className="flex items-center gap-0.5 px-5 pb-2 type-content-xs text-contents-light-bgd-weakness">
                         {g.score !== null ? (
-                          <span className="flex text-brand-secondary-default" aria-label={`별점 ${g.score}`}>
-                            {[1, 2, 3, 4, 5].map((n) => (n <= g.score! ? <StarFillIcon key={n} size={14} /> : <StarIcon key={n} size={14} className="text-border-default" />))}
-                          </span>
+                          <ScoreStars score={g.score} />
                         ) : (
                           <span className="type-label-semibold-xs text-contents-light-bgd-sub">별점 없음</span>
                         )}
