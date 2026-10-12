@@ -107,7 +107,7 @@ export function usePersonalUpload({
   // ── AI 분석 감시 — 끝나면 폴더 · 사진 재조회 ──
   const analysis = useAnalysisWatch(
     galleryId,
-    { enabled: enabled && (uploading || (photos?.length ?? 0) > 0), uploading },
+    { enabled: enabled && (uploading || (photos?.length ?? 0) > 0), uploading, getConceptCount: () => conceptCountRef.current },
     {
       onDone: () => {
         setNotice(null);
