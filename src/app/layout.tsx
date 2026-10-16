@@ -7,6 +7,7 @@
 
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthBootstrap } from "@/components/AuthBootstrap";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme-bootstrap";
 import "./fonts/pretendard.css";
@@ -53,6 +54,9 @@ export default function RootLayout({
       </head>
       <body>
         <AuthBootstrap />
+        {/* 버셀 Web Analytics — 페이지뷰 · 유입 집계. 대시보드에서 Analytics를 켜야 숫자가 보인다.
+            사용자 행동 이벤트는 instrumentation-client.ts + lib/analytics 몫(#133) */}
+        <Analytics />
         {children}
       </body>
     </html>
