@@ -17,7 +17,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { track } from "@/lib/analytics";
+import { setUserProps, track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { ArrowRightIcon, BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -135,6 +135,8 @@ function PersonalGalleryForm() {
         target_count: count ? Number(count) : null,
         days_to_event: deadline ? Math.round((Date.parse(deadline) - now) / 86_400_000) : null,
       });
+      // 이후 모든 이벤트를 Free · Pro로 나눠 볼 수 있게 사용자 속성으로도 올린다
+      setUserProps({ plan: pro ? "pro" : "free" });
       // 새 개인 작업공간이 내 소속에 실려야 갤러리 화면이 개인 갤러리로 판정한다(personalMembershipOf)
       await refreshMe();
       router.replace(`/gallery/${gallery.id}`);
