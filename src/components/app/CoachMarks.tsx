@@ -26,6 +26,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { track } from "@/lib/analytics";
 import { CloseIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/authStore";
@@ -201,6 +202,8 @@ export function CoachMarks({
   onDark?: boolean;
 }) {
   const userId = useAuth().user?.id ?? null;
+  /** 분석 이벤트의 flow 이름 — 키에서 접두어를 뗀 것(예: studioHome) */
+  const flow = storeKey.replace(/^sel\.coach\./, "");
   const doneStore = useMemo(() => (userId === null ? SIGNED_OUT : storeFor(`${storeKey}.${userId}`)), [storeKey, userId]);
   const done = useSyncExternalStore(doneStore.subscribe, doneStore.get, doneStore.getServerSnapshot);
   const [index, setIndex] = useState(0);
@@ -262,11 +265,14 @@ export function CoachMarks({
   useEffect(() => {
     if (!shown) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") doneStore.set(true);
+      if (e.key === "Escape") {
+        track("coachmark_skipped", { flow, step: at });
+        doneStore.set(true);
+      }
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [shown, doneStore]);
+  }, [shown, doneStore, flow, at]);
 
   // 다른 창 위(modal) — 초점을 말풍선의 "다음"으로 옮기고, 끝나면 있던 곳으로 돌려준다
   const bubbleRef = useRef<HTMLDivElement | null>(null);
@@ -339,8 +345,10 @@ export function CoachMarks({
 
   // 그려진 단계를 기준으로 넘긴다 — 새 대상을 재는 사이에 한 번 더 눌러도 한 단계만 넘어간다
   function next() {
-    if (last) doneStore.set(true);
-    else setIndex(at + 1);
+    if (last) {
+      track("coachmark_finished", { flow, step: at });
+      doneStore.set(true);
+    } else setIndex(at + 1);
   }
 
   /** Tab이 말풍선 밖(뒤에 깔린 창)으로 나가지 않게 처음과 끝을 잇는다 */
@@ -389,7 +397,10 @@ export function CoachMarks({
         <button
           type="button"
           aria-label="안내 닫기"
-          onClick={() => doneStore.set(true)}
+          onClick={() => {
+            track("coachmark_skipped", { flow, step: at });
+            doneStore.set(true);
+          }}
           className="absolute top-2.5 right-2.5 grid size-6 cursor-pointer place-items-center rounded-(--radius-4) text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness"
         >
           <CloseIcon size={18} />

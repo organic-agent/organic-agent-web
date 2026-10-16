@@ -7,6 +7,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { buildIdentifyProps, track } from "@/lib/analytics";
 import { DarkModeIcon, InfoIcon, LightModeIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
@@ -205,6 +206,7 @@ export function AccountDeleteTab({ user }: { user: User }) {
 
   async function withdraw() {
     await deleteMyAccount();
+    track("account_deleted", { workspace_kinds: buildIdentifyProps(user).workspace_kinds });
     await logout();
     router.replace("/");
   }

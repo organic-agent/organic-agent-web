@@ -21,6 +21,7 @@ import {
   PlusIcon,
   SettingIcon,
 } from "@/components/icons";
+import { track } from "@/lib/analytics";
 import { blockLeave } from "@/components/app/LeaveGuard";
 import { Avatar } from "@/components/ui/Avatar";
 import { MenuItem } from "@/components/ui/MenuItem";
@@ -213,6 +214,7 @@ export function ProfileMenu({
         icon={<CommentIcon size={20} />}
         onClick={() => {
           onClose();
+          track("support_chat_clicked", { from: "profile_menu" });
           window.open(SUPPORT_CHAT_URL, "_blank", "noopener,noreferrer");
         }}
       />

@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { BellIcon, BellOffIcon } from "@/components/icons";
 import { blockLeave } from "@/components/app/LeaveGuard";
 import { NotificationPeek } from "@/components/app/NotificationPeek";
@@ -209,6 +210,7 @@ export function NotificationBell({
     const href = NO_DESTINATION.has(n.type) ? null : hrefFor(n);
     // 업로드 중이면 이동하지 않는다 — 가 보지 못했으니 읽음으로도 바꾸지 않는다
     if (href && blockLeave()) return;
+    track("notification_opened", { kind: n.type, count: unread });
     if (n.readAt === null) {
       markLocally([n.id]);
       try {
