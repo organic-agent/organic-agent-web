@@ -8,11 +8,12 @@
  */
 
 import { useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { saveBlob, zipFiles } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/retouchDownload";
 import type { RetouchItem } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/roundItems";
 
-export function ResultsDownloadModal({ galleryTitle, roundNo, items, onClose }: { galleryTitle: string; roundNo: number; items: RetouchItem[]; onClose: () => void }) {
+export function ResultsDownloadModal({ galleryId, galleryTitle, roundNo, items, onClose }: { galleryId: number; galleryTitle: string; roundNo: number; items: RetouchItem[]; onClose: () => void }) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -32,6 +33,7 @@ export function ResultsDownloadModal({ galleryTitle, roundNo, items, onClose }: 
         controller.signal,
       );
       saveBlob(blob, `${galleryTitle} 보정본 ${roundNo}차.zip`);
+      track("results_downloaded", { gallery_id: galleryId, round: roundNo, photo_count: withResult.length });
       if (missing.length > 0) setNotice(`${missing.length}장은 받지 못해 빠졌어요 (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? " …" : ""})`);
       else onClose();
     } catch (err) {

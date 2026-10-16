@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ApiError } from "@/lib/api/client";
 import { addRetouchPhotos, getRetouchOverview, type RetouchRequestItem, updateRetouchPhotoRequest } from "@/lib/api/retouch";
@@ -61,6 +62,8 @@ export function ExportSelectionModal({
       }
       setBusy("export");
       await downloadSelectionCsv(galleryId);
+      // 개인 갤러리의 첫 보정 요청서 — 셀렉 화면에서만 내보내므로 늘 1회차(#133)
+      track("retouch_request_exported", { gallery_id: galleryId, round: 1, photo_count: selectedCount });
       onExported();
     } catch (err) {
       if (err instanceof ApiError && err.code === "SELECTION_400_7")

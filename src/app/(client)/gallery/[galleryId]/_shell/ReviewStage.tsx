@@ -653,7 +653,7 @@ export function ReviewStage({
         />
       )}
       {downloadOpen && activeRoundNo !== null && (
-        <ResultsDownloadModal galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
+        <ResultsDownloadModal galleryId={galleryId} galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}
       {confirmOpen && (
         <ConfirmRetouchModal

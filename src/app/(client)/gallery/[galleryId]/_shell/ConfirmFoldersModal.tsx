@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ApiError } from "@/lib/api/client";
 import { confirmFolders, type ConceptFolderResponse } from "@/lib/api/conceptFolders";
@@ -41,6 +42,7 @@ export function ConfirmFoldersModal({
     setError(null);
     try {
       await confirmFolders(galleryId);
+      track("concept_folders_confirmed", { gallery_id: galleryId, folder_count: folders.length, detail_count: detailCount, photo_count: photoCount });
       onConfirmed();
     } catch (err) {
       if (err instanceof ApiError && err.code === "GALLERY_409_2") {

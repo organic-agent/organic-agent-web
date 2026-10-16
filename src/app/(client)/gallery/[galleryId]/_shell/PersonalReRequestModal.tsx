@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { Button } from "@/components/ui/Button";
 import { ApiError } from "@/lib/api/client";
@@ -62,6 +63,7 @@ export function PersonalReRequestModal({
           return;
         }
         await sendRetouchRound(galleryId, latestRound.roundNo);
+        track("retouch_round_sent", { gallery_id: galleryId, round: latestRound.roundNo, photo_count: latestRound.photoCount, actor: "personal" });
       }
       const overview = await getRetouchOverview(galleryId);
       const drafting = overview.currentRound?.status === "DRAFTING" ? overview.currentRound : null;

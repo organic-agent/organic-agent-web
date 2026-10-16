@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ApiError } from "@/lib/api/client";
 import { confirmRetouch } from "@/lib/api/retouch";
@@ -35,6 +36,7 @@ export function ConfirmRetouchModal({
     setError(null);
     try {
       await confirmRetouch(galleryId);
+      track("retouch_confirmed", { gallery_id: galleryId, rounds_used: roundCount });
       onConfirmed();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "네트워크 연결을 확인한 뒤 다시 시도해 주세요.");

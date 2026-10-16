@@ -71,6 +71,7 @@ export function usePersonalUpload({
   // ── 업로드 실행기 — 큐가 비면 분석 잡을 요청한다 ──
   const requestAnalysisRef = useRef<() => Promise<void>>(async () => {});
   const { run, start, abort, pause, resume, retryFailed, reset } = useUploadRun(galleryId, {
+    actor: "personal",
     onBatchUploaded: () => void refreshPhotos(),
     onFinished: async ({ done, failed, aborted }) => {
       await refreshPhotos();
@@ -107,7 +108,7 @@ export function usePersonalUpload({
   // ── AI 분석 감시 — 끝나면 폴더 · 사진 재조회 ──
   const analysis = useAnalysisWatch(
     galleryId,
-    { enabled: enabled && (uploading || (photos?.length ?? 0) > 0), uploading, getConceptCount: () => conceptCountRef.current },
+    { enabled: enabled && (uploading || (photos?.length ?? 0) > 0), uploading, getConceptCount: () => conceptCountRef.current, actor: "personal" },
     {
       onDone: () => {
         setNotice(null);
