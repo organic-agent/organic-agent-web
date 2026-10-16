@@ -29,6 +29,8 @@ export interface AnalyticsAdapter {
   page(url: string): void;
   /** 익명 기록을 사용자 ID에 합친다 */
   identify(userId: string, props: IdentifyProps): void;
+  /** 사용자 속성을 나중에 덧붙인다(예: 개인 갤러리 생성 뒤 plan). identify 뒤에 불러야 그 사용자에 붙는다 */
+  setUserProps(props: Props): void;
   /** 로그아웃 — 사용자 연결을 끊고 새 익명 ID로 */
   reset(): void;
   /** 행동 기록. 이름 · 속성은 events.ts의 사전을 따른다 */

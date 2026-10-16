@@ -25,6 +25,9 @@ export const consoleAdapter: AnalyticsAdapter = {
   identify(userId, props) {
     log("identify", userId, props);
   },
+  setUserProps(props) {
+    log("setUserProps", props);
+  },
   reset() {
     log("reset");
   },
