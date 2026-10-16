@@ -12,9 +12,12 @@
  * 인증 상태를 따라 "지난 방문의 사용자 요약"(lastUser)도 맞춘다 — 로그인 · 복구 · 내 정보 갱신이
  * 될 때마다 적고, 토큰까지 없어진 게스트(로그아웃 · 로그인이 풀림)면 지운다. 토큰은 남았는데
  * 이번 부팅만 게스트인 경우(네트워크 실패)는 두었다가 다음 방문에 다시 쓴다.
+ *
+ * 인증이 복구되면 분석 래퍼 identify도 같은 자리에서 부른다 — 로그인 전 익명 기록이 사용자 ID로 합쳐진다.
  */
 
 import { useEffect } from "react";
+import { buildIdentifyProps, identify } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth/authStore";
 import { forgetLastUser, rememberLastUser } from "@/lib/auth/lastUser";
 import { restoreSession } from "@/lib/auth/restoreSession";
@@ -28,8 +31,11 @@ export function AuthBootstrap() {
   }, []);
 
   useEffect(() => {
-    if (auth.status === "authenticated") rememberLastUser(auth.user);
-    else if (auth.status === "guest" && !getRefreshToken()) forgetLastUser();
+    if (auth.status === "authenticated") {
+      rememberLastUser(auth.user);
+      // 분석 도구에 "이 익명 기록은 사용자 N"이라고 알린다. 같은 값이면 래퍼가 한 번만 보낸다(#133)
+      identify(String(auth.user.id), buildIdentifyProps(auth.user));
+    } else if (auth.status === "guest" && !getRefreshToken()) forgetLastUser();
   }, [auth]);
 
   return null;
