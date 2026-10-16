@@ -47,11 +47,11 @@ export type EventMap = {
   /** 사진 업로드 끝. 개인과 작가가 같은 훅을 쓰므로 actor로 구분 */
   upload_completed: { gallery_id: number; photo_count: number; actor: Actor; duration_sec: number | null };
   /** AI 컨셉 분석 요청 */
-  ai_analysis_requested: { gallery_id: number; concept_count: number | null; photo_count: number | null; actor: Actor };
-  /** AI가 나눈 폴더를 확정 */
-  concept_folders_confirmed: { gallery_id: number; folder_count: number; edited: boolean };
-  /** 사진에 별점. 지우기는 score 0 */
-  photo_rated: { gallery_id: number; score: number; from: "grid" | "lightbox" };
+  ai_analysis_requested: { gallery_id: number; concept_count: number | null; actor: Actor };
+  /** AI가 나눈 폴더를 확정. folder_count는 컨셉 폴더, detail_count는 그 아래 세부 폴더 수 */
+  concept_folders_confirmed: { gallery_id: number; folder_count: number; detail_count: number; photo_count: number };
+  /** 사진에 별점(셀렉 화면은 싱글뷰에서만 매긴다). 지우기는 score 0 */
+  photo_rated: { gallery_id: number; score: number };
   /** 셀렉 제출 — 첫 핵심 가치 도달 */
   selection_submitted: {
     gallery_id: number;
@@ -65,8 +65,8 @@ export type EventMap = {
   retouch_round_sent: { gallery_id: number; round: number; photo_count: number; actor: Actor };
   /** 보정 확인 — 두 번째 핵심 가치 도달이자 흐름의 끝 */
   retouch_confirmed: { gallery_id: number; rounds_used: number };
-  /** 최종 결과 ZIP 내려받기 */
-  results_downloaded: { gallery_id: number; photo_count: number; zip_count: number };
+  /** 보정본 ZIP 내려받기(회차별) */
+  results_downloaded: { gallery_id: number; round: number; photo_count: number };
 
   // ── 개인 결제 고객 · 우선 2 ──────────────────────────────────────
   photo_selected: { gallery_id: number; count: number };

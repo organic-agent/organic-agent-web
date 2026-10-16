@@ -27,6 +27,7 @@ import {
   reissueUploadUrls,
   S3PutError,
 } from "@/lib/api/photos";
+import { track } from "@/lib/analytics";
 import type { PreparedFile } from "@/lib/upload/masterResize";
 import {
   UPLOAD_COMPLETE_BATCH,
@@ -74,6 +75,8 @@ export type UploadRun = {
 export type ResumeItem = { file: File; photoId: number };
 
 type Callbacks = {
+  /** 분석 이벤트에 실을 주체 — 개인 갤러리 화면은 "personal", 없으면 작가(#133) */
+  actor?: "personal" | "studio";
   /** 완료 통보가 성공한 사진 번호들 — 화면이 사진 목록을 조용히 다시 읽는 신호 */
   onBatchUploaded?: (photoIds: number[]) => void;
   onFinished?: (result: { done: number; failed: number; aborted: boolean }) => void;
@@ -468,6 +471,14 @@ export function useUploadRun(galleryId: number, callbacks: Callbacks = {}) {
         error,
         aborted,
       });
+      if (done > 0) {
+        track("upload_completed", {
+          gallery_id: galleryId,
+          photo_count: done,
+          actor: callbacksRef.current.actor ?? "studio",
+          duration_sec: Math.round((Date.now() - startedAt) / 1000),
+        });
+      }
       callbacksRef.current.onFinished?.({ done, failed: failedFiles.length, aborted });
     },
     [galleryId],

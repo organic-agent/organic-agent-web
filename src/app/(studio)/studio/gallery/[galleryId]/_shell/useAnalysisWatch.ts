@@ -26,6 +26,7 @@ import {
   requestAnalysis,
   type AnalysisJobResponse,
 } from "@/lib/api/analysis";
+import { track } from "@/lib/analytics";
 import { ApiError } from "@/lib/api/client";
 import { materializeAiFolders } from "@/lib/api/conceptFolders";
 import { getPhotoSummary, type PhotoSummaryResponse } from "@/lib/api/photos";
@@ -79,11 +80,14 @@ export function useAnalysisWatch(
     enabled,
     uploading,
     getConceptCount,
+    actor,
   }: {
     enabled: boolean;
     uploading: boolean;
     /** 첫 잡의 자동 요청에 실을 컨셉 수 — 화면이 첫 업로드 때 받아 둔 값(이슈 128). 없으면 값 없이 보낸다 */
     getConceptCount?: () => number | null;
+    /** 분석 이벤트에 실을 주체 — 개인 갤러리 화면은 "personal", 없으면 작가(#133) */
+    actor?: "personal" | "studio";
   },
   callbacks: Callbacks = {},
 ) {
@@ -96,9 +100,11 @@ export function useAnalysisWatch(
 
   const callbacksRef = useRef(callbacks);
   const getConceptCountRef = useRef(getConceptCount);
+  const actorRef = useRef(actor);
   useEffect(() => {
     callbacksRef.current = callbacks;
     getConceptCountRef.current = getConceptCount;
+    actorRef.current = actor;
   });
   const queuedRef = useRef(false);
   const finishedJobsRef = useRef(new Set<number>());
@@ -119,6 +125,7 @@ export function useAnalysisWatch(
     setError(null);
     try {
       const created = await requestAnalysis(galleryId, conceptCount);
+      track("ai_analysis_requested", { gallery_id: galleryId, concept_count: conceptCount ?? null, actor: actorRef.current ?? "studio" });
       setJob(created);
       setNonce((n) => n + 1);
     } catch (err) {
