@@ -14,6 +14,7 @@
     "icons:build": "node scripts/build-icons.mjs"
   },
   "dependencies": {
+    "@amplitude/analytics-browser": "^2.48.0",
     "@vercel/analytics": "^2.0.1",
     "@zip.js/zip.js": "^2.23.0",
     "jszip": "^3.10.2",
