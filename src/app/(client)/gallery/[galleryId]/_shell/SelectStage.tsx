@@ -30,6 +30,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { track } from "@/lib/analytics";
 import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, FolderIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
@@ -492,6 +493,7 @@ export function SelectStage({
         if (sending === null) await clearPhotoRating(galleryId, photoId);
         else await ratePhoto(galleryId, photoId, sending);
         job.saved = sending;
+        track("photo_rated", { gallery_id: galleryId, score: sending ?? 0 });
       } catch (err) {
         // 그사이 다시 매겼으면 그 값을 이어서 보내 본다
         if (job.want !== sending) continue;
@@ -894,6 +896,7 @@ export function SelectStage({
       {submitOpen && (
         <SubmitSelectionModal
           galleryId={galleryId}
+          galleryCreatedAt={gallery.createdAt}
           selectedCount={selectedCount}
           maxSelectable={maxSelectable}
           requests={requests}

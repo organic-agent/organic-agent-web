@@ -10,6 +10,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ApiError } from "@/lib/api/client";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
@@ -17,6 +18,7 @@ import { submitSelection } from "@/lib/api/selection";
 
 export function SubmitSelectionModal({
   galleryId,
+  galleryCreatedAt,
   selectedCount,
   maxSelectable,
   requests,
@@ -26,6 +28,8 @@ export function SubmitSelectionModal({
   onSubmitted,
 }: {
   galleryId: number;
+  /** 제출까지 걸린 일수 계산용(분석 이벤트) */
+  galleryCreatedAt: string | null;
   selectedCount: number;
   maxSelectable: number | null;
   /** 고른 사진의 보정 요청(전달 본문) */
@@ -47,6 +51,12 @@ export function SubmitSelectionModal({
     setError(null);
     try {
       await submitSelection(galleryId, requests);
+      track("selection_submitted", {
+        gallery_id: galleryId,
+        selected_count: selectedCount,
+        retouch_request_count: requests.length,
+        days_since_created: galleryCreatedAt ? Math.round((Date.now() - Date.parse(galleryCreatedAt)) / 86_400_000) : null,
+      });
       onSubmitted();
     } catch (err) {
       if (err instanceof ApiError && err.code === "SELECTION_400_7")
