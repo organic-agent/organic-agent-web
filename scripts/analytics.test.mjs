@@ -20,6 +20,8 @@ test("초대 · 협업 토큰은 :token으로 가린다", () => {
 
 test("OAuth 콜백의 code · state는 지우고 나머지 쿼리는 남긴다", () => {
   assert.equal(safeUrl("/login/oauth2/code/kakao?code=AAA&state=BBB", origin), "/login/oauth2/code/kakao");
+  assert.equal(safeUrl("/login/oauth2/code/google?iss=https%3A%2F%2Faccounts.google.com&scope=email+profile&authuser=1&code=A&state=B", origin), "/login/oauth2/code/google");
+  assert.equal(safeUrl("/invite/tok?code=AAA&ref=x", origin), "/invite/:token?ref=x");
   assert.equal(safeUrl("/onboarding/personal/gallery?plan=pro&coupon=12", origin), "/onboarding/personal/gallery?plan=pro&coupon=12");
 });
 
