@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { ApiError } from "@/lib/api/client";
 import { deselectPhotos, getPhotoSelection, type PhotoSelectionResponse, selectPhotos } from "@/lib/api/selection";
 
@@ -104,6 +105,8 @@ export function useSelectionSync(
       let latest = snapshot;
       if (removes.length > 0) latest = await deselectPhotos(galleryId, removes);
       if (adds.length > 0) latest = await selectPhotos(galleryId, adds);
+      if (removes.length > 0) track("photo_deselected", { gallery_id: galleryId, count: removes.length });
+      if (adds.length > 0) track("photo_selected", { gallery_id: galleryId, count: adds.length });
       serverRef.current = latest;
       setServer(latest);
       if (!dirtyRef.current) {

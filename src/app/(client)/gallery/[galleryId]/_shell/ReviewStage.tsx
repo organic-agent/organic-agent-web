@@ -20,6 +20,7 @@
  */
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { track } from "@/lib/analytics";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
 import { ArchiveIcon, BrushIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, LockIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { BeforeAfter } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/BeforeAfter";
@@ -207,6 +208,7 @@ export function ReviewStage({
   const currentItem = currentPhoto ? itemById.get(currentPhoto.photoId) ?? null : null;
   function openPhoto(photoId: number) {
     setCurrentId(photoId);
+    track("lightbox_opened", { gallery_id: galleryId, from: "review" });
     setScrollToId(null);
     setLightboxOpen(true);
     // 열면 원본 한 장 · 패널 닫힘(이슈 125)

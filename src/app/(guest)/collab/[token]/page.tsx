@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { track } from "@/lib/analytics";
 import type { CollabPhotoResponse } from "@/lib/api/collab";
 import {
   enterGuest,
@@ -143,6 +144,7 @@ export default function GuestCollabPage() {
           return;
         }
         const r = await enterGuest(t, nickname);
+        if (t === token) track("guest_entered", { session_id: albums.find((a) => a.collabToken === token)?.sessionId ?? null });
         writeGuest(t, { guestToken: r.guestToken, nickname: r.nickname, participantId: r.participantId });
       }),
     );

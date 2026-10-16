@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { track } from "@/lib/analytics";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { DEFAULT_ZOOM } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import { Snackbar, type SnackbarKind } from "@/components/app/Snackbar";
@@ -111,6 +112,8 @@ export function AlbumGrid({
     if (lightboxIndex !== null) setLastViewedId(shown[lightboxIndex]?.photoId ?? null);
     setOpenIndex(null);
   }
+  /** 분석 이벤트용 — 앨범(세션) 토큰에서 세션 번호. 토큰은 비밀이라 보내지 않는다 */
+  const sessionIdOf = (t: string) => albums.find((a) => a.collabToken === t)?.sessionId ?? null;
   /** 좋아요 토글 — 화면 먼저, 실패하면 되돌림 */
   async function toggleLike(p: CollabPhotoResponse) {
     const token = tokenOf(p.photoId);
@@ -123,8 +126,10 @@ export function AlbumGrid({
     const apply = (liked: boolean) => (x: CollabPhotoResponse) => ({ ...x, liked, likeCount: Math.max(0, x.likeCount + (liked === x.liked ? 0 : liked ? 1 : -1)) });
     onPatchPhoto(token, p.photoId, apply(next));
     try {
-      if (next) await likeGuestPhoto(token, guestToken, p.photoId);
-      else await unlikeGuestPhoto(token, guestToken, p.photoId);
+      if (next) {
+        await likeGuestPhoto(token, guestToken, p.photoId);
+        track("guest_photo_liked", { session_id: sessionIdOf(token) });
+      } else await unlikeGuestPhoto(token, guestToken, p.photoId);
     } catch (err) {
       onPatchPhoto(token, p.photoId, apply(!next));
       if (isGuestNotIdentified(err)) onNeedName();
@@ -221,6 +226,7 @@ export function AlbumGrid({
           likable={likable}
           tokenOf={tokenOf}
           guestTokenOf={guestTokenOf}
+          sessionIdOf={sessionIdOf}
           onClose={close}
           onNavigate={setOpenIndex}
           onToggleLike={(p) => void toggleLike(p)}

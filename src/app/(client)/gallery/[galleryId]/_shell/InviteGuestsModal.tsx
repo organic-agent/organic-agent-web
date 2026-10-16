@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { CheckCircleIcon, CopyIcon, LinkIcon, PlusIcon, ShareIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -316,6 +317,7 @@ export function InviteGuestsBody({
         name: linkName.trim() || defaultLinkName,
         scope: { type: "SESSIONS", sessionIds: chosenSessions.map((s) => s.sessionId) },
       });
+      track("collab_session_created", { gallery_id: galleryId, photo_count: created.photoCount, source: "invite_guests" });
       await collab.reload();
       setMade({ session: created, from: chosenSessions.map((s) => s.name) });
       setChosen(new Set());

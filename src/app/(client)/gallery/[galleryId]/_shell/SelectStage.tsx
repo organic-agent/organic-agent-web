@@ -457,6 +457,7 @@ export function SelectStage({
     setCurrentId(photoId);
     setScrollToId(null);
     setLightboxOpen(true);
+    track("lightbox_opened", { gallery_id: galleryId, from: "select" });
     countView(galleryId, photoId);
   }
   function closeLightbox() {

@@ -22,6 +22,7 @@ export function GuestLightbox({
   likable,
   tokenOf,
   guestTokenOf,
+  sessionIdOf,
   onClose,
   onNavigate,
   onToggleLike,
@@ -37,6 +38,8 @@ export function GuestLightbox({
   /** 사진이 속한 앨범(세션) 토큰 */
   tokenOf: (photoId: number) => string;
   guestTokenOf: (token: string) => string | null;
+  /** 분석 이벤트용 세션 번호 — 모르면 null */
+  sessionIdOf: (token: string) => number | null;
   onClose: () => void;
   onNavigate: (index: number) => void;
   onToggleLike: (photo: CollabPhotoResponse) => void;
@@ -83,6 +86,7 @@ export function GuestLightbox({
           key={`${token}:${p.photoId}`}
           token={token}
           guestToken={guestTokenOf(token)}
+          sessionId={sessionIdOf(token)}
           photoId={p.photoId}
           writable={writable}
           onCountChange={(d) => onCommentDelta(p, d)}

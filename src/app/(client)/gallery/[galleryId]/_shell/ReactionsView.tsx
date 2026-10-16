@@ -9,7 +9,8 @@
  * 게스트 판 댓글 항목 재사용, 부부는 읽기만(하트 · 입력 · 삭제 없음).
  */
 
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { track } from "@/lib/analytics";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { type CustomMenu, ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
@@ -25,6 +26,10 @@ const NO_SELECTION: ReadonlySet<number> = new Set();
 const timeOf = (p: CollabPhotoResponse) => (p.photo.createdAt ? new Date(p.photo.createdAt).getTime() : 0);
 
 export function ReactionsView({ galleryId, session, photos }: { galleryId: number; session: CollabSessionResponse; photos: CollabPhotoResponse[] | null }) {
+  // 게스트 반응 보기를 열어 본 횟수(이슈 88의 51번 기능 사용률) — 세션마다 한 번
+  useEffect(() => {
+    track("guest_reactions_viewed", { gallery_id: galleryId, session_id: session.sessionId });
+  }, [galleryId, session.sessionId]);
   const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
   const [sort, setSort] = useState<ReactionSort>("likes");
   const [reactedOnly, setReactedOnly] = useState(false);

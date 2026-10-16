@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { SUPPORT_CHAT_URL } from "@/lib/support";
 import { LandingNav } from "./_components/LandingNav";
@@ -369,6 +370,7 @@ export default function LandingPage() {
                         <a
                           key={link.label}
                           href={link.href}
+                          onClick={link.href === SUPPORT_CHAT_URL ? () => track("support_chat_clicked", { from: "landing" }) : undefined}
                           // 바깥 주소(카카오톡 채널)는 새 탭으로 — 페이지 안 앵커(#…)는 그대로
                           {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                           className="type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"

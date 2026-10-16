@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { LockIcon, TrashIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/Avatar";
@@ -23,6 +24,7 @@ const MAX = 500;
 export function GuestComments({
   token,
   guestToken,
+  sessionId,
   photoId,
   writable,
   onCountChange,
@@ -31,6 +33,8 @@ export function GuestComments({
   /** 이 사진이 속한 앨범(세션) 토큰 */
   token: string;
   guestToken: string | null;
+  /** 분석 이벤트용 세션 번호 — 모르면 null */
+  sessionId: number | null;
   photoId: number;
   writable: boolean;
   /** 쓰기 · 삭제 뒤 사진의 댓글 수 보정(+1 · −1) */
@@ -78,6 +82,7 @@ export function GuestComments({
     setError(null);
     try {
       const created = await writeGuestComment(token, guestToken, photoId, trimmed);
+      track("guest_comment_written", { session_id: sessionId });
       setList((prev) => [...(prev ?? []), { ...created, mine: true }]);
       setText("");
       onCountChange(1);

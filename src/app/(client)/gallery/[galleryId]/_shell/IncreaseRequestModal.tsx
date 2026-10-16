@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ApiError } from "@/lib/api/client";
 import { requestSelectionIncrease } from "@/lib/api/selection";
@@ -40,6 +41,7 @@ export function IncreaseRequestModal({
     setError(null);
     try {
       await requestSelectionIncrease(galleryId, count, message);
+      track("selection_increase_requested", { gallery_id: galleryId, requested_count: count });
       writeIncreaseRequest(galleryId, { requestedCount: count, maxAtRequest: currentMax, at: new Date().toISOString() });
       onRequested(count);
     } catch (err) {
