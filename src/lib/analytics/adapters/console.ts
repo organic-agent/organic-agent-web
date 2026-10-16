@@ -10,8 +10,9 @@ import type { AnalyticsAdapter } from "../types";
 
 const enabled = process.env.NODE_ENV !== "production";
 
+// console.debug는 크롬 기본 레벨("Default levels")에서 숨겨져 "N hidden"으로만 보이므로 log를 쓴다.
 function log(...args: unknown[]): void {
-  if (enabled) console.debug("[analytics]", ...args);
+  if (enabled) console.log("[analytics]", ...args);
 }
 
 export const consoleAdapter: AnalyticsAdapter = {
