@@ -17,6 +17,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import {
   ArrowRightIcon,
@@ -238,6 +239,7 @@ export function InviteLanding({ token }: { token: string }) {
         kind === "PERSONAL_PARTNER"
           ? await acceptPartnerInvite(token)
           : await acceptInvite(token);
+      track("invite_accepted", { kind: kind === "PERSONAL_PARTNER" ? "partner" : "client" });
       // 새 소속이 내 정보에 실려야 갤러리 화면이 개인 파트너 · 클라이언트를 맞게 판정한다
       await refreshMe();
       router.replace(destinationOf(accepted));

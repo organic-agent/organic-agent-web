@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getMe, login, type OAuthProvider } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
+import { track } from "@/lib/analytics";
 import { setAuthenticated } from "@/lib/auth/authStore";
 import { readLoginContext, resolveDestination } from "@/lib/auth/loginFlow";
 import { setTokens } from "@/lib/auth/tokenStore";
@@ -72,6 +73,9 @@ export function OAuthCallback({
         setTokens(result);
         const user = await getMe();
         setAuthenticated(user);
+        // 가입인지 재로그인인지 — 서버 플래그가 없어 가입 시각이 1분 안이면 신규로 본다(#133)
+        const isNew = user.createdAt !== null && Date.now() - Date.parse(user.createdAt) < 60_000;
+        track(isNew ? "signup_completed" : "login_completed", { provider: user.provider });
         router.replace(
           resolveDestination({
             inviteToken: result.inviteToken,

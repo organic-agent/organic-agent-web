@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { HeartIcon, PhotoIcon, ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -102,7 +103,11 @@ export default function RoleSelectPage() {
             size="lg"
             icon={<ArrowRightIcon />}
             disabled={chosen === null}
-            onClick={() => chosen && router.push(chosen.href)}
+            onClick={() => {
+              if (!chosen) return;
+              track("role_selected", { role: chosen.key });
+              router.push(chosen.href);
+            }}
           >
             {chosen ? chosen.cta : "계속"}
           </Button>
