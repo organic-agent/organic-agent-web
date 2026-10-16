@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { ApiError } from "@/lib/api/client";
 import { type AiRecommendation, type AiRecommendationList, getRecommendations, requestRecommendations } from "@/lib/api/recommendations";
 
@@ -128,6 +129,7 @@ export function useAiRecommendations(galleryId: number) {
     startedRef.current = Date.now();
     try {
       await requestRecommendations(galleryId, detailFolderId ? { detailFolderId } : {});
+      track("ai_recommendation_requested", { gallery_id: galleryId });
       setJobActive(true);
       setPhase("running");
       later(1_500);
