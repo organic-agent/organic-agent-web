@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { ArrowRightIcon, BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -85,10 +86,14 @@ export default function PersonalPlanPage() {
   function proceed() {
     if (!picked) return;
     if (pickedFree) {
+      track("plan_selected", { plan: "free" });
       router.push("/onboarding/personal/gallery?plan=free");
       return;
     }
-    if (coupon) router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`);
+    if (coupon) {
+      track("plan_selected", { plan: "pro" });
+      router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`);
+    }
   }
 
   const buttonLabel = !picked ? "계속" : pickedFree ? "무료로 시작하기" : "쿠폰으로 계속하기";

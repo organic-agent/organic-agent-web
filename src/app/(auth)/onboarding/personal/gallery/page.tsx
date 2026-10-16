@@ -17,6 +17,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { ArrowRightIcon, BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -127,6 +128,12 @@ function PersonalGalleryForm() {
         shootType: "CEREMONY",
         planId: pro ? "pro" : "free",
         ...(ticket.coupon ? { couponId: ticket.coupon.couponId } : {}),
+      });
+      track("personal_gallery_created", {
+        plan: pro ? "pro" : "free",
+        has_coupon: Boolean(ticket.coupon),
+        target_count: count ? Number(count) : null,
+        days_to_event: deadline ? Math.round((Date.parse(deadline) - now) / 86_400_000) : null,
       });
       // 새 개인 작업공간이 내 소속에 실려야 갤러리 화면이 개인 갤러리로 판정한다(personalMembershipOf)
       await refreshMe();

@@ -16,6 +16,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { LoginModal } from "@/components/LoginModal";
 import { ArrowRightIcon } from "@/components/icons";
@@ -125,6 +126,8 @@ function PersonalCoupon() {
     setBanner(null);
     try {
       const coupon = await registerProCoupon(trimmed);
+      // 쓸 수 있는 쿠폰이 등록된 경우만 센다 — 이미 쓴 코드 · 막힌 코드는 등록이 아니다. 코드 자체는 보내지 않는다(#133)
+      if (coupon.status === "AVAILABLE") track("pro_coupon_registered", { coupon_id: coupon.couponId });
       const destination = coupon.status === "AVAILABLE"
         ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`
         : coupon.status === "USED"
