@@ -11,6 +11,7 @@
  * setGuest만으로도 가드가 랜딩으로 보낸다.
  */
 
+import { reset } from "@/lib/analytics";
 import { logoutOnServer } from "@/lib/api/auth";
 import { setGuest } from "@/lib/auth/authStore";
 import { clearLoginContext } from "@/lib/auth/loginFlow";
@@ -26,5 +27,6 @@ export async function logout(): Promise<void> {
   }
   clearTokens();
   clearLoginContext();
+  reset(); // 분석 도구의 사용자 연결을 끊는다 — 같은 브라우저의 다음 사용자가 이전 사람으로 섞이지 않게(#133)
   setGuest();
 }
