@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { InviteLinkBox, type InviteLinkState, toInviteLinkState } from "@/app/(studio)/studio/_components/InviteLinkBox";
 import { Avatar } from "@/components/ui/Avatar";
@@ -51,7 +52,9 @@ export function usePartnerInviteLink(galleryId: number) {
     setIssuing(true);
     setError(null);
     try {
-      setState(toInviteLinkState(await issueInvite(galleryId, { kind: "PERSONAL_PARTNER", maxUses: 1 })));
+      const issued = await issueInvite(galleryId, { kind: "PERSONAL_PARTNER", maxUses: 1 });
+      track("partner_invite_issued", { gallery_id: galleryId });
+      setState(toInviteLinkState(issued));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "링크를 만들지 못했어요 · 네트워크 연결을 확인한 뒤 다시 시도해 주세요");
     } finally {

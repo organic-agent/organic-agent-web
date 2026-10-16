@@ -76,11 +76,11 @@ export type EventMap = {
   lightbox_opened: { gallery_id: number; from: "select" | "review" };
   partner_invite_issued: { gallery_id: number };
   collab_session_created: { gallery_id: number; photo_count: number; source: "share_folder" | "invite_guests" };
-  guest_reactions_viewed: { gallery_id: number; session_count: number };
+  guest_reactions_viewed: { gallery_id: number; session_id: number };
   /** 게스트(익명)의 입장 · 좋아요 · 댓글. 협업 토큰은 싣지 않는다 */
-  guest_entered: { session_id: number };
-  guest_photo_liked: { session_id: number };
-  guest_comment_written: { session_id: number };
+  guest_entered: { session_id: number | null };
+  guest_photo_liked: { session_id: number | null };
+  guest_comment_written: { session_id: number | null };
 };
 
 export type EventName = keyof EventMap;

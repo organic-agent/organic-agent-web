@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { TextField } from "@/components/ui/TextField";
@@ -95,6 +96,7 @@ export function CreateShareFolderModal({
           : scope === "all"
             ? await createCollabSession(galleryId, { ...body, scope: { type: "ALL" } })
             : await openManualCollabSession(galleryId, body, photoIds);
+      track("collab_session_created", { gallery_id: galleryId, photo_count: created.photoCount, source: "share_folder" });
       onCreated(created);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "공유폴더를 만들지 못했어요 · 다시 시도해 주세요");
