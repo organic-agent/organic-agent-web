@@ -27,6 +27,7 @@ import { Snackbar, type SnackbarKind } from "@/components/app/Snackbar";
 import { useLightboxZoom } from "@/components/app/useLightboxZoom";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ZoomInIcon, ZoomOutIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { reportPreviewError } from "@/lib/api/previewAccess";
 
 export type LightboxTabDef = {
   key: string;
@@ -303,7 +304,10 @@ export function Lightbox({
                     src={photo.viewUrl}
                     alt={photo.originalFileName}
                     draggable={false}
-                    onError={onImageError}
+                    onError={() => {
+                      reportPreviewError(photo.viewUrl);
+                      onImageError?.();
+                    }}
                     className="block max-h-(--lb-photo-max) max-w-full rounded-(--radius-12) object-contain"
                   />
                 ) : (

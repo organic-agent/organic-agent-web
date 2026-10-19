@@ -9,6 +9,7 @@
 
 import { api } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { withPreviewMode } from "@/lib/api/previewAccess";
 
 export type AiSelectionJob = {
   jobId: number;
@@ -50,7 +51,7 @@ export type AiRecommendationList = {
 /** 가장 최근 추천 조회 — folderId를 주면 그 세부 폴더의 추천만 */
 export function getRecommendations(galleryId: number, folderId?: number): Promise<AiRecommendationList> {
   const query = folderId !== undefined ? `?folderId=${folderId}` : "";
-  return api(`/api/v1/galleries/${galleryId}/photo-selection/recommendations${query}`);
+  return api(withPreviewMode(galleryId, `/api/v1/galleries/${galleryId}/photo-selection/recommendations${query}`));
 }
 
 /**

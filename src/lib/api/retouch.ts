@@ -8,6 +8,7 @@
  */
 
 import { api, apiBlob } from "@/lib/api/client";
+import { withPreviewMode } from "@/lib/api/previewAccess";
 
 export type RetouchPoint = {
   /** 사진 폭 · 높이에 대한 0~1 비율 */
@@ -165,12 +166,12 @@ export type RetouchRoundDetailResponse = {
 
 /** 회차 목록 + 진행 중인 회차의 항목 전부 + 계약 · 남은 횟수. 갤러리를 볼 수 있는 사람이면 누구나 */
 export function getRetouchOverview(galleryId: number): Promise<RetouchOverviewResponse> {
-  return api(`/api/v1/galleries/${galleryId}/retouch/rounds`);
+  return api(withPreviewMode(galleryId, `/api/v1/galleries/${galleryId}/retouch/rounds`));
 }
 
 /** 회차 하나의 항목 전부 — 원본 · 주석 · 결과 URL(전/후 비교) */
 export function getRetouchRound(galleryId: number, roundNo: number): Promise<RetouchRoundDetailResponse> {
-  return api(`/api/v1/galleries/${galleryId}/retouch/rounds/${roundNo}`);
+  return api(withPreviewMode(galleryId, `/api/v1/galleries/${galleryId}/retouch/rounds/${roundNo}`));
 }
 
 export type RetouchPdfScope = "all" | "noResult" | "memo";

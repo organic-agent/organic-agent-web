@@ -42,6 +42,8 @@ type ApiOptions = {
   auth?: boolean;
   /** 더 실을 헤더 — 게스트 링크의 X-Guest-Token 같은 것 */
   headers?: Record<string, string>;
+  /** "include"면 다른 출처(API)의 Set-Cookie를 받는다 — 미리보기 접근 쿠키(image-access)만 쓴다 */
+  credentials?: RequestCredentials;
 };
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -73,6 +75,7 @@ async function request(path: string, options: ApiOptions): Promise<Response> {
     signal: options.signal,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    credentials: options.credentials,
   });
 
   if (!res.ok) throw await toApiError(res);
