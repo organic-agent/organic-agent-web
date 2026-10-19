@@ -17,6 +17,8 @@
  * 하단 [내려받기(요청서 CSV · ZIP, 작가 모달)][보정본 올리기 → 더 올리기 → 바꾸기] + 소유자에게 [갤러리 마무리], 타일 호버 ↑로 한 장씩(작가 3단계 부품).
  * 확정은 없고 결과는 올리는 즉시 보인다. 2차 요청은 작가에게 보내는 대신 초안 회차에 담아 요청서로 내려받는다(PersonalReRequestModal).
  * 플랜 기간이 끝나면 서버가 자동 보관 — 배너 문구만 다르다.
+ * 보정본을 한 장도 올리기 전이면 하단 [선택 다시 하기](CancelExportModal)로 셀렉 단계로 돌아간다(이슈 132).
+ * 사이드바 폴더 트리는 읽기 전용 탐색 — 이름을 누르면 모든 사진에서 그 폴더만, 체크하면 겹쳐 본다(셀렉 단계와 같은 문법).
  */
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -41,7 +43,8 @@ import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
-import { ALL_FILTER, ClientFolderTree } from "./ClientFolderTree";
+import { CancelExportModal } from "./CancelExportModal";
+import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { PersonalReviewCoachMarks } from "./PersonalReviewCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
@@ -94,7 +97,7 @@ export function ReviewStage({
   photos: PhotoResponse[];
   folders: ConceptFolderResponse[] | null;
   sidebarOpen: boolean;
-  /** 확정 뒤 갤러리 단계(ARCHIVED)를 다시 읽는다 */
+  /** 확정 · 마무리 · 선택 다시 하기 뒤 갤러리 단계를 다시 읽는다 */
   reloadGallery: () => void;
   /** 상단 "게스트 초대" 버튼 */
   inviteOpen: boolean;
@@ -114,6 +117,7 @@ export function ReviewStage({
   const [requestDownloadOpen, setRequestDownloadOpen] = useState(false);
   const [autoDownloadHandled, setAutoDownloadHandled] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [cancelExportOpen, setCancelExportOpen] = useState(false);
   const [now] = useState(() => Date.now());
   const slotInputRef = useRef<HTMLInputElement>(null);
   const slotTargetRef = useRef<number | null>(null);
@@ -125,6 +129,7 @@ export function ReviewStage({
   const drafts = useMemo(() => retouchDraftStore.parse(draftsRaw), [draftsRaw]);
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
   const [view, setView] = useState<ClientView>("retouch");
+  const [folderFilter, setFolderFilter] = useState<PhotoFilter>(ALL_FILTER);
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -174,6 +179,9 @@ export function ReviewStage({
   const maxRounds = overview?.maxRetouchRoundCount ?? gallery.maxRetouchRoundCount;
   const roundLabel = activeRoundNo !== null ? `${activeRoundNo}차` : "";
   const canReRequest = resultArrived && isLatest && !archived && (remaining === null || remaining > 0);
+  /** 개인 — 1차 요청서를 내보냈고 보정본이 아직 0장이면 셀렉 단계로 되돌릴 수 있다(서버 SELECTION_409_8과 같은 조건) */
+  const canCancelExport =
+    personal && !archived && rounds.length === 1 && latest?.status === "REQUESTED" && resultCount === 0 && !upload.state.running;
   const nextRoundNo = (latest?.roundNo ?? 0) + 1;
 
   // ── 다시 요청(이슈 125): 보정 요청 탭에 글이나 점을 적은 사진이 곧 다음 회차에 들어가는 사진 — 담기 상태가 따로 없다 ──
@@ -196,11 +204,38 @@ export function ReviewStage({
     for (const c of folders ?? []) for (const d of c.details) for (const id of d.photoIds) map.set(id, `${c.name} / ${d.name}`);
     return (photo: PhotoResponse) => map.get(photo.photoId) ?? null;
   }, [folders]);
+  const unsortedIds = useMemo(() => {
+    const sorted = new Set<number>();
+    for (const c of folders ?? []) for (const d of c.details) for (const id of d.photoIds) sorted.add(id);
+    return new Set(photos.filter((p) => !sorted.has(p.photoId)).map((p) => p.photoId));
+  }, [folders, photos]);
+  function focusFolder(key: FolderKey) {
+    setView("all");
+    setCurrentId(null);
+    setFolderFilter(key === "unsorted" ? { detailIds: new Set(), unsorted: true } : { detailIds: new Set([key]), unsorted: false });
+  }
+  function toggleFolder(key: FolderKey) {
+    setView("all");
+    setCurrentId(null);
+    setFolderFilter((prev) => {
+      if (key === "unsorted") return { detailIds: prev.detailIds, unsorted: !prev.unsorted };
+      const next = new Set(prev.detailIds);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return { detailIds: next, unsorted: prev.unsorted };
+    });
+  }
   const gridPhotos = useMemo<PhotoResponse[]>(() => {
-    if (view === "all") return photos;
+    if (view === "all") {
+      if (isAllFilter(folderFilter)) return photos;
+      const ids = new Set<number>();
+      for (const c of folders ?? []) for (const d of c.details) if (folderFilter.detailIds.has(d.id)) for (const id of d.photoIds) ids.add(id);
+      if (folderFilter.unsorted) for (const id of unsortedIds) ids.add(id);
+      return photos.filter((p) => ids.has(p.photoId));
+    }
     if (view === "selected") return items.map((it) => it.photo);
     return items.map((it) => (resultArrived && it.resultUrl ? { ...it.photo, viewUrl: it.resultUrl, previewReady: true } : it.photo));
-  }, [view, photos, items, resultArrived]);
+  }, [view, photos, items, resultArrived, folderFilter, folders, unsortedIds]);
 
   // ── 싱글뷰 ──
   const currentIndex = currentId === null ? -1 : gridPhotos.findIndex((p) => p.photoId === currentId);
@@ -270,8 +305,8 @@ export function ReviewStage({
         <span className="flex text-contents-light-bgd-weakness">
           <PhotoIcon size={18} />
         </span>
-        모든 사진
-        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{photos.length}장</small>
+        {isAllFilter(folderFilter) ? "모든 사진" : "보는 폴더"}
+        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{gridPhotos.length}장</small>
       </>
     ) : view === "selected" ? (
       <>
@@ -387,6 +422,7 @@ export function ReviewStage({
             onViewChange={(next) => {
               setView(next);
               setCurrentId(null);
+              setFolderFilter(ALL_FILTER);
               sharing.closeReactions();
             }}
             extra={
@@ -412,7 +448,14 @@ export function ReviewStage({
               onTabChange: setSideTab,
               folder:
                 folders && folders.length > 0 ? (
-                  <ClientFolderTree folders={folders} pickedIds={selectedIds} unsortedIds={new Set()} filter={ALL_FILTER} onFocus={() => {}} onToggle={() => {}} />
+                  <ClientFolderTree
+                    folders={folders}
+                    pickedIds={selectedIds}
+                    unsortedIds={unsortedIds}
+                    filter={view === "all" ? folderFilter : ALL_FILTER}
+                    onFocus={focusFolder}
+                    onToggle={toggleFolder}
+                  />
                 ) : (
                   <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요</p>
                 ),
@@ -548,6 +591,12 @@ export function ReviewStage({
                     {resultCount === 0 ? "보정본 올리기" : allDone ? "보정본 바꾸기" : "보정본 더 올리기"}
                   </ShellCta>
                 </span>
+                {canCancelExport && (
+                  <ShellCta kind="outline" onClick={() => setCancelExportOpen(true)}>
+                    <EditNoteIcon size={18} />
+                    선택 다시 하기
+                  </ShellCta>
+                )}
                 {owner && (
                   <span data-coach="close" className="inline-flex">
                     <ShellCta kind="outline" onClick={() => setCloseOpen(true)}>
@@ -623,6 +672,16 @@ export function ReviewStage({
       )}
       {personal && uploadOpen && activeRoundNo !== null && (
         <ResultUploadModal galleryId={galleryId} roundNo={activeRoundNo} items={items} presetPhotoId={uploadOpen.presetPhotoId} onClose={() => setUploadOpen(null)} onStart={startUpload} />
+      )}
+      {canCancelExport && cancelExportOpen && (
+        <CancelExportModal
+          galleryId={galleryId}
+          onClose={() => setCancelExportOpen(false)}
+          onCanceled={() => {
+            setCancelExportOpen(false);
+            reloadGallery();
+          }}
+        />
       )}
       {personal && closeOpen && (
         <CloseGalleryModal
