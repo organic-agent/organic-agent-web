@@ -55,6 +55,8 @@ import {
 } from "@/lib/api/galleries";
 import { markNotificationsRead } from "@/lib/api/notifications";
 import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { issuePreviewAccess } from "@/lib/api/previewAccess";
+import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
 import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
@@ -176,10 +178,12 @@ export default function StudioGalleryShellPage() {
         const g = await getGallery(galleryId);
         if (cancelled) return;
         setGallery(g);
+        // 미리보기 쿠키도 나란히 — 둘 다 끝난 뒤 그려야 첫 화면 <img>가 쿠키 없이 나가 403이 되지 않는다
         const [s, p, f] = await Promise.allSettled([
           fetchStudio(g.workspaceId),
           listAllPhotos(galleryId),
           listConceptFolders(galleryId),
+          issuePreviewAccess(galleryId),
         ]);
         if (cancelled) return;
         if (s.status === "fulfilled") setStudio(s.value);
@@ -230,6 +234,8 @@ export default function StudioGalleryShellPage() {
       refreshBusyRef.current = false;
     }
   }, [galleryId]);
+  // 미리보기 접근 쿠키를 늘리고, 쿠키가 실리지 않는 환경이면 서명 URL로 목록을 다시 읽는다
+  usePreviewAccess(galleryId, gallery !== null, refreshPhotos);
   // 임베딩 수가 늘 때마다(3초) 전체 목록을 다시 읽으면 수천 장에서 무겁다 — 10초에 한 번만
   const lastEmbeddedRefreshRef = useRef(0);
   const refreshFolders = useCallback(async () => {

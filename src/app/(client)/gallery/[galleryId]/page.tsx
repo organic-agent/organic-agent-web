@@ -54,7 +54,9 @@ import {
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
-import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photos";
+import { deletePhotos, listAllPhotosWithExpiry, type PhotoResponse } from "@/lib/api/photos";
+import { issuePreviewAccess } from "@/lib/api/previewAccess";
+import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { getPhotoSelection } from "@/lib/api/selection";
 import { useAuth } from "@/lib/auth/authStore";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
@@ -103,6 +105,8 @@ export default function ClientGalleryPage() {
   const [photos, setPhotos] = useState<PhotoResponse[] | null>(null);
   /** 사진 목록을 마지막으로 읽은 시각 — 개인 갤러리 끊김 복구가 쓴다 */
   const [photosLoadedAt, setPhotosLoadedAt] = useState(0);
+  /** 사진 주소 중 만료되는 서명 URL이 있는지 — 모두 CDN 고정 주소면 12분 주소 갱신을 돌지 않는다 */
+  const [photoUrlsExpire, setPhotoUrlsExpire] = useState(true);
   // 개인은 올라온(UPLOADED) 사진 수와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다.
   // 첫 장이 올라오기 전(PENDING만)엔 작가 1단계처럼 안내 카드가 남는다
   const phase = gallery
@@ -159,11 +163,17 @@ export default function ClientGalleryPage() {
     if (!opened) return;
     let cancelled = false;
     (async () => {
-      const [p, f] = await Promise.allSettled([listAllPhotos(galleryId), listConceptFolders(galleryId)]);
+      // 미리보기 쿠키와 목록을 나란히 — 둘 다 끝난 뒤 그려야 첫 화면 <img>가 쿠키 없이 나가 403이 되지 않는다
+      const [, p, f] = await Promise.allSettled([
+        issuePreviewAccess(galleryId),
+        listAllPhotosWithExpiry(galleryId),
+        listConceptFolders(galleryId),
+      ]);
       if (cancelled) return;
       const blocked = p.status === "rejected" && p.reason instanceof ApiError && p.reason.status === 403;
       setContentBlocked(blocked);
-      setPhotos(p.status === "fulfilled" ? p.value : []);
+      setPhotos(p.status === "fulfilled" ? p.value.photos : []);
+      if (p.status === "fulfilled") setPhotoUrlsExpire(p.value.viewUrlsExpire);
       setPhotosLoadedAt(Date.now());
       setFolders(f.status === "fulfilled" ? f.value : []);
     })();
@@ -189,7 +199,9 @@ export default function ClientGalleryPage() {
 
   const refreshPhotos = useCallback(async () => {
     try {
-      setPhotos(await listAllPhotos(galleryId));
+      const res = await listAllPhotosWithExpiry(galleryId);
+      setPhotos(res.photos);
+      setPhotoUrlsExpire(res.viewUrlsExpire);
       setPhotosLoadedAt(Date.now());
     } catch {
       // 다음 갱신 때 다시
@@ -202,8 +214,9 @@ export default function ClientGalleryPage() {
       // 다음 갱신 때 다시
     }
   }, [galleryId]);
-  // 사진 주소는 15분 뒤 만료된다 — 만료 전에 목록을 다시 읽어 새 주소로 바꾼다
-  const refreshPhotoUrls = usePhotoUrlRefresh(opened, photosLoadedAt, refreshPhotos);
+  // 서명 URL은 15분 뒤 만료된다 — 만료 전에 목록을 다시 읽어 새 주소로 바꾼다. CDN 고정 주소만이면 쿠키만 늘린다
+  const refreshPhotoUrls = usePhotoUrlRefresh(opened && photoUrlsExpire, photosLoadedAt, refreshPhotos);
+  usePreviewAccess(galleryId, opened, refreshPhotos);
   /** 셀렉 화면이 별점 저장을 마치면 서버에 남은 값을 목록에 적는다 */
   const patchPhotoScore = useCallback((photoId: number, score: number | null) => {
     setPhotos((prev) => {

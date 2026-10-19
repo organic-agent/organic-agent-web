@@ -12,6 +12,7 @@
 import { baseUrl } from "@/lib/api/baseUrl";
 import { api, ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { withPreviewMode } from "@/lib/api/previewAccess";
 import type { RetouchRequestItem } from "@/lib/api/retouch";
 import { getAccessToken } from "@/lib/auth/tokenStore";
 
@@ -48,7 +49,7 @@ export const SELECTION_DEADLINE_PASSED = "GALLERY_403_4";
 export function getPhotoSelection(
   galleryId: number,
 ): Promise<PhotoSelectionResponse> {
-  return api(`/api/v1/galleries/${galleryId}/photo-selection`);
+  return api(withPreviewMode(galleryId, `/api/v1/galleries/${galleryId}/photo-selection`));
 }
 
 /**

@@ -12,6 +12,7 @@
  */
 
 import { api } from "@/lib/api/client";
+import { withPreviewMode } from "@/lib/api/previewAccess";
 
 export type IssuedUpload = {
   photoId: number;
@@ -112,6 +113,8 @@ export type PhotoPageResponse = {
   contents: PhotoResponse[];
   /** viewUrl이 살아 있는 시간(초) — 만료 전에 목록을 다시 불러야 한다. */
   viewUrlTtlSeconds: number;
+  /** viewUrl 중 만료되는 서명 URL이 있으면 true. 모두 CDN 고정 주소면 false — 주소 갱신이 필요 없다. 옛 서버는 보내지 않는다 */
+  viewUrlsExpire?: boolean;
 };
 
 export type PhotoSummaryResponse = {
@@ -145,13 +148,25 @@ export function getPhotoSummary(
  * 같은 사진이 두 번 올 수 있어 id로 한 번만 담는다. 작가 셸 · 클라이언트 셸 공용.
  */
 export async function listAllPhotos(galleryId: number): Promise<PhotoResponse[]> {
+  return (await listAllPhotosWithExpiry(galleryId)).photos;
+}
+
+/**
+ * [listAllPhotos]에 주소가 만료되는지(viewUrlsExpire)를 함께 — 한 페이지라도 만료되면 만료로 본다.
+ * 옛 서버처럼 값이 없으면 만료로 본다(지금처럼 갱신을 돈다).
+ */
+export async function listAllPhotosWithExpiry(
+  galleryId: number,
+): Promise<{ photos: PhotoResponse[]; viewUrlsExpire: boolean }> {
   const byId = new Map<number, PhotoResponse>();
+  let viewUrlsExpire = false;
   for (let page = 0; page < 50; page++) {
     const res = await listPhotos(galleryId, page, 200);
     for (const photo of res.contents) byId.set(photo.photoId, photo);
+    viewUrlsExpire ||= res.viewUrlsExpire ?? true;
     if (!res.hasNext) break;
   }
-  return [...byId.values()];
+  return { photos: [...byId.values()], viewUrlsExpire };
 }
 
 /** 사진 목록 한 페이지. 담당 작가와 초대받은 부부가 함께 쓴다. */
@@ -161,7 +176,7 @@ export function listPhotos(
   size = 200,
 ): Promise<PhotoPageResponse> {
   return api(
-    `/api/v1/galleries/${galleryId}/photos?page=${page}&size=${size}`,
+    withPreviewMode(galleryId, `/api/v1/galleries/${galleryId}/photos?page=${page}&size=${size}`),
   );
 }
 
@@ -195,7 +210,7 @@ export type PhotoDetailResponse = PhotoResponse & {
 
 /** 사진 한 장 조회 — 사진 목록을 볼 수 있는 사람이면 부를 수 있다. 404: 이 갤러리에 없는 사진(휴지통 포함) */
 export function getPhoto(galleryId: number, photoId: number): Promise<PhotoDetailResponse> {
-  return api(`/api/v1/galleries/${galleryId}/photos/${photoId}`);
+  return api(withPreviewMode(galleryId, `/api/v1/galleries/${galleryId}/photos/${photoId}`));
 }
 
 /**

@@ -30,6 +30,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { PhotoIcon, SparkleIcon, StarFillIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
+import { reportPreviewError } from "@/lib/api/previewAccess";
 
 /** 줌 0~100 → 기준 행 높이(px) */
 export const rowHeightOf = (zoom: number) => Math.round(80 + (zoom / 100) * 140);
@@ -551,6 +552,8 @@ export function PhotoGrid({
                     loading="lazy"
                     draggable={false}
                     onLoad={(e) => learnRatio(photo.photoId, e.currentTarget)}
+                    // CDN 고정 주소가 쿠키 없이 403이면 알린다 — 두 번 쌓이면 그 탭이 서명 URL로 물러난다(previewAccess)
+                    onError={() => reportPreviewError(photo.viewUrl)}
                     className="size-full object-cover"
                   />
                 )}
