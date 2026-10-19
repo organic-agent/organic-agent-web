@@ -304,8 +304,8 @@ export function Lightbox({
                     src={photo.viewUrl}
                     alt={photo.originalFileName}
                     draggable={false}
-                    onError={() => {
-                      reportPreviewError(photo.viewUrl);
+                    onError={(e) => {
+                      reportPreviewError(e.currentTarget, photo.viewUrl);
                       onImageError?.();
                     }}
                     className="block max-h-(--lb-photo-max) max-w-full rounded-(--radius-12) object-contain"

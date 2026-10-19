@@ -552,8 +552,8 @@ export function PhotoGrid({
                     loading="lazy"
                     draggable={false}
                     onLoad={(e) => learnRatio(photo.photoId, e.currentTarget)}
-                    // CDN 고정 주소가 쿠키 없이 403이면 알린다 — 두 번 쌓이면 그 탭이 서명 URL로 물러난다(previewAccess)
-                    onError={() => reportPreviewError(photo.viewUrl)}
+                    // CDN 고정 주소가 403이면 알린다 — 쿠키를 다시 받아 한 번 다시 부르고, 그래도 깨지면 서명 URL로 물러난다(previewAccess)
+                    onError={(e) => reportPreviewError(e.currentTarget, photo.viewUrl)}
                     className="size-full object-cover"
                   />
                 )}
