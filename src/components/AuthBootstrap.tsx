@@ -21,6 +21,7 @@ import { buildIdentifyProps, identify } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth/authStore";
 import { forgetLastUser, rememberLastUser } from "@/lib/auth/lastUser";
 import { restoreSession } from "@/lib/auth/restoreSession";
+import { isDemoActive } from "@/lib/demo/demoMode";
 import { getRefreshToken } from "@/lib/auth/tokenStore";
 
 export function AuthBootstrap() {
@@ -31,6 +32,8 @@ export function AuthBootstrap() {
   }, []);
 
   useEffect(() => {
+    // 체험(/demo)의 가짜 사용자는 기억도 식별도 하지 않는다
+    if (isDemoActive()) return;
     if (auth.status === "authenticated") {
       rememberLastUser(auth.user);
       // 분석 도구에 "이 익명 기록은 사용자 N"이라고 알린다. 같은 값이면 래퍼가 한 번만 보낸다(#133)

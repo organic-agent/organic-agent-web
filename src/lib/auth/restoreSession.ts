@@ -10,6 +10,7 @@
 import { getMe } from "@/lib/api/auth";
 import { setAuthenticated, setGuest } from "@/lib/auth/authStore";
 import { refreshTokens } from "@/lib/auth/refreshTokens";
+import { isDemoActive } from "@/lib/demo/demoMode";
 import { getRefreshToken } from "@/lib/auth/tokenStore";
 
 // React StrictMode(개발 모드)는 effect를 일부러 두 번 실행한다. 재발급 자체는
@@ -17,6 +18,8 @@ import { getRefreshToken } from "@/lib/auth/tokenStore";
 let started = false;
 
 export async function restoreSession(): Promise<void> {
+  // 체험(/demo)에 바로 들어온 부팅 — 가짜 로그인을 지우면 안 된다. started는 두지 않아 체험을 나갈 때 다시 돌 수 있다
+  if (isDemoActive()) return;
   if (started) return;
   started = true;
 

@@ -81,6 +81,16 @@ export type EventMap = {
   guest_entered: { session_id: number | null };
   guest_photo_liked: { session_id: number | null };
   guest_comment_written: { session_id: number | null };
+
+  // ── 체험 페이지(/demo, 이슈 144) — 체험 중에는 이것만 보낸다 ──
+  /** 랜딩에서 체험으로 가는 버튼 */
+  demo_cta_clicked: { from: "hero" };
+  /** 체험 페이지에 들어옴 — 이 브라우저에 남은 진행 단계 */
+  demo_opened: { phase: "sort" | "select" | "review" };
+  /** 체험 안에서 단계가 넘어감(폴더 확정 · 요청서 내보내기) */
+  demo_stage_changed: { phase: "select" | "review" };
+  /** 체험 띠의 "내 사진으로 시작하기" */
+  demo_signup_clicked: { phase: "sort" | "select" | "review" };
 };
 
 export type EventName = keyof EventMap;

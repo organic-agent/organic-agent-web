@@ -8,6 +8,7 @@
  * 트래킹은 기능을 막지 않는다 — 모든 호출을 try로 감싸고 await 하지 않는다.
  */
 
+import { isDemoActive } from "@/lib/demo/demoMode";
 import { createAmplitudeAdapter } from "./adapters/amplitude";
 import { consoleAdapter } from "./adapters/console";
 import type { EventMap } from "./events";
@@ -30,6 +31,7 @@ export function pageView(raw: string): void {
 }
 
 export function identify(userId: string, props: IdentifyProps): void {
+  if (isDemoActive()) return;
   const key = JSON.stringify([userId, props]);
   if (key === lastIdentify) return;
   lastIdentify = key;
@@ -47,6 +49,8 @@ export function reset(): void {
 }
 
 export function track<K extends keyof EventMap>(name: K, props: EventMap[K]): void {
+  // 체험(/demo)에서는 제품 이벤트를 보내지 않는다 — 깔때기를 더럽히지 않게. demo_ 이벤트만 간다
+  if (isDemoActive() && !String(name).startsWith("demo_")) return;
   guard(() => adapter.track(name, props));
 }
 
