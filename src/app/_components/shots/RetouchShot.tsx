@@ -97,17 +97,8 @@ export function RetouchShot() {
       </span>
     </div>
   );
-  const refineButton = (ref?: React.Ref<HTMLSpanElement>) => (
-    <div className="flex items-center justify-between gap-2">
-      <span className="type-content-xs" />
-      <span ref={ref} className="inline-flex h-7 items-center gap-1 rounded-(--radius-4) bg-surface-default-medium px-2.5 type-label-medium-xs text-contents-light-bgd-default">
-        <span className="text-brand-secondary-default">
-          <SparkleIcon size={14} />
-        </span>
-        AI 내용 다듬기
-      </span>
-    </div>
-  );
+  // "AI 내용 다듬기" 줄 — 핀 2의 것만 ref가 있어 JSX를 따로 둔다(함수에 ref를 넘기면 react-hooks/refs에 걸린다)
+  const REFINE_BTN = "inline-flex h-7 items-center gap-1 rounded-(--radius-4) bg-surface-default-medium px-2.5 type-label-medium-xs text-contents-light-bgd-default";
   const textareaClass = "w-full resize-none bg-transparent type-content-s text-contents-light-bgd-default placeholder:text-contents-light-bgd-weakness focus:outline-none";
 
   const panel = (
@@ -128,7 +119,15 @@ export function RetouchShot() {
           {pinHead(1)}
           <div className="flex flex-col gap-2 rounded-(--radius-8) border border-border-default p-2.5">
             <textarea readOnly value={PIN1.text} rows={2} className={textareaClass} />
-            {refineButton()}
+            <div className="flex items-center justify-between gap-2">
+              <span className="type-content-xs" />
+              <span className={REFINE_BTN}>
+                <span className="text-brand-secondary-default">
+                  <SparkleIcon size={14} />
+                </span>
+                AI 내용 다듬기
+              </span>
+            </div>
           </div>
         </li>
         {pinned && (
@@ -163,7 +162,15 @@ export function RetouchShot() {
                       </span>
                     </div>
                   ) : (
-                    refineButton(refineRef)
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="type-content-xs" />
+                      <span ref={refineRef} className={REFINE_BTN}>
+                        <span className="text-brand-secondary-default">
+                          <SparkleIcon size={14} />
+                        </span>
+                        AI 내용 다듬기
+                      </span>
+                    </div>
                   )}
                 </>
               )}
