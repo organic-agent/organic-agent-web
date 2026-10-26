@@ -6,7 +6,8 @@
  *
  * 뒤 화면은 실제 셀렉 화면 그대로(사이드바 접힘) — ShellMainHeader(AI 추천 버튼 · 별점 순) · 별점 묶음 머리글 + PhotoGrid(체크 ·
  * 별점 배지) · ShellBottomBar(선택한 사진 5 / 50 + 썸네일 · 폴더 다시 정리 · 선택 마치기). 크게 보기는 실제 Lightbox가 fixed 레이어라
- * 틀 안에 같은 클래스로 그렸고, 컨트롤 버튼(CtlButton · Sep)과 스낵바는 실제 부품이다.
+ * 틀 안에 같은 클래스로 그렸고, 컨트롤 버튼(CtlButton · Sep)과 스낵바는 실제 부품이다. 채워진 별은 브랜드 색(2026-10-26 수민 —
+ * 코드의 SelectionControls는 흰색이라 랜딩만 다르다).
  * 타임라인(ShotFrame.onVisible이 켬): 497 / 500 사진부터 네 장 — 장마다 별점이 한 번에 매겨지고(4를 누르면 별 네 칸이 같이 참,
  * 2026-10-26 수민 — 한 칸씩 차는 건 실제와 다름. 별점 4 · 5 · 3 · 5), 마지막 장(500)에서만 "선택"이 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 별점 순 그리드. 움직임 줄이기면 그리드부터.
  */
@@ -202,7 +203,7 @@ export function SelectShot() {
                   {[1, 2, 3, 4, 5].map((n) => {
                     const on = n <= score;
                     return (
-                      <span key={n} className={`grid size-7 place-items-center rounded-full ${on ? "text-white" : "text-white/35"}`}>
+                      <span key={n} className={`grid size-7 place-items-center rounded-full ${on ? "text-brand-secondary-default" : "text-white/35"}`}>
                         {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
                       </span>
                     );
