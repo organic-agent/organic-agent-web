@@ -4,7 +4,7 @@
  * 랜딩 흐름 01 사진 업로드 — 빈 업로드 모달 → 사진 묶음이 화면 밖에서 끌려 들어와 상자에 떨어짐 → 목록으로 바뀌며 500장이 올라간다
  * 위치: src/app/_components/shots/UploadShot.tsx
  *
- * 뒤 화면: 상단바(업로드 단계) · 사이드바(사진 0) · 빈 갤러리 안내(PersonalEmptyGuide 그대로) · 하단 바(ShellBottomBar 그대로).
+ * 뒤 화면: 상단바(업로드 단계 · 사이드바 접힘) · 빈 갤러리 안내(PersonalEmptyGuide 그대로) · 하단 바(ShellBottomBar 그대로).
  * 모달은 UploadModal의 두 상태를 그대로 옮겼다 — 비었을 때(끌어다 놓기 상자)와 담긴 뒤(파일 목록). 실제 제품은 "n장 업로드하기"를
  * 누르면 모달이 닫히고 하단 바에 막대 하나가 남지만, 랜딩에서는 목록의 줄마다 막대가 차는 것으로 보여 준다(2026-10-26 수민).
  * 타임라인(ShotFrame.onVisible이 켬): empty → grab(묶음이 왼쪽 아래 화면 밖에 나타남) → drag(상자로 이동) → over(상자 강조) → drop → list(숫자가
@@ -19,7 +19,7 @@ import { AddPhotoIcon, CloseIcon, PhotoIcon, UploadIcon } from "@/components/ico
 import { Button } from "@/components/ui/Button";
 import { samplePhotoUrl } from "./samplePhotos";
 import { ShotFrame } from "./ShotFrame";
-import { ShotSidebar, ShotTopbar } from "./ShotChrome";
+import { ShotTopbar } from "./ShotChrome";
 import { useShotTimeline } from "./useShotTimeline";
 
 type Phase = "empty" | "grab" | "drag" | "over" | "drop" | "list";
@@ -92,7 +92,6 @@ export function UploadShot() {
     <ShotFrame label="사진 업로드 화면 — 폴더에서 사진 500장을 끌어다 놓으면 한 장씩 올라간다" onVisible={start}>
       <ShotTopbar stageIndex={0} />
       <div className="flex min-h-0 flex-1">
-        <ShotSidebar status="사진 없음" photoCount={0} />
         <div className="flex min-w-0 flex-1 flex-col">
           <PersonalEmptyGuide />
         </div>

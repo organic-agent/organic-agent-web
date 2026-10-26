@@ -20,7 +20,7 @@ import { PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import { SAMPLE_FOLDERS, landingPhotos, sampleIdsOf } from "./samplePhotos";
 import { ShotFrame } from "./ShotFrame";
-import { ShotSidebar, ShotTopbar } from "./ShotChrome";
+import { ShotTopbar } from "./ShotChrome";
 import { useShotTimeline } from "./useShotTimeline";
 
 const TOTAL = 250;
@@ -99,7 +99,6 @@ export function FoldersShot() {
     <ShotFrame label="컨셉 분류 화면 — AI가 사진을 컨셉 폴더로 나누고, 폴더로 들어가 정리된 사진을 본다" onVisible={start}>
       <ShotTopbar stageIndex={1} />
       <div className="flex min-h-0 flex-1">
-        <ShotSidebar status={analyzing ? "폴더 만드는 중…" : "컨셉 분류 · 폴더를 확정하면 고를 수 있어요"} statusTone="accent" photoCount={TOTAL} />
         <div className="flex min-h-0">
           <FolderColumn
             folders={folders}

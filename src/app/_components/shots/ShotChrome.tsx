@@ -1,5 +1,6 @@
 /**
  * 랜딩 흐름 화면의 공용 껍데기 — 개인 갤러리 셸의 상단바 · 사이드바를 같은 클래스로 그린 것
+ * (사이드바는 2026-10-26 수민 지시로 화면 4장 모두 접힌 상태 — ShotSidebar는 남겨 두되 지금은 안 쓴다)
  * 위치: src/app/_components/shots/ShotChrome.tsx
  *
  * 실제 부품(ShellTopbar · ClientSidebar)은 사이드바 상태 · 알림 · 프로필 훅에 묶여 있어 랜딩에서 못 쓴다.
@@ -17,11 +18,12 @@ export const SHOT_TITLE = "민지 · 준호 스튜디오 촬영";
 
 const PILL = "rounded-(--pill) px-3 py-1 whitespace-nowrap type-label-medium-s";
 
-export function ShotTopbar({ stageIndex }: { stageIndex: number }) {
+/** 상단바 — 사이드바는 접힌 상태(메뉴 버튼 강조 없음) · 목표일 D-30 · 프로필 "홍"(2026-10-26 수민) */
+export function ShotTopbar({ stageIndex, dday = "D-30" }: { stageIndex: number; dday?: string }) {
   return (
     <header className="grid h-13 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-divider-default bg-background-default-main">
       <div className="flex h-10 items-center gap-x-1.5 pr-4 pl-2">
-        <span className="inline-flex items-center justify-center rounded-(--radius-4) bg-brand-secondary-background p-1 text-contents-light-bgd-default">
+        <span className="inline-flex items-center justify-center rounded-(--radius-4) p-1 text-contents-light-bgd-default">
           <MenuIcon size={20} />
         </span>
         <span className="ml-1 flex h-7 items-center text-contents-light-bgd-default">
@@ -30,9 +32,9 @@ export function ShotTopbar({ stageIndex }: { stageIndex: number }) {
         <b className="ml-0.5 type-brand-wordmark whitespace-nowrap text-contents-light-bgd-default">Easy Select</b>
       </div>
       <div className="flex items-center gap-2.5">
-        <span className="inline-flex items-center gap-1 rounded-(--pill) bg-surface-default-light px-2.5 py-0.5 whitespace-nowrap type-label-medium-s text-contents-light-bgd-sub">
+        <span className="inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2.5 py-0.5 whitespace-nowrap type-label-medium-s text-brand-secondary-dark">
           <ScheduleIcon size={14} />
-          목표일 없음
+          {dday}
         </span>
         <ol className="flex items-center gap-0.5 rounded-(--pill) bg-surface-default-light p-0.75">
           {SHOT_STAGES.map((name, i) => (
@@ -54,7 +56,7 @@ export function ShotTopbar({ stageIndex }: { stageIndex: number }) {
       <div className="flex items-center justify-end gap-1 pr-3">
         <span className="inline-flex p-1 text-contents-light-bgd-default"><PersonAddIcon size={20} /></span>
         <span className="inline-flex p-1 text-contents-light-bgd-default"><BellIcon size={20} /></span>
-        <span className="inline-flex p-1"><Avatar initial="민" /></span>
+        <span className="inline-flex p-1"><Avatar initial="홍" /></span>
       </div>
     </header>
   );
