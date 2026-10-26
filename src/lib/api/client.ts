@@ -9,9 +9,13 @@
  * 필수라, 깜빡했을 때 안전한 쪽을 기본값으로 삼았다. 공개 엔드포인트
  * (login·reissue 등)는 auth: false를 명시한다 — 만료된 토큰이 실려 가면
  * 서버 필터가 경로 검사 전에 토큰부터 거부할 수 있어서다.
+ *
+ * 체험 모드(/demo, 이슈 144): fetch 대신 브라우저 안 가짜 서버(lib/demo/demoServer)에 묻는다. 실패 응답은 똑같이 ApiError로.
  */
 
 import { baseUrl } from "@/lib/api/baseUrl";
+import { isDemoActive } from "@/lib/demo/demoMode";
+import { demoFetch } from "@/lib/demo/demoServer";
 import { refreshTokens } from "@/lib/auth/refreshTokens";
 import { getAccessToken } from "@/lib/auth/tokenStore";
 
@@ -62,6 +66,12 @@ async function toApiError(res: Response): Promise<ApiError> {
 async function request(path: string, options: ApiOptions): Promise<Response> {
   options.signal?.throwIfAborted();
   const { method = "GET", body, auth = true } = options;
+
+  if (isDemoActive()) {
+    const demo = await demoFetch(path, { method, body });
+    if (!demo.ok) throw await toApiError(demo);
+    return demo;
+  }
 
   const headers: Record<string, string> = { ...options.headers };
   if (body !== undefined) headers["Content-Type"] = "application/json";

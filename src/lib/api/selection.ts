@@ -9,6 +9,8 @@
  * 작가만 할 수 있다.
  */
 
+import { isDemoActive } from "@/lib/demo/demoMode";
+import { demoFetch } from "@/lib/demo/demoServer";
 import { baseUrl } from "@/lib/api/baseUrl";
 import { api, ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
@@ -120,6 +122,8 @@ export function requestSelectionIncrease(
  * api()는 JSON만 다루므로 직접 받아 Blob으로 돌려준다. 계약 장수를 채운 뒤에만 내려받을 수 있다.
  */
 export async function downloadSelectionCsv(galleryId: number): Promise<Blob> {
+  // 체험(/demo) — 관문을 안 거치는 직접 fetch라 여기서 가짜 서버로 보낸다
+  if (isDemoActive()) return (await demoFetch(`/api/v1/galleries/${galleryId}/photo-selection/export`, { method: "GET" })).blob();
   const headers: Record<string, string> = {};
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;

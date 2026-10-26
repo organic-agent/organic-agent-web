@@ -9,6 +9,7 @@
  * 열고 닫는 것과 바깥 클릭·ESC는 ProfileAvatarButton이 맡는다.
  */
 
+import { blockInDemo, isDemoActive } from "@/lib/demo/demoMode";
 import { useRouter } from "next/navigation";
 import {
   CommentIcon,
@@ -104,7 +105,8 @@ export function ProfileMenu({
 }) {
   const router = useRouter();
   const { theme, toggle } = useTheme();
-  const spaces = sortByRecentActivity(user.workspaces ?? []);
+  // 체험(/demo, 이슈 144)에서는 워크스페이스를 비우고 이동 · 로그아웃은 안내만
+  const spaces = isDemoActive() ? [] : sortByRecentActivity(user.workspaces ?? []);
   const listed = spaces.slice(0, MAX_LISTED);
   const dark = theme === "dark";
 
@@ -117,6 +119,7 @@ export function ProfileMenu({
 
   async function handleLogout() {
     onClose();
+    if (blockInDemo("로그아웃")) return;
     if (blockLeave()) return;
     await logout();
     router.replace("/");
@@ -166,7 +169,13 @@ export function ProfileMenu({
       <MenuItem
         label="워크스페이스 추가하기"
         icon={<PlusIcon size={20} />}
-        onClick={() => go("/onboarding/role")}
+        onClick={() => {
+          if (blockInDemo("워크스페이스 추가")) {
+            onClose();
+            return;
+          }
+          go("/onboarding/role");
+        }}
       />
       <Divider />
 
@@ -202,6 +211,7 @@ export function ProfileMenu({
         icon={<SettingIcon size={20} />}
         onClick={() => {
           onClose();
+          if (blockInDemo("설정")) return;
           if (blockLeave()) return;
           // 설정의 "돌아가기"가 여기로 돌아오도록 현재 위치를 실어 보낸다
           const from = `${window.location.pathname}${window.location.search}`;
@@ -214,6 +224,7 @@ export function ProfileMenu({
         icon={<CommentIcon size={20} />}
         onClick={() => {
           onClose();
+          if (blockInDemo("문의하기")) return;
           track("support_chat_clicked", { from: "profile_menu" });
           window.open(SUPPORT_CHAT_URL, "_blank", "noopener,noreferrer");
         }}

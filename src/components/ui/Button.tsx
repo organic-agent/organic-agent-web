@@ -75,7 +75,7 @@ export function Button({
 
   if (href && !disabled) {
     return (
-      <Link href={href} className={`group ${cls}`}>
+      <Link href={href} onClick={onClick} className={`group ${cls}`}>
         {content}
       </Link>
     );

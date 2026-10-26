@@ -11,7 +11,7 @@ import { FlowSection } from "./_components/FlowSection";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
-import { ArrowDownIcon, ArrowRightIcon } from "@/components/icons";
+import { ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LoginModal, type LoginRequest } from "@/components/LoginModal";
@@ -146,14 +146,10 @@ export default function LandingPage() {
                 완성됩니다.
               </p>
 
-              {/* 역할별 진입은 Who it's for 카드의 버튼에서 — 히어로는 그리로 안내만 한다 */}
-              <a
-                href="#audiences"
-                className="inline-flex items-center gap-1 pb-px type-label-medium-m text-brand-secondary-dark border-b border-brand-secondary-lightness transition-colors duration-fast hover:text-brand-secondary-default hover:border-brand-secondary-default"
-              >
-                나에게 맞는 시작 찾기
-                <ArrowDownIcon size={14} />
-              </a>
+              {/* 역할별 가입은 Who it's for 카드의 버튼에서 — 히어로는 로그인 없이 체험 페이지로(이슈 144) */}
+              <Button href="/demo" icon={<ArrowRightIcon />} onClick={() => track("demo_cta_clicked", { from: "hero" })}>
+                로그인 없이 체험하기
+              </Button>
             </div>
 
             {/* 우: 웨딩 사진 (시안 400×500). 세로 사진(2:3)이라 가로로 넓어지는 900 미만에서는 얼굴 쪽이 보이게 위쪽에 맞춘다.

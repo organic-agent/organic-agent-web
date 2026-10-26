@@ -9,6 +9,7 @@
  * 다시 열린다(팀 노션 73번) — 링크를 바로 복사할 수 있게.
  */
 
+import { blockInDemo } from "@/lib/demo/demoMode";
 import { useState, type ReactNode } from "react";
 import type { CollabSessionResponse } from "@/lib/api/collab";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
@@ -72,7 +73,9 @@ export function useGuestSharing({
       summaryOf={reactions.summaryOf}
       currentSessionId={openSession?.sessionId ?? null}
       onOpenReactions={setReactionSession}
-      onCreate={() => setCreate({ returnToInvite: false })}
+      onCreate={() => {
+        if (!blockInDemo("공유폴더 만들기")) setCreate({ returnToInvite: false });
+      }}
     />
   );
   const reactionsView = openSession ? (

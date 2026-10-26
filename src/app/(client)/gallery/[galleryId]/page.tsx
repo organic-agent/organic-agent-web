@@ -54,6 +54,7 @@ import {
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
+import { blockInDemo, isDemoActive } from "@/lib/demo/demoMode";
 import { deletePhotos, listAllPhotosWithExpiry, type PhotoResponse } from "@/lib/api/photos";
 import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
@@ -449,10 +450,12 @@ export default function ClientGalleryPage() {
           </span>
         ) : organizing ? (
           <>
-            <ShellCta kind="ghost" onClick={upload.openUpload}>
-              <UploadIcon size={18} />
-              사진 더 올리기
-            </ShellCta>
+            {!isDemoActive() && (
+              <ShellCta kind="ghost" onClick={upload.openUpload}>
+                <UploadIcon size={18} />
+                사진 더 올리기
+              </ShellCta>
+            )}
             <ShellCta
               disabled={upload.aiActive}
               onClick={() => {
@@ -466,10 +469,12 @@ export default function ClientGalleryPage() {
           </>
         ) : phase === "sort" ? (
           <>
-            <ShellCta kind="ghost" onClick={upload.openUpload}>
-              <UploadIcon size={18} />
-              사진 더 올리기
-            </ShellCta>
+            {!isDemoActive() && (
+              <ShellCta kind="ghost" onClick={upload.openUpload}>
+                <UploadIcon size={18} />
+                사진 더 올리기
+              </ShellCta>
+            )}
             <span data-coach="confirm" className="inline-flex">
               <ShellCta disabled={folders === null || upload.aiActive} onClick={() => setConfirmOpen(true)}>
                 폴더 확정
@@ -558,7 +563,8 @@ export default function ClientGalleryPage() {
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
         noDeadlineText={isPersonal ? "목표일 없음" : undefined}
-        onInviteClick={personalOwner || selecting ? () => setInviteOpen(true) : undefined}
+        // 체험(/demo)에서는 초대 대신 안내만(이슈 144)
+        onInviteClick={personalOwner || selecting ? () => { if (!blockInDemo("게스트 초대")) setInviteOpen(true); } : undefined}
         inviteLabel={personalOwner ? "초대" : "게스트 초대"}
         inviteCoachKey="invite"
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
