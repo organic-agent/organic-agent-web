@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * 랜딩 흐름 01 사진 업로드 — 빈 업로드 모달 → 폴더 창에서 사진 묶음을 끌어다 놓음 → 목록으로 바뀌며 500장이 올라간다
+ * 랜딩 흐름 01 사진 업로드 — 빈 업로드 모달 → 사진 묶음이 화면 밖에서 끌려 들어와 상자에 떨어짐 → 목록으로 바뀌며 500장이 올라간다
  * 위치: src/app/_components/shots/UploadShot.tsx
  *
  * 뒤 화면: 상단바(업로드 단계) · 사이드바(사진 0) · 빈 갤러리 안내(PersonalEmptyGuide 그대로) · 하단 바(ShellBottomBar 그대로).
  * 모달은 UploadModal의 두 상태를 그대로 옮겼다 — 비었을 때(끌어다 놓기 상자)와 담긴 뒤(파일 목록). 실제 제품은 "n장 업로드하기"를
  * 누르면 모달이 닫히고 하단 바에 막대 하나가 남지만, 랜딩에서는 목록의 줄마다 막대가 차는 것으로 보여 준다(2026-10-26 수민).
- * 타임라인(ShotFrame.onVisible이 켬): empty → grab(폴더 창의 묶음을 집음) → drag(상자로 이동) → over(상자 강조) → drop → list(숫자가
+ * 타임라인(ShotFrame.onVisible이 켬): empty → grab(묶음이 왼쪽 아래 화면 밖에 나타남) → drag(상자로 이동) → over(상자 강조) → drop → list(숫자가
  * 0 → 500으로 오르며 줄마다 막대가 참). 움직임 줄이기면 처음부터 list · 500.
  */
 
@@ -36,13 +36,12 @@ const ROWS = [
   ["IMG_0007.jpg", "2.1MB"],
 ] as const;
 const PER_ROW = TOTAL / ROWS.length;
-/** 폴더 창의 썸네일(샘플 번호) · 끌리는 묶음 세 장 */
-const FOLDER_IDS = [1, 26, 51, 101, 2, 27, 52, 102, 3, 28, 53, 103];
+/** 끌리는 묶음 세 장(샘플 번호) */
 const STACK_IDS = [2, 27, 52];
-/** 묶음의 시작(폴더 창 안 두 번째 칸)과 도착(끌어다 놓기 상자 가운데) — 1000×560 기준 */
-const STACK_FROM = { x: 108, y: 404 };
+/** 묶음의 시작(왼쪽 아래 화면 밖 — 폴더 창 없이, 2026-10-26 수민)과 도착(끌어다 놓기 상자 가운데) — 1000×560 기준 */
+const STACK_FROM = { x: 120, y: 600 };
 const STACK_TO = { x: 468, y: 252 };
-const CURSOR_FROM = { x: 150, y: 452 };
+const CURSOR_FROM = { x: 164, y: 648 };
 const CURSOR_TO = { x: 524, y: 312 };
 /** 단계별 시각(ms) — onVisible 뒤 */
 const TIMELINE: [Phase, number][] = [
@@ -188,29 +187,7 @@ export function UploadShot() {
         </div>
       </div>
 
-      {/* 폴더 창 — 끌어올 원본이 든 곳. 모달 왼쪽 아래에 떠 있다 */}
-      <div className="absolute top-[300px] left-9 z-20 w-[266px] overflow-hidden rounded-(--radius-12) border border-border-light bg-background-default-main shadow-(--shadow-modal)">
-        <div className="flex h-7 items-center gap-1.5 border-b border-divider-default px-3">
-          <i className="size-2.5 rounded-full bg-surface-default-medium" />
-          <i className="size-2.5 rounded-full bg-surface-default-medium" />
-          <i className="size-2.5 rounded-full bg-surface-default-medium" />
-          <span className="ml-1 type-label-medium-xs text-contents-light-bgd-sub">원본 사진 · {TOTAL}장</span>
-        </div>
-        <div className="grid grid-cols-4 gap-1.5 p-3">
-          {FOLDER_IDS.map((id, i) => (
-            <div
-              key={id}
-              className={`relative aspect-square overflow-hidden rounded-(--radius-4) bg-surface-default-light ${
-                phase !== "empty" && i >= 4 && i < 7 ? "opacity-40" : ""
-              }`}
-            >
-              <Image src={samplePhotoUrl(id)} alt="" fill sizes="56px" className="object-cover" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 끌리는 묶음 — 세 장이 겹쳐 있고 "500" 배지. drag면 상자로 날아가고 drop이면 상자 속으로 사라진다 */}
+      {/* 끌리는 묶음 — 세 장이 겹쳐 있고 "500" 배지. 화면 밖에서 나타나 drag면 상자로 날아가고 drop이면 상자 속으로 사라진다 */}
       <div
         aria-hidden
         className="absolute z-30 h-22 w-16"
