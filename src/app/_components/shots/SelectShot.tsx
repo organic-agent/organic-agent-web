@@ -7,8 +7,8 @@
  * 뒤 화면은 실제 셀렉 화면 그대로(사이드바 접힘) — ShellMainHeader(AI 추천 버튼 · 별점 순) · 별점 묶음 머리글 + PhotoGrid(체크 ·
  * 별점 배지) · ShellBottomBar(선택한 사진 34 / 50 + 썸네일 · 폴더 다시 정리 · 선택 마치기). 크게 보기는 실제 Lightbox가 fixed 레이어라
  * 틀 안에 같은 클래스로 그렸고, 컨트롤 버튼(CtlButton · Sep)과 스낵바는 실제 부품이다.
- * 타임라인(ShotFrame.onVisible이 켬): 497 / 500 사진부터 네 장 — 장마다 별이 하나씩 차고(별점 4 · 5 · 3 · 5), 4점 이상이면 "선택"이
- * 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 별점 순 그리드. 움직임 줄이기면 그리드부터.
+ * 타임라인(ShotFrame.onVisible이 켬): 497 / 500 사진부터 네 장 — 장마다 별점이 한 번에 매겨지고(4를 누르면 별 네 칸이 같이 참,
+ * 2026-10-26 수민 — 한 칸씩 차는 건 실제와 다름. 별점 4 · 5 · 3 · 5), 4점 이상이면 "선택"이 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 별점 순 그리드. 움직임 줄이기면 그리드부터.
  */
 
 import { useState } from "react";
@@ -35,7 +35,9 @@ const LB = [
 ] as const;
 const LB_FIRST = TOTAL - LB.length;
 const STEP_MS = 1500;
-const STAR_MS = 120;
+/** 사진이 바뀐 뒤 별점을 누르기까지 · 그 뒤 선택을 누르기까지 */
+const RATE_AT = 450;
+const PICK_AFTER = 350;
 const SNACK_MS = 1300;
 
 /** 그리드 120장에 별점을 나눠 준다 — 5점 10 · 4점 24 · 3점 30 · 2점 16 · 없음 40. 선택은 4점 이상(34장 = 34 / 50) */
@@ -77,8 +79,8 @@ export function SelectShot() {
     LB.forEach((shot, i) => {
       const base = i * STEP_MS;
       if (i > 0) steps.push([base, () => { setCur(i); setScore(0); setPicked(false); }]);
-      for (let s = 1; s <= shot.score; s++) steps.push([base + 300 + s * STAR_MS, () => setScore(s)]);
-      if (shot.score >= 4) steps.push([base + 300 + shot.score * STAR_MS + 260, () => setPicked(true)]);
+      steps.push([base + RATE_AT, () => setScore(shot.score)]);
+      if (shot.score >= 4) steps.push([base + RATE_AT + PICK_AFTER, () => setPicked(true)]);
     });
     const end = LB.length * STEP_MS;
     steps.push([end, () => setSnack(true)]);
