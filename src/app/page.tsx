@@ -6,58 +6,16 @@ import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { SUPPORT_CHAT_URL } from "@/lib/support";
+import { FlowSection } from "./_components/FlowSection";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
-import {
-  ArrowDownIcon,
-  ArrowRightIcon,
-  UploadIcon,
-  UsersIcon,
-  SparkleIcon,
-  CollabIcon,
-  CommentIcon,
-  DocIcon,
-} from "@/components/icons";
+import { ArrowDownIcon, ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LoginModal, type LoginRequest } from "@/components/LoginModal";
 import { useAuth } from "@/lib/auth/authStore";
 import type { LoginIntent } from "@/lib/auth/loginFlow";
-
-/* ─── 기능 카드 데이터 (피그마 Landing/Features 카피) ─── */
-const FEATURES = [
-  {
-    title: "여러 장을 한 번에 올리는 업로드",
-    desc: "이미지 파일을 여러 장 선택하여 끌어다 놓아 한 번에 업로드합니다.",
-    Icon: UploadIcon,
-  },
-  {
-    title: "AI가 자동 분류",
-    desc: "비슷한 컷은 AI가 알아서 묶어줍니다. 원하는 사진을 바로 찾을 수 있습니다.",
-    Icon: UsersIcon,
-  },
-  {
-    title: "고르기 어려울 땐, AI 추천",
-    desc: "고민되는 컷은 AI 추천으로 시작하세요. 폴더별로 잘 나온 사진을 선택 장수에 맞게 제안하고, 최종 선택은 직접 합니다.",
-    Icon: SparkleIcon,
-  },
-  {
-    title: "함께 고르는 협업 셀렉",
-    desc: "가족 · 지인을 초대해 좋아요와 댓글로 의견을 모읍니다.",
-    Icon: CollabIcon,
-  },
-  {
-    title: "사진을 보며 바로 보정 요청",
-    desc: "사진을 보면서 바로 보정 요청을 남기면, 요청서로 깔끔하게 정리됩니다.",
-    Icon: CommentIcon,
-  },
-  {
-    title: "선택본부터 보정본까지 한 곳에서",
-    desc: "고른 사진과 완성된 보정본을 같은 곳에서 주고받습니다.",
-    Icon: DocIcon,
-  },
-];
 
 /* ─── 대상별 카드 데이터 (v2: 왼쪽 스튜디오 첫 개설 작가 · 오른쪽 개인 클라이언트)
    초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. */
@@ -114,7 +72,7 @@ const FOOTER_COLUMNS: {
   {
     title: "서비스",
     links: [
-      { label: "기능 소개", href: "#features" },
+      { label: "기능 소개", href: "#flow" },
       { label: "자주 묻는 질문", href: "#qna" },
       { label: "가격 안내" },
     ],
@@ -214,54 +172,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ═══ FEATURES (피그마 Landing/Features) ═══ */}
-        <section
-          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
-          id="features"
-          aria-labelledby="feat-h"
-        >
-          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
-            <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
-              <p className="type-label-eyebrow text-brand-secondary-default">
-                What we do
-              </p>
-              <h2 id="feat-h" className="type-maintext-s text-contents-light-bgd-default">
-                사진 셀렉,
-                <br />
-                이렇게 달라집니다.
-              </h2>
-              <p className="type-content-l text-contents-light-bgd-sub">
-                수천 장을 밤새 넘기고, 비슷한 컷을 비교하고, 서로 다른 취향을
-                맞추는 일.
-                <br />
-                사진 셀렉에 맞는 도구가 없어서였습니다.
-              </p>
-            </Reveal>
-
-            <div className="grid grid-cols-3 gap-6 w-full max-[820px]:grid-cols-2 max-[520px]:grid-cols-1">
-              {FEATURES.map(({ title, desc, Icon }, i) => (
-                <Reveal key={title} delay={(i + 1) as RevealDelay}>
-                  {/* 리빌(래퍼)과 호버 떠오름(카드)을 다른 요소에 두어 transform 충돌을 피한다 */}
-                  <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-8 flex flex-col gap-5 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
-                    <div className="self-start rounded-(--radius-12) bg-brand-secondary-background p-3 text-brand-secondary-default">
-                      <span className="flex size-6 items-center justify-center">
-                        <Icon />
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <h3 className="type-title-m text-contents-light-bgd-default">
-                        {title}
-                      </h3>
-                      <p className="type-content-m text-contents-light-bgd-sub">
-                        {desc}
-                      </p>
-                    </div>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) ═══ */}
+        <FlowSection />
 
         {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
         <section
