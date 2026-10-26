@@ -28,6 +28,7 @@ export function ShotLightbox({
   snack = null,
   rootRef,
   photoBoxRef,
+  panelRef,
 }: {
   photoId: number;
   /** 0부터 — 카운터는 index + 1 / total */
@@ -49,6 +50,8 @@ export function ShotLightbox({
   rootRef?: Ref<HTMLDivElement>;
   /** 커서 좌표 계산용 — 사진 상자 */
   photoBoxRef?: Ref<HTMLDivElement>;
+  /** 패널 본문(스크롤) — 내용이 길어지면 아래로 내리는 데 쓴다 */
+  panelRef?: Ref<HTMLDivElement>;
 }) {
   const open = tab !== "none";
   return (
@@ -118,7 +121,7 @@ export function ShotLightbox({
                 <CloseIcon size={16} />
               </span>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4">{panel}</div>
+            <div ref={panelRef} className="scrollbar-slim flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">{panel}</div>
           </aside>
         )}
       </div>

@@ -5,7 +5,7 @@
  * 위치: src/app/_components/shots/ShotFrame.tsx
  *
  * 화면 4장은 앱 셸과 같은 클래스로 1000×560 고정 크기에 그리고, 이 틀이 상자 폭을 재서 zoom으로 줄인다(최대 1000).
- * 그림일 뿐이라 안은 inert — 초점도 읽기도 안 된다. 이름은 role="img"의 라벨로만.
+ * 그림일 뿐이라 안은 inert — 초점도 읽기도 안 된다. 이름은 role="img"의 라벨로만. 흐름 섹션이 가운데 정렬이라 안은 text-left로 되돌린다.
  * onVisible: 상자가 화면에 35% 들어오면 한 번 — 화면이 제 타임라인(끌어오기 · 막대)을 시작하는 신호. 움직임 줄이기나
  * IntersectionObserver가 없으면 바로 부른다.
  */
@@ -61,7 +61,7 @@ export function ShotFrame({ label, onVisible, children }: { label: string; onVis
       aria-label={label}
       className="relative w-full max-w-250 aspect-[1000/560] overflow-hidden rounded-(--radius-12) border border-border-light bg-background-default-main shadow-(--shadow-modal)"
     >
-      <div inert className="absolute top-0 left-0 flex flex-col" style={{ width: SHOT_W, height: SHOT_H, zoom }}>
+      <div inert className="absolute top-0 left-0 flex flex-col text-left" style={{ width: SHOT_W, height: SHOT_H, zoom }}>
         {children}
       </div>
     </div>

@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * 랜딩 흐름 04 보정 요청 작성 — 크게 보기의 "보정 요청" 탭이 열린 채 시작해, 사진 위에 점을 찍고 한 줄 적고 AI로 다듬어 적용한다
+ * 랜딩 흐름 04 보정 요청 작성 — 크게 보기의 "보정 요청" 탭이 열린 채 시작해, 둘째 점을 찍고 한 줄 적고 AI로 다듬어 적용한다
  * 위치: src/app/_components/shots/RetouchShot.tsx
  *
- * 틀은 공용 ShotLightbox(실제 Lightbox 클래스), 사진 위 점은 실제 RetouchPins, 패널은 실제 RetouchPanel의 마크업을 옮긴 것
- * (사진 전체 요청 칸 → 핀 목록: 핀 n · 문장 · "AI 내용 다듬기" → 다듬는 중 → "AI 제안" + 적용 → "AI가 다듬은 문장").
- * 타임라인(ShotFrame.onVisible이 켬): 0.8초 커서가 사진으로 → 1.5초 클릭 · 점 1 → 1.9초부터 한 글자씩 "볼 그림자 조금 밝게" →
- * 3.0초 커서가 "AI 내용 다듬기"로 → 3.6초 클릭 · 다듬는 중 → 4.8초 AI 제안 → 5.3초 커서가 "적용"으로 → 5.9초 클릭 · 적용.
- * 커서 목표는 그려진 요소의 자리를 재서 잡는다(틀 zoom을 나눠 1000×560 좌표로). 움직임 줄이기면 끝 상태(점 + 적용된 문장).
+ * 틀은 공용 ShotLightbox(실제 Lightbox 클래스), 사진 위 점은 실제 RetouchPins, 패널은 실제 RetouchPanel의 마크업을 옮긴 것.
+ * 핀 1은 처음부터 있고 사용자가 적은 문장 그대로(AI 안 거침, 2026-10-26 수민). 핀 2가 타임라인의 주인공:
+ * 0.8초 커서가 사진으로 → 1.5초 클릭 · 점 2 → 1.9초부터 한 글자씩 "볼 그림자 조금 밝게" → 3.0초 커서가 "AI 내용 다듬기"로 →
+ * 3.6초 클릭 · 다듬는 중 → 4.8초 AI 제안(패널을 아래로 내림) → 5.3초 커서가 "적용"으로 → 5.9초 클릭 · 적용.
+ * 커서 목표는 그려진 요소의 자리를 재서 잡는다(틀 zoom을 나눠 1000×560 좌표로). 움직임 줄이기면 끝 상태.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RetouchPins } from "@/app/(client)/gallery/[galleryId]/_shell/RetouchPanel";
 import { CheckCircleIcon, SparkleIcon, TrashIcon } from "@/components/icons";
 import { ShotCursor, ShotTopbar } from "./ShotChrome";
@@ -20,9 +20,12 @@ import { ShotLightbox, ShotSelectionControls } from "./ShotLightbox";
 import { useShotTimeline } from "./useShotTimeline";
 
 const PHOTO_ID = 54;
-const PIN = { x: 0.47, y: 0.3 };
+/** 핀 1 — 처음부터 있는 것, 사용자가 적은 그대로 */
+const PIN1 = { x: 0.56, y: 0.13, text: "잔머리 정리해 주세요" };
+/** 핀 2 — 타임라인이 찍는 것 */
+const PIN2 = { x: 0.47, y: 0.32 };
 const TYPED = "볼 그림자 조금 밝게";
-const REFINED = "왼쪽 볼의 그림자를 자연스럽게 밝혀 주시고, 피부 결은 그대로 살려 주세요.";
+const REFINED = "왼쪽 볼의 그림자를 자연스럽게 밝혀 주세요.";
 const TYPE_MS = 55;
 
 type Refine = "none" | "loading" | "suggested" | "applied";
@@ -34,9 +37,16 @@ export function RetouchShot() {
   const [cursor, setCursor] = useState({ x: 300, y: 430, visible: false, click: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
   const photoRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const refineRef = useRef<HTMLSpanElement>(null);
   const applyRef = useRef<HTMLSpanElement>(null);
   const run = useShotTimeline();
+
+  // 핀 2의 카드가 길어질 때마다 패널을 끝까지 내린다 — "적용"이 보이게(실제 패널도 스크롤)
+  useEffect(() => {
+    const el = panelRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [pinned, refine]);
 
   /** 요소의 가운데(또는 사진 안 비율 좌표)를 1000×560 좌표로 */
   const place = (el: HTMLElement | null, rel?: { x: number; y: number }) => {
@@ -58,7 +68,7 @@ export function RetouchShot() {
   const start = () => {
     const steps: [number, () => void][] = [
       [600, () => setCursor((c) => ({ ...c, visible: true }))],
-      [800, () => moveTo(photoRef.current, PIN)],
+      [800, () => moveTo(photoRef.current, PIN2)],
       [1500, () => { click(); setPinned(true); }],
     ];
     for (let i = 1; i <= TYPED.length; i++) steps.push([1900 + i * TYPE_MS, () => setTyped(TYPED.slice(0, i))]);
@@ -73,7 +83,32 @@ export function RetouchShot() {
     run(steps, () => { setPinned(true); setTyped(TYPED); setRefine("applied"); });
   };
 
-  const points = pinned ? [{ id: "p1", x: PIN.x, y: PIN.y, text: typed, refinedText: refine === "none" || refine === "loading" ? null : REFINED, useRefinedText: refine === "applied" }] : [];
+  const points = [
+    { id: "p1", x: PIN1.x, y: PIN1.y, text: PIN1.text, refinedText: null, useRefinedText: false },
+    ...(pinned ? [{ id: "p2", x: PIN2.x, y: PIN2.y, text: typed, refinedText: refine === "none" || refine === "loading" ? null : REFINED, useRefinedText: refine === "applied" }] : []),
+  ];
+
+  const pinHead = (n: number) => (
+    <div className="flex items-center gap-2 type-label-semibold-s text-contents-light-bgd-default">
+      <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-white">{n}</span>
+      핀 {n}
+      <span className="ml-auto grid size-6.5 place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness">
+        <TrashIcon size={16} />
+      </span>
+    </div>
+  );
+  const refineButton = (ref?: React.Ref<HTMLSpanElement>) => (
+    <div className="flex items-center justify-between gap-2">
+      <span className="type-content-xs" />
+      <span ref={ref} className="inline-flex h-7 items-center gap-1 rounded-(--radius-4) bg-surface-default-medium px-2.5 type-label-medium-xs text-contents-light-bgd-default">
+        <span className="text-brand-secondary-default">
+          <SparkleIcon size={14} />
+        </span>
+        AI 내용 다듬기
+      </span>
+    </div>
+  );
+  const textareaClass = "w-full resize-none bg-transparent type-content-s text-contents-light-bgd-default placeholder:text-contents-light-bgd-weakness focus:outline-none";
 
   const panel = (
     <>
@@ -87,24 +122,18 @@ export function RetouchShot() {
           className="w-full resize-none rounded-(--radius-8) border border-border-default bg-transparent px-2.5 py-2 type-content-s text-contents-light-bgd-default placeholder:text-contents-light-bgd-weakness"
         />
       </section>
-      {!pinned ? (
-        <div className="flex flex-col items-center gap-3 rounded-(--radius-12) border border-dashed border-border-default px-4 py-8 text-center">
-          <p className="type-content-s leading-relaxed text-contents-light-bgd-sub">
-            보정하고 싶은 부분을
-            <br />
-            사진 위에서 눌러 표시해 주세요
-          </p>
-        </div>
-      ) : (
-        <ol className="flex flex-col gap-4">
+      <ol className="flex flex-col gap-4">
+        {/* 핀 1 — 사용자가 적은 그대로, AI 안 거침 */}
+        <li className="flex flex-col gap-1.5">
+          {pinHead(1)}
+          <div className="flex flex-col gap-2 rounded-(--radius-8) border border-border-default p-2.5">
+            <textarea readOnly value={PIN1.text} rows={2} className={textareaClass} />
+            {refineButton()}
+          </div>
+        </li>
+        {pinned && (
           <li className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 type-label-semibold-s text-contents-light-bgd-default">
-              <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-white">1</span>
-              핀 1
-              <span className="ml-auto grid size-6.5 place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness">
-                <TrashIcon size={16} />
-              </span>
-            </div>
+            {pinHead(2)}
             <div className="flex flex-col gap-2 rounded-(--radius-8) border border-border-default p-2.5">
               {refine === "applied" ? (
                 <>
@@ -119,13 +148,7 @@ export function RetouchShot() {
                 </>
               ) : (
                 <>
-                  <textarea
-                    readOnly
-                    value={typed}
-                    placeholder="예) 볼 라인 정리"
-                    rows={2}
-                    className="w-full resize-none bg-transparent type-content-s text-contents-light-bgd-default placeholder:text-contents-light-bgd-weakness focus:outline-none"
-                  />
+                  <textarea readOnly value={typed} placeholder="예) 볼 라인 정리" rows={2} className={textareaClass} />
                   {refine === "loading" ? (
                     <div className="h-12 animate-pulse rounded-(--radius-8) bg-brand-secondary-background" aria-label="AI가 문장을 다듬는 중" />
                   ) : refine === "suggested" ? (
@@ -140,22 +163,14 @@ export function RetouchShot() {
                       </span>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="type-content-xs" />
-                      <span ref={refineRef} className="inline-flex h-7 items-center gap-1 rounded-(--radius-4) bg-surface-default-medium px-2.5 type-label-medium-xs text-contents-light-bgd-default">
-                        <span className="text-brand-secondary-default">
-                          <SparkleIcon size={14} />
-                        </span>
-                        AI 내용 다듬기
-                      </span>
-                    </div>
+                    refineButton(refineRef)
                   )}
                 </>
               )}
             </div>
           </li>
-        </ol>
-      )}
+        )}
+      </ol>
     </>
   );
 
@@ -174,6 +189,7 @@ export function RetouchShot() {
         overlay={<RetouchPins points={points} />}
         rootRef={rootRef}
         photoBoxRef={photoRef}
+        panelRef={panelRef}
       />
       <ShotCursor x={cursor.x} y={cursor.y} visible={cursor.visible} click={cursor.click} />
     </ShotFrame>
