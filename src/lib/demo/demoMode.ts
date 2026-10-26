@@ -17,6 +17,37 @@ export function setDemoActive(next: boolean): void {
   active = next;
 }
 
+/**
+ * 체험 안내 스낵바 — 체험에서 막힌 기능(AI 추천 · 게스트 초대 · 게스트 반응)을 누르면 화면 코드가 showDemoNotice()를 부르고
+ * DemoShell이 그린다. 하나만 두고 덮어쓴다.
+ */
+type DemoNotice = { text: string; at: number } | null;
+let notice: DemoNotice = null;
+const noticeListeners = new Set<() => void>();
+export function showDemoNotice(text: string): void {
+  notice = { text, at: Date.now() };
+  noticeListeners.forEach((l) => l());
+}
+export function clearDemoNotice(): void {
+  notice = null;
+  noticeListeners.forEach((l) => l());
+}
+export function getDemoNotice(): DemoNotice {
+  return notice;
+}
+export function subscribeDemoNotice(listener: () => void): () => void {
+  noticeListeners.add(listener);
+  return () => {
+    noticeListeners.delete(listener);
+  };
+}
+/** 막힌 기능을 눌렀을 때 — 체험이면 안내하고 true(호출한 쪽은 그만둔다) */
+export function blockInDemo(feature: string): boolean {
+  if (!active) return false;
+  showDemoNotice(`${feature}은 실제 갤러리에서 쓸 수 있어요`);
+  return true;
+}
+
 export const DEMO_GALLERY_ID = 999;
 export const DEMO_WORKSPACE_ID = 999;
 export const DEMO_TITLE = "민지 · 준호 스튜디오 촬영";

@@ -29,6 +29,7 @@
  * (2차 QA). 날짜로 미리 잠그고, 서버가 마감 오류를 돌려줬을 때도 잠근다. 개인 갤러리의 목표일은 마감이 아니라 잠그지 않는다.
  */
 
+import { blockInDemo } from "@/lib/demo/demoMode";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
 import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, FolderIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
@@ -594,7 +595,8 @@ export function SelectStage({
                       aria-pressed={aiPhotos.length > 0}
                       aria-label={`AI 추천${aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}`}
                       disabled={!editable || aiBusy || ai.jobActive}
-                      onClick={() => void ai.request(focusedDetail?.id ?? null)}
+                      // 체험(/demo)에서는 안내만(이슈 144)
+                      onClick={() => { if (!blockInDemo("AI 추천")) void ai.request(focusedDetail?.id ?? null); }}
                       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 max-[860px]:px-2.25 ${
                         aiPhotos.length > 0
                           ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default"
@@ -612,7 +614,7 @@ export function SelectStage({
                     data-coach="reactions"
                     aria-pressed={guestOn}
                     aria-label="게스트 반응"
-                    onClick={() => setGuestOn((v) => !v)}
+                    onClick={() => { if (!blockInDemo("게스트 반응")) setGuestOn((v) => !v); }}
                     className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
                       guestOn ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                     }`}

@@ -9,7 +9,7 @@
  * 체험에 없는 호출은 404(DEMO_404)로 돌려주고 콘솔에 남겨 빠진 것을 찾기 쉽게 한다.
  */
 
-import { SAMPLE_FOLDERS, SAMPLE_PHOTOS, SAMPLE_SCORES, sampleIdsOf, samplePhotoUrl } from "@/app/_components/shots/samplePhotos";
+import { SAMPLE_FOLDERS, SAMPLE_PHOTOS, sampleIdsOf, samplePhotoUrl } from "@/app/_components/shots/samplePhotos";
 import type { AiRecommendationList, AiSelectionJob } from "@/lib/api/recommendations";
 import type { User } from "@/lib/api/auth";
 import type { CollabCommentResponse } from "@/lib/api/collabGuest";
@@ -25,7 +25,8 @@ import { DEMO_GALLERY_ID, DEMO_TITLE, DEMO_USER, DEMO_WORKSPACE_ID } from "./dem
 
 const KEY = "sel.demo.v1";
 const TTL = 3600;
-const MAX_PICK = 50;
+/** 선택 상한 — 체험은 10장(2026-10-26 수민) */
+const MAX_PICK = 10;
 const AI_MS = 2500;
 const LATENCY_MS = 60;
 
@@ -51,7 +52,14 @@ const now = () => new Date().toISOString();
 const daysFromNow = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** 처음 폴더 — 상반신과 클로즈업은 한 폴더로 합쳐진 채 시작한다(2026-10-26 수민): 전신 100 · 상반신 125 · 풍경 25 */
 function freshFolders(): ConceptFolderResponse[] {
+  const [full, upper, close, wide] = SAMPLE_FOLDERS;
+  const details: [string, number[]][] = [
+    [full.name, sampleIdsOf(full)],
+    [upper.name, [...sampleIdsOf(upper), ...sampleIdsOf(close)]],
+    [wide.name, sampleIdsOf(wide)],
+  ];
   return [
     {
       id: 1,
@@ -60,15 +68,15 @@ function freshFolders(): ConceptFolderResponse[] {
       sortOrder: 0,
       createdSource: "AI",
       analysisJobId: 1,
-      details: SAMPLE_FOLDERS.map((folder, i) => ({
+      details: details.map(([name, photoIds], i) => ({
         id: 10 + i,
         galleryId: G,
         conceptFolderId: 1,
-        name: folder.name,
+        name,
         sortOrder: i,
         createdSource: "AI",
         needsReview: false,
-        photoIds: sampleIdsOf(folder),
+        photoIds,
       })),
     },
   ];
@@ -79,7 +87,8 @@ function fresh(): Saved {
     foldersSavedAt: null,
     stage: "UPLOAD",
     requestedAt: null,
-    scores: Object.fromEntries(Object.entries(SAMPLE_SCORES)),
+    // 별점은 없는 채로 시작(2026-10-26 수민 — 셀렉은 별점을 매기는 데서 시작)
+    scores: {},
     selected: [],
     folders: freshFolders(),
     sessions: [],
@@ -109,11 +118,23 @@ function save() {
     // 저장이 안 돼도 체험은 이어진다(새로 고치면 처음부터)
   }
 }
+/** 단계가 바뀌면(폴더 확정 · 요청서 내보내기 · 되돌리기 · 처음부터) DemoShell에 알린다 — 보정 확인부터는 막는다 */
+const phaseListeners = new Set<() => void>();
+function notifyPhase() {
+  phaseListeners.forEach((l) => l());
+}
+export function subscribeDemoPhase(listener: () => void): () => void {
+  phaseListeners.add(listener);
+  return () => {
+    phaseListeners.delete(listener);
+  };
+}
 export function resetDemoState(): void {
   state = fresh();
   ai = null;
   aiRecs = null;
   save();
+  notifyPhase();
 }
 export function demoPhase(): DemoPhase {
   const s = load();
@@ -307,7 +328,10 @@ on("PATCH", `${g}/personal`, () => gallery());
 on("GET", `${g}/members`, () => MEMBERS);
 on("DELETE", `${g}/members/\\d+`, () => undefined);
 on("POST", `${g}/image-access`, () => ({ expiresAt: null, refreshAfterSeconds: null }));
-on("GET", `${g}/ai-analysis`, () => fail(404, "RECOMMENDATION_404_1", "분석 기록이 없어요"));
+// 분석 잡은 끝난 것으로 — 없다고 하면 화면이 스스로 분석을 요청하고(여기 없는 경로) 실패해 "다시 시도"가 뜬다
+const DONE_JOB = () => ({ jobId: 1, galleryId: G, status: "DONE" as const, progress: { expected: 250, embedded: 250, scored: 250, categorized: 250, failed: 0 }, error: null, createdAt: daysFromNow(-3), finishedAt: daysFromNow(-3) });
+on("GET", `${g}/ai-analysis`, () => DONE_JOB());
+on("POST", `${g}/ai-analysis`, () => DONE_JOB());
 on("GET", `${g}/invite`, () => invite());
 on("POST", `${g}/invites`, () => invite());
 on("DELETE", `${g}/invites/\\d+`, () => undefined);
@@ -361,6 +385,7 @@ on("POST", `${g}/folders/from-clusters`, () => {
     s.foldersSavedAt = now();
     save();
     track("demo_stage_changed", { phase: "select" });
+    notifyPhase();
   }
   return s.folders;
 });
@@ -476,6 +501,7 @@ on("POST", `${g}/photo-selection/withdraw`, () => {
   s.stage = "UPLOAD";
   s.requestedAt = null;
   save();
+  notifyPhase();
   return selection();
 });
 on("POST", `${g}/max-selectable-increase-request`, () => undefined);
@@ -486,6 +512,7 @@ on("GET", `${g}/photo-selection/export`, () => {
     s.requestedAt = now();
     save();
     track("demo_stage_changed", { phase: "review" });
+    notifyPhase();
   }
   const rows = s.selected.map((id, i) => `${i + 1},${photoOf(id)?.originalFileName ?? id},${s.retouch[String(id)]?.requestText ?? ""}`);
   return new Response(`﻿번호,파일,보정 요청\n${rows.join("\n")}\n`, { status: 200, headers: { "content-type": "text/csv; charset=utf-8" } });
