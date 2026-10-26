@@ -9,14 +9,20 @@
  * 끄고 들어올 때의 로그인 상태로 되돌린다(부팅이 끝나기 전이었으면 복구를 다시 돈다).
  * 위 띠: 체험 중 안내 · "처음부터"(진행 지우기) · "내 사진으로 시작하기"(회원가입 모달, 개인 갤러리로). 갤러리 화면은 h-dvh라
  * 띠 높이만큼 안쪽 높이를 100%로 눌러 넣는다.
- * 막힌 기능(AI 추천 · 게스트 초대 · 게스트 반응)은 화면 코드가 blockInDemo()로 알리고 여기서 스낵바로 보여 준다.
+ * 막힌 기능(AI 추천 · 게스트 초대 · 게스트 반응 · 공유폴더 · 프로필 메뉴)은 화면 코드가 blockInDemo()로 알리고 여기서 스낵바로 보여 준다.
  * 요청서를 내보내면(단계 review) 갤러리 화면 대신 "보정 확인부터는 실제 갤러리에서" 카드를 둔다(2026-10-26 수민).
+ * 로그인 규칙(2026-10-26 수민 질문): 체험은 누구나 가짜 사용자로 본다. 나가는 버튼만 다르다 — 로그인한 적 없으면
+ * "내 사진으로 시작하기"(회원가입 모달 · 개인), 저장된 토큰이 있으면 "내 갤러리로 가기"(마지막 사용자 기록의 공간으로 전체 새로 고침 —
+ * 서버를 안 부르고 판단하고, 새로 고침으로 실제 세션이 복구된다).
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { type AuthState, getAuthState, setAuthenticated, setGuest } from "@/lib/auth/authStore";
 import { restoreSession } from "@/lib/auth/restoreSession";
+import { useLastUser } from "@/lib/auth/lastUser";
+import { spaceChip } from "@/lib/auth/loginFlow";
+import { getRefreshToken } from "@/lib/auth/tokenStore";
 import { DEMO_USER, clearDemoNotice, getDemoNotice, setDemoActive, subscribeDemoNotice } from "@/lib/demo/demoMode";
 import { demoPhase, resetDemoState, subscribeDemoPhase } from "@/lib/demo/demoServer";
 import { LoginModal } from "@/components/LoginModal";
@@ -27,6 +33,9 @@ import { Button } from "@/components/ui/Button";
 const NOTICE_MS = 2400;
 const serverPhase = () => "sort" as const;
 const noNotice = () => null;
+const noSubscribe = () => () => {};
+const hasToken = () => Boolean(getRefreshToken());
+const noToken = () => false;
 
 export function DemoShell({ children }: { children: ReactNode }) {
   const prev = useRef<AuthState | null>(null);
@@ -36,6 +45,9 @@ export function DemoShell({ children }: { children: ReactNode }) {
     return true;
   });
   const [signup, setSignup] = useState(false);
+  // 로그인한 사람인가 — 저장된 토큰으로만 본다(서버를 부르면 가짜 서버가 받는다). 서버 렌더는 모름 = 손님으로
+  const member = useSyncExternalStore(noSubscribe, hasToken, noToken);
+  const lastUser = useLastUser();
   const phase = useSyncExternalStore(subscribeDemoPhase, demoPhase, serverPhase);
   const notice = useSyncExternalStore(subscribeDemoNotice, getDemoNotice, noNotice);
 
@@ -68,8 +80,14 @@ export function DemoShell({ children }: { children: ReactNode }) {
     resetDemoState();
     window.location.reload();
   };
-  const openSignup = () => {
+  /** 나가는 버튼 — 손님은 회원가입 모달, 로그인한 사람은 제 공간으로(전체 새로 고침이라 실제 세션이 돌아온다) */
+  const exitLabel = member ? "내 갤러리로 가기" : "내 사진으로 시작하기";
+  const exit = () => {
     track("demo_signup_clicked", { phase: demoPhase() });
+    if (member) {
+      window.location.assign(lastUser ? spaceChip(lastUser).href : "/");
+      return;
+    }
     setSignup(true);
   };
 
@@ -88,10 +106,10 @@ export function DemoShell({ children }: { children: ReactNode }) {
           </button>
           <button
             type="button"
-            onClick={openSignup}
+            onClick={exit}
             className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) bg-background-default-main px-3 type-label-semibold-xs text-contents-light-bgd-default transition-opacity duration-fast hover:opacity-90"
           >
-            내 사진으로 시작하기
+            {exitLabel}
             <ArrowRightIcon size={14} />
           </button>
         </span>
@@ -109,8 +127,8 @@ export function DemoShell({ children }: { children: ReactNode }) {
               <Button kind="ghost" onClick={reset}>
                 처음부터 다시
               </Button>
-              <Button icon={<ArrowRightIcon />} onClick={openSignup}>
-                내 사진으로 시작하기
+              <Button icon={<ArrowRightIcon />} onClick={exit}>
+                {exitLabel}
               </Button>
             </div>
           </div>

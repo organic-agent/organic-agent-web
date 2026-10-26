@@ -41,10 +41,16 @@ export function subscribeDemoNotice(listener: () => void): () => void {
     noticeListeners.delete(listener);
   };
 }
+/** 받침에 따라 은/는 */
+function topic(word: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  if (code < 0 || code > 11171) return `${word}은(는)`;
+  return `${word}${code % 28 ? "은" : "는"}`;
+}
 /** 막힌 기능을 눌렀을 때 — 체험이면 안내하고 true(호출한 쪽은 그만둔다) */
 export function blockInDemo(feature: string): boolean {
   if (!active) return false;
-  showDemoNotice(`${feature}은 실제 갤러리에서 쓸 수 있어요`);
+  showDemoNotice(`${topic(feature)} 실제 갤러리에서 쓸 수 있어요`);
   return true;
 }
 
