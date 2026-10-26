@@ -17,7 +17,7 @@ import { PersonalEmptyGuide } from "@/app/(client)/gallery/[galleryId]/_shell/Pe
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { AddPhotoIcon, CloseIcon, PhotoIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
-import { samplePhotoUrl } from "./samplePhotos";
+import { sampleThumbUrl } from "./samplePhotos";
 import { ShotFrame } from "./ShotFrame";
 import { ShotTopbar } from "./ShotChrome";
 import { useShotTimeline } from "./useShotTimeline";
@@ -194,7 +194,7 @@ export function UploadShot() {
             className="absolute inset-0 overflow-hidden rounded-(--radius-8) border-2 border-background-default-main shadow-(--shadow-modal)"
             style={{ rotate: `${(i - 1) * 7}deg`, translate: `${(i - 1) * 4}px 0` }}
           >
-            <Image src={samplePhotoUrl(id)} alt="" fill sizes="64px" className="object-cover" />
+            <Image src={sampleThumbUrl(id)} alt="" fill sizes="64px" className="object-cover" />
           </div>
         ))}
         <span className="absolute -top-2 -right-2 grid h-6 min-w-6 place-items-center rounded-(--pill) bg-brand-primary-default px-1.5 type-label-semibold-xs text-contents-dark-bgd-default">

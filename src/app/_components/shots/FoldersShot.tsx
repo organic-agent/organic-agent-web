@@ -4,7 +4,7 @@
  * 랜딩 흐름 02 컨셉 분류 — "AI가 폴더로 나누는 중" 화면에서 폴더가 하나씩 생기고, 첫 폴더로 들어가 정리된 사진을 본다
  * 위치: src/app/_components/shots/FoldersShot.tsx
  *
- * 부품은 실제 컨셉 분류 화면 그대로 — FolderColumn(폴더 열) · ShellMainHeader(제목 · 줌 · 정렬) · PhotoGrid(그리드) ·
+ * 부품은 실제 컨셉 분류 화면 그대로(사이드바는 접힘) — FolderColumn(폴더 열) · ShellMainHeader(제목 · 줌 · 정렬) · PhotoGrid(그리드) ·
  * ShellBottomBar(하단 바) · ProgressBar(AI 진행). 고정 데이터만 넣었다. 편집 핸들러를 안 주어 폴더 열은 읽기 전용.
  * 타임라인(ShotFrame.onVisible이 켬): analyzing(폴더 열 "만드는 중…" 안내 · 제목 옆 "폴더 만드는 중…" 칩 · 하단 막대) →
  * 2.2초부터 세부 폴더가 0.4초마다 하나씩(전신 → 상반신 → 클로즈업 → 풍경) → 4.2초에 전신 폴더로 들어가 그 사진만 보인다.
@@ -23,9 +23,15 @@ import { ShotFrame } from "./ShotFrame";
 import { ShotTopbar } from "./ShotChrome";
 import { useShotTimeline } from "./useShotTimeline";
 
-const TOTAL = 250;
+/** 01에서 500장을 올렸으니 여기도 500장(2026-10-26 수민) — 샘플은 250장이라 폴더 수는 두 배로 적고 그리드에는 폴더마다 30장을 그린다 */
+const TOTAL = 500;
+const FOLDER_COUNTS = [200, 150, 100, 50];
 const CONCEPT_NAME = "화이트 스튜디오";
-/** AI가 만든 컨셉 하나 › 세부 폴더 넷 — 사진 번호는 샘플 데이터의 구간 그대로(전신 100 · 상반신 75 · 클로즈업 50 · 풍경 25) */
+/** 세부 폴더의 사진 번호 — 샘플 구간(그리드에 보이는 것 포함) 뒤에 숫자 맞춤용 번호를 채운다(폴더 열은 개수만 센다) */
+function padIds(ids: number[], count: number, folderIndex: number): number[] {
+  return ids.concat(Array.from({ length: Math.max(0, count - ids.length) }, (_, k) => 100_000 + folderIndex * 1000 + k));
+}
+/** AI가 만든 컨셉 하나 › 세부 폴더 넷 — 전신 200 · 상반신 150 · 클로즈업 100 · 풍경 50 */
 const CONCEPT: ConceptFolderResponse = {
   id: 1,
   galleryId: 0,
@@ -41,11 +47,11 @@ const CONCEPT: ConceptFolderResponse = {
     sortOrder: i,
     createdSource: "AI",
     needsReview: false,
-    photoIds: sampleIdsOf(folder),
+    photoIds: padIds(sampleIdsOf(folder), FOLDER_COUNTS[i], i),
   })),
 };
-/** 그리드에 그리는 사진 — 폴더마다 8장(32장). 숫자는 250장으로 적는다 */
-const PHOTOS = landingPhotos(8);
+/** 그리드에 그리는 사진 — 폴더마다 30장(120장, 썸네일)이라 폴더로 들어가도 그리드가 꽉 찬다 */
+const PHOTOS = landingPhotos(30);
 const EMPTY = new Set<number>();
 const ALL: FolderSelection = { kind: "all" };
 const FIRST: FolderSelection = { kind: "detail", conceptId: CONCEPT.id, detailId: CONCEPT.details[0].id };
