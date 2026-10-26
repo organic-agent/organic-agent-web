@@ -35,47 +35,50 @@ export function LandingNav({
   const lastUser = useLastUser();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-100 bg-background-default-main border-b border-divider-default">
-      <div className="max-w-wrap mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Brand */}
-        <Link
-          href="/"
-          className="flex items-center gap-[10px]"
-          aria-label="Easy Select 홈"
-        >
-          <BrandLogo size={32} className="text-contents-light-bgd-default shrink-0" />
-          <b className="type-brand-wordmark text-contents-light-bgd-default">Easy Select</b>
-        </Link>
-
-        <nav className="flex items-center gap-2">
-          {auth.status === "loading" ? (
-            lastUser ? (
-              <SpaceChipLink user={lastUser} pending />
+    <header className="fixed top-0 left-0 right-0 z-100 bg-background-default-main">
+      {/* 아래 선은 화면 전체가 아니라 로고부터 회원가입 버튼까지만(2026-10-26 수민) — 안쪽 상자에 긋는다 */}
+      <div className="max-w-wrap mx-auto px-6">
+        <div className="h-16 flex items-center justify-between border-b border-divider-default">
+          {/* Brand */}
+          <Link
+            href="/"
+            className="flex items-center gap-[10px]"
+            aria-label="Easy Select 홈"
+          >
+            <BrandLogo size={32} className="text-contents-light-bgd-default shrink-0" />
+            <b className="type-brand-wordmark text-contents-light-bgd-default">Easy Select</b>
+          </Link>
+  
+          <nav className="flex items-center gap-2">
+            {auth.status === "loading" ? (
+              lastUser ? (
+                <SpaceChipLink user={lastUser} pending />
+              ) : (
+                // 복구가 끝날 때까지 자리만 — 서버 렌더와 첫 클라이언트 렌더가 같은 모양이다
+                <span
+                  aria-hidden
+                  className="h-10 w-50 rounded-(--pill) bg-surface-default-light"
+                />
+              )
+            ) : auth.status === "guest" ? (
+              <>
+                <Button
+                  kind="ghost"
+                  onClick={() => onOpenLogin({ mode: "login", intent: "couple" })}
+                >
+                  로그인
+                </Button>
+                <Button
+                  onClick={() => onOpenLogin({ mode: "signup", intent: "couple" })}
+                >
+                  회원가입
+                </Button>
+              </>
             ) : (
-              // 복구가 끝날 때까지 자리만 — 서버 렌더와 첫 클라이언트 렌더가 같은 모양이다
-              <span
-                aria-hidden
-                className="h-10 w-50 rounded-(--pill) bg-surface-default-light"
-              />
-            )
-          ) : auth.status === "guest" ? (
-            <>
-              <Button
-                kind="ghost"
-                onClick={() => onOpenLogin({ mode: "login", intent: "couple" })}
-              >
-                로그인
-              </Button>
-              <Button
-                onClick={() => onOpenLogin({ mode: "signup", intent: "couple" })}
-              >
-                회원가입
-              </Button>
-            </>
-          ) : (
-            <SpaceChipLink user={auth.user} />
-          )}
-        </nav>
+              <SpaceChipLink user={auth.user} />
+            )}
+          </nav>
+        </div>
       </div>
     </header>
   );
