@@ -10,32 +10,33 @@
  * 맡는다 — 지금은 자리만.
  */
 
+import { Band } from "./Band";
 import { Reveal } from "./Reveal";
 
 type Step = {
   n: string;
   label: string;
-  /** 제목 — 줄마다 차례로 떠오른다 */
+  /** 제목 — 줄마다 차례로 떠오른다(지금은 한 줄) */
   title: string[];
   desc: string;
 };
 
+// 문구는 2026-10-26 수민 — 제목은 한 줄 명사형, 설명은 두 문장
 const STEPS: Step[] = [
-  { n: "01", label: "사진 업로드", title: ["원본을 끌어다 놓으면", "끝."], desc: "한 번에 500장. 올리는 동안 AI가 비슷한 컷을 묶습니다." },
-  { n: "02", label: "컨셉 분류", title: ["AI가 컨셉별 폴더로", "나눕니다."], desc: "전신 · 상반신 · 클로즈업 · 풍경. 폴더는 고치고 합칠 수 있습니다." },
-  { n: "03", label: "사진 셀렉", title: ["둘이서, 가족과,", "함께 고릅니다."], desc: "체크로 고르고, 별점으로 추리고, 공유 링크로 가족의 좋아요를 모읍니다." },
-  { n: "04", label: "보정 요청 작성", title: ["사진 위에", "바로 보정 요청."], desc: "점을 찍고 한 줄. 요청만 요청서에 실립니다." },
+  { n: "01", label: "사진 업로드", title: ["원본을 그대로 업로드"], desc: "여러 장을 한 번에 끌어다 업로드합니다. 업로드되는 동안 AI가 비슷한 컨셉끼리 분류합니다." },
+  { n: "02", label: "컨셉 분류", title: ["AI로 컨셉별 폴더 나누기"], desc: "비슷한 사진끼리 폴더로 묶입니다. 폴더는 수정, 변형이 가능합니다." },
+  { n: "03", label: "사진 셀렉", title: ["별점으로 빠르게 셀렉"], desc: "별점을 매겨 후보를 추리고 마음에 드는 사진을 선택합니다. 파트너를 초대하고, 공유 링크로 가족의 좋아요와 댓글을 모읍니다." },
+  { n: "04", label: "보정 요청 작성", title: ["사진 위에 점을 찍어 보정 요청"], desc: "고칠 곳을 누르고 한 줄 적으면 요청서로 정리됩니다. 선택한 사진의 요청만 담깁니다." },
 ];
 
 export function FlowSection() {
   return (
-    <section id="flow" aria-label="사용 흐름">
+    <div id="flow" role="region" aria-label="사용 흐름">
       {STEPS.map((step) => (
-        <div
+        <Band
           key={step.n}
-          className="bg-background-default-main border-b border-divider-default overflow-hidden"
+          className="pt-24 pb-16 flex flex-col items-center text-center gap-5 overflow-hidden max-[820px]:pt-16 max-[820px]:pb-12"
         >
-          <div className="max-w-wrap mx-auto px-6 pt-24 pb-16 flex flex-col items-center text-center gap-5 max-[820px]:pt-16 max-[820px]:pb-12">
             <Reveal as="p" variant="blur" className="type-label-eyebrow text-brand-secondary-default">
               {step.n} · {step.label}
             </Reveal>
@@ -46,9 +47,8 @@ export function FlowSection() {
             <Reveal variant="rise" delay={4} seq className="mt-8 w-full flex justify-center">
               <div className="w-full max-w-250 aspect-[1000/560] rounded-(--radius-12) border border-border-light bg-background-default-main shadow-(--shadow-modal) overflow-hidden" />
             </Reveal>
-          </div>
-        </div>
+        </Band>
       ))}
-    </section>
+    </div>
   );
 }

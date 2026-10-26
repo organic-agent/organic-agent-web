@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { SUPPORT_CHAT_URL } from "@/lib/support";
+import { Band } from "./_components/Band";
 import { FlowSection } from "./_components/FlowSection";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
@@ -122,11 +123,10 @@ export default function LandingPage() {
 
       <main id="main">
         {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
-        <section
-          className="bg-background-default-main border-b border-divider-default pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14"
-          aria-labelledby="hero-h"
+        <Band
+          labelledBy="hero-h"
+          className="pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start"
         >
-          <div className="max-w-wrap mx-auto px-6 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start">
             {/* 좌: 텍스트 + CTA */}
             <div className="flex flex-col items-start gap-5 max-w-107.5">
               <p className="type-label-eyebrow text-brand-secondary-default">
@@ -169,19 +169,13 @@ export default function LandingPage() {
                 className="object-cover max-[900px]:object-[50%_22%]"
               />
             </div>
-          </div>
-        </section>
+        </Band>
 
         {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) ═══ */}
         <FlowSection />
 
         {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
-        <section
-          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
-          id="audiences"
-          aria-labelledby="aud-h"
-        >
-          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
+        <Band id="audiences" labelledBy="aud-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
               <p className="type-label-eyebrow text-brand-secondary-default">
                 Who it&apos;s for
@@ -227,16 +221,10 @@ export default function LandingPage() {
                 </Reveal>
               ))}
             </div>
-          </div>
-        </section>
+        </Band>
 
         {/* ═══ Q&A (피그마 Landing/QnA) ═══ */}
-        <section
-          className="bg-background-default-main border-b border-divider-default py-20 max-[640px]:py-14"
-          id="qna"
-          aria-labelledby="qna-h"
-        >
-          <div className="max-w-wrap mx-auto px-6 flex flex-col items-center gap-12">
+        <Band id="qna" labelledBy="qna-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center">
               <p className="type-label-eyebrow text-brand-secondary-default">FAQ</p>
               <h2 id="qna-h" className="type-maintext-s text-contents-light-bgd-default">
@@ -244,8 +232,7 @@ export default function LandingPage() {
               </h2>
             </Reveal>
             <QnAAccordion />
-          </div>
-        </section>
+        </Band>
 
       </main>
 
