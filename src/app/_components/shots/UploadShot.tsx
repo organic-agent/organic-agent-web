@@ -11,7 +11,7 @@
  * 0 → 500으로 오르며 줄마다 막대가 참). 움직임 줄이기면 처음부터 list · 500.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { PersonalEmptyGuide } from "@/app/(client)/gallery/[galleryId]/_shell/PersonalEmptyGuide";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { samplePhotoUrl } from "./samplePhotos";
 import { ShotFrame } from "./ShotFrame";
 import { ShotSidebar, ShotTopbar } from "./ShotChrome";
+import { useShotTimeline } from "./useShotTimeline";
 
 type Phase = "empty" | "grab" | "drag" | "over" | "drop" | "list";
 
@@ -55,27 +56,15 @@ const COUNT_MS = 4200;
 
 const noop = () => {};
 
-function prefersReducedMotion() {
-  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-}
-
 export function UploadShot() {
   const [phase, setPhase] = useState<Phase>("empty");
   const [uploaded, setUploaded] = useState(0);
-  const timers = useRef<number[]>([]);
-  const started = useRef(false);
-
-  function start() {
-    if (started.current) return;
-    started.current = true;
-    if (prefersReducedMotion()) {
-      setPhase("list");
-      setUploaded(TOTAL);
-      return;
-    }
-    TIMELINE.forEach(([next, at]) => timers.current.push(window.setTimeout(() => setPhase(next), at)));
-  }
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const run = useShotTimeline();
+  const start = () =>
+    run(
+      TIMELINE.map(([next, at]) => [at, () => setPhase(next)]),
+      () => { setPhase("list"); setUploaded(TOTAL); },
+    );
 
   // 목록 단계 — 숫자가 0 → 500으로 오른다(끝에서 천천히). 줄의 막대는 이 숫자에서 나온다
   useEffect(() => {

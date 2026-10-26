@@ -98,9 +98,9 @@ export function ShotSidebar({
   status: string;
   statusTone?: "muted" | "accent";
   photoCount: number;
-  /** [고른 수, 상한] — 없으면 "분류 뒤" 잠김 */
+  /** [고른 수, 상한] — 없으면 "폴더 확정 뒤" 잠김(개인 갤러리 문구) */
   selected?: [number, number];
-  /** 보정 대상 장수 — 없으면 "내보낸 뒤" 잠김 */
+  /** 보정 대상 장수 — 없으면 "선택 마친 뒤" 잠김(개인 갤러리 문구) */
   retouch?: number;
   /** 내비 아래(폴더 탭 · 트리) */
   children?: ReactNode;
@@ -147,7 +147,7 @@ export function ShotSidebar({
                   <span className="font-normal text-contents-light-bgd-weakness"> / {selected[1]}</span>
                 </span>
               ) : (
-                <Locked>분류 뒤</Locked>
+                <Locked>폴더 확정 뒤</Locked>
               )
             }
           />
@@ -155,7 +155,7 @@ export function ShotSidebar({
             icon={<BrushIcon size={18} />}
             label="보정 사진"
             dim={retouch === undefined}
-            trailing={retouch !== undefined ? <span className="font-semibold text-contents-light-bgd-default tabular-nums">{retouch}</span> : <Locked>내보낸 뒤</Locked>}
+            trailing={retouch !== undefined ? <span className="font-semibold text-contents-light-bgd-default tabular-nums">{retouch}</span> : <Locked>선택 마친 뒤</Locked>}
           />
         </nav>
         {children}
