@@ -5,9 +5,7 @@
  * 위치: src/app/_components/shots/SelectShot.tsx
  *
  * 뒤 화면은 실제 셀렉 화면 그대로(사이드바 접힘) — ShellMainHeader(AI 추천 버튼 · 별점 순) · 별점 묶음 머리글 + PhotoGrid(체크 ·
- * 별점 배지) · ShellBottomBar(선택한 사진 5 / 50 + 썸네일 · 폴더 다시 정리 · 선택 마치기). 크게 보기는 실제 Lightbox가 fixed 레이어라
- * 틀 안에 같은 클래스로 그렸고, 컨트롤 버튼(CtlButton · Sep)과 스낵바는 실제 부품이다. 채워진 별은 브랜드 색(2026-10-26 수민 —
- * 코드의 SelectionControls는 흰색이라 랜딩만 다르다).
+ * 별점 배지) · ShellBottomBar(선택한 사진 5 / 50 + 썸네일 · 폴더 다시 정리 · 선택 마치기). 크게 보기는 공용 ShotLightbox.
  * 타임라인(ShotFrame.onVisible이 켬): 497 / 500 사진부터 네 장 — 장마다 별점이 한 번에 매겨지고(4를 누르면 별 네 칸이 같이 참,
  * 2026-10-26 수민 — 한 칸씩 차는 건 실제와 다름. 별점 4 · 5 · 3 · 5), 마지막 장(500)에서만 "선택"이 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 별점 순 그리드. 움직임 줄이기면 그리드부터.
  */
@@ -16,13 +14,12 @@ import { useState } from "react";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
-import { CtlButton, Sep } from "@/components/app/Lightbox";
-import { Snackbar } from "@/components/app/Snackbar";
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, DownloadIcon, EditNoteIcon, FolderIcon, InfoIcon, PhotoIcon, SparkleIcon, StarFillIcon, StarIcon, ZoomInIcon, ZoomOutIcon } from "@/components/icons";
+import { DownloadIcon, FolderIcon, PhotoIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
-import { landingPhotos, samplePhotoUrl } from "./samplePhotos";
+import { landingPhotos } from "./samplePhotos";
 import { ShotFrame } from "./ShotFrame";
 import { ShotTopbar } from "./ShotChrome";
+import { ShotLightbox, ShotSelectionControls } from "./ShotLightbox";
 import { useShotTimeline } from "./useShotTimeline";
 
 const TOTAL = 500;
@@ -169,77 +166,16 @@ export function SelectShot() {
         }
       />
 
-      {/* 크게 보기 — 실제 Lightbox의 틀 · 컨트롤 줄 그대로(fixed 대신 absolute) */}
+      {/* 크게 보기 — 공용 틀(ShotLightbox) */}
       {phase === "lightbox" && (
-        <div className="absolute inset-0 z-20 flex bg-black/75 p-7 backdrop-blur-[2px] [--lb-photo-max:470px]">
-          <div className="relative z-10 mx-auto flex min-h-0 w-full justify-center">
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-              <div className="relative flex min-h-0 flex-1 items-center justify-center">
-                <div className="relative max-h-full max-w-full">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img key={shot.id} src={samplePhotoUrl(shot.id)} alt="" draggable={false} className="block max-h-(--lb-photo-max) max-w-full rounded-(--radius-12) object-contain" />
-                </div>
-              </div>
-              <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5">
-                <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
-                  {LB_FIRST + cur + 1} / {TOTAL}
-                  <span className="text-white/60"> · 화이트 스튜디오 › 전신</span>
-                </span>
-              </div>
-              <span className="absolute top-3.5 right-3.5 grid size-8 place-items-center rounded-(--radius-8) bg-white/15 text-white">
-                <CloseIcon size={18} />
-              </span>
-              {snack && (
-                <Snackbar kind="info" className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
-                  마지막 사진이에요
-                </Snackbar>
-              )}
-              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-black/80 px-2 py-1.5 text-white shadow-(--shadow-modal)">
-                <CtlButton label="이전" onClick={noop}>
-                  <ChevronLeftIcon size={20} />
-                </CtlButton>
-                <Sep />
-                <div className="flex items-center gap-0.5 px-1">
-                  {[1, 2, 3, 4, 5].map((n) => {
-                    const on = n <= score;
-                    return (
-                      <span key={n} className={`grid size-7 place-items-center rounded-full ${on ? "text-brand-secondary-default" : "text-white/35"}`}>
-                        {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
-                      </span>
-                    );
-                  })}
-                </div>
-                <Sep />
-                <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${picked ? "bg-brand-secondary-default text-white" : "bg-white/15 text-white"}`}>
-                  {picked && (
-                    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3.5 8.5 6.5 11.5 12.5 5" />
-                    </svg>
-                  )}
-                  {picked ? "선택됨" : "선택"}
-                </span>
-                <Sep />
-                <CtlButton label="축소" disabled onClick={noop}>
-                  <ZoomOutIcon size={20} />
-                </CtlButton>
-                <CtlButton label="확대" onClick={noop}>
-                  <ZoomInIcon size={20} />
-                </CtlButton>
-                <Sep />
-                <CtlButton label="정보" onClick={noop}>
-                  <InfoIcon size={18} />
-                </CtlButton>
-                <CtlButton label="보정 요청" onClick={noop}>
-                  <EditNoteIcon size={18} />
-                </CtlButton>
-                <Sep />
-                <CtlButton label="다음" onClick={noop}>
-                  <ChevronRightIcon size={20} />
-                </CtlButton>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ShotLightbox
+          photoId={shot.id}
+          index={LB_FIRST + cur}
+          total={TOTAL}
+          caption="화이트 스튜디오 › 전신"
+          middle={<ShotSelectionControls score={score} picked={picked} />}
+          snack={snack ? "마지막 사진이에요" : null}
+        />
       )}
     </ShotFrame>
   );

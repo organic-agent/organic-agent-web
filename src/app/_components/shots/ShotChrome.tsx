@@ -165,3 +165,24 @@ export function ShotSidebar({
     </aside>
   );
 }
+
+/**
+ * 커서 — 1000×560 기준 좌표로 미끄러져 가고(1초 · expo-out), click이 바뀔 때마다 둘레에 물결이 한 번 번진다.
+ * 움직임 줄이기면 전환 없이 바로 그 자리.
+ */
+export function ShotCursor({ x, y, visible, click = 0 }: { x: number; y: number; visible: boolean; click?: number }) {
+  return (
+    <span
+      aria-hidden
+      className="absolute top-0 left-0 z-40 size-6 motion-safe:transition-[translate,opacity] motion-safe:duration-[900ms] motion-safe:ease-(--ease-expo)"
+      style={{ translate: `${x}px ${y}px`, opacity: visible ? 1 : 0 }}
+    >
+      {click > 0 && (
+        <span key={click} className="absolute -top-2.5 -left-2.5 size-11 rounded-full border-2 border-brand-secondary-default opacity-0 motion-safe:animate-[shot-click_.45s_ease-out_forwards]" />
+      )}
+      <svg viewBox="0 0 20 20" className="size-6 drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
+        <path d="M3 2l12 9-5.2 1.1L13 18l-2.4 1-3.2-5.8L3 16z" fill="#fff" stroke="#1a1a1a" strokeWidth="1.4" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
