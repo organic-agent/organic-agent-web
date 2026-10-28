@@ -12,11 +12,13 @@
  * 링크 조회(POST /coupons/resolve)는 등록 · 소비하지 않는다. 이미 사용한 쿠폰이고 해당 갤러리에 접근 권한이
  * 있을 때만 사용자 갤러리로 이동한다. 미사용 · 권한 없음은 등록 화면에 남고, 등록 버튼을 누른 뒤 결과를 안내한다.
  * useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다.
+ * 분석(#138): 새로 등록된 쓸 수 있는 쿠폰만 pro_coupon_registered로 센다. 공유 코드(인플루언서 배포)는 코드를
+ * 이벤트와 사용자 속성 acquisition_coupon에 싣고, 1회용 비밀 코드는 쿠폰 ID만 보낸다.
  */
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { track } from "@/lib/analytics";
+import { setUserProps, track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { LoginModal } from "@/components/LoginModal";
 import { ArrowRightIcon } from "@/components/icons";
@@ -29,8 +31,10 @@ import {
   planDurationLabel,
   registerProCoupon,
   resolveProCouponLink,
+  isSharedCoupon,
   type Plan,
   type ProCouponLinkResponse,
+  type ProCouponResponse,
   type ProCouponStatus,
 } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/authStore";
@@ -38,6 +42,18 @@ import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "../_components/PersonalSteps";
 
 const EXPIRED_MESSAGE = "쿠폰 사용 기간이 끝났어요";
+
+/** 같은 계정의 재등록은 서버가 기존 등록을 돌려주므로, 등록 시각이 방금이면 새 등록으로 본다(신규 가입 판별과 같은 규칙) */
+const registeredJustNow = (registeredAt: string): boolean =>
+  Math.abs(Date.now() - Date.parse(registeredAt)) < 60_000;
+
+/** 등록 성공을 분석에 센다 — 공유 코드는 입력한 코드(대소문자 무관이라 대문자로)도 싣고, 유입 쿠폰을 사용자 속성으로 남긴다 */
+function trackCouponRegistered(coupon: ProCouponResponse, code: string): void {
+  if (coupon.status !== "AVAILABLE" || !registeredJustNow(coupon.registeredAt)) return;
+  const couponCode = isSharedCoupon(coupon.usagePolicy) ? code.toUpperCase() : null;
+  track("pro_coupon_registered", { coupon_id: coupon.couponId, usage_policy: coupon.usagePolicy, coupon_code: couponCode });
+  if (couponCode) setUserProps({ acquisition_coupon: couponCode });
+}
 
 /** 등록은 됐지만 지금 쓸 수 없는 쿠폰의 안내 — AVAILABLE은 여기 오지 않는다 */
 function unusableCouponMessage(status: ProCouponStatus): string {
@@ -136,8 +152,7 @@ function PersonalCoupon() {
     setBanner(null);
     try {
       const coupon = await registerProCoupon(trimmed);
-      // 쓸 수 있는 쿠폰이 등록된 경우만 센다 — 이미 쓴 코드 · 막힌 코드는 등록이 아니다. 코드 자체는 보내지 않는다(#133)
-      if (coupon.status === "AVAILABLE") track("pro_coupon_registered", { coupon_id: coupon.couponId });
+      trackCouponRegistered(coupon, trimmed);
       const destination = coupon.status === "AVAILABLE"
         ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`
         : coupon.status === "USED"
