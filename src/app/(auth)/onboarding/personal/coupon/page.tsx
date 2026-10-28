@@ -31,10 +31,20 @@ import {
   resolveProCouponLink,
   type Plan,
   type ProCouponLinkResponse,
+  type ProCouponStatus,
 } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/authStore";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "../_components/PersonalSteps";
+
+const EXPIRED_MESSAGE = "쿠폰 사용 기간이 끝났어요";
+
+/** 등록은 됐지만 지금 쓸 수 없는 쿠폰의 안내 — AVAILABLE은 여기 오지 않는다 */
+function unusableCouponMessage(status: ProCouponStatus): string {
+  if (status === "USED") return "이미 사용한 쿠폰이에요";
+  if (status === "EXPIRED") return EXPIRED_MESSAGE;
+  return "지금은 사용할 수 없는 쿠폰이에요. 보내 준 사람에게 확인해 주세요.";
+}
 
 /** 서버가 갤러리 권한을 확인한 링크 조회 결과만 이동에 사용한다. */
 function usedCouponDestination(coupon: ProCouponLinkResponse): string | null {
@@ -138,16 +148,13 @@ function PersonalCoupon() {
         return;
       }
       setSubmitting(false);
-      setBanner(
-        coupon.status === "USED"
-          ? "이미 사용한 쿠폰이에요"
-          : "지금은 사용할 수 없는 쿠폰이에요. 보내 준 사람에게 확인해 주세요.",
-      );
+      setBanner(unusableCouponMessage(coupon.status));
     } catch (err) {
       setSubmitting(false);
+      // 사용 마감(410 BILLING_410_2)만 우리 말투로, 나머지 서버 문구는 그대로
       setBanner(
         err instanceof ApiError
-          ? err.message
+          ? err.code === "BILLING_410_2" ? EXPIRED_MESSAGE : err.message
           : "쿠폰을 등록하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
       );
     }
@@ -180,7 +187,7 @@ function PersonalCoupon() {
               id="coupon-code"
               value={code}
               onChange={(value) => setEdited({ linkCode, value })}
-              placeholder="WES-로 시작하는 코드"
+              placeholder="받은 쿠폰 코드"
               autoComplete="off"
               className="h-12 px-4"
             />

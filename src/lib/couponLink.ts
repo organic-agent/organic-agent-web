@@ -11,7 +11,7 @@
 
 export const COUPON_PATH = "/onboarding/personal/coupon";
 
-/** 주소의 # 조각에서 쿠폰 코드를 꺼낸다 — "#code=WES-…" 꼴. 없으면 null */
+/** 주소의 # 조각에서 쿠폰 코드를 꺼낸다 — "#code=WES-…" · "#code=BLOG-HONG" 꼴. 없으면 null */
 export function readCouponCodeFromHash(hash: string): string | null {
   const raw = hash.startsWith("#") ? hash.slice(1) : hash;
   if (!raw) return null;
