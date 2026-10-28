@@ -57,6 +57,10 @@ export type CouponUsagePolicy = "SINGLE_USE" | "ONCE_PER_ACCOUNT" | "UNLIMITED";
 /** 관리자가 직접 지은 공유 코드인지 — 1회용 자동 생성 코드와 달리 여러 계정이 같은 코드를 쓴다 */
 export const isSharedCoupon = (policy: CouponUsagePolicy): boolean => policy !== "SINGLE_USE";
 
+/** 사용 마감이 지난 코드를 등록 · 사용하려 할 때의 서버 오류 코드(HTTP 410). 화면은 이 코드를 우리 말투로 바꾼다 */
+export const COUPON_EXPIRED_CODE = "BILLING_410_2";
+export const COUPON_EXPIRED_MESSAGE = "쿠폰 사용 기간이 끝났어요";
+
 export type ProCouponResponse = {
   /** 새 프로 갤러리를 개설할 때 보낼 쿠폰 id */
   couponId: number;
@@ -136,6 +140,11 @@ export function planDurationLabel(plan: Pick<Plan, "durationMonths" | "durationD
 /** 지금 쓸 수 있는(미사용) 쿠폰 — 등록 순으로 첫 장 */
 export function availableCoupon(benefits: MyBenefitsResponse): ProCouponResponse | null {
   return benefits.coupons.find((c) => c.status === "AVAILABLE") ?? null;
+}
+
+/** 쓸 수 있는 쿠폰은 없고 마감 전에 등록해 둔 쿠폰이 마감으로 막힌 상태 — 화면이 "왜 쿠폰이 사라졌나"를 알려 준다 */
+export function hasExpiredCouponOnly(benefits: MyBenefitsResponse): boolean {
+  return availableCoupon(benefits) === null && benefits.coupons.some((c) => c.status === "EXPIRED");
 }
 
 const wonFormat = new Intl.NumberFormat("ko-KR");

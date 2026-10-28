@@ -5,7 +5,8 @@
  * 위치: src/app/(auth)/onboarding/personal/gallery/page.tsx
  *
  * 주소의 plan(free · pro)과 coupon(프로일 때 미사용 쿠폰 id)으로 어떤 갤러리를 만들지 정한다. 무료는 내 혜택의
- * freePlanAvailable, 프로는 그 쿠폰이 내 것이고 미사용인지 확인하고, 아니면 앞 화면으로 돌려보낸다.
+ * freePlanAvailable, 프로는 그 쿠폰이 내 것이고 미사용인지 확인하고, 아니면 플랜 선택으로 돌려보낸다(마감으로
+ * 막힌 쿠폰은 거기서 "쿠폰 사용 기간 종료"를 본다, #138). 만드는 사이 마감이 지나면 서버 410을 우리 말투로 바꾼다.
  * 배지는 플랜 응답 값으로 "프로 · 1년 · 10,000장" / "무료 · 1개월 · 500장". 단계 표시와 뒤로 가기만
  * 들어온 길에 따라 다르다(쿠폰 등록 · 플랜 선택). 이름·목표일·선택 장수를 받아 planId · couponId로 개설한다.
  * 목표일(서버 필드 selectionDeadline)은 갤러리가 닫히는 날이 아니라 D-day를 세는 기준이다 — 갤러리는 이용 기간 동안
@@ -25,6 +26,8 @@ import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import { createPersonalGallery, toSelectionDeadline } from "@/lib/api/galleries";
 import {
+  COUPON_EXPIRED_CODE,
+  COUPON_EXPIRED_MESSAGE,
   formatAmount,
   getMyBenefits,
   getPlans,
@@ -97,7 +100,7 @@ function PersonalGalleryForm() {
         const couponId = Number(couponParam);
         const coupon = benefits.coupons.find((c) => c.couponId === couponId && c.status === "AVAILABLE") ?? null;
         if (!coupon) {
-          router.replace(COUPON_PATH);
+          router.replace("/onboarding/personal");
           return;
         }
         setTicket({ plan, coupon });
@@ -144,7 +147,7 @@ function PersonalGalleryForm() {
       setSubmitting(false);
       setBanner(
         err instanceof ApiError
-          ? (goalDateRejectedMessage(err.code) ?? err.message)
+          ? (goalDateRejectedMessage(err.code) ?? (err.code === COUPON_EXPIRED_CODE ? COUPON_EXPIRED_MESSAGE : err.message))
           : "갤러리를 만들지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
       );
     }

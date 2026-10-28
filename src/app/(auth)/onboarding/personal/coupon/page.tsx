@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
 import {
+  COUPON_EXPIRED_CODE,
+  COUPON_EXPIRED_MESSAGE,
   formatAmount,
   getPlans,
   planDurationLabel,
@@ -40,8 +42,6 @@ import {
 import { useAuth } from "@/lib/auth/authStore";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "../_components/PersonalSteps";
-
-const EXPIRED_MESSAGE = "쿠폰 사용 기간이 끝났어요";
 
 /** 같은 계정의 재등록은 서버가 기존 등록을 돌려주므로, 등록 시각이 방금이면 새 등록으로 본다(신규 가입 판별과 같은 규칙) */
 const registeredJustNow = (registeredAt: string): boolean =>
@@ -58,7 +58,7 @@ function trackCouponRegistered(coupon: ProCouponResponse, code: string): void {
 /** 등록은 됐지만 지금 쓸 수 없는 쿠폰의 안내 — AVAILABLE은 여기 오지 않는다 */
 function unusableCouponMessage(status: ProCouponStatus): string {
   if (status === "USED") return "이미 사용한 쿠폰이에요";
-  if (status === "EXPIRED") return EXPIRED_MESSAGE;
+  if (status === "EXPIRED") return COUPON_EXPIRED_MESSAGE;
   return "지금은 사용할 수 없는 쿠폰이에요. 보내 준 사람에게 확인해 주세요.";
 }
 
@@ -169,7 +169,7 @@ function PersonalCoupon() {
       // 사용 마감(410 BILLING_410_2)만 우리 말투로, 나머지 서버 문구는 그대로
       setBanner(
         err instanceof ApiError
-          ? err.code === "BILLING_410_2" ? EXPIRED_MESSAGE : err.message
+          ? err.code === COUPON_EXPIRED_CODE ? COUPON_EXPIRED_MESSAGE : err.message
           : "쿠폰을 등록하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
       );
     }
