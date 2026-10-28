@@ -4,9 +4,11 @@
  *
  * 개인 갤러리 이용권은 쿠폰 방식이다(서버 전환 2026-10-02, 이슈 81). 플랜은 free · pro 둘뿐 —
  * 무료는 계정당 한 번이고 생성일부터 달력 기준 1개월 · 500장, 프로는 관리자가 백오피스에서 발급한
- * 일회용 코드를 등록해(POST /coupons/register) 미사용 쿠폰 한 장을 보관했다가 새 갤러리를 만들 때
- * 쓴다(1년 · 10,000장, 기간은 갤러리를 만들 때 시작). 카드 결제는 COMING_SOON — POST /payments/checkout은
- * 항상 503이라 개인 온보딩은 부르지 않는다(스튜디오 이용권 모달이 아직 쓴다 — 백엔드 이용권 API 전까지).
+ * 코드를 등록해(POST /coupons/register) 보관했다가 새 갤러리를 만들 때 쓴다(1년 · 10,000장, 기간은 갤러리를
+ * 만들 때 시작). 코드는 1회용(WES-… 자동 생성)이거나 관리자가 직접 지은 공유 코드(인플루언서 배포, 서버 PR 327
+ * 2026-10-18)다 — 공유 코드는 계정당 1회 또는 반복 사용이고, 사용 마감(redeemUntil)이 지나면 EXPIRED.
+ * 카드 결제는 COMING_SOON — POST /payments/checkout은 항상 503이라 개인 온보딩은 부르지 않는다(스튜디오
+ * 이용권 모달이 아직 쓴다 — 백엔드 이용권 API 전까지).
  */
 
 import { api } from "@/lib/api/client";
@@ -46,23 +48,40 @@ export type PlansResponse = {
  */
 export const PRO_AMOUNT_FALLBACK = 39_900;
 
-export type ProCouponStatus = "AVAILABLE" | "USED" | "DISABLED";
+/** 미사용 AVAILABLE · 갤러리에 사용 USED · 비활성화 DISABLED · 사용 마감이 지남 EXPIRED */
+export type ProCouponStatus = "AVAILABLE" | "USED" | "DISABLED" | "EXPIRED";
+
+/** 1회용 SINGLE_USE · 공유 코드를 계정당 1회 ONCE_PER_ACCOUNT · 공유 코드를 같은 계정이 반복 사용 UNLIMITED */
+export type CouponUsagePolicy = "SINGLE_USE" | "ONCE_PER_ACCOUNT" | "UNLIMITED";
+
+/** 관리자가 직접 지은 공유 코드인지 — 1회용 자동 생성 코드와 달리 여러 계정이 같은 코드를 쓴다 */
+export const isSharedCoupon = (policy: CouponUsagePolicy): boolean => policy !== "SINGLE_USE";
+
+/** 사용 마감이 지난 코드를 등록 · 사용하려 할 때의 서버 오류 코드(HTTP 410). 화면은 이 코드를 우리 말투로 바꾼다 */
+export const COUPON_EXPIRED_CODE = "BILLING_410_2";
+export const COUPON_EXPIRED_MESSAGE = "쿠폰 사용 기간이 끝났어요";
 
 export type ProCouponResponse = {
   /** 새 프로 갤러리를 개설할 때 보낼 쿠폰 id */
   couponId: number;
   /** 쿠폰이 제공하는 요금제 — "pro" */
   planId: string;
-  /** 미사용 AVAILABLE · 비활성화 DISABLED · 갤러리에 사용 USED */
+  /** 본인 기준의 상태 — 반복 사용 코드는 쓴 뒤에도 AVAILABLE */
   status: ProCouponStatus;
+  /** 본인이 코드를 등록한 시각. 이용 기간은 시작하지 않는다 */
   registeredAt: string;
+  /** 본인의 최근 사용 시각. 미사용이면 null */
   consumedAt: string | null;
+  /** 본인의 최근 사용 갤러리. 미사용 · 영구 삭제이면 null */
   galleryId: number | null;
-  /** 사용일부터 1년 뒤. 미사용이면 null */
+  /** 최근 사용 갤러리의 프로 만료일(사용일부터 1년). 쿠폰 사용 마감과 별개 */
   expiresAt: string | null;
+  usagePolicy: CouponUsagePolicy;
+  /** 쿠폰 사용 마감 시각. null이면 마감 없음 */
+  redeemUntil: string | null;
 };
 
-/** 링크 조회는 쿠폰을 등록하지 않는다. 갤러리 id는 접근 권한이 있을 때만 반환된다. */
+/** 링크 조회는 쿠폰을 등록하지 않는다. 갤러리 id는 사용한 쿠폰이고 접근 권한이 있을 때만 반환된다. 반복 사용 코드는 쓴 뒤에도 AVAILABLE */
 export type ProCouponLinkResponse = {
   status: ProCouponStatus;
   galleryId: number | null;
@@ -87,7 +106,8 @@ export function getMyBenefits(): Promise<MyBenefitsResponse> {
 
 /**
  * 프로 쿠폰 코드 등록 — 코드를 보관만 하고 이용 기간은 갤러리를 만들 때 시작한다.
- * 같은 계정의 재요청은 기존 쿠폰을 돌려주고, 다른 계정이 쓴 코드 · 동시 등록은 409.
+ * 같은 계정의 재요청은 기존 등록을 돌려준다. 1회용 코드는 다른 계정이 등록한 코드 · 동시 등록이 409, 공유 코드는
+ * 계정별로 독립이다. 사용 마감이 지난 코드는 410(BILLING_410_2), 없는 코드는 404.
  */
 export function registerProCoupon(code: string): Promise<ProCouponResponse> {
   return api("/api/v1/coupons/register", { method: "POST", body: { code } });
@@ -120,6 +140,11 @@ export function planDurationLabel(plan: Pick<Plan, "durationMonths" | "durationD
 /** 지금 쓸 수 있는(미사용) 쿠폰 — 등록 순으로 첫 장 */
 export function availableCoupon(benefits: MyBenefitsResponse): ProCouponResponse | null {
   return benefits.coupons.find((c) => c.status === "AVAILABLE") ?? null;
+}
+
+/** 쓸 수 있는 쿠폰은 없고 마감 전에 등록해 둔 쿠폰이 마감으로 막힌 상태 — 화면이 "왜 쿠폰이 사라졌나"를 알려 준다 */
+export function hasExpiredCouponOnly(benefits: MyBenefitsResponse): boolean {
+  return availableCoupon(benefits) === null && benefits.coupons.some((c) => c.status === "EXPIRED");
 }
 
 const wonFormat = new Intl.NumberFormat("ko-KR");

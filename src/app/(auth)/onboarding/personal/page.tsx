@@ -6,7 +6,8 @@
  *
  * 서버 플랜(free · pro)을 카드로 그린다. 무료는 계정당 한 번 — 내 혜택(GET /billing/me)의 freePlanAvailable이
  * false면 잠긴다("이미 사용함"). 프로는 카드 결제가 열릴 때까지 잠긴다("결제 준비 중") — 다만 등록해 둔 미사용
- * 쿠폰이 있으면 그 쿠폰으로 고를 수 있다("쿠폰 등록됨"). 무료를 고르면 결제 없이 바로 갤러리 정보로, 프로는
+ * 쿠폰이 있으면 그 쿠폰으로 고를 수 있다("쿠폰 등록됨"). 등록해 둔 쿠폰이 사용 마감으로 막혔으면 그 이유를
+ * 꼬리표로 알린다("쿠폰 사용 기간 종료", #138). 무료를 고르면 결제 없이 바로 갤러리 정보로, 프로는
  * 쿠폰 id를 실어 갤러리 정보로 간다. 쿠폰 선물 링크(#code=)로 왔으면 이 화면을 그리지 않고 쿠폰 등록 화면으로
  * 바꾼다(OnboardingGate가 먼저 받지만 직접 진입도 대비). 2026-10-03 수민 결정 · 이슈 81.
  */
@@ -22,6 +23,7 @@ import {
   availableCoupon,
   getMyBenefits,
   getPlans,
+  hasExpiredCouponOnly,
   isFreePlan,
   type MyBenefitsResponse,
   type Plan,
@@ -75,8 +77,9 @@ export default function PersonalPlanPage() {
         ? { disabled: true, tag: "이미 사용함", tagTone: "muted" }
         : { disabled: false, tag: null, tagTone: "muted" };
     }
-    return coupon
-      ? { disabled: false, tag: "쿠폰 등록됨", tagTone: "brand" }
+    if (coupon) return { disabled: false, tag: "쿠폰 등록됨", tagTone: "brand" };
+    return data && hasExpiredCouponOnly(data.benefits)
+      ? { disabled: true, tag: "쿠폰 사용 기간 종료", tagTone: "muted" }
       : { disabled: true, tag: "결제 준비 중", tagTone: "muted" };
   }
 

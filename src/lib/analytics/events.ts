@@ -9,6 +9,7 @@
  */
 
 import type { OAuthProvider } from "@/lib/api/auth";
+import type { CouponUsagePolicy } from "@/lib/api/payments";
 
 type Actor = "personal" | "studio";
 
@@ -35,8 +36,11 @@ export type EventMap = {
   // ── 개인 결제 고객 · 우선 1 ──────────────────────────────────────
   /** 개인 온보딩에서 Free 또는 Pro를 고름 */
   plan_selected: { plan: "free" | "pro" };
-  /** Pro 쿠폰 등록 성공. 코드가 아니라 서버가 준 쿠폰 ID */
-  pro_coupon_registered: { coupon_id: number };
+  /**
+   * Pro 쿠폰 등록 성공(같은 계정의 재등록은 제외). 1회용 비밀 코드는 서버가 준 쿠폰 ID만 싣고, 관리자가 지은 공유
+   * 코드(인플루언서 배포, #138)는 글에 공개된 값이라 코드도 싣는다 — 인플루언서별 성과는 coupon_code로 본다
+   */
+  pro_coupon_registered: { coupon_id: number; usage_policy: CouponUsagePolicy; coupon_code: string | null };
   /** 개인 갤러리 생성 — 개인 고객 퍼널의 결제 단계에 해당 */
   personal_gallery_created: {
     plan: "free" | "pro";
