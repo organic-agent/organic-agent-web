@@ -599,11 +599,11 @@ export function SelectStage({
                       onClick={() => { if (!blockInDemo("AI 추천")) void ai.request(focusedDetail?.id ?? null); }}
                       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast disabled:cursor-default disabled:opacity-60 max-[860px]:px-2.25 ${
                         aiPhotos.length > 0
-                          ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default"
+                          ? "border-brand-accent-default text-contents-light-bgd-default"
                           : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                       }`}
                     >
-                      <span className="text-brand-secondary-default">
+                      <span className="text-brand-accent-default">
                         <SparkleIcon size={18} />
                       </span>
                       <span className="max-[860px]:hidden">AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}</span>
@@ -616,10 +616,10 @@ export function SelectStage({
                     aria-label="게스트 반응"
                     onClick={() => { if (!blockInDemo("게스트 반응")) setGuestOn((v) => !v); }}
                     className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
-                      guestOn ? "border-brand-secondary-default bg-brand-secondary-background text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
+                      guestOn ? "border-brand-accent-default text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                     }`}
                   >
-                    <span className={guestOn ? "text-brand-secondary-default" : "text-contents-light-bgd-sub"}>
+                    <span className={guestOn ? "text-brand-accent-default" : "text-contents-light-bgd-sub"}>
                       <GroupIcon size={18} />
                     </span>
                     <span className="max-[860px]:hidden">게스트 반응</span>
@@ -650,11 +650,11 @@ export function SelectStage({
               <div data-coach="pick" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                 {showAiGroup && (
                   <div className="px-5 pt-1 pb-3">
-                    <div className="mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-brand-secondary-background px-3 py-2 type-content-s text-contents-light-bgd-default">
+                    <div className="mb-2 flex items-center gap-2.5 border-b border-divider-default px-3 py-2 type-content-s text-contents-light-bgd-default">
                       {aiBusy ? (
-                        <span aria-hidden className="size-4 animate-spin rounded-full border-2 border-border-default border-t-brand-secondary-default" />
+                        <span aria-hidden className="size-4 animate-spin rounded-full border-2 border-border-default border-t-brand-accent-default" />
                       ) : (
-                        <span className="text-brand-secondary-default">
+                        <span className="text-brand-accent-default">
                           <SparkleIcon size={18} />
                         </span>
                       )}

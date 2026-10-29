@@ -193,7 +193,7 @@ export function ShellTopbar({
             <Link
               href={studioHref}
               onNavigate={guardNavigate}
-              className="max-w-72 truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-secondary-dark"
+              className="max-w-72 truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-accent-text"
             >
               {studioName}
             </Link>

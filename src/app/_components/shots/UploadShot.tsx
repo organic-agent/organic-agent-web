@@ -122,7 +122,7 @@ export function UploadShot() {
           {phase !== "list" ? (
             <div
               className={`grid w-full place-items-center gap-1 rounded-(--radius-16) border-2 border-dashed py-14 text-center transition-colors duration-fast ${
-                phase === "over" || phase === "drop" ? "border-brand-secondary-default bg-brand-secondary-background" : "border-border-default"
+                phase === "over" || phase === "drop" ? "border-brand-accent-default" : "border-border-default"
               }`}
             >
               <span className="mb-1 flex text-contents-light-bgd-weakness">
@@ -149,7 +149,7 @@ export function UploadShot() {
                         <span className="block h-full rounded-(--pill) bg-brand-secondary-default" style={{ width: `${ratio * 100}%` }} />
                       </span>
                       <span className="w-11 shrink-0 text-right type-content-xs tabular-nums">
-                        {ratio >= 1 ? <span className="text-brand-secondary-dark">완료</span> : <span className="text-contents-light-bgd-weakness">{size}</span>}
+                        {ratio >= 1 ? <span className="text-brand-accent-text">완료</span> : <span className="text-contents-light-bgd-weakness">{size}</span>}
                       </span>
                     </li>
                   );

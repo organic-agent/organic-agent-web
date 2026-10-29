@@ -93,7 +93,7 @@ export function DemoShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-3 bg-brand-secondary-default px-4 type-label-medium-s text-contents-dark-bgd-default">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-3 bg-brand-accent-default px-4 type-label-medium-s text-brand-on-fill">
         <span className="min-w-0 truncate">체험 중 · 샘플 사진 250장 · 바뀐 것은 이 브라우저에만 남아요</span>
         <span className="flex shrink-0 items-center gap-1.5">
           <button
@@ -118,7 +118,7 @@ export function DemoShell({ children }: { children: ReactNode }) {
       {phase === "review" ? (
         <div className="grid min-h-0 flex-1 place-items-center bg-background-default-main px-6">
           <div className="flex w-full max-w-105 flex-col items-center gap-3 rounded-(--radius-16) border border-divider-default px-8 py-10 text-center">
-            <span className="grid size-11 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-dark">
+            <span className="grid size-11 place-items-center rounded-full bg-brand-chip-background text-brand-chip-text">
               <CheckCircleIcon size={24} />
             </span>
             <h2 className="type-title-m text-contents-light-bgd-default">요청서까지 내보냈어요</h2>

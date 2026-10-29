@@ -107,7 +107,7 @@ export function AlbumCards({
                   <b className="block truncate type-label-semibold-l text-contents-light-bgd-default">{a.name}</b>
                   <span className="mt-0.5 flex gap-2.5 type-content-xs text-contents-light-bgd-weakness">
                     <span>{a.photoCount}장</span>
-                    <span className="inline-flex items-center gap-1 text-brand-secondary-dark">
+                    <span className="inline-flex items-center gap-1 text-brand-accent-text">
                       <HeartFillIcon size={13} />
                       좋아요 {my}
                     </span>

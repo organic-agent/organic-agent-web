@@ -74,12 +74,12 @@ export function GuestTopbar({ mid, nickname, onRename }: { mid?: ReactNode; nick
               onClick={() => setOpen((v) => !v)}
               className={`grid size-10 cursor-pointer place-items-center rounded-full transition-colors duration-fast hover:bg-surface-default-lightness ${open ? "bg-surface-default-lightness" : ""}`}
             >
-              <Avatar initial={guestInitial(nickname)} className="bg-brand-secondary-background text-brand-secondary-dark" />
+              <Avatar initial={guestInitial(nickname)} className="bg-brand-chip-background text-brand-chip-text" />
             </button>
             {open && (
               <div id={menuId} role="menu" className="absolute right-0 top-full z-30 mt-1 w-60 rounded-(--radius-12) border border-border-default bg-background-default-main p-1.5 shadow-(--shadow-modal)">
                 <div className="flex items-center gap-2.5 border-b border-divider-default px-2.5 pt-1.5 pb-2.5">
-                  <Avatar initial={guestInitial(nickname)} large className="bg-brand-secondary-background text-brand-secondary-dark" />
+                  <Avatar initial={guestInitial(nickname)} large className="bg-brand-chip-background text-brand-chip-text" />
                   <b className="truncate type-label-semibold-m text-contents-light-bgd-default">{nickname}</b>
                 </div>
                 <button
@@ -95,7 +95,7 @@ export function GuestTopbar({ mid, nickname, onRename }: { mid?: ReactNode; nick
                   이름 바꾸기
                 </button>
                 <button type="button" role="menuitem" onClick={() => void copyLink()} className="flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m text-contents-light-bgd-default hover:bg-surface-default-lightness">
-                  {copied ? <CheckCircleIcon size={18} className="text-brand-secondary-dark" /> : <LinkIcon size={18} className="text-contents-light-bgd-sub" />}
+                  {copied ? <CheckCircleIcon size={18} className="text-brand-accent-text" /> : <LinkIcon size={18} className="text-contents-light-bgd-sub" />}
                   {copied ? "복사됨" : "링크 복사"}
                 </button>
               </div>

@@ -181,7 +181,7 @@ function PersonalCoupon() {
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-130">
           <PersonalSteps variant="coupon" current="coupon" />
-          <p className="type-label-eyebrow text-brand-secondary-default">For Individuals</p>
+          <p className="type-label-eyebrow text-brand-accent-default">For Individuals</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             {fromLink ? "프로 쿠폰이 도착했어요" : "프로 쿠폰을 등록해 주세요"}
           </h1>

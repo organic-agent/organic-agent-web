@@ -19,7 +19,7 @@ export function WaitCard({ gallery, memberCount, personal = false }: { gallery: 
     return (
       <div className="grid flex-1 place-items-center px-6 py-8">
         <div className="flex w-full max-w-130 flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-border-default px-7 py-11 text-center">
-          <span className="mb-1 grid size-14 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-default">
+          <span className="mb-1 grid size-14 place-items-center rounded-full bg-brand-accent-surface text-brand-accent-default">
             <ScheduleIcon size={28} />
           </span>
           <h3 className="type-title-s text-contents-light-bgd-default">사진을 불러오지 못했어요</h3>
@@ -31,7 +31,7 @@ export function WaitCard({ gallery, memberCount, personal = false }: { gallery: 
   return (
     <div className="grid flex-1 place-items-center px-6 py-8">
       <div className="flex w-full max-w-130 flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-border-default px-7 py-11 text-center">
-        <span className="mb-1 grid size-14 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-default">
+        <span className="mb-1 grid size-14 place-items-center rounded-full bg-brand-accent-surface text-brand-accent-default">
           <ScheduleIcon size={28} />
         </span>
         <h3 className="type-title-s text-contents-light-bgd-default">작가가 사진을 준비하고 있어요</h3>

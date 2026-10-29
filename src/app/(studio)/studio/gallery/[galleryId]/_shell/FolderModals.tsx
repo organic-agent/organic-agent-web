@@ -199,7 +199,7 @@ export function FolderMergeModal({
         <span className="grid w-8 place-items-center self-center text-contents-light-bgd-weakness">
           <ArrowRightIcon size={20} />
         </span>
-        <MergeCard concept={target.concept.name} name={target.detail.name} className="bg-brand-secondary-background">
+        <MergeCard concept={target.concept.name} name={target.detail.name} className="bg-surface-default-light">
           {before}장 → <b className="text-contents-light-bgd-default">{before + moving}장</b>
         </MergeCard>
       </div>
@@ -257,7 +257,7 @@ export function FolderMergePickModal({
                   disabled={self}
                   onClick={() => setTarget({ concept, detail })}
                   className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-disabled disabled:hover:bg-transparent ${
-                    checked ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
+                    checked ? "bg-surface-default-light font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
                   }`}
                 >
                   <span
@@ -338,7 +338,7 @@ export function MovePhotosModal({
                   disabled={isCurrent}
                   onClick={() => setTarget(detail.id)}
                   className={`flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:hover:bg-transparent ${
-                    checked ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
+                    checked ? "bg-surface-default-light font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
                   }`}
                 >
                   <span
@@ -364,7 +364,7 @@ export function MovePhotosModal({
           aria-checked={target === null}
           onClick={() => setTarget(null)}
           className={`mt-1 flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) border-t border-divider-default px-2.5 py-2.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
-            target === null ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
+            target === null ? "bg-surface-default-light font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-default"
           }`}
         >
           <span className="flex shrink-0 text-contents-light-bgd-weakness">

@@ -723,7 +723,7 @@ export default function StudioGalleryShellPage() {
         </span>
         모든 사진
         {stageIndex === 0 && aiActive && (
-          <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+          <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-semibold-xs text-brand-chip-text">
             <SparkleIcon size={12} />
             {aiCategorizing ? "폴더 만드는 중" : "AI 분석 중"}
           </span>
@@ -739,8 +739,8 @@ export default function StudioGalleryShellPage() {
   // 2단계 배너 — 장수 상향 요청 · 제출됨 · 마감 지남
   const quotaBanner =
     inSelection && quotaRequest ? (
-      <div className="mx-5 mb-2 flex flex-wrap items-center gap-3 rounded-(--radius-12) bg-brand-secondary-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
-        <span className="flex shrink-0 text-brand-secondary-dark">
+      <div className="mx-5 mb-2 flex flex-wrap items-center gap-3 rounded-(--radius-12) bg-brand-chip-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
+        <span className="flex shrink-0 text-brand-accent-text">
           <CheckCircleIcon size={18} />
         </span>
         <span className="min-w-0 flex-1">
@@ -760,7 +760,7 @@ export default function StudioGalleryShellPage() {
         <button
           type="button"
           onClick={() => setQuotaOpen(true)}
-          className="inline-flex h-8 cursor-pointer items-center rounded-(--radius-8) border border-brand-secondary-light px-3 type-label-medium-s text-brand-secondary-dark transition-colors duration-fast hover:bg-background-default-main"
+          className="inline-flex h-8 cursor-pointer items-center rounded-(--radius-8) border border-brand-secondary-light px-3 type-label-medium-s text-brand-accent-text transition-colors duration-fast hover:bg-background-default-main"
         >
           장수 바꾸기
         </button>
@@ -768,8 +768,8 @@ export default function StudioGalleryShellPage() {
     ) : null;
   const selectionBanner =
     inSelection && view === "selected" && sub === "submitted" ? (
-      <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-12) bg-brand-secondary-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
-        <span className="flex text-brand-secondary-dark">
+      <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-12) bg-brand-chip-background px-4 py-2.5 type-content-s text-contents-light-bgd-default">
+        <span className="flex text-brand-accent-text">
           <CheckCircleIcon size={18} />
         </span>
         <b className="font-semibold">클라이언트가 선택을 제출했어요</b> · {shortDate(selection?.submittedAt ?? null)}
@@ -973,7 +973,7 @@ export default function StudioGalleryShellPage() {
     sub === "invite" ? (
       <div className="grid flex-1 place-items-center px-6 py-8">
         <div className="flex w-full max-w-130 flex-col items-center gap-2 rounded-(--radius-16) border border-dashed border-border-default px-6 py-12 text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-default">
+          <span className="grid size-14 place-items-center rounded-full bg-brand-accent-surface text-brand-accent-default">
             <PersonAddIcon size={28} />
           </span>
           <h3 className="mt-1 type-title-s text-contents-light-bgd-default">아직 아무도 들어오지 않았어요</h3>

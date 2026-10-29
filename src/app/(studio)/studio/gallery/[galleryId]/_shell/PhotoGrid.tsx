@@ -234,7 +234,7 @@ function CheckButton({
 }
 
 const LINE_SELECTED = "shadow-[inset_0_0_0_2px_var(--contents-light-bgd-default),inset_0_0_0_4px_var(--background-default-main)]";
-const LINE_CURRENT = "shadow-[inset_0_0_0_2px_var(--brand-secondary-default),inset_0_0_0_4px_var(--background-default-main)]";
+const LINE_CURRENT = "shadow-[inset_0_0_0_2px_var(--brand-primary-default),inset_0_0_0_4px_var(--background-default-main)]";
 
 export function PhotoGrid({
   photos,

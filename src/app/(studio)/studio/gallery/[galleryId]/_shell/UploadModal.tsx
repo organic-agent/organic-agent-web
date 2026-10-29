@@ -215,7 +215,7 @@ export function UploadModal({
             onClick={() => inputRef.current?.click()}
             className={`mb-6 grid w-full cursor-pointer place-items-center gap-1 rounded-(--radius-16) border-2 border-dashed py-14 text-center transition-colors duration-fast ${
               dragOver
-                ? "border-brand-secondary-default bg-brand-secondary-background"
+                ? "border-brand-accent-default"
                 : "border-border-default hover:bg-surface-default-lightness"
             }`}
           >
@@ -234,7 +234,7 @@ export function UploadModal({
               {dragOver && (
                 <div
                   aria-hidden
-                  className="absolute -inset-1.5 z-10 rounded-(--radius-8) border-2 border-dashed border-brand-secondary-default bg-brand-secondary-background/70"
+                  className="absolute -inset-1.5 z-10 rounded-(--radius-8) border-2 border-dashed border-brand-accent-default bg-background-default-main/70"
                 />
               )}
               <ul className="scrollbar-slim mb-2 flex max-h-72 flex-col overflow-y-auto pr-1.5">

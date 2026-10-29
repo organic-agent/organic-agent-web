@@ -94,7 +94,7 @@ export function StudioHeader({
                 <span key={stage}>
                   {i > 0 && " · "}
                   {STAGE_LABEL[stage]}{" "}
-                  <b className="font-semibold text-brand-secondary-dark">{n}</b>
+                  <b className="font-semibold text-brand-accent-text">{n}</b>
                 </span>
               ))}
         </p>
@@ -188,7 +188,7 @@ function TicketPill({
       className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--pill) px-3.5 type-label-semibold-xs transition-colors duration-fast ${
         full
           ? "bg-function-warning-background text-function-warning-default hover:bg-function-warning-surface"
-          : "bg-brand-secondary-background text-brand-secondary-dark hover:bg-brand-secondary-surface1"
+          : "bg-brand-chip-background text-brand-chip-text hover:bg-brand-secondary-surface1"
       }`}
     >
       <TicketIcon size={16} />

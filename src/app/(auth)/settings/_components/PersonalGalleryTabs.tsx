@@ -191,7 +191,7 @@ export function PersonalInfoTab({
       )}
       {!readOnly && (
         <div className="flex items-center justify-end gap-2">
-          {saved && <span className="mr-auto type-content-xs text-brand-secondary-dark">저장했어요</span>}
+          {saved && <span className="mr-auto type-content-xs text-brand-accent-text">저장했어요</span>}
           <Button kind="ghost" disabled={!dirty || saving} onClick={reset}>
             되돌리기
           </Button>

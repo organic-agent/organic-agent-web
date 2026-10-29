@@ -405,7 +405,7 @@ export function CoachMarks({
         >
           <CloseIcon size={18} />
         </button>
-        <p className="pr-7 type-label-eyebrow text-brand-secondary-default">
+        <p className="pr-7 type-label-eyebrow text-brand-accent-default">
           {at + 1} / {steps.length} · {shownStep.eyebrow}
         </p>
         <h3 className="mt-1.5 type-label-semibold-m text-contents-light-bgd-default">{shownStep.title}</h3>

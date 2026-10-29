@@ -17,7 +17,7 @@ export function LandingCard({ landing, title, onGo }: { landing: CollabLandingRe
   const total = albums.reduce((n, a) => n + a.photoCount, 0) || landing.photoCount;
   return (
     <div className="flex w-full max-w-115 flex-col items-center gap-2 rounded-(--radius-16) border border-border-default bg-background-default-main px-8 pt-9 pb-7 text-center">
-      <BrandLogo size={40} className="mb-1 text-brand-secondary-default" />
+      <BrandLogo size={40} className="mb-1 text-brand-accent-default" />
       {landing.coverAuthor && <span className="type-label-semibold-xs tracking-wide text-contents-light-bgd-weakness">{landing.coverAuthor}</span>}
       <h1 className="type-title-xl leading-tight text-contents-light-bgd-default text-balance">{title}</h1>
       <p className="type-content-m text-contents-light-bgd-sub">{albums.length > 1 ? `앨범 ${albums.length}개 · ${total}장` : `${total}장`}</p>
@@ -25,7 +25,7 @@ export function LandingCard({ landing, title, onGo }: { landing: CollabLandingRe
         <ul className="mt-2 flex w-full flex-col gap-1.5">
           {albums.map((a) => (
             <li key={a.sessionId} className="flex items-center gap-3 rounded-(--radius-12) border border-border-default px-3 py-2.5 text-left">
-              <span className="grid size-11 shrink-0 place-items-center rounded-(--radius-8) bg-brand-secondary-background text-brand-secondary-dark">
+              <span className="grid size-11 shrink-0 place-items-center rounded-(--radius-8) bg-brand-chip-background text-brand-chip-text">
                 <FolderIcon size={20} />
               </span>
               <span className="min-w-0 flex-1">

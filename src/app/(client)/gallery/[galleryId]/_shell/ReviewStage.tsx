@@ -446,7 +446,7 @@ export function ReviewStage({
                         ? "bg-surface-default-medium"
                         : banner.tone === "err"
                           ? "bg-function-error-background"
-                          : "bg-brand-secondary-background"
+                          : "bg-brand-chip-background"
                   }`}
                 >
                   <span
@@ -457,7 +457,7 @@ export function ReviewStage({
                           ? "text-contents-light-bgd-sub"
                           : banner.tone === "err"
                             ? "text-function-error-default"
-                            : "text-brand-secondary-default"
+                            : "text-brand-accent-default"
                     }
                   >
                     {banner.icon}
@@ -578,7 +578,7 @@ export function ReviewStage({
             </>
           ) : archived ? (
             <>
-              <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
+              <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-chip-background px-3 py-1.5 type-label-semibold-s text-brand-chip-text">
                 <CheckCircleIcon size={16} />
                 확정 완료 · {items.length}장
               </span>
@@ -821,7 +821,7 @@ function SentRequestPanel({ item, roundLabel }: { item: RetouchItem; roundLabel:
                 <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{refined ? pt.refinedText : pt.text}</p>
                 {refined && (
                   <p className="inline-flex flex-wrap items-center gap-1 type-content-xs text-contents-light-bgd-weakness">
-                    <span className="inline-flex items-center gap-0.5 text-brand-secondary-dark">
+                    <span className="inline-flex items-center gap-0.5 text-brand-accent-text">
                       <SparkleIcon size={12} />
                       AI가 다듬은 문장
                     </span>

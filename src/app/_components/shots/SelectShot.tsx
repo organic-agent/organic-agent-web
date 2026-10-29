@@ -103,7 +103,7 @@ export function SelectShot() {
             showFilters={false}
             leading={
               <span className="inline-flex h-9 items-center gap-1.5 rounded-(--radius-8) border border-border-default px-3 whitespace-nowrap type-content-s text-contents-light-bgd-default">
-                <span className="text-brand-secondary-default">
+                <span className="text-brand-accent-default">
                   <SparkleIcon size={18} />
                 </span>
                 AI 추천

@@ -45,7 +45,7 @@ export function FlowSection() {
           key={step.n}
           className="pt-24 pb-16 flex flex-col items-center text-center gap-5 overflow-hidden max-[820px]:pt-16 max-[820px]:pb-12"
         >
-            <Reveal as="p" variant="blur" className="type-label-eyebrow text-brand-secondary-default">
+            <Reveal as="p" variant="blur" className="type-label-eyebrow text-brand-accent-default">
               {step.n} · {step.label}
             </Reveal>
             <Reveal as="h2" variant="lines" lines={step.title} delay={1} className="type-maintext-s text-contents-light-bgd-default" />

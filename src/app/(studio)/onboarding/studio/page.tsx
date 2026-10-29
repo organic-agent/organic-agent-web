@@ -47,7 +47,7 @@ function urlGuide(state: GalleryUrlCheck): { text: string; tone: string } {
     case "available":
       return {
         text: "사용할 수 있는 주소예요. 만든 뒤에는 바꿀 수 없어요",
-        tone: "text-brand-secondary-dark",
+        tone: "text-brand-accent-text",
       };
     case "taken":
       return {
@@ -134,7 +134,7 @@ export default function StudioOnboardingPage() {
             역할 선택으로
           </Link>
 
-          <p className="mb-3 type-label-eyebrow text-brand-secondary-default">
+          <p className="mb-3 type-label-eyebrow text-brand-accent-default">
             Set up your studio
           </p>
           <h1 className="mb-2 type-title-xl text-balance text-contents-light-bgd-default">

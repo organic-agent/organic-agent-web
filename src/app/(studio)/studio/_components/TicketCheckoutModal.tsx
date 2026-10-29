@@ -156,7 +156,7 @@ export function TicketCheckoutModal({
             <dt className="text-contents-light-bgd-weakness">
               수량 할인 {Math.round(ticketDiscount(qty) * 100)}%
             </dt>
-            <dd className="font-medium text-brand-secondary-dark tabular-nums">
+            <dd className="font-medium text-brand-accent-text tabular-nums">
               −{formatAmount(discount)}원
             </dd>
           </div>

@@ -67,7 +67,7 @@ function NavRow({ icon, label, trailing, selected = false, dim = false }: { icon
     <div
       className={`relative flex w-full items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m ${
         selected
-          ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-default before:content-['']"
+          ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
           : dim
             ? "text-contents-light-bgd-weakness"
             : "text-contents-light-bgd-default"
@@ -112,12 +112,12 @@ export function ShotSidebar({
       <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-hidden px-4 pt-4.5 pb-3">
         <div>
           <h3 className="type-title-s leading-snug text-contents-light-bgd-default">{SHOT_TITLE}</h3>
-          <p className={`mt-0.5 type-label-semibold-xs ${statusTone === "accent" ? "text-brand-secondary-dark" : "text-contents-light-bgd-weakness"}`}>{status}</p>
+          <p className={`mt-0.5 type-label-semibold-xs ${statusTone === "accent" ? "text-brand-accent-text" : "text-contents-light-bgd-weakness"}`}>{status}</p>
         </div>
         <div className="flex flex-col gap-2 rounded-(--radius-12) border border-border-default bg-surface-default-lightness px-3 py-2.5">
           <div className="flex items-center justify-between type-label-semibold-xs text-contents-light-bgd-default">
             플랜
-            <span className="inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+            <span className="inline-flex items-center gap-1 rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-semibold-xs text-brand-chip-text">
               <ScheduleIcon size={12} />
               27일 남음
             </span>
@@ -178,7 +178,7 @@ export function ShotCursor({ x, y, visible, click = 0 }: { x: number; y: number;
       style={{ translate: `${x}px ${y}px`, opacity: visible ? 1 : 0 }}
     >
       {click > 0 && (
-        <span key={click} className="absolute -top-2.5 -left-2.5 size-11 rounded-full border-2 border-brand-secondary-default opacity-0 motion-safe:animate-[shot-click_.45s_ease-out_forwards]" />
+        <span key={click} className="absolute -top-2.5 -left-2.5 size-11 rounded-full border-2 border-brand-accent-default opacity-0 motion-safe:animate-[shot-click_.45s_ease-out_forwards]" />
       )}
       <svg viewBox="0 0 20 20" className="size-6 drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
         <path d="M3 2l12 9-5.2 1.1L13 18l-2.4 1-3.2-5.8L3 16z" fill="#fff" stroke="#1a1a1a" strokeWidth="1.4" strokeLinejoin="round" />

@@ -48,7 +48,7 @@ export function MenuItem({
       {count !== undefined && (
         <span
           className={`shrink-0 type-content-xs ${
-            accentCount ? "text-brand-secondary-dark" : "text-contents-light-bgd-sub"
+            accentCount ? "text-brand-accent-text" : "text-contents-light-bgd-sub"
           }`}
         >
           {count}

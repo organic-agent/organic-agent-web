@@ -544,7 +544,7 @@ export default function ClientGalleryPage() {
         </span>
         모든 사진
         {isPersonal && upload.aiActive && (
-          <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+          <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-semibold-xs text-brand-chip-text">
             <SparkleIcon size={12} />
             {upload.aiCategorizing ? "폴더 만드는 중…" : "AI 분석 중"}
           </span>

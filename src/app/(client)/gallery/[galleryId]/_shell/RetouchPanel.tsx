@@ -185,7 +185,7 @@ export function RetouchPanel({
                         >
                           원래 문장으로
                         </button>
-                        <span className="inline-flex items-center gap-1 type-content-xs text-brand-secondary-dark">
+                        <span className="inline-flex items-center gap-1 type-content-xs text-brand-accent-text">
                           <CheckCircleIcon size={14} />
                           AI가 다듬은 문장
                         </span>
@@ -202,10 +202,10 @@ export function RetouchPanel({
                         className="w-full resize-none bg-transparent type-content-s text-contents-light-bgd-default placeholder:text-contents-light-bgd-weakness focus:outline-none disabled:opacity-60"
                       />
                       {r?.state === "loading" ? (
-                        <div className="h-12 animate-pulse rounded-(--radius-8) bg-brand-secondary-background" aria-label="AI가 문장을 다듬는 중" />
+                        <div className="h-12 animate-pulse rounded-(--radius-8) bg-brand-chip-background" aria-label="AI가 문장을 다듬는 중" />
                       ) : r?.state === "clarify" ? (
-                        <div className="flex flex-col gap-2 rounded-(--radius-8) bg-brand-secondary-background px-2.5 py-2">
-                          <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+                        <div className="flex flex-col gap-2 rounded-(--radius-8) bg-brand-chip-background px-2.5 py-2">
+                          <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-accent-text">
                             <SparkleIcon size={12} />
                             AI 되묻기
                           </span>
@@ -218,7 +218,7 @@ export function RetouchPanel({
                                     type="button"
                                     disabled={!editable}
                                     onClick={() => pickOption(p.id, o.label)}
-                                    className="cursor-pointer rounded-(--pill) border border-brand-secondary-light bg-background-default-main px-2.5 py-1 type-label-medium-xs text-brand-secondary-dark transition-colors duration-fast hover:bg-brand-secondary-default hover:text-white disabled:cursor-default disabled:opacity-50"
+                                    className="cursor-pointer rounded-(--pill) border border-brand-secondary-light bg-background-default-main px-2.5 py-1 type-label-medium-xs text-brand-accent-text transition-colors duration-fast hover:bg-brand-secondary-default hover:text-white disabled:cursor-default disabled:opacity-50"
                                   >
                                     {o.label}
                                   </button>
@@ -235,8 +235,8 @@ export function RetouchPanel({
                           </button>
                         </div>
                       ) : p.refinedText ? (
-                        <div className="flex flex-col gap-1.5 rounded-(--radius-8) bg-brand-secondary-background px-2.5 py-2">
-                          <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+                        <div className="flex flex-col gap-1.5 rounded-(--radius-8) bg-brand-chip-background px-2.5 py-2">
+                          <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-accent-text">
                             <SparkleIcon size={12} />
                             AI 제안
                           </span>
@@ -269,7 +269,7 @@ export function RetouchPanel({
                             onClick={() => void refine(p)}
                             className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-4) bg-surface-default-medium px-2.5 type-label-medium-xs text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-light disabled:cursor-default disabled:opacity-50"
                           >
-                            <span className="text-brand-secondary-default">
+                            <span className="text-brand-accent-default">
                               <SparkleIcon size={14} />
                             </span>
                             AI 내용 다듬기

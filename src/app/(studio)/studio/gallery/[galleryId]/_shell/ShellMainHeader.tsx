@@ -295,7 +295,7 @@ function MenuRow({
     >
       {label}
       {checked && (
-        <span className="flex text-brand-secondary-default">
+        <span className="flex text-brand-accent-default">
           <CheckCircleIcon size={16} />
         </span>
       )}

@@ -129,7 +129,7 @@ export default function LandingPage() {
         >
             {/* 좌: 텍스트 + CTA */}
             <div className="flex flex-col items-start gap-5 max-w-107.5">
-              <p className="type-label-eyebrow text-brand-secondary-default">
+              <p className="type-label-eyebrow text-brand-accent-default">
                 Easy Select
               </p>
               <h1 id="hero-h" className="type-maintext-l text-contents-light-bgd-default">
@@ -154,7 +154,7 @@ export default function LandingPage() {
 
             {/* 우: 웨딩 사진 (시안 400×500). 세로 사진(2:3)이라 가로로 넓어지는 900 미만에서는 얼굴 쪽이 보이게 위쪽에 맞춘다.
                  첫 화면에 바로 보이는 사진이라 미루지 않고 먼저 받는다(loading eager · fetchPriority high) */}
-            <div className="relative w-100 h-125 shrink-0 overflow-hidden rounded-(--radius-24) bg-brand-secondary-background max-[900px]:w-full max-[900px]:h-80">
+            <div className="relative w-100 h-125 shrink-0 overflow-hidden rounded-(--radius-24) bg-brand-accent-surface max-[900px]:w-full max-[900px]:h-80">
               <Image
                 src="/images/hero-wedding.jpg"
                 alt="웨딩드레스와 정장을 입고 손을 잡은 채 웃고 있는 신랑 신부"
@@ -173,7 +173,7 @@ export default function LandingPage() {
         {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
         <Band id="audiences" labelledBy="aud-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
-              <p className="type-label-eyebrow text-brand-secondary-default">
+              <p className="type-label-eyebrow text-brand-accent-default">
                 Who it&apos;s for
               </p>
               <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default">
@@ -185,7 +185,7 @@ export default function LandingPage() {
               {AUDIENCES.map(({ eyebrow, title, desc, items, cta }, i) => (
                 <Reveal key={eyebrow} delay={(i + 1) as RevealDelay}>
                   <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
-                    <p className="type-label-eyebrow text-brand-secondary-default">
+                    <p className="type-label-eyebrow text-brand-accent-default">
                       {eyebrow}
                     </p>
                     <h3 className="type-title-xl text-contents-light-bgd-default">
@@ -222,7 +222,7 @@ export default function LandingPage() {
         {/* ═══ Q&A (피그마 Landing/QnA) ═══ */}
         <Band id="qna" labelledBy="qna-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
             <Reveal className="flex flex-col items-center gap-4 text-center">
-              <p className="type-label-eyebrow text-brand-secondary-default">FAQ</p>
+              <p className="type-label-eyebrow text-brand-accent-default">FAQ</p>
               <h2 id="qna-h" className="type-maintext-s text-contents-light-bgd-default">
                 자주 묻는 질문
               </h2>

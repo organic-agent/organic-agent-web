@@ -45,7 +45,7 @@ export function PersonalSteps({
                 on
                   ? "border-brand-primary-default bg-brand-primary-default text-brand-on-fill"
                   : done
-                    ? "border-brand-secondary-background bg-brand-secondary-background text-brand-secondary-dark"
+                    ? "border-brand-chip-background bg-brand-chip-background text-brand-chip-text"
                     : "border-border-default text-contents-light-bgd-weakness"
               }`}
             >

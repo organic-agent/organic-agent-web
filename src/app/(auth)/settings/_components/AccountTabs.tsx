@@ -115,7 +115,7 @@ export function AccountProfileTab({ user }: { user: User }) {
       )}
       <div className="flex items-center justify-end gap-2">
         {saved && (
-          <span className="mr-auto type-content-xs text-brand-secondary-dark">저장했어요</span>
+          <span className="mr-auto type-content-xs text-brand-accent-text">저장했어요</span>
         )}
         <Button kind="ghost" disabled={!dirty || saving} onClick={() => setNickname(user.nickname)}>
           되돌리기
@@ -149,7 +149,7 @@ export function AccountDisplayTab() {
           >
             <span
               className={`grid h-11 place-items-center rounded-(--radius-8) border border-divider-default ${
-                t.value === "dark" ? "bg-[#1A1A1A] text-[#F9F9F9]" : "bg-white text-[#1A1A1A]"
+                t.value === "dark" ? "bg-[#202020] text-[#FFFFFF]" : "bg-white text-[#323232]"
               }`}
             >
               {t.value === "dark" ? <DarkModeIcon size={20} /> : <LightModeIcon size={20} />}

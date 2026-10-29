@@ -361,10 +361,10 @@ export function RetouchStage({
               {banner && (
                 <div
                   className={`mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) px-3 py-2.5 type-content-s text-contents-light-bgd-default ${
-                    banner.tone === "warn" ? "bg-function-warning-background" : banner.tone === "info" ? "bg-function-info-background" : "bg-brand-secondary-background"
+                    banner.tone === "warn" ? "bg-function-warning-background" : banner.tone === "info" ? "bg-function-info-background" : "bg-brand-chip-background"
                   }`}
                 >
-                  <span className={banner.tone === "warn" ? "text-function-warning-default" : banner.tone === "info" ? "text-function-info-default" : "text-brand-secondary-default"}>{banner.icon}</span>
+                  <span className={banner.tone === "warn" ? "text-function-warning-default" : banner.tone === "info" ? "text-function-info-default" : "text-brand-accent-default"}>{banner.icon}</span>
                   <span className="min-w-0 flex-1">{banner.text}</span>
                 </div>
               )}
@@ -436,14 +436,14 @@ export function RetouchStage({
           requested ? (
             <span className="flex items-center gap-2 type-content-s text-contents-light-bgd-sub">
               결과
-              <b className={`type-label-semibold-l tabular-nums ${allDone ? "text-brand-secondary-dark" : "text-contents-light-bgd-default"}`}>{resultCount}</b>
+              <b className={`type-label-semibold-l tabular-nums ${allDone ? "text-brand-accent-text" : "text-contents-light-bgd-default"}`}>{resultCount}</b>
               <span className="text-contents-light-bgd-weakness">/ {items.length}</span>
             </span>
           ) : undefined
         }
         actions={
           archived ? (
-            <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-secondary-background px-3 py-1.5 type-label-semibold-s text-brand-secondary-dark">
+            <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-chip-background px-3 py-1.5 type-label-semibold-s text-brand-chip-text">
               <CheckCircleIcon size={16} />
               작업 완료 · 보관됨
             </span>
@@ -714,7 +714,7 @@ function RequestPanel({ item, showAnnotation, onToggleAnnotation }: { item: Reto
                 <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{refined ? pt.refinedText : pt.text}</p>
                 {refined && (
                   <p className="inline-flex flex-wrap items-center gap-1 type-content-xs text-contents-light-bgd-weakness">
-                    <span className="inline-flex items-center gap-0.5 text-brand-secondary-dark">
+                    <span className="inline-flex items-center gap-0.5 text-brand-accent-text">
                       <SparkleIcon size={12} />
                       AI가 다듬은 문장
                     </span>

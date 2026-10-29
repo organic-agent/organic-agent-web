@@ -91,11 +91,11 @@ function SpaceChipLink({ user, pending = false }: { user: LastUser; pending?: bo
     <>
       <Link
         href={chip.href}
-        className="inline-flex h-10 items-center gap-2 rounded-(--pill) border border-border-default pl-3.5 pr-1.5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:border-brand-secondary-light hover:bg-brand-secondary-background"
+        className="inline-flex h-10 items-center gap-2 rounded-(--pill) border border-border-default pl-3.5 pr-1.5 type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:border-brand-secondary-light hover:bg-brand-chip-background"
       >
         <span className="max-w-40 truncate">{chip.label}</span>
         {chip.tag && (
-          <span className="rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-medium-xs text-brand-secondary-dark">
+          <span className="rounded-(--pill) bg-surface-default-light px-2 py-0.5 type-label-medium-xs text-contents-light-bgd-weakness">
             {chip.tag}
           </span>
         )}

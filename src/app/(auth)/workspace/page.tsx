@@ -46,7 +46,7 @@ export default function WorkspaceListPage() {
       <EntryTopbar />
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-190">
-          <p className="type-label-eyebrow text-brand-secondary-default">Workspaces</p>
+          <p className="type-label-eyebrow text-brand-accent-default">Workspaces</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             어디로 갈까요?
           </h1>
@@ -62,7 +62,7 @@ export default function WorkspaceListPage() {
                     onClick={() => router.push(workspacePath(space))}
                     className="flex w-full cursor-pointer items-start gap-3.5 rounded-(--radius-16) border border-divider-default bg-background-default-main p-4.5 text-left transition-[border-color,translate,box-shadow] duration-base ease-out hover:-translate-y-0.5 hover:border-brand-secondary-light hover:shadow-(--shadow-hover)"
                   >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-(--radius-12) bg-brand-secondary-background text-brand-secondary-default">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-(--radius-12) bg-brand-accent-surface text-brand-accent-default">
                       <Icon size={22} />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
@@ -75,7 +75,7 @@ export default function WorkspaceListPage() {
                         </span>
                       )}
                       <span className="mt-2 flex gap-1.5">
-                        <span className="rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-medium-xs text-brand-secondary-dark">
+                        <span className="rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-medium-xs text-brand-chip-text">
                           {space.kind === "STUDIO" ? "스튜디오" : "갤러리"}
                         </span>
                         <span className="rounded-(--pill) bg-surface-default-light px-2 py-0.5 type-label-medium-xs text-contents-light-bgd-weakness">
@@ -96,7 +96,7 @@ export default function WorkspaceListPage() {
           <button
             type="button"
             onClick={() => router.push("/onboarding/role")}
-            className="mt-4 inline-flex h-11 cursor-pointer items-center gap-2 rounded-(--pill) border border-dashed border-border-default px-5 type-content-s text-contents-light-bgd-sub transition-colors duration-fast hover:border-brand-secondary-light hover:bg-brand-secondary-background hover:text-brand-secondary-dark"
+            className="mt-4 inline-flex h-11 cursor-pointer items-center gap-2 rounded-(--pill) border border-dashed border-border-default px-5 type-content-s text-contents-light-bgd-sub transition-colors duration-fast hover:border-brand-secondary-light hover:bg-brand-chip-background hover:text-brand-chip-text"
           >
             <PlusIcon size={18} />워크스페이스 추가하기
           </button>

@@ -122,7 +122,7 @@ export function RetouchShot() {
             <div className="flex items-center justify-between gap-2">
               <span className="type-content-xs" />
               <span className={REFINE_BTN}>
-                <span className="text-brand-secondary-default">
+                <span className="text-brand-accent-default">
                   <SparkleIcon size={14} />
                 </span>
                 AI 내용 다듬기
@@ -139,7 +139,7 @@ export function RetouchShot() {
                   <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{REFINED}</p>
                   <div className="flex items-center justify-between gap-2">
                     <span className="type-content-xs text-contents-light-bgd-weakness underline underline-offset-2">원래 문장으로</span>
-                    <span className="inline-flex items-center gap-1 type-content-xs text-brand-secondary-dark">
+                    <span className="inline-flex items-center gap-1 type-content-xs text-brand-accent-text">
                       <CheckCircleIcon size={14} />
                       AI가 다듬은 문장
                     </span>
@@ -149,10 +149,10 @@ export function RetouchShot() {
                 <>
                   <textarea readOnly value={typed} placeholder="예) 볼 라인 정리" rows={2} className={textareaClass} />
                   {refine === "loading" ? (
-                    <div className="h-12 animate-pulse rounded-(--radius-8) bg-brand-secondary-background" aria-label="AI가 문장을 다듬는 중" />
+                    <div className="h-12 animate-pulse rounded-(--radius-8) bg-brand-chip-background" aria-label="AI가 문장을 다듬는 중" />
                   ) : refine === "suggested" ? (
-                    <div className="flex flex-col gap-1.5 rounded-(--radius-8) bg-brand-secondary-background px-2.5 py-2">
-                      <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+                    <div className="flex flex-col gap-1.5 rounded-(--radius-8) bg-brand-chip-background px-2.5 py-2">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-(--radius-4) bg-background-default-main px-1.5 py-0.5 type-label-semibold-xs text-brand-accent-text">
                         <SparkleIcon size={12} />
                         AI 제안
                       </span>
@@ -165,7 +165,7 @@ export function RetouchShot() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="type-content-xs" />
                       <span ref={refineRef} className={REFINE_BTN}>
-                        <span className="text-brand-secondary-default">
+                        <span className="text-brand-accent-default">
                           <SparkleIcon size={14} />
                         </span>
                         AI 내용 다듬기
