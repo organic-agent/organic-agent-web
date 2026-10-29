@@ -6,6 +6,9 @@
    여기 @theme에는 토큰 체계 밖의 전역 기반값(기본 서체·모션·컨테이너)만 남긴다. */
 @import "./tokens.tailwind.generated.css";
 
+/* 다크 변형 — <html data-theme="dark"> 기준(미디어 쿼리 아님). 토큰 역할이 모드마다 다른 몇 곳(보조 버튼 등)에서만 쓴다 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-sans:
     "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo",

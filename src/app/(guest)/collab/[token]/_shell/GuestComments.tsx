@@ -178,7 +178,7 @@ export function GuestComments({
 export function CommentItem({ comment: c, onDelete }: { comment: CollabCommentResponse; onDelete?: () => void }) {
   return (
     <div className="group -mx-2 flex gap-2.5 rounded-(--radius-8) px-2 py-1 hover:bg-surface-default-lightness">
-      <Avatar initial={guestInitial(c.nickname)} className={c.mine ? "bg-brand-primary-default text-contents-dark-bgd-default" : "bg-brand-secondary-background text-brand-secondary-dark"} />
+      <Avatar initial={guestInitial(c.nickname)} className={c.mine ? "bg-brand-primary-default text-brand-on-fill" : "bg-brand-secondary-background text-brand-secondary-dark"} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5">
           <b className="truncate type-label-semibold-s text-contents-light-bgd-default">

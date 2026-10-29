@@ -32,7 +32,7 @@ export function ShotTopbar({ stageIndex, dday = "D-30" }: { stageIndex: number; 
         <b className="ml-0.5 type-brand-wordmark whitespace-nowrap text-contents-light-bgd-default">Easy Select</b>
       </div>
       <div className="flex items-center gap-2.5">
-        <span className="inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2.5 py-0.5 whitespace-nowrap type-label-medium-s text-brand-secondary-dark">
+        <span className="inline-flex items-center gap-1 rounded-(--pill) bg-surface-default-light px-2.5 py-0.5 whitespace-nowrap type-label-medium-s text-contents-light-bgd-sub">
           <ScheduleIcon size={14} />
           {dday}
         </span>
@@ -42,7 +42,7 @@ export function ShotTopbar({ stageIndex, dday = "D-30" }: { stageIndex: number; 
               key={name}
               className={`${PILL} ${
                 i === stageIndex
-                  ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                  ? "bg-brand-step-background font-semibold text-contents-light-bgd-default"
                   : i < stageIndex
                     ? "text-contents-light-bgd-sub"
                     : "text-contents-light-bgd-weakness"

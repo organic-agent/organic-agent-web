@@ -37,7 +37,7 @@ const sizes: Record<ButtonSize, string> = {
 
 const kinds: Record<ButtonKind, string> = {
   primary:
-    "bg-brand-primary-default text-contents-dark-bgd-default hover:bg-brand-primary-light hover:shadow-(--shadow-hover)",
+    "bg-brand-primary-default text-brand-on-fill hover:bg-brand-primary-light hover:shadow-(--shadow-hover)",
   ghost:
     "bg-transparent text-contents-light-bgd-default hover:bg-surface-default-lightness",
 };

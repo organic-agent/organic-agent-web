@@ -43,7 +43,7 @@ export function PersonalSteps({
               aria-current={on ? "step" : undefined}
               className={`grid size-5.5 place-items-center rounded-full border type-label-semibold-2xs transition-colors duration-fast ${
                 on
-                  ? "border-brand-primary-default bg-brand-primary-default text-contents-dark-bgd-default"
+                  ? "border-brand-primary-default bg-brand-primary-default text-brand-on-fill"
                   : done
                     ? "border-brand-secondary-background bg-brand-secondary-background text-brand-secondary-dark"
                     : "border-border-default text-contents-light-bgd-weakness"
