@@ -3,53 +3,94 @@
     "primary": {
       "default": {
         "$type": "color",
-        "$value": "#687656"
+        "$value": "#9376d8"
       },
       "light": {
         "$type": "color",
-        "$value": "#535f44"
+        "$value": "#7a61b7"
       },
       "lightness": {
         "$type": "color",
-        "$value": "#3e4932"
+        "$value": "#644d9d"
       },
       "surface1": {
         "$type": "color",
-        "$value": "rgba(104,118,86,0.12)"
+        "$value": "rgba(147,118,216,0.3)"
       },
       "surface2": {
         "$type": "color",
-        "$value": "rgba(104,118,86,0.2)"
+        "$value": "rgba(147,118,216,0.5)"
       }
     },
     "secondary": {
       "default": {
         "$type": "color",
-        "$value": "#687656"
+        "$value": "#c7c7c7"
       },
       "light": {
         "$type": "color",
-        "$value": "#535f44"
+        "$value": "#aeaeae"
       },
       "lightness": {
         "$type": "color",
-        "$value": "#3e4932"
+        "$value": "#989898"
       },
       "dark": {
         "$type": "color",
-        "$value": "#7d8b6a"
+        "$value": "#323232"
       },
       "background": {
         "$type": "color",
-        "$value": "#2b3422"
+        "$value": "#212121"
       },
       "surface1": {
         "$type": "color",
-        "$value": "rgba(104,118,86,0.07)"
+        "$value": "rgba(199,199,199,0.3)"
       },
       "surface2": {
         "$type": "color",
-        "$value": "rgba(104,118,86,0.2)"
+        "$value": "rgba(199,199,199,0.5)"
+      }
+    },
+    "accent": {
+      "default": {
+        "$type": "color",
+        "$value": "{brand.primary.default}",
+        "$description": "강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크 primary(시안 규칙)"
+      },
+      "surface": {
+        "$type": "color",
+        "$value": "{brand.primary.surface1}",
+        "$description": "강조 바탕 — 아이콘 타일 · 히어로 프레임"
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{brand.secondary.default}",
+        "$description": "강조 글자 — 상태줄 · 숫자 · 저장했어요 · 링크. 다크 secondary/dark(#323232)는 뱃지 안 글자용이라 여기서는 default"
+      }
+    },
+    "chip": {
+      "background": {
+        "$type": "color",
+        "$value": "{brand.secondary.surface1}",
+        "$description": "칩 · 꼬리표 · AI 상자 · 배너 바탕(시안 \"AI 내용 다듬기\" 규칙)"
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{contents.light-bgd.default}",
+        "$description": "칩 글자"
+      }
+    },
+    "on-fill": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "채운 버튼(primary) 위 글자 — 두 모드 모두 흰색(2026-10-29 결정)"
+    },
+    "step": {
+      "background": {
+        "$type": "color",
+        "$value": "{brand.primary.surface2}",
+        "$description": "상단 단계 pill · ≡ 바탕"
       }
     }
   },
@@ -57,11 +98,11 @@
     "default": {
       "main": {
         "$type": "color",
-        "$value": "#1a1a1a"
+        "$value": "#202020"
       },
       "sub": {
         "$type": "color",
-        "$value": "#2b2b2b"
+        "$value": "#1c1c1c"
       }
     },
     "inverse": {
@@ -83,15 +124,15 @@
       },
       "lightness": {
         "$type": "color",
-        "$value": "rgba(255,255,255,0.03)"
+        "$value": "rgba(255,255,255,0.05)"
       },
       "light": {
         "$type": "color",
-        "$value": "rgba(255,255,255,0.05)"
+        "$value": "rgba(255,255,255,0.1)"
       },
       "medium": {
         "$type": "color",
-        "$value": "rgba(255,255,255,0.3)"
+        "$value": "rgba(255,255,255,0.2)"
       },
       "dark": {
         "$type": "color",
@@ -109,11 +150,11 @@
       },
       "lightness": {
         "$type": "color",
-        "$value": "rgba(26,26,26,0.03)"
+        "$value": "rgba(26,26,26,0.1)"
       },
       "light": {
         "$type": "color",
-        "$value": "rgba(26,26,26,0.06)"
+        "$value": "rgba(26,26,26,0.2)"
       },
       "medium": {
         "$type": "color",
@@ -137,41 +178,41 @@
       },
       "sub": {
         "$type": "color",
-        "$value": "#f9f9f9"
+        "$value": "#e8e8e8"
       },
       "additional": {
         "$type": "color",
-        "$value": "#f3f3f3"
+        "$value": "#d1d1d1"
       },
       "weakness": {
         "$type": "color",
-        "$value": "#ebebeb"
+        "$value": "#bbbbbb"
       },
       "disabled": {
         "$type": "color",
-        "$value": "#b6b6b6"
+        "$value": "#a4a4a4"
       }
     },
     "dark-bgd": {
       "default": {
         "$type": "color",
-        "$value": "#333333"
+        "$value": "#323232"
       },
       "sub": {
         "$type": "color",
-        "$value": "#4d4d4d"
+        "$value": "#494949"
       },
       "additional": {
         "$type": "color",
-        "$value": "#666666"
+        "$value": "#5f5f5f"
       },
       "weakness": {
         "$type": "color",
-        "$value": "#808080"
+        "$value": "#767676"
       },
       "disabled": {
         "$type": "color",
-        "$value": "#999999"
+        "$value": "#8d8d8d"
       }
     }
   },

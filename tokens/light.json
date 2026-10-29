@@ -25,31 +25,72 @@
     "secondary": {
       "default": {
         "$type": "color",
-        "$value": "#687656"
+        "$value": "#684fa3"
       },
       "light": {
         "$type": "color",
-        "$value": "#7d8b6a"
+        "$value": "#907ac4"
       },
       "lightness": {
         "$type": "color",
-        "$value": "#a1ad90"
+        "$value": "#bca9e8"
       },
       "dark": {
         "$type": "color",
-        "$value": "#535f44"
+        "$value": "#4b357f"
       },
       "background": {
         "$type": "color",
-        "$value": "#f2f4ee"
+        "$value": "#efedf7"
       },
       "surface1": {
         "$type": "color",
-        "$value": "rgba(104,118,86,0.07)"
+        "$value": "rgba(104,79,163,0.07)"
       },
       "surface2": {
         "$type": "color",
-        "$value": "rgba(104,118,86,0.2)"
+        "$value": "rgba(104,79,163,0.2)"
+      }
+    },
+    "accent": {
+      "default": {
+        "$type": "color",
+        "$value": "{brand.secondary.default}",
+        "$description": "강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크 primary(시안 규칙)"
+      },
+      "surface": {
+        "$type": "color",
+        "$value": "{brand.secondary.background}",
+        "$description": "강조 바탕 — 아이콘 타일 · 히어로 프레임"
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{brand.secondary.dark}",
+        "$description": "강조 글자 — 상태줄 · 숫자 · 저장했어요 · 링크. 다크 secondary/dark(#323232)는 뱃지 안 글자용이라 여기서는 default"
+      }
+    },
+    "chip": {
+      "background": {
+        "$type": "color",
+        "$value": "{brand.secondary.background}",
+        "$description": "칩 · 꼬리표 · AI 상자 · 배너 바탕(시안 \"AI 내용 다듬기\" 규칙)"
+      },
+      "text": {
+        "$type": "color",
+        "$value": "{brand.secondary.dark}",
+        "$description": "칩 글자"
+      }
+    },
+    "on-fill": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "채운 버튼(primary) 위 글자 — 두 모드 모두 흰색(2026-10-29 결정)"
+    },
+    "step": {
+      "background": {
+        "$type": "color",
+        "$value": "{brand.primary.surface1}",
+        "$description": "상단 단계 pill · ≡ 바탕"
       }
     }
   },
@@ -133,23 +174,23 @@
     "light-bgd": {
       "default": {
         "$type": "color",
-        "$value": "#333333"
+        "$value": "#323232"
       },
       "sub": {
         "$type": "color",
-        "$value": "#4d4d4d"
+        "$value": "#494949"
       },
       "additional": {
         "$type": "color",
-        "$value": "#666666"
+        "$value": "#5f5f5f"
       },
       "weakness": {
         "$type": "color",
-        "$value": "#808080"
+        "$value": "#767676"
       },
       "disabled": {
         "$type": "color",
-        "$value": "#999999"
+        "$value": "#8d8d8d"
       }
     },
     "dark-bgd": {
@@ -159,19 +200,19 @@
       },
       "sub": {
         "$type": "color",
-        "$value": "#f9f9f9"
+        "$value": "#e8e8e8"
       },
       "additional": {
         "$type": "color",
-        "$value": "#f3f3f3"
+        "$value": "#d1d1d1"
       },
       "weakness": {
         "$type": "color",
-        "$value": "#ebebeb"
+        "$value": "#bbbbbb"
       },
       "disabled": {
         "$type": "color",
-        "$value": "#b6b6b6"
+        "$value": "#a4a4a4"
       }
     }
   },

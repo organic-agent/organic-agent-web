@@ -13,6 +13,13 @@
   --color-brand-secondary-background: var(--brand-secondary-background);
   --color-brand-secondary-surface1: var(--brand-secondary-surface1);
   --color-brand-secondary-surface2: var(--brand-secondary-surface2);
+  --color-brand-accent-default: var(--brand-accent-default);
+  --color-brand-accent-surface: var(--brand-accent-surface);
+  --color-brand-accent-text: var(--brand-accent-text);
+  --color-brand-chip-background: var(--brand-chip-background);
+  --color-brand-chip-text: var(--brand-chip-text);
+  --color-brand-on-fill: var(--brand-on-fill);
+  --color-brand-step-background: var(--brand-step-background);
   --color-background-default-main: var(--background-default-main);
   --color-background-default-sub: var(--background-default-sub);
   --color-background-inverse-main: var(--background-inverse-main);
