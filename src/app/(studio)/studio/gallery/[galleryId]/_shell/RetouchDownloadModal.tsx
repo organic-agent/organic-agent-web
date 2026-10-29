@@ -100,10 +100,10 @@ export function RetouchDownloadModal({
             disabled={progress !== null}
             onClick={() => setKind(k)}
             className={`flex cursor-pointer items-start gap-3 rounded-(--radius-8) border px-3 py-2.5 text-left transition-colors duration-fast ${
-              kind === k ? "border-brand-secondary-default bg-brand-secondary-background" : "border-border-default hover:bg-surface-default-lightness"
+              kind === k ? "border-brand-primary-default shadow-[inset_0_0_0_1px_var(--brand-primary-default)]" : "border-border-default hover:bg-surface-default-lightness"
             }`}
           >
-            <span className="mt-0.5 text-brand-secondary-default">{icon}</span>
+            <span className="mt-0.5 text-brand-accent-default">{icon}</span>
             <span className="flex flex-col gap-0.5">
               <span className="type-label-semibold-s text-contents-light-bgd-default">{label}</span>
               <span className="type-content-xs text-contents-light-bgd-weakness">{sub}</span>

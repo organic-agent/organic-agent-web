@@ -146,7 +146,7 @@ export function StudioInfoTab({
           <IconButton
             icon={
               copied ? (
-                <span className="text-brand-secondary-dark">
+                <span className="text-brand-accent-text">
                   <CheckCircleIcon size={20} />
                 </span>
               ) : (
@@ -204,7 +204,7 @@ export function StudioInfoTab({
       )}
       {owner ? (
         <div className="flex items-center justify-end gap-2">
-          {saved && <span className="mr-auto type-content-xs text-brand-secondary-dark">저장했어요</span>}
+          {saved && <span className="mr-auto type-content-xs text-brand-accent-text">저장했어요</span>}
           <Button kind="ghost" disabled={!dirty || saving} onClick={reset}>
             되돌리기
           </Button>
@@ -293,7 +293,7 @@ export function StudioMembersTab({ studio }: { studio: StudioResponse }) {
                     <span
                       className={`rounded-(--pill) px-2 py-0.5 type-content-xs ${
                         m.role === "OWNER"
-                          ? "bg-brand-secondary-background text-brand-secondary-dark"
+                          ? "bg-brand-chip-background text-brand-chip-text"
                           : "bg-surface-default-light text-contents-light-bgd-sub"
                       }`}
                     >
@@ -361,9 +361,9 @@ export function StudioTicketsTab({ studio }: { studio: StudioResponse }) {
   return (
     <Section title="이용권">
       <div className="mb-5 grid grid-cols-2 gap-3">
-        <div className="rounded-(--radius-12) bg-brand-secondary-background p-4">
+        <div className="rounded-(--radius-12) bg-brand-chip-background p-4">
           <p className="type-content-xs text-contents-light-bgd-sub">남은 이용권</p>
-          <p className="type-title-xl text-brand-secondary-dark tabular-nums">
+          <p className="type-title-xl text-brand-accent-text tabular-nums">
             {tickets.remaining}
             <span className="ml-1 type-content-s font-normal text-contents-light-bgd-sub">개</span>
           </p>

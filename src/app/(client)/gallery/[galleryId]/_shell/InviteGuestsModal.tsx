@@ -56,7 +56,7 @@ function LinkBox({ url }: { url: string }) {
         <IconButton
           icon={
             copied ? (
-              <span className="text-brand-secondary-dark">
+              <span className="text-brand-accent-text">
                 <CheckCircleIcon size={20} />
               </span>
             ) : (
@@ -87,7 +87,7 @@ function enteredLabel(at: string | null): string {
 
 function Tag({ children, off = false }: { children: React.ReactNode; off?: boolean }) {
   return (
-    <span className={`rounded-(--pill) px-2 py-0.5 type-label-semibold-xs ${off ? "bg-surface-default-light text-contents-light-bgd-sub" : "bg-brand-secondary-background text-brand-secondary-dark"}`}>{children}</span>
+    <span className={`rounded-(--pill) px-2 py-0.5 type-label-semibold-xs ${off ? "bg-surface-default-light text-contents-light-bgd-sub" : "bg-brand-chip-background text-brand-chip-text"}`}>{children}</span>
   );
 }
 
@@ -238,7 +238,7 @@ function SessionCard({
             </span>
           ) : (
             <>
-              <button type="button" disabled={busy !== null} onClick={() => void run("republish", () => republishCollabSession(galleryId, session.sessionId))} className={`${TEXT_LINK} text-brand-secondary-dark`}>
+              <button type="button" disabled={busy !== null} onClick={() => void run("republish", () => republishCollabSession(galleryId, session.sessionId))} className={`${TEXT_LINK} text-brand-accent-text`}>
                 {busy === "republish" ? "재발급 중…" : "링크 재발급"}
               </button>
               <button type="button" disabled={busy !== null || renaming} onClick={() => setRenaming(true)} className={`${TEXT_LINK} text-contents-light-bgd-default`}>
@@ -250,7 +250,7 @@ function SessionCard({
             </>
           )
         ) : (
-          <button type="button" disabled={busy !== null} onClick={() => void run("republish", () => republishCollabSession(galleryId, session.sessionId))} className={`${TEXT_LINK} text-brand-secondary-dark`}>
+          <button type="button" disabled={busy !== null} onClick={() => void run("republish", () => republishCollabSession(galleryId, session.sessionId))} className={`${TEXT_LINK} text-brand-accent-text`}>
             {busy === "republish" ? "재발급 중…" : "링크 재발급"}
           </button>
         )}
@@ -357,7 +357,7 @@ export function InviteGuestsBody({
   } else if (made) {
     body = (
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2.5 rounded-(--radius-12) border border-brand-secondary-default p-3.5">
+        <div className="flex flex-col gap-2.5 rounded-(--radius-12) border border-brand-accent-default p-3.5">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 flex-1 truncate type-label-semibold-m text-contents-light-bgd-default">{made.session.name}</p>
             <Tag>{sessionTermLabel(made.session).text}</Tag>

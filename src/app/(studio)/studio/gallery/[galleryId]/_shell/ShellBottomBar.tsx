@@ -55,9 +55,9 @@ export function ShellCta({
         iconLabel ? "max-sm:px-2.75" : "max-[480px]:px-4"
       } ${
         kind === "primary"
-          ? "bg-brand-primary-default text-contents-dark-bgd-default hover:bg-brand-primary-light disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled"
+          ? "bg-brand-primary-default text-brand-on-fill hover:bg-brand-primary-light disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled"
           : kind === "secondary"
-            ? "bg-brand-secondary-background text-contents-light-bgd-default hover:bg-brand-secondary-surface1 disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled"
+            ? "bg-brand-chip-background text-brand-accent-default hover:bg-brand-secondary-surface2 dark:bg-transparent dark:text-brand-on-fill dark:ring-1 dark:ring-inset dark:ring-brand-accent-default dark:hover:bg-brand-accent-surface disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled dark:disabled:ring-0"
             : kind === "outline"
               ? "border border-border-default bg-transparent text-contents-light-bgd-default hover:bg-surface-default-lightness disabled:border-border-light disabled:text-contents-light-bgd-disabled"
               : "text-contents-light-bgd-default hover:bg-surface-default-lightness disabled:text-contents-light-bgd-disabled"

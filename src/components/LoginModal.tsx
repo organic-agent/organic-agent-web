@@ -220,16 +220,16 @@ export function LoginModal({
       )}
 
       {/* 브랜드 패널 — 로고·회사명은 여기에만. 좁은 화면에선 위 띠로 */}
-      <div className="flex flex-col justify-between gap-10 bg-brand-secondary-background p-7 max-[700px]:flex-row max-[700px]:items-center max-[700px]:gap-4 max-[700px]:px-6 max-[700px]:py-5">
-        <div className="flex items-center gap-2.5 text-brand-secondary-dark">
+      <div className="flex flex-col justify-between gap-10 bg-surface-default-light p-7 max-[700px]:flex-row max-[700px]:items-center max-[700px]:gap-4 max-[700px]:px-6 max-[700px]:py-5">
+        <div className="flex items-center gap-2.5 text-contents-light-bgd-default">
           <BrandLogo size={32} className="shrink-0" />
           <b className="type-brand-wordmark">Easy Select</b>
         </div>
         <div>
-          <p className="type-label-eyebrow mb-2 text-brand-secondary-default max-[700px]:hidden">
+          <p className="type-label-eyebrow mb-2 text-brand-accent-default max-[700px]:hidden">
             {copy.who}
           </p>
-          <p className="type-title-l text-balance text-brand-secondary-dark">
+          <p className="type-title-l text-balance text-contents-light-bgd-default">
             {copy.line}
           </p>
         </div>

@@ -57,7 +57,7 @@ export function NavItem({
 /** 내비의 사각 이니셜 — 스튜디오 · 계정 */
 export function NavInitial({ text }: { text: string }) {
   return (
-    <span className="grid size-6 place-items-center rounded-(--radius-4) bg-brand-secondary-background type-label-semibold-xs text-brand-secondary-dark">
+    <span className="grid size-6 place-items-center rounded-(--radius-4) bg-brand-chip-background type-label-semibold-xs text-brand-chip-text">
       {text.trim().slice(0, 1) || "?"}
     </span>
   );

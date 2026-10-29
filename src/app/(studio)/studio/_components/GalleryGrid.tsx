@@ -89,7 +89,7 @@ function NewGalleryTile({
       className={`flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-(--radius-16) border border-dashed px-4 text-center transition-colors duration-fast hover:border-solid ${
         full
           ? "border-function-warning-default text-function-warning-default"
-          : "border-divider-default text-contents-light-bgd-sub hover:border-brand-secondary-light hover:text-brand-secondary-dark"
+          : "border-divider-default text-contents-light-bgd-sub hover:border-brand-secondary-light hover:text-brand-accent-text"
       }`}
     >
       <span className="grid size-14 place-items-center rounded-full border border-current">

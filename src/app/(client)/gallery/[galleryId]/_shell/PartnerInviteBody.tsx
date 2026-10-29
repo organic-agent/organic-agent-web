@@ -174,7 +174,7 @@ export function PartnerInviteBody({
                 <span className="truncate type-content-m font-medium text-contents-light-bgd-default">{m.nickname}</span>
                 <span className="type-content-xs text-contents-light-bgd-sub">{me ? (canManage ? "소유자" : "파트너") : canManage ? "파트너" : "소유자"}</span>
                 {me ? (
-                  <span className="ml-auto rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">나</span>
+                  <span className="ml-auto rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-semibold-xs text-brand-chip-text">나</span>
                 ) : (
                   <span className="ml-auto flex items-center gap-2">
                     <span className="rounded-(--pill) bg-function-success-background px-2 py-0.5 type-label-semibold-xs text-function-success-default">{joinedLabel(m.joinedAt)}</span>

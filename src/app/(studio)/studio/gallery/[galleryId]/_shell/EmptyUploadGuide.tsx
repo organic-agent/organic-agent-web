@@ -33,7 +33,7 @@ export function EmptyUploadGuide({
         <div className="mt-3 flex flex-wrap justify-center gap-5">
           {steps.map((step) => (
             <div key={step.title} className="flex w-32 flex-col items-center gap-1.5">
-              <span className="grid size-9 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-dark">
+              <span className="grid size-9 place-items-center rounded-full bg-brand-chip-background text-brand-chip-text">
                 {step.icon}
               </span>
               <b className="type-label-semibold-s text-contents-light-bgd-default">{step.title}</b>

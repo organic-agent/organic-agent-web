@@ -31,7 +31,7 @@ export function RoundList({
   const tag: Record<RetouchRoundSummaryResponse["status"], { label: string; cls: string }> = {
     DRAFTING: { label: "작성 중", cls: "bg-surface-default-light text-contents-light-bgd-weakness" },
     REQUESTED: { label: "요청 중", cls: "bg-function-warning-background text-function-warning-default" },
-    COMPLETED: { label: "완료", cls: "bg-brand-secondary-background text-brand-secondary-dark" },
+    COMPLETED: { label: "완료", cls: "bg-brand-chip-background text-brand-chip-text" },
   };
   return (
     <div className="flex flex-col gap-0.5">
@@ -40,7 +40,7 @@ export function RoundList({
         <span aria-hidden className="h-px min-w-3 flex-1 bg-divider-default" />
         {!personal && <span className="type-content-xs tabular-nums">{maxRounds !== null ? `남은 횟수 ${remaining ?? "—"} / ${maxRounds}` : "횟수 제한 없음"}</span>}
         {onChangeRounds && (
-          <button type="button" onClick={onChangeRounds} className="cursor-pointer type-content-xs text-brand-secondary-dark underline underline-offset-2">
+          <button type="button" onClick={onChangeRounds} className="cursor-pointer type-content-xs text-brand-accent-text underline underline-offset-2">
             횟수 바꾸기
           </button>
         )}
@@ -56,7 +56,7 @@ export function RoundList({
             onClick={() => onSelect(r.roundNo)}
             className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) py-1.5 pr-2.5 pl-3.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
               active
-                ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-default before:content-['']"
+                ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
                 : "text-contents-light-bgd-sub"
             }`}
           >

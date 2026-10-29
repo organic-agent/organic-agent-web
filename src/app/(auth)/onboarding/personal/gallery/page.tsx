@@ -178,14 +178,14 @@ function PersonalGalleryForm() {
               className={`mb-3 inline-flex items-center rounded-(--pill) px-2.5 py-1 type-label-semibold-xs ${
                 pro
                   ? "bg-function-success-surface text-contents-light-bgd-default"
-                  : "bg-brand-secondary-background text-brand-secondary-dark"
+                  : "bg-brand-chip-background text-brand-chip-text"
               }`}
             >
               {badge}
             </span>
           )}
 
-          <p className="type-label-eyebrow text-brand-secondary-default">For Individuals</p>
+          <p className="type-label-eyebrow text-brand-accent-default">For Individuals</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             갤러리 정보를 알려 주세요
           </h1>

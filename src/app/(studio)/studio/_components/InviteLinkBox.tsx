@@ -142,7 +142,7 @@ export function InviteLinkBox({
           <IconButton
             icon={
               copied ? (
-                <span className="text-brand-secondary-dark">
+                <span className="text-brand-accent-text">
                   <CheckCircleIcon size={20} />
                 </span>
               ) : (
@@ -163,7 +163,7 @@ export function InviteLinkBox({
             type="button"
             onClick={() => void issue()}
             disabled={issuing}
-            className="shrink-0 cursor-pointer text-brand-secondary-dark underline underline-offset-2 disabled:text-contents-light-bgd-disabled"
+            className="shrink-0 cursor-pointer text-brand-accent-text underline underline-offset-2 disabled:text-contents-light-bgd-disabled"
           >
             {issuing ? "재발급 중…" : "재발급"}
           </button>

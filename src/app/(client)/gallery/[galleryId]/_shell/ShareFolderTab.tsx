@@ -53,7 +53,7 @@ export function ShareFolderTab({
                   data-sidebar-item
                   aria-current={current || undefined}
                   onClick={() => onOpenReactions(s.sessionId)}
-                  className={`flex w-full cursor-pointer flex-col gap-0.5 rounded-(--radius-8) px-2 py-1.5 text-left transition-colors duration-fast ${current ? "bg-brand-secondary-background" : "hover:bg-surface-default-light"}`}
+                  className={`flex w-full cursor-pointer flex-col gap-0.5 rounded-(--radius-8) px-2 py-1.5 text-left transition-colors duration-fast ${current ? "bg-surface-default-light" : "hover:bg-surface-default-light"}`}
                 >
                   <span className={`truncate type-content-m ${current ? "font-semibold" : ""} ${term.live ? "text-contents-light-bgd-default" : "text-contents-light-bgd-weakness"}`}>{s.name}</span>
                   <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">

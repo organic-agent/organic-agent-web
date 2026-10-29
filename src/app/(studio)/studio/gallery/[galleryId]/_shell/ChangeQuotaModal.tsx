@@ -62,7 +62,7 @@ export function ChangeQuotaModal({
       onClose={onClose}
     >
       {requestMessage && (
-        <p className="mb-3 rounded-(--radius-8) bg-brand-secondary-background px-3.5 py-2.5 type-content-s text-contents-light-bgd-default">
+        <p className="mb-3 rounded-(--radius-8) bg-brand-chip-background px-3.5 py-2.5 type-content-s text-contents-light-bgd-default">
           {requestMessage}
         </p>
       )}

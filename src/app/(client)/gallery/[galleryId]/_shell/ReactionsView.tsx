@@ -75,13 +75,13 @@ export function ReactionsView({ galleryId, session, photos }: { galleryId: numbe
     return (
       <span className="absolute right-2 bottom-2 flex gap-1">
         {p.likeCount > 0 && (
-          <span className="inline-flex h-6 items-center gap-1 rounded-(--pill) bg-black/60 px-2 type-label-semibold-xs text-white tabular-nums">
+          <span className="inline-flex h-6 items-center gap-1 rounded-(--pill) bg-surface-default-dark px-2 type-label-semibold-xs text-contents-dark-bgd-default tabular-nums">
             <HeartFillIcon size={13} />
             {p.likeCount}
           </span>
         )}
         {p.commentCount > 0 && (
-          <span className="inline-flex h-6 items-center gap-1 rounded-(--pill) bg-black/60 px-2 type-label-semibold-xs text-white tabular-nums">
+          <span className="inline-flex h-6 items-center gap-1 rounded-(--pill) bg-surface-default-dark px-2 type-label-semibold-xs text-contents-dark-bgd-default tabular-nums">
             <CommentIcon size={13} />
             {p.commentCount}
           </span>
@@ -165,7 +165,7 @@ export function ReactionsView({ galleryId, session, photos }: { galleryId: numbe
           tab={tab}
           tabs={tabs}
           middle={
-            <span className="inline-flex h-7 items-center gap-1 rounded-(--pill) bg-white/15 px-2.5 type-label-semibold-s text-white tabular-nums">
+            <span className="inline-flex h-7 items-center gap-1 rounded-(--pill) bg-surface-inverse-light px-2.5 type-label-semibold-s text-contents-dark-bgd-default tabular-nums">
               <HeartFillIcon size={16} />
               {current.likeCount}
             </span>

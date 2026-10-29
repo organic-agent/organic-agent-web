@@ -27,7 +27,7 @@ export function GalleryProgress({
     <div className={`flex flex-col gap-2 ${className}`}>
       <div className="flex items-center justify-between px-1 type-content-xs">
         <span className="text-contents-light-bgd-sub">셀렉 현황</span>
-        <span className="text-brand-secondary-dark">
+        <span className="text-brand-accent-text">
           {target !== null ? `${selected} / ${target}` : `${selected}장 선택`}
         </span>
       </div>

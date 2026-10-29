@@ -372,7 +372,7 @@ export function CoachMarks({
       {modal && <div aria-hidden className="fixed inset-0 z-90" onMouseDown={(e) => e.preventDefault()} />}
       <div
         aria-hidden
-        className={`pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)] ${onDark ? "outline-2 outline-white/90" : ""}`}
+        className={`pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)] ${onDark ? "outline-2 outline-brand-on-fill" : ""}`}
         style={{ left: hole.left, top: hole.top, width: hole.width, height: hole.height, borderRadius: hole.radius }}
       />
       <div
@@ -405,7 +405,7 @@ export function CoachMarks({
         >
           <CloseIcon size={18} />
         </button>
-        <p className="pr-7 type-label-eyebrow text-brand-secondary-default">
+        <p className="pr-7 type-label-eyebrow text-brand-accent-default">
           {at + 1} / {steps.length} · {shownStep.eyebrow}
         </p>
         <h3 className="mt-1.5 type-label-semibold-m text-contents-light-bgd-default">{shownStep.title}</h3>

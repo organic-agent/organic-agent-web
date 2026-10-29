@@ -55,7 +55,7 @@ export function ShotLightbox({
 }) {
   const open = tab !== "none";
   return (
-    <div ref={rootRef} className="absolute inset-0 z-20 flex bg-black/75 p-7 backdrop-blur-[2px] [--lb-photo-max:470px]">
+    <div ref={rootRef} className="absolute inset-0 z-20 flex bg-surface-default-darkness p-7 backdrop-blur-[2px] [--lb-photo-max:470px]">
       <div className={`relative z-10 mx-auto flex min-h-0 w-full ${open ? "" : "justify-center"}`}>
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="relative flex min-h-0 flex-1 items-center justify-center">
@@ -66,13 +66,13 @@ export function ShotLightbox({
             </div>
           </div>
           <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5">
-            <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
+            <span className="rounded-(--pill) bg-surface-default-medium px-2.5 py-1 type-label-medium-xs text-contents-dark-bgd-default tabular-nums">
               {index + 1} / {total}
-              <span className="text-white/60"> · {caption}</span>
+              <span className="text-contents-dark-bgd-sub"> · {caption}</span>
             </span>
           </div>
           {!open && (
-            <span className="absolute top-3.5 right-3.5 grid size-8 place-items-center rounded-(--radius-8) bg-white/15 text-white">
+            <span className="absolute top-3.5 right-3.5 grid size-8 place-items-center rounded-(--radius-8) bg-surface-inverse-light text-contents-dark-bgd-default">
               <CloseIcon size={18} />
             </span>
           )}
@@ -81,7 +81,7 @@ export function ShotLightbox({
               {snack}
             </Snackbar>
           )}
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-black/80 px-2 py-1.5 text-white shadow-(--shadow-modal)">
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-surface-default-darkness px-2 py-1.5 text-contents-dark-bgd-default shadow-(--shadow-modal)">
             <CtlButton label="이전" onClick={noop}>
               <ChevronLeftIcon size={20} />
             </CtlButton>
@@ -137,14 +137,14 @@ export function ShotSelectionControls({ score, picked }: { score: number; picked
         {[1, 2, 3, 4, 5].map((n) => {
           const on = n <= score;
           return (
-            <span key={n} className={`grid size-7 place-items-center rounded-full ${on ? "text-brand-secondary-default" : "text-white/35"}`}>
+            <span key={n} className={`grid size-7 place-items-center rounded-full ${on ? "text-brand-secondary-default" : "text-contents-dark-bgd-weakness"}`}>
               {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
             </span>
           );
         })}
       </div>
       <Sep />
-      <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${picked ? "bg-brand-secondary-default text-white" : "bg-white/15 text-white"}`}>
+      <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${picked ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default"}`}>
         {picked && (
           <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3.5 8.5 6.5 11.5 12.5 5" />

@@ -122,7 +122,7 @@ export default function PersonalPlanPage() {
             역할 선택으로
           </Link>
           <PersonalSteps variant="plan" current="plan" />
-          <p className="type-label-eyebrow text-brand-secondary-default">For Individuals</p>
+          <p className="type-label-eyebrow text-brand-accent-default">For Individuals</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             플랜을 선택해 주세요
           </h1>

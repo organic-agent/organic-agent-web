@@ -48,13 +48,13 @@ function ddayChip(
 }
 
 const DDAY_TONE_CLASS: Record<DdayTone, string> = {
-  olive: "bg-brand-secondary-background text-brand-secondary-dark",
+  olive: "bg-surface-default-light text-contents-light-bgd-sub",
   red: "bg-function-error-background text-function-error-default",
   gray: "bg-surface-default-light text-contents-light-bgd-sub",
 };
 
 const PILL = "rounded-(--pill) px-3 py-1 whitespace-nowrap type-label-medium-s";
-const PILL_CURRENT = "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,0.08)]";
+const PILL_CURRENT = "bg-brand-step-background font-semibold text-contents-light-bgd-default";
 
 const TRACK = "items-center gap-0.5 rounded-(--pill) bg-surface-default-light p-0.75";
 const DOTS = "px-1.5 py-1 tracking-[1px] whitespace-nowrap type-label-medium-s text-contents-light-bgd-weakness";
@@ -160,7 +160,7 @@ export function ShellTopbar({
             icon={<MenuIcon size={20} />}
             aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
             onClick={toggle}
-            className={collapsed ? "" : "bg-brand-secondary-background"}
+            className={collapsed ? "" : "bg-brand-step-background"}
           />
         </span>
         {/* 업로드 중에는 세 링크 모두 이동하지 않는다(guardNavigate) */}
@@ -193,7 +193,7 @@ export function ShellTopbar({
             <Link
               href={studioHref}
               onNavigate={guardNavigate}
-              className="max-w-72 truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-secondary-dark"
+              className="max-w-72 truncate type-label-medium-m text-contents-light-bgd-default transition-colors duration-fast hover:text-brand-accent-text"
             >
               {studioName}
             </Link>

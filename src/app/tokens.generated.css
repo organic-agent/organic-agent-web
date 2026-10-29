@@ -61,13 +61,20 @@
   --brand-primary-lightness: #4d4d4d;
   --brand-primary-surface1: rgba(26, 26, 26, 0.07);
   --brand-primary-surface2: rgba(26, 26, 26, 0.2);
-  --brand-secondary-default: #687656;
-  --brand-secondary-light: #7d8b6a;
-  --brand-secondary-lightness: #a1ad90;
-  --brand-secondary-dark: #535f44;
-  --brand-secondary-background: #f2f4ee;
-  --brand-secondary-surface1: rgba(104, 118, 86, 0.07);
-  --brand-secondary-surface2: rgba(104, 118, 86, 0.2);
+  --brand-secondary-default: #684fa3;
+  --brand-secondary-light: #907ac4;
+  --brand-secondary-lightness: #bca9e8;
+  --brand-secondary-dark: #4b357f;
+  --brand-secondary-background: #efedf7;
+  --brand-secondary-surface1: rgba(104, 79, 163, 0.07);
+  --brand-secondary-surface2: rgba(104, 79, 163, 0.2);
+  --brand-accent-default: #684fa3; /** 강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크 primary(시안 규칙) */
+  --brand-accent-surface: #efedf7; /** 강조 바탕 — 아이콘 타일 · 히어로 프레임 */
+  --brand-accent-text: #4b357f; /** 강조 글자 — 상태줄 · 숫자 · 저장했어요 · 링크. 다크 secondary/dark(#323232)는 뱃지 안 글자용이라 여기서는 default */
+  --brand-chip-background: #efedf7; /** 칩 · 꼬리표 · AI 상자 · 배너 바탕(시안 "AI 내용 다듬기" 규칙) */
+  --brand-chip-text: #4b357f; /** 칩 글자 */
+  --brand-on-fill: #ffffff; /** 채운 버튼(primary) 위 글자 — 두 모드 모두 흰색(2026-10-29 결정) */
+  --brand-step-background: rgba(26, 26, 26, 0.07); /** 상단 단계 pill · ≡ 바탕 */
   --line-height-none: 1;
   --line-height-display: 1.1;
   --line-height-body: 1.6;
@@ -93,16 +100,16 @@
   --surface-inverse-medium: rgba(255, 255, 255, 0.3);
   --surface-inverse-dark: rgba(255, 255, 255, 0.6);
   --surface-inverse-darkness: rgba(255, 255, 255, 0.9);
-  --contents-light-bgd-default: #333333;
-  --contents-light-bgd-sub: #4d4d4d;
-  --contents-light-bgd-additional: #666666;
-  --contents-light-bgd-weakness: #808080;
-  --contents-light-bgd-disabled: #999999;
+  --contents-light-bgd-default: #323232;
+  --contents-light-bgd-sub: #494949;
+  --contents-light-bgd-additional: #5f5f5f;
+  --contents-light-bgd-weakness: #767676;
+  --contents-light-bgd-disabled: #8d8d8d;
   --contents-dark-bgd-default: #ffffff;
-  --contents-dark-bgd-sub: #f9f9f9;
-  --contents-dark-bgd-additional: #f3f3f3;
-  --contents-dark-bgd-weakness: #ebebeb;
-  --contents-dark-bgd-disabled: #b6b6b6;
+  --contents-dark-bgd-sub: #e8e8e8;
+  --contents-dark-bgd-additional: #d1d1d1;
+  --contents-dark-bgd-weakness: #bbbbbb;
+  --contents-dark-bgd-disabled: #a4a4a4;
   --border-default: rgba(26, 26, 26, 0.15);
   --border-light: rgba(26, 26, 26, 0.07);
   --border-deep: rgba(26, 26, 26, 0.25);
@@ -323,44 +330,51 @@
  */
 
 [data-theme="dark"] {
-  --brand-primary-default: #687656;
-  --brand-primary-light: #535f44;
-  --brand-primary-lightness: #3e4932;
-  --brand-primary-surface1: rgba(104, 118, 86, 0.12);
-  --brand-primary-surface2: rgba(104, 118, 86, 0.2);
-  --brand-secondary-default: #687656;
-  --brand-secondary-light: #535f44;
-  --brand-secondary-lightness: #3e4932;
-  --brand-secondary-dark: #7d8b6a;
-  --brand-secondary-background: #2b3422;
-  --brand-secondary-surface1: rgba(104, 118, 86, 0.07);
-  --brand-secondary-surface2: rgba(104, 118, 86, 0.2);
-  --background-default-main: #1a1a1a;
-  --background-default-sub: #2b2b2b;
+  --brand-primary-default: #9376d8;
+  --brand-primary-light: #7a61b7;
+  --brand-primary-lightness: #644d9d;
+  --brand-primary-surface1: rgba(147, 118, 216, 0.3);
+  --brand-primary-surface2: rgba(147, 118, 216, 0.5);
+  --brand-secondary-default: #c7c7c7;
+  --brand-secondary-light: #aeaeae;
+  --brand-secondary-lightness: #989898;
+  --brand-secondary-dark: #323232;
+  --brand-secondary-background: #212121;
+  --brand-secondary-surface1: rgba(199, 199, 199, 0.3);
+  --brand-secondary-surface2: rgba(199, 199, 199, 0.5);
+  --brand-accent-default: #9376d8; /** 강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크 primary(시안 규칙) */
+  --brand-accent-surface: rgba(147, 118, 216, 0.3); /** 강조 바탕 — 아이콘 타일 · 히어로 프레임 */
+  --brand-accent-text: #c7c7c7; /** 강조 글자 — 상태줄 · 숫자 · 저장했어요 · 링크. 다크 secondary/dark(#323232)는 뱃지 안 글자용이라 여기서는 default */
+  --brand-chip-background: rgba(199, 199, 199, 0.3); /** 칩 · 꼬리표 · AI 상자 · 배너 바탕(시안 "AI 내용 다듬기" 규칙) */
+  --brand-chip-text: #ffffff; /** 칩 글자 */
+  --brand-on-fill: #ffffff; /** 채운 버튼(primary) 위 글자 — 두 모드 모두 흰색(2026-10-29 결정) */
+  --brand-step-background: rgba(147, 118, 216, 0.5); /** 상단 단계 pill · ≡ 바탕 */
+  --background-default-main: #202020;
+  --background-default-sub: #1c1c1c;
   --background-inverse-main: #ffffff;
   --background-inverse-sub: #f9f9f9;
   --surface-default-transparent: rgba(255, 255, 255, 0);
-  --surface-default-lightness: rgba(255, 255, 255, 0.03);
-  --surface-default-light: rgba(255, 255, 255, 0.05);
-  --surface-default-medium: rgba(255, 255, 255, 0.3);
+  --surface-default-lightness: rgba(255, 255, 255, 0.05);
+  --surface-default-light: rgba(255, 255, 255, 0.1);
+  --surface-default-medium: rgba(255, 255, 255, 0.2);
   --surface-default-dark: rgba(255, 255, 255, 0.6);
   --surface-default-darkness: rgba(255, 255, 255, 0.9);
   --surface-inverse-transparent: rgba(26, 26, 26, 0);
-  --surface-inverse-lightness: rgba(26, 26, 26, 0.03);
-  --surface-inverse-light: rgba(26, 26, 26, 0.06);
+  --surface-inverse-lightness: rgba(26, 26, 26, 0.1);
+  --surface-inverse-light: rgba(26, 26, 26, 0.2);
   --surface-inverse-medium: rgba(26, 26, 26, 0.3);
   --surface-inverse-dark: rgba(26, 26, 26, 0.6);
   --surface-inverse-darkness: rgba(26, 26, 26, 0.9);
   --contents-light-bgd-default: #ffffff;
-  --contents-light-bgd-sub: #f9f9f9;
-  --contents-light-bgd-additional: #f3f3f3;
-  --contents-light-bgd-weakness: #ebebeb;
-  --contents-light-bgd-disabled: #b6b6b6;
-  --contents-dark-bgd-default: #333333;
-  --contents-dark-bgd-sub: #4d4d4d;
-  --contents-dark-bgd-additional: #666666;
-  --contents-dark-bgd-weakness: #808080;
-  --contents-dark-bgd-disabled: #999999;
+  --contents-light-bgd-sub: #e8e8e8;
+  --contents-light-bgd-additional: #d1d1d1;
+  --contents-light-bgd-weakness: #bbbbbb;
+  --contents-light-bgd-disabled: #a4a4a4;
+  --contents-dark-bgd-default: #323232;
+  --contents-dark-bgd-sub: #494949;
+  --contents-dark-bgd-additional: #5f5f5f;
+  --contents-dark-bgd-weakness: #767676;
+  --contents-dark-bgd-disabled: #8d8d8d;
   --border-default: rgba(255, 255, 255, 0.15);
   --border-light: rgba(255, 255, 255, 0.07);
   --border-deep: rgba(255, 255, 255, 0.25);

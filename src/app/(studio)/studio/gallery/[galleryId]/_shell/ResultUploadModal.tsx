@@ -108,10 +108,10 @@ export function ResultUploadModal({
           void addFiles(e.dataTransfer.files);
         }}
         className={`mb-4 flex cursor-pointer flex-col items-center gap-1.5 rounded-(--radius-12) border border-dashed px-5 py-6 text-center transition-colors duration-fast ${
-          dragging ? "border-brand-secondary-default bg-brand-secondary-background" : "border-border-default hover:bg-surface-default-lightness"
+          dragging ? "border-brand-accent-default" : "border-border-default hover:bg-surface-default-lightness"
         }`}
       >
-        <span className="grid size-11 place-items-center rounded-full bg-brand-secondary-background text-brand-secondary-default">
+        <span className="grid size-11 place-items-center rounded-full bg-brand-accent-surface text-brand-accent-default">
           <CloudUploadIcon size={22} />
         </span>
         <p className="type-label-semibold-m text-contents-light-bgd-default">{preset ? "보정본 파일을 끌어다 놓거나 선택하기" : "보정본 파일을 끌어다 놓거나 선택하기"}</p>
@@ -148,7 +148,7 @@ export function ResultUploadModal({
                     ))}
                   </select>
                 )}
-                <span className={`shrink-0 type-label-semibold-xs ${dup ? "text-function-error-default" : r.photoId === null ? "text-function-warning-default" : target?.hasResult ? "text-function-warning-default" : "text-brand-secondary-dark"}`}>
+                <span className={`shrink-0 type-label-semibold-xs ${dup ? "text-function-error-default" : r.photoId === null ? "text-function-warning-default" : target?.hasResult ? "text-function-warning-default" : "text-brand-accent-text"}`}>
                   {dup ? "겹침" : r.photoId === null ? "미정" : target?.hasResult ? "바꿈" : r.match?.photoId ? "일치" : "지정"}
                 </span>
                 <button

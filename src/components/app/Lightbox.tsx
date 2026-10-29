@@ -260,7 +260,7 @@ export function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={`${photo.originalFileName} 크게 보기`}
-      className={`fixed inset-0 z-40 flex bg-black/75 p-3 outline-none backdrop-blur-[2px] [--lb-photo-max:calc(100dvh-56px)] md:p-7 ${
+      className={`fixed inset-0 z-40 flex bg-surface-default-darkness p-3 outline-none backdrop-blur-[2px] [--lb-photo-max:calc(100dvh-56px)] md:p-7 ${
         open ? "max-md:[--lb-photo-max:calc(50dvh-60px)]" : ""
       }`}
       onClick={(e) => {
@@ -329,12 +329,12 @@ export function Lightbox({
           </div>
 
           <div className="absolute top-2 left-2 flex items-center gap-1.5 md:top-3.5 md:left-3.5">
-            <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
+            <span className="rounded-(--pill) bg-surface-default-medium px-2.5 py-1 type-label-medium-xs text-contents-dark-bgd-default tabular-nums">
               {index + 1} / {total}
-              {caption && <span className="text-white/60"> · {caption}</span>}
+              {caption && <span className="text-contents-dark-bgd-sub"> · {caption}</span>}
             </span>
             {z.zoomed && (
-              <span className="rounded-(--pill) bg-black/40 px-2.5 py-1 type-label-medium-xs text-white/90 tabular-nums">
+              <span className="rounded-(--pill) bg-surface-default-medium px-2.5 py-1 type-label-medium-xs text-contents-dark-bgd-default tabular-nums">
                 {z.scale.toFixed(1)}×
               </span>
             )}
@@ -344,7 +344,7 @@ export function Lightbox({
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              className="absolute top-2 right-2 grid size-8 cursor-pointer place-items-center rounded-(--radius-8) bg-white/15 text-white transition-colors duration-fast hover:bg-white/25 md:top-3.5 md:right-3.5"
+              className="absolute top-2 right-2 grid size-8 cursor-pointer place-items-center rounded-(--radius-8) bg-surface-inverse-light text-contents-dark-bgd-default transition-colors duration-fast hover:bg-surface-inverse-medium md:top-3.5 md:right-3.5"
             >
               <CloseIcon size={18} />
             </button>
@@ -357,7 +357,7 @@ export function Lightbox({
           )}
 
           {/* 하단 컨트롤 한 줄 */}
-          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-black/80 px-2 py-1.5 text-white shadow-(--shadow-modal) md:bottom-4">
+          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-(--pill) bg-surface-default-darkness px-2 py-1.5 text-contents-dark-bgd-default shadow-(--shadow-modal) md:bottom-4">
             <CtlButton label="이전" onClick={() => go(-1)}>
               <ChevronLeftIcon size={20} />
             </CtlButton>
@@ -434,7 +434,7 @@ export function Lightbox({
 }
 
 export function Sep() {
-  return <span aria-hidden className="mx-1 h-4 w-px bg-white/25" />;
+  return <span aria-hidden className="mx-1 h-4 w-px bg-surface-inverse-medium" />;
 }
 
 export function CtlButton({
@@ -469,8 +469,8 @@ export function CtlButton({
       aria-disabled={faded || undefined}
       disabled={disabled}
       onClick={onClick}
-      className={`relative grid size-8 cursor-pointer place-items-center rounded-(--radius-8) text-white transition-colors duration-fast hover:bg-white/15 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent ${
-        pressed ? "bg-white/22" : ""
+      className={`relative grid size-8 cursor-pointer place-items-center rounded-(--radius-8) text-contents-dark-bgd-default transition-colors duration-fast hover:bg-surface-inverse-light disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent ${
+        pressed ? "bg-surface-inverse-medium" : ""
       }`}
     >
       <span className={`grid place-items-center ${faded ? "opacity-35" : ""}`}>{children}</span>
@@ -478,7 +478,7 @@ export function CtlButton({
         // 16px 안에 넣으려고 타이포 토큰에 없는 10px을 쓴다(알림 벨의 수와 같은 크기)
         <span
           aria-hidden
-          className="pointer-events-none absolute -top-0.75 -right-1.5 grid h-3.75 min-w-3.75 place-items-center rounded-(--pill) bg-brand-secondary-default px-0.75 text-[10px] leading-none font-semibold text-white tabular-nums"
+          className="pointer-events-none absolute -top-0.75 -right-1.5 grid h-3.75 min-w-3.75 place-items-center rounded-(--pill) bg-brand-secondary-default px-0.75 text-[10px] leading-none font-semibold text-contents-dark-bgd-default tabular-nums"
         >
           {badge > 99 ? "99+" : badge}
         </span>

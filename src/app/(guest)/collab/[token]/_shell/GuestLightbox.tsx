@@ -59,13 +59,13 @@ export function GuestLightbox({
       type="button"
       aria-pressed={p.liked}
       onClick={() => onToggleLike(p)}
-      className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s transition-colors duration-fast ${p.liked ? "bg-brand-secondary-default text-white" : "bg-white/15 text-white hover:bg-white/25"}`}
+      className={`inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s transition-colors duration-fast ${p.liked ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default hover:bg-surface-inverse-medium"}`}
     >
       {p.liked ? <HeartFillIcon size={16} /> : <HeartIcon size={16} />}
       좋아요
     </button>
   ) : (
-    <button type="button" onClick={onLockedLike} className="inline-flex h-7 cursor-default items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s text-white/60" title="갤러리가 마무리되어 좋아요를 누를 수 없어요">
+    <button type="button" onClick={onLockedLike} className="inline-flex h-7 cursor-default items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s text-contents-dark-bgd-sub" title="갤러리가 마무리되어 좋아요를 누를 수 없어요">
       <LockIcon size={16} />
       좋아요
     </button>

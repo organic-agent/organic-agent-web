@@ -168,13 +168,13 @@ const FALLBACK_ERROR = {
 };
 
 const TONE_BG: Record<Tone, string> = {
-  brand: "bg-brand-secondary-background text-brand-secondary-dark",
+  brand: "bg-brand-chip-background text-brand-chip-text",
   ok: "bg-function-success-surface text-contents-light-bgd-default",
   warn: "bg-function-warning-surface text-contents-light-bgd-default",
   bad: "bg-function-error-surface text-contents-light-bgd-default",
 };
 const TONE_ICON: Record<Tone, string> = {
-  brand: "text-brand-secondary-default",
+  brand: "text-brand-accent-default",
   ok: "text-function-success-default",
   warn: "text-function-warning-default",
   bad: "text-function-error-default",

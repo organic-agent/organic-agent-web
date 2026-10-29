@@ -40,7 +40,7 @@ const KIND_OF: Record<NotificationType, Kind> = {
 const KIND_STYLE: Record<Kind, { icon: ReactNode; className: string }> = {
   selection: {
     icon: <CheckCircleIcon size={18} />,
-    className: "bg-brand-secondary-background text-brand-secondary-dark",
+    className: "bg-brand-chip-background text-brand-chip-text",
   },
   retouch: {
     icon: <BrushIcon size={18} />,

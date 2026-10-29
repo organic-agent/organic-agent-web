@@ -36,7 +36,7 @@ export function Checkbox({
       <svg
         viewBox="0 0 16 16"
         aria-hidden="true"
-        className="absolute inset-0 size-full opacity-0 transition-opacity duration-fast peer-checked:opacity-100 text-contents-dark-bgd-default"
+        className="absolute inset-0 size-full opacity-0 transition-opacity duration-fast peer-checked:opacity-100 text-brand-on-fill"
       >
         <path
           d="M4 8.5L6.5 11L12 5"

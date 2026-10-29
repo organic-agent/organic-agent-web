@@ -31,7 +31,7 @@ export function ProgressBar({
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <span
-        className={`flex shrink-0 ${tone === "warning" ? "text-function-warning-default" : "text-brand-secondary-dark"}`}
+        className={`flex shrink-0 ${tone === "warning" ? "text-function-warning-default" : "text-brand-accent-text"}`}
       >
         {icon}
       </span>

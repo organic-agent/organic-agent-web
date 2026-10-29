@@ -57,7 +57,7 @@ export default function RoleSelectPage() {
       <div className="grid flex-1 place-items-center px-6 py-14">
         <div className="flex w-full max-w-190 flex-col items-center gap-8 text-center">
           <div className="flex flex-col items-center gap-3">
-            <p className="type-label-eyebrow text-brand-secondary-default">Get started</p>
+            <p className="type-label-eyebrow text-brand-accent-default">Get started</p>
             <h1 className="type-maintext-s text-balance text-contents-light-bgd-default">
               어떻게 시작할까요?
             </h1>
@@ -89,7 +89,7 @@ export default function RoleSelectPage() {
                   >
                     <span className="size-2 rounded-full bg-background-default-main opacity-0 group-aria-checked:opacity-100" />
                   </span>
-                  <span className="grid size-10 place-items-center rounded-(--radius-12) bg-brand-secondary-background text-brand-secondary-default">
+                  <span className="grid size-10 place-items-center rounded-(--radius-12) bg-brand-accent-surface text-brand-accent-default">
                     <Icon />
                   </span>
                   <span className="type-title-m text-contents-light-bgd-default">{title}</span>

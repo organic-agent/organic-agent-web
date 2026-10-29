@@ -92,7 +92,7 @@ export function FoldersShot() {
       </span>
       모든 사진
       {analyzing && (
-        <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-semibold-xs text-brand-secondary-dark">
+        <span className="ml-1.5 inline-flex items-center gap-1 rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-semibold-xs text-brand-chip-text">
           <SparkleIcon size={12} />
           폴더 만드는 중…
         </span>

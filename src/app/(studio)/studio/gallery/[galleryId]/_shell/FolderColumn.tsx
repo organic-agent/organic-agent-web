@@ -90,7 +90,7 @@ function dropClass(dropping: boolean, droppable: boolean, over: boolean | undefi
   if (!dropping) return "";
   if (!droppable) return "opacity-40";
   return over
-    ? "bg-brand-secondary-background outline-2 -outline-offset-2 outline-dashed outline-brand-secondary-default"
+    ? "outline-2 -outline-offset-2 outline-dashed outline-brand-accent-default"
     : "outline-1 -outline-offset-1 outline-dashed outline-border-default";
 }
 
@@ -428,7 +428,7 @@ export function FolderColumn({
           <span
             className={`font-normal ${
               folders !== null && folders.length === 0 && pendingNote
-                ? "text-brand-secondary-dark"
+                ? "text-brand-accent-text"
                 : "text-contents-light-bgd-weakness"
             }`}
           >
@@ -475,7 +475,7 @@ export function FolderColumn({
               onClick={() => onSelect({ kind: "all" })}
               className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
                 selection.kind === "all"
-                  ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
+                  ? "bg-surface-default-light font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
               } ${dragging ? "opacity-40" : ""}`}
               data-nodrop={dragging ? "" : undefined}
@@ -498,7 +498,7 @@ export function FolderColumn({
                   data-drop={dragging && closed ? `concept:${concept.id}` : undefined}
                   data-nodrop={dragging ? "" : undefined}
                   className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
-                    conceptSelected ? "bg-brand-secondary-background" : ""
+                    conceptSelected ? "bg-surface-default-light" : ""
                   } ${dragging ? "opacity-40" : ""}`}
                 >
                   <button
@@ -555,7 +555,7 @@ export function FolderColumn({
                                 : undefined
                             }
                             className={`group relative flex items-center rounded-(--radius-4) pr-1 transition-colors duration-fast hover:bg-surface-default-lightness ${
-                              selected ? "bg-brand-secondary-background" : ""
+                              selected ? "bg-surface-default-light" : ""
                             } ${dropClass(dragging, droppable, isOver)}`}
                           >
                             <button
@@ -596,7 +596,7 @@ export function FolderColumn({
               onClick={() => onSelect({ kind: "unsorted" })}
               className={`flex w-full cursor-pointer items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast hover:bg-surface-default-lightness ${
                 selection.kind === "unsorted"
-                  ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default"
+                  ? "bg-surface-default-light font-semibold text-contents-light-bgd-default"
                   : "text-contents-light-bgd-sub"
               } ${dropClass(dragging, dropping && selection.kind !== "unsorted", dropping && dropOver?.kind === "unsorted")}`}
             >

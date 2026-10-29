@@ -28,7 +28,7 @@ export function Toggle({
       }`}
     >
       <span
-        className={`absolute top-0.5 size-4 rounded-full bg-contents-dark-bgd-default transition-[left] duration-fast ${
+        className={`absolute top-0.5 size-4 rounded-full bg-brand-on-fill transition-[left] duration-fast ${
           checked ? "left-[18px]" : "left-0.5"
         }`}
       />

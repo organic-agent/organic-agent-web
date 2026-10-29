@@ -46,7 +46,7 @@ export function QnAAccordion() {
             >
               {item.q}
               <PlusIcon
-                className={`shrink-0 transition-[transform,color] duration-base ease-out ${isOpen ? "rotate-45 text-brand-secondary-default" : ""}`}
+                className={`shrink-0 transition-[transform,color] duration-base ease-out ${isOpen ? "rotate-45 text-brand-accent-default" : ""}`}
               />
             </button>
 

@@ -52,7 +52,7 @@ export function PlanCard({
         <span
           className={`absolute top-3 right-10 rounded-(--pill) px-2 py-0.5 type-label-semibold-2xs ${
             tagTone === "brand"
-              ? "bg-brand-secondary-background text-brand-secondary-dark"
+              ? "bg-brand-chip-background text-brand-chip-text"
               : "bg-surface-default-light text-contents-light-bgd-sub"
           }`}
         >

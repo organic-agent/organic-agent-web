@@ -72,7 +72,7 @@ function SpaceItem({
         current ? "bg-surface-default-lightness" : ""
       }`}
     >
-      <span className="grid size-7 shrink-0 place-items-center rounded-(--radius-8) bg-brand-secondary-background text-brand-secondary-default">
+      <span className="grid size-7 shrink-0 place-items-center rounded-(--radius-8) bg-brand-accent-surface text-brand-accent-default">
         <Icon size={16} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
@@ -84,7 +84,7 @@ function SpaceItem({
         </span>
       </span>
       {current && (
-        <span className="shrink-0 rounded-(--pill) bg-brand-secondary-background px-2 py-0.5 type-label-medium-xs text-brand-secondary-dark">
+        <span className="shrink-0 rounded-(--pill) bg-brand-chip-background px-2 py-0.5 type-label-medium-xs text-brand-chip-text">
           현재
         </span>
       )}
@@ -195,7 +195,7 @@ export function ProfileMenu({
           aria-hidden
           className={`relative h-5 w-9 shrink-0 rounded-(--pill) border transition-colors duration-fast ${
             dark
-              ? "border-brand-secondary-default bg-brand-secondary-default"
+              ? "border-brand-primary-default bg-brand-primary-default"
               : "border-border-default bg-surface-default-light"
           }`}
         >

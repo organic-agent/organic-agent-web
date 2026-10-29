@@ -80,7 +80,7 @@ function Row({
       }}
       className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) py-2 pr-2.5 pl-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-light ${
         focused
-          ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-default before:content-['']"
+          ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
           : "text-contents-light-bgd-sub"
       }`}
     >
@@ -88,7 +88,7 @@ function Row({
       {icon}
       <span className="min-w-0 flex-1 truncate">{name}</span>
       <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness tabular-nums">
-        {picked > 0 && <span className="font-semibold text-brand-secondary-dark">{picked}</span>}
+        {picked > 0 && <span className="font-semibold text-brand-accent-text">{picked}</span>}
         {picked > 0 && " / "}
         {total}
       </span>

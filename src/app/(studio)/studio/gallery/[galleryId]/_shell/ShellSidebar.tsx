@@ -36,7 +36,7 @@ export type StatusLine = {
 
 const TONE_CLASS: Record<StatusLine["tone"], string> = {
   muted: "text-contents-light-bgd-weakness",
-  accent: "text-brand-secondary-dark",
+  accent: "text-brand-accent-text",
   warning: "text-function-warning-default",
   error: "text-function-error-default",
 };
@@ -69,7 +69,7 @@ function NavRow({
       onClick={onClick}
       className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-weakness disabled:hover:bg-transparent ${
         selected
-          ? "bg-brand-secondary-background font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-default before:content-['']"
+          ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
           : "text-contents-light-bgd-default"
       }`}
     >

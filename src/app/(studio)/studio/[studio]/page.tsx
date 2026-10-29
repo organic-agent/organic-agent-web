@@ -218,7 +218,7 @@ export default function GalleriesPage() {
       <main className="mx-auto w-full max-w-wrap px-6 pt-5 pb-16">
         {listReady && tickets.state === "none" && (
           <div className="mb-5 flex flex-wrap items-center gap-3 rounded-(--radius-12) border border-divider-default bg-surface-default-lightness px-4 py-3">
-            <span className="flex shrink-0 text-brand-secondary-default">
+            <span className="flex shrink-0 text-brand-accent-default">
               <TicketIcon size={20} />
             </span>
             <p className="flex-1 type-content-s text-contents-light-bgd-default">
