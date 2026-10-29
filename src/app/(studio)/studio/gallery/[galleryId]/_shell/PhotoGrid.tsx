@@ -150,11 +150,11 @@ function layoutRows(photos: PhotoResponse[], width: number, rowHeight: number): 
 }
 
 function CheckMark({ selected, filled }: { selected: boolean; filled: boolean }) {
-  const on = selected ? (filled ? "bg-contents-light-bgd-default border-contents-light-bgd-default opacity-100" : "bg-black/60 opacity-100") : "bg-black/30 opacity-0 group-hover:opacity-100";
+  const on = selected ? (filled ? "bg-contents-light-bgd-default border-contents-light-bgd-default opacity-100" : "bg-surface-default-dark opacity-100") : "bg-surface-default-medium opacity-0 group-hover:opacity-100";
   return (
     <span
       aria-hidden
-      className={`grid size-5.5 place-items-center rounded-(--radius-4) border border-white/90 text-white transition-opacity duration-fast ${on}`}
+      className={`grid size-5.5 place-items-center rounded-(--radius-4) border border-contents-dark-bgd-default text-contents-dark-bgd-default transition-opacity duration-fast ${on}`}
     >
       {/* 고르기 전(마우스를 올렸을 때)의 체크는 흐리게 — 고른 사진의 체크와 헷갈리지 않게(2차 QA) */}
       <svg viewBox="0 0 16 16" className={`size-3.5 ${selected ? "" : "opacity-45"}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -226,7 +226,7 @@ function CheckButton({
         onToggle(e.shiftKey);
       }}
       onDoubleClick={(e) => e.stopPropagation()}
-      className="absolute top-0 left-0 grid size-11 cursor-pointer place-items-start p-2.5 focus-visible:outline-2 focus-visible:outline-white"
+      className="absolute top-0 left-0 grid size-11 cursor-pointer place-items-start p-2.5 focus-visible:outline-2 focus-visible:outline-contents-dark-bgd-default"
     >
       <CheckMark selected={selected} filled={filled} />
     </button>
@@ -560,10 +560,10 @@ export function PhotoGrid({
                 {onOpen && detailed && (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-black/60 to-transparent px-2.5 pt-6 pb-2 text-white opacity-0 transition-opacity duration-fast group-hover:opacity-100"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-surface-default-dark to-transparent px-2.5 pt-6 pb-2 text-contents-dark-bgd-default opacity-0 transition-opacity duration-fast group-hover:opacity-100"
                   >
                     <span className="truncate type-label-semibold-xs">{photo.originalFileName}</span>
-                    {caption && <span className="truncate type-content-xs text-white/75">{caption}</span>}
+                    {caption && <span className="truncate type-content-xs text-contents-dark-bgd-sub">{caption}</span>}
                   </span>
                 )}
                 {selectable && checkOnly ? (
@@ -590,14 +590,14 @@ export function PhotoGrid({
                     {scoreShown && (
                       <span
                         aria-hidden
-                        className="inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-black/50 pr-1.5 pl-1 type-label-semibold-xs text-white"
+                        className="inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-surface-default-dark pr-1.5 pl-1 type-label-semibold-xs text-contents-dark-bgd-default"
                       >
                         <StarFillIcon size={11} />
                         {photo.score}
                       </span>
                     )}
                     {aiPicked && (
-                      <span aria-label="AI 추천" className="grid size-5 place-items-center rounded-full bg-brand-secondary-default text-white">
+                      <span aria-label="AI 추천" className="grid size-5 place-items-center rounded-full bg-brand-secondary-default text-contents-dark-bgd-default">
                         <SparkleIcon size={12} />
                       </span>
                     )}

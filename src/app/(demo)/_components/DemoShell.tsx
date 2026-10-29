@@ -99,7 +99,7 @@ export function DemoShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={reset}
-            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) px-2.5 type-label-medium-xs text-contents-dark-bgd-default/85 transition-colors duration-fast hover:bg-white/15"
+            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) px-2.5 type-label-medium-xs text-contents-dark-bgd-default/85 transition-colors duration-fast hover:bg-surface-inverse-light"
           >
             <RefreshIcon size={14} />
             처음부터

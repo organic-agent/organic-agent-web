@@ -372,7 +372,7 @@ export function CoachMarks({
       {modal && <div aria-hidden className="fixed inset-0 z-90" onMouseDown={(e) => e.preventDefault()} />}
       <div
         aria-hidden
-        className={`pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)] ${onDark ? "outline-2 outline-white/90" : ""}`}
+        className={`pointer-events-none fixed z-90 shadow-[0_0_0_9999px_var(--surface-default-medium)] ${onDark ? "outline-2 outline-brand-on-fill" : ""}`}
         style={{ left: hole.left, top: hole.top, width: hole.width, height: hole.height, borderRadius: hole.radius }}
       />
       <div

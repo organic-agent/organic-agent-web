@@ -90,7 +90,7 @@ export function RetouchShot() {
 
   const pinHead = (n: number) => (
     <div className="flex items-center gap-2 type-label-semibold-s text-contents-light-bgd-default">
-      <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-white">{n}</span>
+      <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default">{n}</span>
       핀 {n}
       <span className="ml-auto grid size-6.5 place-items-center rounded-(--radius-4) text-contents-light-bgd-weakness">
         <TrashIcon size={16} />
@@ -157,7 +157,7 @@ export function RetouchShot() {
                         AI 제안
                       </span>
                       <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{REFINED}</p>
-                      <span ref={applyRef} className="inline-flex h-6.5 items-center gap-1 self-end rounded-(--pill) bg-brand-secondary-default px-2.5 type-label-semibold-xs text-white">
+                      <span ref={applyRef} className="inline-flex h-6.5 items-center gap-1 self-end rounded-(--pill) bg-brand-secondary-default px-2.5 type-label-semibold-xs text-contents-dark-bgd-default">
                         적용
                       </span>
                     </div>

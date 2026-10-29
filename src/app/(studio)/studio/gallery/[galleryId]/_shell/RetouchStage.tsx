@@ -250,13 +250,13 @@ export function RetouchStage({
     return (
       <>
         {hasMemo(it) && detailed && (
-          <span className="absolute top-2 left-2 inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-black/55 pr-1.5 pl-1 type-label-semibold-xs text-white">
+          <span className="absolute top-2 left-2 inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-surface-default-dark pr-1.5 pl-1 type-label-semibold-xs text-contents-dark-bgd-default">
             <EditNoteIcon size={11} />
             메모
           </span>
         )}
         {it.hasResult && (
-          <span className="absolute top-2 right-2 inline-flex h-4.5 items-center rounded-(--pill) bg-function-success-default px-1.5 type-label-semibold-xs text-white">
+          <span className="absolute top-2 right-2 inline-flex h-4.5 items-center rounded-(--pill) bg-function-success-default px-1.5 type-label-semibold-xs text-contents-dark-bgd-default">
             결과 ✓
           </span>
         )}
@@ -270,7 +270,7 @@ export function RetouchStage({
               pickResultFor(photo.photoId);
             }}
             onDoubleClick={(e) => e.stopPropagation()}
-            className="absolute bottom-2 left-2 grid size-6 cursor-pointer place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-black/65 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-white"
+            className="absolute bottom-2 left-2 grid size-6 cursor-pointer place-items-center rounded-full bg-surface-default-medium text-contents-dark-bgd-default opacity-0 transition-opacity duration-fast group-hover:opacity-100 hover:bg-surface-default-dark focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-contents-dark-bgd-default"
           >
             <UploadIcon size={15} />
           </button>
@@ -280,7 +280,7 @@ export function RetouchStage({
             <span
               key={i}
               aria-hidden
-              className="absolute grid size-4.5 -translate-1/2 place-items-center rounded-full border-2 border-white bg-brand-secondary-default type-label-semibold-xs text-white shadow-[0_1px_4px_rgba(0,0,0,.35)]"
+              className="absolute grid size-4.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_1px_4px_rgba(0,0,0,.35)]"
               style={{ left: `${pt.x * 100}%`, top: `${pt.y * 100}%` }}
             >
               {i + 1}
@@ -612,7 +612,7 @@ export function RetouchStage({
             currentItem ? (
               <span
                 className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${
-                  currentItem.hasResult ? "bg-function-success-default text-white" : "bg-white/15 text-white/85"
+                  currentItem.hasResult ? "bg-function-success-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default"
                 }`}
               >
                 {currentItem.hasResult ? <CheckCircleIcon size={14} /> : <HourglassIcon size={14} />}
@@ -631,7 +631,7 @@ export function RetouchStage({
                   <span
                     key={i}
                     title={pt.useRefinedText && pt.refinedText ? pt.refinedText : pt.text}
-                    className="absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-white bg-brand-secondary-default type-label-semibold-xs text-white shadow-[0_2px_6px_rgba(0,0,0,.35)]"
+                    className="absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_2px_6px_rgba(0,0,0,.35)]"
                     style={{ left: `${pt.x * 100}%`, top: `${pt.y * 100}%` }}
                   >
                     {i + 1}
@@ -708,7 +708,7 @@ function RequestPanel({ item, showAnnotation, onToggleAnnotation }: { item: Reto
             return (
               <li key={i} className="flex flex-col gap-1.5 rounded-(--radius-8) border border-border-default p-2.5">
                 <span className="flex items-center gap-2 type-label-semibold-s text-contents-light-bgd-default">
-                  <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-white">{i + 1}</span>
+                  <span className="grid size-4.5 place-items-center rounded-full bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default">{i + 1}</span>
                   포인트 {i + 1}
                 </span>
                 <p className="type-content-s leading-relaxed text-contents-light-bgd-default">{refined ? pt.refinedText : pt.text}</p>

@@ -245,7 +245,7 @@ export function NotificationBell({
         // 한 자리 숫자는 늘 같은 크기의 원(16px), 10개부터 "9+"만 옆으로 늘어난다. 16px 원에 넣으려고 타이포 토큰에 없는 10px을 쓴다
         <span
           aria-hidden
-          className={`pointer-events-none absolute -top-1 grid h-4 place-items-center rounded-(--pill) border-[1.5px] border-background-default-main bg-function-error-default text-[10px] leading-none font-semibold text-white tabular-nums ${
+          className={`pointer-events-none absolute -top-1 grid h-4 place-items-center rounded-(--pill) border-[1.5px] border-background-default-main bg-function-error-default text-[10px] leading-none font-semibold text-brand-on-fill tabular-nums ${
             unread > 9 ? "-right-2.5 px-0.75" : "-right-1.25 w-4"
           }`}
         >

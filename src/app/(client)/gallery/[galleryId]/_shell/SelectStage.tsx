@@ -240,7 +240,7 @@ export function SelectStage({
     ? (photo: PhotoResponse) => {
         const n = likesByPhoto.get(photo.photoId) ?? 0;
         return n > 0 ? (
-          <span className="absolute right-2 bottom-2 inline-flex h-6 items-center gap-1 rounded-(--pill) bg-black/60 px-2 type-label-semibold-xs text-white tabular-nums">
+          <span className="absolute right-2 bottom-2 inline-flex h-6 items-center gap-1 rounded-(--pill) bg-surface-default-dark px-2 type-label-semibold-xs text-contents-dark-bgd-default tabular-nums">
             <HeartFillIcon size={13} />
             {n}
           </span>
@@ -1010,7 +1010,7 @@ function SelectionControls({
               aria-label={`별점 ${n}`}
               disabled={!editable}
               onClick={() => onRate(score === n ? null : n)}
-              className={`grid size-7 place-items-center rounded-full transition-colors duration-fast ${editable ? "cursor-pointer hover:bg-white/15" : "cursor-default"} ${on ? "text-white" : "text-white/35"}`}
+              className={`grid size-7 place-items-center rounded-full transition-colors duration-fast ${editable ? "cursor-pointer hover:bg-surface-inverse-light" : "cursor-default"} ${on ? "text-contents-dark-bgd-default" : "text-contents-dark-bgd-weakness"}`}
             >
               {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
             </button>
@@ -1025,7 +1025,7 @@ function SelectionControls({
         disabled={!editable}
         onClick={onTogglePick}
         className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s transition-colors duration-fast ${
-          picked ? "bg-brand-secondary-default text-white" : "bg-white/15 text-white hover:bg-white/25"
+          picked ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default hover:bg-surface-inverse-medium"
         } ${editable ? "cursor-pointer" : "cursor-default"}`}
       >
         {picked && (
