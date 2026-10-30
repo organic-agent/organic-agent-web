@@ -597,7 +597,7 @@ export function ReviewStage({
         }
       />
 
-      {sharing.modals}
+      {sharing.modals()}
       <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !lightboxOpen && !confirmOpen && !downloadOpen} />
       {/* 개인 — 요청서 창(내보낸 직후 저절로 열림)이 닫힌 뒤, 올릴 보정본이 남아 있는 동안 */}
       <PersonalReviewCoachMarks

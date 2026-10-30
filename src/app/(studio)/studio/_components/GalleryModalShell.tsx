@@ -7,6 +7,7 @@
  * 생성/수정/삭제 모달의 공통 껍데기. 로그인 모달과 같은 문법
  * (오버레이 bg.overlay + 카드 radius-16 + 제목 heading.large)을 따르고,
  * 닫기 수단 3종(ESC · 우상단 X · 오버레이 클릭)도 LoginModal·ShareModal과 동일하게 지원한다.
+ * 카드가 화면보다 길어지면(공유폴더 모달의 컨셉 목록 등) 카드 안에서 스크롤한다 — 위아래 1rem 여백은 남긴다(이슈 149).
  */
 
 import { useEffect, type ReactNode } from "react";
@@ -58,7 +59,7 @@ export function GalleryModalShell({
         aria-hidden="true"
       />
       <div
-        className={`relative z-10 w-full ${maxWidthClassName} rounded-(--radius-16) bg-background-default-main shadow-(--shadow-modal) ${paddingClassName}`}
+        className={`scrollbar-slim relative z-10 max-h-[calc(100dvh-2rem)] w-full ${maxWidthClassName} overflow-y-auto rounded-(--radius-16) bg-background-default-main shadow-(--shadow-modal) ${paddingClassName}`}
       >
         <IconButton
           icon={<CloseIcon />}

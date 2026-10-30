@@ -7,7 +7,8 @@
  * 장수는 사이드바가 보여주고 여기서는 보는 방법만 다룬다. 촬영 순은 사진에 촬영 시각이 없어
  * 준비 중(백엔드 요청). 정렬 · 필터 항목은 기본(업로드 · 이름 · 별점 / 미분류)이고, 화면이 다른 항목을
  * 쓰면(보정 작업: 결과 없는 것 먼저 · 메모 있는 것만) customSort · customFilter로 같은 버튼 · 메뉴에 바꿔 끼운다.
- * 항목 label은 글자나 아이콘(클라이언트 셀렉의 별점 필터는 별 다섯 개)이고, 아이콘이면 text로 읽어 주는 이름을 준다(이슈 130).
+ * 클라이언트 셀렉은 정렬 메뉴 대신 자기 필터 버튼을 trailing으로 끼운다(sortable=false, 이슈 149).
+ * 항목 label은 글자나 아이콘이고, 아이콘이면 text로 읽어 주는 이름을 준다(이슈 130).
  * 보기 전환(그리드 · 한 장 보기) 버튼은 두지 않는다 — 디자이너 시안의 헤더에 없고, 크게 보기는 썸네일을 눌러 여는
  * 팝업이라 전환할 상태가 없다(늘 선택된 그리드 버튼 · 화면마다 다르게 돌던 한 장 보기 버튼을 뺌, QA 2026-09-29 · 이슈 84).
  * 좁은 폭(QA 이슈 84): 제목은 줄바꿈하지 않는다. 상위 폴더 이름(titleParent)은 1024 미만이면 늘, 그 이상이면 자리가
@@ -27,7 +28,7 @@ import type { PhotoResponse } from "@/lib/api/photos";
 
 export type SortKey = "uploaded" | "name" | "score";
 export type FilterKey = "none" | "unsorted";
-/** 메뉴 한 줄 — label은 글자나 아이콘(클라이언트 셀렉의 별점 필터는 별 다섯 개)이고, 아이콘이면 읽어 주는 이름 text를 함께 준다 */
+/** 메뉴 한 줄 — label은 글자나 아이콘이고, 아이콘이면 읽어 주는 이름 text를 함께 준다 */
 export type MenuOption = { key: string; label: ReactNode; text?: string; trailing?: string };
 export type CustomMenu = { value: string; options: MenuOption[]; onChange: (key: string) => void };
 
@@ -64,6 +65,7 @@ export function ShellMainHeader({
   leading,
   customSort,
   customFilter,
+  trailing,
 }: {
   title: ReactNode;
   /** 제목 앞에 흐리게 붙는 상위 폴더 이름("컨셉 › 세부 폴더"의 컨셉) — 좁으면 › 와 함께 통째로 사라진다 */
@@ -79,7 +81,7 @@ export function ShellMainHeader({
   sortable?: boolean;
   /** false면 정렬 메뉴에서 별점 순을 뺀다 — 아직 별점을 매길 수 없는 단계(작가 사진 업로드 · 컨셉 분류) */
   scoreSort?: boolean;
-  /** false면 정렬 메뉴에서 필터(미분류만)를 뺀다 — 클라이언트 셀렉 */
+  /** false면 정렬 메뉴에서 필터(미분류만)를 뺀다 — 랜딩의 셀렉 모형 */
   showFilters?: boolean;
   /** 줌 앞에 놓는 버튼(클라이언트 "AI 추천") */
   leading?: ReactNode;
@@ -87,6 +89,8 @@ export function ShellMainHeader({
   customSort?: CustomMenu;
   /** 기본 필터 항목 대신 쓸 것 — value "none"이면 필터 없음 */
   customFilter?: CustomMenu;
+  /** 오른쪽 끝(정렬 버튼 자리 뒤)에 놓는 것 — 클라이언트 셀렉의 필터 버튼(이슈 149) */
+  trailing?: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -260,6 +264,7 @@ export function ShellMainHeader({
             </div>
           )}
         </div>}
+        {trailing}
       </div>
     </div>
   );

@@ -7,6 +7,7 @@
  * 상단 초대 버튼(page)이 inviteOpen으로 열고, 사이드바 카드를 누르면 그 공유폴더의 반응 보기(reactionsView)가 메인을 대신한다.
  * 초대 모달에서 "새 공유폴더"를 누르면 초대 모달을 닫고 만들기 모달을 연 뒤, 만들면 초대 모달이 방금 만든 링크 카드로
  * 다시 열린다(팀 노션 73번) — 링크를 바로 복사할 수 있게.
+ * modals는 함수 — 셀렉 화면이 그릴 때 "지금 보는 사진"(폴더 + 필터 결과, 이슈 149)을 넘기면 만들기 모달에 그 범위가 생긴다.
  */
 
 import { blockInDemo } from "@/lib/demo/demoMode";
@@ -14,7 +15,7 @@ import { useState, type ReactNode } from "react";
 import type { CollabSessionResponse } from "@/lib/api/collab";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { PhotoResponse } from "@/lib/api/photos";
-import { CreateShareFolderModal } from "./CreateShareFolderModal";
+import { CreateShareFolderModal, type VisibleScope } from "./CreateShareFolderModal";
 import { InviteGuestsBody, InviteGuestsModal, type InviteTab } from "./InviteGuestsModal";
 import { PersonalInviteModal } from "./PersonalInviteModal";
 import { ReactionsView } from "./ReactionsView";
@@ -42,7 +43,8 @@ export function useGuestSharing({
   personal?: { galleryTitle: string };
 }): {
   shareTab: ReactNode;
-  modals: ReactNode;
+  /** 초대 · 만들기 모달 — visible은 만들기 모달의 "지금 보는 사진" 범위(없으면 그 줄을 안 그린다) */
+  modals: (extra?: { visible?: VisibleScope | null }) => ReactNode;
   /** 사이드바 카드로 연 공유폴더의 반응 보기 — 있으면 메인 대신 그린다 */
   reactionsView: ReactNode | null;
   reactionsOpen: boolean;
@@ -82,7 +84,7 @@ export function useGuestSharing({
     <ReactionsView key={openSession.sessionId} galleryId={galleryId} session={openSession} photos={reactions.bySession.get(openSession.sessionId) ?? (reactions.loading ? null : [])} />
   ) : null;
 
-  const modals = (
+  const modals = (extra?: { visible?: VisibleScope | null }) => (
     <>
       {open && !create && (personal ? (
         <PersonalInviteModal
@@ -123,6 +125,7 @@ export function useGuestSharing({
           photos={photos}
           folders={folders}
           pickedIds={pickedIds}
+          visible={extra?.visible ?? null}
           onClose={() => {
             const back = create.returnToInvite;
             setCreate(null);
