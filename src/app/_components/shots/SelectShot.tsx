@@ -1,20 +1,21 @@
 "use client";
 
 /**
- * 랜딩 흐름 03 사진 셀렉 — 크게 보기에서 별점을 매기며 넘기다 마지막 장에서 "마지막 사진이에요" → 별점 순 그리드
+ * 랜딩 흐름 03 사진 셀렉 — 크게 보기에서 별점을 매기며 넘기다 마지막 장에서 "마지막 사진이에요" → 점수 묶음 그리드
  * 위치: src/app/_components/shots/SelectShot.tsx
  *
- * 뒤 화면은 실제 셀렉 화면 그대로(사이드바 접힘) — ShellMainHeader(AI 추천 버튼 · 별점 순) · 별점 묶음 머리글 + PhotoGrid(체크 ·
+ * 뒤 화면은 실제 셀렉 화면 그대로(사이드바 접힘) — ShellMainHeader(AI 추천 버튼 · 필터 버튼, 둘 다 눌리지 않는 모양만 · 이슈 149) · 별점 묶음 머리글 + PhotoGrid(체크 ·
  * 별점 배지) · ShellBottomBar(선택한 사진 5 / 50 + 썸네일 · 폴더 다시 정리 · 선택 마치기). 크게 보기는 공용 ShotLightbox.
  * 타임라인(ShotFrame.onVisible이 켬): 497 / 500 사진부터 네 장 — 장마다 별점이 한 번에 매겨지고(4를 누르면 별 네 칸이 같이 참,
- * 2026-10-26 수민 — 한 칸씩 차는 건 실제와 다름. 별점 4 · 5 · 3 · 5), 마지막 장(500)에서만 "선택"이 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 별점 순 그리드. 움직임 줄이기면 그리드부터.
+ * 2026-10-26 수민 — 한 칸씩 차는 건 실제와 다름. 별점 4 · 5 · 3 · 5), 마지막 장(500)에서만 "선택"이 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 점수 묶음 그리드. 움직임 줄이기면 그리드부터.
  */
 
 import { useState } from "react";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
-import { DownloadIcon, FolderIcon, PhotoIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { DownloadIcon, FilterIcon, FolderIcon, PhotoIcon, SparkleIcon } from "@/components/icons";
+import { ScoreStars } from "@/app/(client)/gallery/[galleryId]/_shell/SelectFilter";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { landingPhotos } from "./samplePhotos";
 import { ShotFrame } from "./ShotFrame";
@@ -56,14 +57,6 @@ const PICKED = new Set(PHOTOS.filter((p) => p.score === 5).slice(0, 5).map((p) =
 const PICKED_LAST3 = PHOTOS.filter((p) => PICKED.has(p.photoId)).slice(-3);
 const noop = () => {};
 
-function ScoreStars({ score, size = 14 }: { score: number; size?: number }) {
-  return (
-    <span className="flex text-brand-secondary-default" aria-label={`별점 ${score}`}>
-      {[1, 2, 3, 4, 5].map((n) => (n <= score ? <StarFillIcon key={n} size={size} /> : <StarIcon key={n} size={size} className="text-border-default" />))}
-    </span>
-  );
-}
-
 export function SelectShot() {
   const [phase, setPhase] = useState<"lightbox" | "grid">("lightbox");
   const [cur, setCur] = useState(0);
@@ -89,18 +82,26 @@ export function SelectShot() {
   const shot = LB[cur];
 
   return (
-    <ShotFrame label="사진 셀렉 화면 — 크게 보기에서 별점을 매기며 넘기고, 마지막 장 뒤 별점 순으로 정렬된 그리드를 본다" onVisible={start}>
+    <ShotFrame label="사진 셀렉 화면 — 크게 보기에서 별점을 매기며 넘기고, 마지막 장 뒤 점수 묶음으로 정리된 그리드를 본다" onVisible={start}>
       <ShotTopbar stageIndex={2} />
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col">
           <ShellMainHeader
             zoom={40}
             onZoomChange={noop}
-            sort="score"
+            sort="uploaded"
             onSortChange={noop}
             filter="none"
             onFilterChange={noop}
-            showFilters={false}
+            sortable={false}
+            trailing={
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-(--radius-8) bg-surface-default-light px-3 whitespace-nowrap type-content-s text-contents-light-bgd-default">
+                <span className="flex text-contents-light-bgd-sub">
+                  <FilterIcon size={18} />
+                </span>
+                필터
+              </span>
+            }
             leading={
               <span className="inline-flex h-9 items-center gap-1.5 rounded-(--radius-8) border border-border-default px-3 whitespace-nowrap type-content-s text-contents-light-bgd-default">
                 <span className="text-brand-accent-default">
