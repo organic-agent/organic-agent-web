@@ -21,7 +21,7 @@
  * 사이드바 폴더 트리는 읽기 전용 탐색 — 이름을 누르면 모든 사진에서 그 폴더만, 체크하면 겹쳐 본다(셀렉 단계와 같은 문법).
  */
 
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
 import { ArchiveIcon, BrushIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, LockIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
@@ -90,6 +90,9 @@ export function ReviewStage({
   owner = false,
   autoOpenDownload = false,
   onAutoOpenDownloadHandled,
+  stageRequest = null,
+  onStageRequestHandled,
+  onCapabilities,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -109,6 +112,11 @@ export function ReviewStage({
   /** 요청서를 막 내보낸 뒤 — 회차가 읽히면 내려받기 모달을 바로 연다 */
   autoOpenDownload?: boolean;
   onAutoOpenDownloadHandled?: () => void;
+  /** 상단 단계 칩(이슈 147)이 창을 열어 달라는 요청 — 셀렉 칩은 "선택 다시 하기"(보정본 0장일 때), 완료 칩은 "갤러리 마무리"(소유자) */
+  stageRequest?: { kind: "cancelExport" | "close"; nonce: number } | null;
+  onStageRequestHandled?: () => void;
+  /** 페이지가 칩 상태를 정하는 데 쓰는 것 — 선택 다시 하기가 되는지 · 보관됐는지 */
+  onCapabilities?: (caps: { canCancelExport: boolean; archived: boolean }) => void;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [detailNonce, setDetailNonce] = useState(0);
@@ -182,6 +190,12 @@ export function ReviewStage({
   /** 개인 — 1차 요청서를 내보냈고 보정본이 아직 0장이면 셀렉 단계로 되돌릴 수 있다(서버 SELECTION_409_8과 같은 조건) */
   const canCancelExport =
     personal && !archived && rounds.length === 1 && latest?.status === "REQUESTED" && resultCount === 0 && !upload.state.running;
+  useEffect(() => {
+    onCapabilities?.({ canCancelExport, archived });
+  }, [onCapabilities, canCancelExport, archived]);
+  /** 상단 단계 칩의 요청이 살아 있는 동안 그 창을 연다 — 닫으면 요청을 끝낸다(이슈 147) */
+  const cancelExportRequested = stageRequest?.kind === "cancelExport" && canCancelExport;
+  const closeRequested = stageRequest?.kind === "close" && personal && owner && !archived;
   const nextRoundNo = (latest?.roundNo ?? 0) + 1;
 
   // ── 다시 요청(이슈 125): 보정 요청 탭에 글이나 점을 적은 사진이 곧 다음 회차에 들어가는 사진 — 담기 상태가 따로 없다 ──
@@ -673,17 +687,21 @@ export function ReviewStage({
       {personal && uploadOpen && activeRoundNo !== null && (
         <ResultUploadModal galleryId={galleryId} roundNo={activeRoundNo} items={items} presetPhotoId={uploadOpen.presetPhotoId} onClose={() => setUploadOpen(null)} onStart={startUpload} />
       )}
-      {canCancelExport && cancelExportOpen && (
+      {canCancelExport && (cancelExportOpen || cancelExportRequested) && (
         <CancelExportModal
           galleryId={galleryId}
-          onClose={() => setCancelExportOpen(false)}
+          onClose={() => {
+            setCancelExportOpen(false);
+            onStageRequestHandled?.();
+          }}
           onCanceled={() => {
             setCancelExportOpen(false);
+            onStageRequestHandled?.();
             reloadGallery();
           }}
         />
       )}
-      {personal && closeOpen && (
+      {personal && (closeOpen || closeRequested) && (
         <CloseGalleryModal
           galleryId={galleryId}
           desc={
@@ -691,9 +709,13 @@ export function ReviewStage({
               보정본 <b className="text-contents-light-bgd-default">{resultCount} / {items.length}장</b> · 마무리하면 보관되고 열람 · 내려받기만 할 수 있어요
             </>
           }
-          onClose={() => setCloseOpen(false)}
+          onClose={() => {
+            setCloseOpen(false);
+            onStageRequestHandled?.();
+          }}
           onDone={() => {
             setCloseOpen(false);
+            onStageRequestHandled?.();
             reloadOverview();
             reloadGallery();
           }}

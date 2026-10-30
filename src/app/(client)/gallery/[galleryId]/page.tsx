@@ -12,11 +12,11 @@
  * 사진 옮기기 · 폴더 추가 · 삭제 · 폴더 확정) → 셀렉 & 보정 요청(WES-312) → 보정 검토(WES-313)
  * → (앨범 구성) → 완료.
  *
- * 개인 갤러리는 셀렉 중에도 "폴더 다시 정리"(organizing)로 컨셉 분류 화면을 다시 연다(#114) — 폴더 메뉴와 사진 이동 · 더 올리기 ·
+ * 개인 갤러리는 셀렉 중에도 상단 단계 칩(organizing, 이슈 147 — 예전 "폴더 다시 정리" 버튼 #114)으로 컨셉 분류 화면을 다시 연다 — 폴더 메뉴와 사진 이동 · 더 올리기 ·
  * 삭제가 컨셉 분류 단계와 같고, 단계 칩도 "컨셉 분류"로 간다. 고른 사진은 그대로다. "정리 끝내기"로 셀렉 화면에 돌아간다.
  */
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
 import { PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
@@ -35,10 +35,12 @@ import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/Phot
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
-import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
+import { ShellTopbar, type StageChipState } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
 import { useFolderMerge } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/useFolderMerge";
 import { usePhotoMove } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/usePhotoMove";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
+import { Snackbar } from "@/components/app/Snackbar";
+import { track } from "@/lib/analytics";
 import { ApiError } from "@/lib/api/client";
 import {
   createConceptFolder,
@@ -54,7 +56,7 @@ import {
 } from "@/lib/api/conceptFolders";
 import { listGalleryMembers } from "@/lib/api/galleries";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
-import { blockInDemo, isDemoActive } from "@/lib/demo/demoMode";
+import { blockInDemo } from "@/lib/demo/demoMode";
 import { deletePhotos, listAllPhotosWithExpiry, type PhotoResponse } from "@/lib/api/photos";
 import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
@@ -64,6 +66,7 @@ import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
+import { FinishOrganizingModal } from "./_shell/FinishOrganizingModal";
 import { PersonalCoachMarks } from "./_shell/PersonalCoachMarks";
 import { PersonalInviteModal } from "./_shell/PersonalInviteModal";
 import { PersonalEmptyGuide } from "./_shell/PersonalEmptyGuide";
@@ -74,6 +77,9 @@ import { WaitCard } from "./_shell/WaitCard";
 import { usePersonalUpload } from "./_shell/usePersonalUpload";
 import { usePhotoUrlRefresh } from "./_shell/usePhotoUrlRefresh";
 import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf, personalPhaseOf } from "./_shell/clientStages";
+
+/** 상단 단계 칩이 셀렉 · 보정 확인 화면 안의 창을 열어 달라는 요청(이슈 147) — nonce가 바뀔 때마다 한 번 */
+type StageRequest = { kind: "export"; nonce: number } | { kind: "cancelExport" | "close"; nonce: number };
 
 export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
@@ -157,6 +163,26 @@ export default function ClientGalleryPage() {
   const [organizingPicked, setOrganizingPicked] = useState(0);
   /** 개인 — 요청서를 막 내보냈으면 보정 확인 화면이 열리며 내려받기 모달을 바로 연다 */
   const [autoDownload, setAutoDownload] = useState(false);
+  // ── 상단 단계 칩으로 이동(개인 갤러리, 이슈 147) ──
+  /** 잠긴 칸을 눌렀을 때의 스낵바 — 2.4초 뒤 사라진다 */
+  const [stageNotice, setStageNotice] = useState<string | null>(null);
+  /** 보정이 시작된 뒤 · 마무리 뒤에 지난 단계를 읽기 전용으로 보는 중 — null이면 지금 단계 화면 */
+  const [viewing, setViewing] = useState<"sort" | "select" | null>(null);
+  /** 정리 중 → 셀렉 "이대로 폴더를 확정할까요?" */
+  const [finishOrganizeOpen, setFinishOrganizeOpen] = useState(false);
+  /** 셀렉에서 업로드 칩 — 정리 모드로 들어간 뒤(업로드 훅이 살아난 뒤) 올리기 모달을 연다 */
+  const uploadAfterOrganizeRef = useRef(false);
+  const [stageRequest, setStageRequest] = useState<StageRequest | null>(null);
+  function onStageRequestHandled() {
+    setStageRequest(null);
+  }
+  /** 보정 확인 화면이 알려 주는 것 — 선택 다시 하기가 되는지(보정본 0장) · 보관됐는지 */
+  const [reviewCaps, setReviewCaps] = useState({ canCancelExport: false, archived: false });
+  useEffect(() => {
+    if (!stageNotice) return;
+    const timer = window.setTimeout(() => setStageNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [stageNotice]);
 
   // ── 사진 · 폴더 (열린 뒤에만 — DRAFT는 서버가 클라이언트에게 주지 않는다) ──
   const opened = gallery !== null && phase !== "wait";
@@ -255,6 +281,12 @@ export default function ClientGalleryPage() {
     refreshPhotos,
     planMaxPhotoCount: gallery?.planMaxPhotoCount ?? null,
   });
+  const openUploadModal = upload.openUpload;
+  useEffect(() => {
+    if (!organizing || !uploadAfterOrganizeRef.current) return;
+    uploadAfterOrganizeRef.current = false;
+    openUploadModal();
+  }, [organizing, openUploadModal]);
 
   const visiblePhotos = useMemo(() => {
     // 올리는 동안은 PENDING도 회색 자리로 보여 준다(작가 1단계와 같음 — 끝난 뒤 남은 PENDING은 복구 배너의 몫)
@@ -279,6 +311,9 @@ export default function ClientGalleryPage() {
       ? folders?.find((c) => c.id === folderSel.conceptId) ?? null
       : null;
 
+  /** 보정이 시작된 뒤 · 마무리 뒤에 컨셉 분류 · 셀렉을 읽기 전용으로 보는 중 */
+  const viewingSort = reviewing && viewing === "sort";
+  const viewingSelect = reviewing && viewing === "select";
   const sorting = phase === "sort" || organizing;
   const editable = sorting && !contentBlocked;
 
@@ -406,6 +441,7 @@ export default function ClientGalleryPage() {
   // ── 상태줄 · 하단 문구 ──
   const status: StatusLine = (() => {
     if (!gallery) return { text: "불러오는 중…", tone: "muted" };
+    if (viewing) return { text: phase === "done" ? "마무리 · 보기만" : "보정 확인 중 · 보기만", tone: "muted" };
     if (phase === "wait") return { text: "작가가 사진을 준비하고 있어요", tone: "muted" };
     // 개인의 업로드 · AI 구간은 작가 1단계 상태줄과 같은 문구 · 숫자
     if (isPersonal && upload.uploading) return { text: `올리는 중 ${upload.runCounts.done} / ${upload.runCounts.total}`, tone: "accent" };
@@ -425,17 +461,18 @@ export default function ClientGalleryPage() {
   })();
   const bottomHint = (() => {
     if (notice) return notice;
+    if (viewingSort) return phase === "done" ? "마무리된 갤러리 · 보기만 할 수 있어요" : "보정 확인 중 · 보기만 할 수 있어요";
     if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
     if (organizing) return null;
     if (phase === "sort") {
       if (contentBlocked) return isPersonal ? "사진을 불러오지 못했어요 · 잠시 뒤 화면을 새로 고쳐 주세요" : "사진을 아직 볼 수 없어요 · 작가가 준비를 마치면 열려요";
       if (isPersonal && (!folders || folders.length === 0)) return "폴더가 아직 없어요 · 컨셉 폴더를 추가하거나 그대로 확정할 수 있어요";
-      return "폴더를 확인하고 확정하면 사진을 고를 수 있어요 · 확정은 한 번만 할 수 있어요";
+      return "폴더를 확인하고 확정하면 사진을 고를 수 있어요";
     }
     return "불러오는 중…";
   })();
-  const bottomActions = isPersonal ? (
+  const bottomActions = viewingSort ? null : isPersonal ? (
     upload.uploading ? (
       upload.actions
     ) : (
@@ -449,32 +486,12 @@ export default function ClientGalleryPage() {
             </ShellCta>
           </span>
         ) : organizing ? (
-          <>
-            {!isDemoActive() && (
-              <ShellCta kind="ghost" onClick={upload.openUpload}>
-                <UploadIcon size={18} />
-                사진 더 올리기
-              </ShellCta>
-            )}
-            <ShellCta
-              disabled={upload.aiActive}
-              onClick={() => {
-                setOrganizingRequested(false);
-                setSelected(new Set());
-                setFolderSel({ kind: "all" });
-              }}
-            >
-              정리 끝내기
-            </ShellCta>
-          </>
+          // 더 올리기 · 돌아가기는 상단 단계 칩이 맡는다(이슈 147) — 끝내기는 확인 창을 거친다
+          <ShellCta disabled={upload.aiActive} onClick={() => setFinishOrganizeOpen(true)}>
+            정리 끝내기
+          </ShellCta>
         ) : phase === "sort" ? (
           <>
-            {!isDemoActive() && (
-              <ShellCta kind="ghost" onClick={upload.openUpload}>
-                <UploadIcon size={18} />
-                사진 더 올리기
-              </ShellCta>
-            )}
             <span data-coach="confirm" className="inline-flex">
               <ShellCta disabled={folders === null || upload.aiActive} onClick={() => setConfirmOpen(true)}>
                 폴더 확정
@@ -510,6 +527,96 @@ export default function ClientGalleryPage() {
         </div>
       </div>
     );
+  }
+
+  // ── 상단 단계 칩(개인 갤러리, 이슈 147) — 지금 칸 말고는 can(갈 수 있음) · locked(흐림, 누르면 스낵바). 읽기 전용으로 보는 중에도 지금 칸은 실제 단계 ──
+  const stageIndex = phase && phase !== "wait" ? clientStageIndexOf(organizing ? "sort" : phase, gallery, isPersonal) : null;
+  /** 올리기 · AI 분류가 도는 동안은 전부 잠근다 */
+  const stageBusy = isPersonal && (upload.uploading || upload.aiActive);
+  const stageStates: StageChipState[] | undefined = (() => {
+    if (!isPersonal || stageIndex === null) return undefined;
+    const ok: StageChipState = "can";
+    const lk: StageChipState = "locked";
+    if (stageBusy) return [lk, lk, lk, lk, lk];
+    if (phase === "upload") return [ok, lk, lk, lk, lk];
+    if (phase === "sort") return [ok, ok, lk, lk, lk];
+    if (organizing) return [ok, ok, ok, lk, lk];
+    if (phase === "select") return [ok, ok, ok, ok, lk];
+    if (phase === "done") return [lk, ok, ok, ok, ok];
+    return [lk, ok, ok, ok, personalOwner ? ok : lk]; // 보정 확인
+  })();
+  /** 셀렉 → 컨셉 분류: 정리 모드. 사이드바의 고른 장수는 서버에서 읽는다(셀렉 화면이 알던 값을 칩은 모른다) */
+  async function enterOrganizing() {
+    setOrganizingRequested(true);
+    try {
+      setOrganizingPicked((await getPhotoSelection(galleryId)).selectedCount);
+    } catch {
+      // 못 읽으면 0으로 두고 셀렉으로 돌아갈 때 맞춰진다
+    }
+  }
+  function requestStage(kind: StageRequest["kind"]) {
+    setViewing(null);
+    setStageRequest({ kind, nonce: Date.now() });
+  }
+  function onStageSelect(to: number) {
+    if (stageIndex === null || !phase) return;
+    let result: "moved" | "modal" | "view" | "locked" = "moved";
+    const lock = (text: string) => {
+      setStageNotice(text);
+      result = "locked";
+    };
+    if (stageBusy) lock("올리기가 끝나면 움직일 수 있어요");
+    else if (phase === "upload") {
+      if (to === 0) return;
+      lock("사진을 올리면 열려요");
+    } else if (to === 0) {
+      // 업로드 칩 = 사진 더 올리기(지워지는 것 없음). 셀렉에서는 새 사진을 폴더에 넣을 수 있게 정리 모드로 들어가며 연다
+      if (phase === "sort" || organizing) {
+        upload.openUpload();
+        result = "modal";
+      } else if (phase === "select") {
+        uploadAfterOrganizeRef.current = true;
+        void enterOrganizing();
+        result = "modal";
+      } else lock(phase === "done" ? "마무리한 갤러리에는 사진을 더 올릴 수 없어요" : "보정이 시작된 뒤에는 사진을 더 올릴 수 없어요");
+    } else if (to === 1) {
+      if (phase === "sort" || organizing) return;
+      if (phase === "select") void enterOrganizing();
+      else {
+        setViewing("sort");
+        result = "view";
+      }
+    } else if (to === 2) {
+      if (phase === "sort") lock("폴더를 확정하면 열려요");
+      else if (organizing) {
+        setFinishOrganizeOpen(true);
+        result = "modal";
+      } else if (phase === "select") return;
+      else if (reviewCaps.canCancelExport) {
+        requestStage("cancelExport");
+        result = "modal";
+      } else {
+        setViewing("select");
+        result = "view";
+      }
+    } else if (to === 3) {
+      if (phase === "sort") lock("폴더를 확정하고 선택을 마치면 넘어가요");
+      else if (organizing) lock("셀렉에서 선택을 마치면 넘어가요");
+      else if (phase === "select") {
+        requestStage("export");
+        result = "modal";
+      } else if (viewing === null) return;
+      else setViewing(null);
+    } else if (phase === "done") {
+      if (viewing === null) return;
+      setViewing(null);
+    } else if (reviewing) {
+      if (personalOwner) {
+        requestStage("close");
+        result = "modal";
+      } else lock("소유자만 마무리할 수 있어요");
+    } else lock("보정 확인에서 마무리하면 넘어가요");
+    track("stage_chip_pressed", { gallery_id: galleryId, from: stageIndex, to, result });
   }
 
   const headerCommon = {
@@ -553,13 +660,15 @@ export default function ClientGalleryPage() {
       </>
     );
 
-  const showFolderColumn = sorting && !contentBlocked && view === "all";
+  const showFolderColumn = (sorting || viewingSort) && !contentBlocked && view === "all";
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
         stages={clientStagesOf(gallery, isPersonal)}
-        stageIndex={phase && phase !== "wait" ? clientStageIndexOf(organizing ? "sort" : phase, gallery, isPersonal) : null}
+        stageIndex={stageIndex}
+        stageStates={stageStates}
+        onStageSelect={stageStates ? onStageSelect : undefined}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
         noDeadlineText={isPersonal ? "목표일 없음" : undefined}
@@ -570,7 +679,7 @@ export default function ClientGalleryPage() {
         notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
       />
 
-      {reviewing && gallery && phase ? (
+      {reviewing && viewing === null && gallery && phase ? (
         <ReviewStage
           galleryId={galleryId}
           gallery={gallery}
@@ -585,8 +694,11 @@ export default function ClientGalleryPage() {
           owner={personal?.owner ?? false}
           autoOpenDownload={autoDownload}
           onAutoOpenDownloadHandled={() => setAutoDownload(false)}
+          stageRequest={stageRequest && stageRequest.kind !== "export" ? stageRequest : null}
+          onStageRequestHandled={onStageRequestHandled}
+          onCapabilities={setReviewCaps}
         />
-      ) : selecting && !organizing && gallery && phase ? (
+      ) : !viewingSort && selecting && !organizing && gallery && phase ? (
         <SelectStage
           galleryId={galleryId}
           gallery={gallery}
@@ -603,14 +715,9 @@ export default function ClientGalleryPage() {
           onExported={() => setAutoDownload(true)}
           onPhotoUrlError={refreshPhotoUrls}
           onScoreSaved={patchPhotoScore}
-          onOrganize={
-            isPersonal
-              ? (picked) => {
-                  setOrganizingPicked(picked);
-                  setOrganizingRequested(true);
-                }
-              : undefined
-          }
+          readOnly={viewingSelect ? (phase === "done" ? "done" : "review") : null}
+          stageRequest={stageRequest && stageRequest.kind === "export" ? stageRequest : null}
+          onStageRequestHandled={onStageRequestHandled}
         />
       ) : (
         <>
@@ -625,7 +732,7 @@ export default function ClientGalleryPage() {
               retouchLockNote={isPersonal ? "선택 마친 뒤" : undefined}
               photoCount={opened && photos !== null ? allPhotos.length : null}
               selectedCount={organizing ? organizingPicked : 0}
-              selectionClickable={!organizing}
+              selectionClickable={!organizing && !viewingSort}
               maxSelectable={gallery?.maxSelectablePhotoCount ?? null}
               view={view}
               onViewChange={(next) => {
@@ -644,15 +751,16 @@ export default function ClientGalleryPage() {
                 unsortedCount={unsortedCount}
                 selection={folderSel}
                 onSelect={changeFolder}
-                onCreateConcept={() => setFolderModal({ kind: "createConcept" })}
-                onCreateDetail={(concept) => setFolderModal({ kind: "createDetail", concept })}
-                onDeleteConcept={(concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } })}
-                onDeleteDetail={(concept, detail) =>
-                  setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } })
+                // 읽기 전용으로 보는 중(보정이 시작된 뒤)에는 폴더를 만들거나 바꾸지 못한다 — 메뉴를 아예 주지 않는다
+                onCreateConcept={editable ? () => setFolderModal({ kind: "createConcept" }) : undefined}
+                onCreateDetail={editable ? (concept) => setFolderModal({ kind: "createDetail", concept }) : undefined}
+                onDeleteConcept={editable ? (concept) => setFolderModal({ kind: "delete", target: { kind: "concept", concept } }) : undefined}
+                onDeleteDetail={
+                  editable ? (concept, detail) => setFolderModal({ kind: "delete", target: { kind: "detail", concept, detail } }) : undefined
                 }
                 // 이름 바꾸기는 사진 옮기기와 같은 권한 — 초대받은 부부도 컨셉 분류 중에는 바꿀 수 있다(서버 requireFolderEditor)
-                onRenameConcept={(concept) => setFolderModal({ kind: "renameConcept", concept })}
-                onRenameDetail={(concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail })}
+                onRenameConcept={editable ? (concept) => setFolderModal({ kind: "renameConcept", concept }) : undefined}
+                onRenameDetail={editable ? (concept, detail) => setFolderModal({ kind: "renameDetail", concept, detail }) : undefined}
                 // 사진을 옮길 수 있는 때만 폴더도 합친다
                 onMergeDetail={photoMove.drag ? folderMerge.request : undefined}
                 onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
@@ -700,7 +808,7 @@ export default function ClientGalleryPage() {
             ) : (
               <>
                 {/* 컨셉 분류 단계에는 아직 별점이 없어 정렬 메뉴에서 별점 순을 뺀다 — 셀렉 중 정리는 별점이 있어 둔다 */}
-                <ShellMainHeader {...headerCommon} scoreSort={organizing} title={allTitle} titleParent={allTitleParent} />
+                <ShellMainHeader {...headerCommon} scoreSort={organizing || viewingSort} title={allTitle} titleParent={allTitleParent} />
                 {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
@@ -784,6 +892,17 @@ export default function ClientGalleryPage() {
             }}
           />
         )}
+        {finishOrganizeOpen && (
+          <FinishOrganizingModal
+            onClose={() => setFinishOrganizeOpen(false)}
+            onConfirm={() => {
+              setFinishOrganizeOpen(false);
+              setOrganizingRequested(false);
+              setSelected(new Set());
+              setFolderSel({ kind: "all" });
+            }}
+          />
+        )}
         </>
       )}
       {/* 폴더가 생긴 뒤에 — 개인 갤러리는 첫 사진이 올라온 순간 이 단계가 되지만 AI가 폴더를 만들기 전에는 가리킬 것이 없다 */}
@@ -795,6 +914,11 @@ export default function ClientGalleryPage() {
       <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
       {photoMove.overlay}
       {folderMerge.overlay}
+      {stageNotice && (
+        <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {stageNotice}
+        </Snackbar>
+      )}
     </div>
   );
 }

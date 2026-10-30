@@ -7,7 +7,9 @@
  * 좌: 사이드바 토글(≡) · 로고(랜딩) | 스튜디오명(홈) / 중앙: [D-day 칩][단계 세그먼트] /
  * 우: 클라이언트 초대(소유자만) · 알림 · 프로필.
  * 세그먼트(디자이너 mainflow의 알약 세그먼트): 회색 트랙 안에 현재 칸만 흰 알약 · 굵게, 지난 칸은 회색,
- * 앞 칸은 더 흐리게. 누르는 것이 아니다(지난 단계 보기 없음).
+ * 앞 칸은 더 흐리게. 작가 셸에서는 표시만 한다. 개인 갤러리(클라이언트 셸)는 stageStates · onStageSelect를 주면 칸을 눌러
+ * 단계를 오간다(이슈 147) — 갈 수 있는 칸은 hover에만 배경(다크는 보라 틴트), 잠긴 칸은 흐리고 누르면 쓰는 쪽이 스낵바를 띄운다.
+ * 640 미만은 로고 옆 단계 이름(▾)을, 640~1023은 "···"를 눌러 같은 5칸 메뉴를 연다.
  * 폭에 따른 모양(디자이너 시안 "GNB 반응형" · QA 이슈 84): 1024 이상은 단계 전부, 640~1023은 지금 단계와 양옆 +
  * 가려진 쪽 "···"(중간형), 640 미만은 가운데에 D-day만 두고 지금 단계 이름을 로고 옆에 쓴다(좁은형).
  * 가운데 묶음은 어느 폭에서나 화면 한가운데 — 양옆 칸을 같은 폭(minmax(0,1fr))으로 두어 내용이 길어도 밀지 못한다.
@@ -19,17 +21,21 @@
  */
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { ddayLabel, deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { guardNavigate } from "@/components/app/LeaveGuard";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import type { UserNotificationResponse } from "@/lib/api/notifications";
 import { ProfileAvatarButton } from "@/components/app/ProfileAvatarButton";
 import { BrandLogo } from "@/components/BrandLogo";
-import { MenuIcon, PersonAddIcon, ScheduleIcon } from "@/components/icons";
+import { DropdownIcon, MenuIcon, PersonAddIcon, ScheduleIcon } from "@/components/icons";
 import { useSidebar } from "@/components/SidebarProvider";
 import { IconButton } from "@/components/ui/IconButton";
 
 type DdayTone = "olive" | "red" | "gray";
+/** 칸을 눌러 이동할 때(이슈 147) 지금 칸이 아닌 칸의 상태 — can: 갈 수 있음 · locked: 흐리게(누르면 쓰는 쪽이 스낵바) */
+export type StageChipState = "can" | "locked";
+type PillState = "done" | "current" | "next" | StageChipState;
 
 /** 칩 문구 · 색 — 마감이 지났어도 셀렉 단계를 넘었으면 따질 일이 아니라 회색 */
 function ddayChip(
@@ -59,27 +65,69 @@ const PILL_CURRENT = "bg-brand-step-background font-semibold text-contents-light
 const TRACK = "items-center gap-0.5 rounded-(--pill) bg-surface-default-light p-0.75";
 const DOTS = "px-1.5 py-1 tracking-[1px] whitespace-nowrap type-label-medium-s text-contents-light-bgd-weakness";
 
-function StagePill({ name, state }: { name: string; state: "done" | "current" | "next" }) {
+const PILL_STATE_CLASS: Record<PillState, string> = {
+  current: PILL_CURRENT,
+  done: "text-contents-light-bgd-sub",
+  next: "text-contents-light-bgd-weakness",
+  // 갈 수 있는 칸 — 조용히: 지금 색 그대로, hover에만 배경(다크는 보라 틴트)
+  can: "cursor-pointer text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-light hover:text-contents-light-bgd-default dark:hover:bg-brand-primary-surface1 dark:hover:text-brand-on-fill",
+  // 잠긴 칸 — 흐리게만. 눌리긴 해서 쓰는 쪽이 왜 못 가는지 스낵바로 알린다
+  locked: "cursor-pointer text-contents-light-bgd-disabled",
+};
+
+function StagePill({ name, state, onClick }: { name: string; state: PillState; onClick?: () => void }) {
+  if (onClick && state !== "current") {
+    return (
+      <li>
+        <button type="button" onClick={onClick} className={`${PILL} ${PILL_STATE_CLASS[state]}`}>
+          {name}
+        </button>
+      </li>
+    );
+  }
   return (
-    <li
-      aria-current={state === "current" ? "step" : undefined}
-      className={`${PILL} ${
-        state === "current"
-          ? PILL_CURRENT
-          : state === "done"
-            ? "text-contents-light-bgd-sub"
-            : "text-contents-light-bgd-weakness"
-      }`}
-    >
+    <li aria-current={state === "current" ? "step" : undefined} className={`${PILL} ${PILL_STATE_CLASS[state]}`}>
       {name}
     </li>
   );
 }
 
+/** 중간형의 "···" — 칸을 누를 수 있는 셸에서는 5칸 메뉴를 여는 버튼 */
+function Dots({ onMore }: { onMore?: () => void }) {
+  if (onMore) {
+    return (
+      <li>
+        <button type="button" data-stage-menu-trigger aria-label="단계 전체 보기" onClick={onMore} className={`${DOTS} cursor-pointer rounded-(--pill) transition-colors duration-fast hover:bg-surface-default-light`}>
+          ···
+        </button>
+      </li>
+    );
+  }
+  return (
+    <li aria-hidden className={DOTS}>
+      ···
+    </li>
+  );
+}
+
 /** 알약 세그먼트 — 1024 이상은 전부, 640~1023은 지금 단계와 양옆(가려진 쪽에 "···"). 640 미만은 그리지 않는다(단계 이름이 로고 옆으로) */
-function StageSegments({ stages, stageIndex }: { stages: readonly string[]; stageIndex: number | null }) {
-  const stateOf = (i: number) =>
-    stageIndex === null ? "next" : i < stageIndex ? "done" : i === stageIndex ? "current" : "next";
+function StageSegments({
+  stages,
+  stageIndex,
+  chipStates,
+  onSelect,
+  onMore,
+}: {
+  stages: readonly string[];
+  stageIndex: number | null;
+  /** 칸을 누를 수 있을 때 지금 칸이 아닌 칸의 상태 */
+  chipStates?: readonly StageChipState[];
+  onSelect?: (index: number) => void;
+  onMore?: () => void;
+}) {
+  const stateOf = (i: number): PillState =>
+    stageIndex === null ? "next" : i === stageIndex ? "current" : chipStates ? (chipStates[i] ?? "locked") : i < stageIndex ? "done" : "next";
+  const clickOf = (i: number) => (onSelect && chipStates ? () => onSelect(i) : undefined);
   // 중간형이 보여 줄 창 — 지금 단계(아직 모르면 첫 칸)의 앞뒤 한 칸씩
   const center = stageIndex ?? 0;
   const from = Math.max(0, center - 1);
@@ -88,23 +136,15 @@ function StageSegments({ stages, stageIndex }: { stages: readonly string[]; stag
     <>
       <ol aria-label="진행 단계" className={`hidden lg:flex ${TRACK}`}>
         {stages.map((name, i) => (
-          <StagePill key={name} name={name} state={stateOf(i)} />
+          <StagePill key={name} name={name} state={stateOf(i)} onClick={clickOf(i)} />
         ))}
       </ol>
       <ol aria-label="진행 단계" className={`hidden sm:flex lg:hidden ${TRACK}`}>
-        {from > 0 && (
-          <li aria-hidden className={DOTS}>
-            ···
-          </li>
-        )}
+        {from > 0 && <Dots onMore={onMore} />}
         {stages.slice(from, to + 1).map((name, k) => (
-          <StagePill key={name} name={name} state={stateOf(from + k)} />
+          <StagePill key={name} name={name} state={stateOf(from + k)} onClick={clickOf(from + k)} />
         ))}
-        {to < stages.length - 1 && (
-          <li aria-hidden className={DOTS}>
-            ···
-          </li>
-        )}
+        {to < stages.length - 1 && <Dots onMore={onMore} />}
       </ol>
     </>
   );
@@ -123,9 +163,15 @@ export function ShellTopbar({
   inviteCoachKey,
   notificationHrefFor,
   noDeadlineText,
+  stageStates,
+  onStageSelect,
 }: {
   /** 마감이 비었을 때 칩에 적는 말 — 개인 갤러리는 "목표일 없음" */
   noDeadlineText?: string;
+  /** 칸을 눌러 단계를 오가는 셸(개인 갤러리, 이슈 147) — 지금 칸이 아닌 칸의 상태. onStageSelect와 함께 줘야 칸이 눌린다 */
+  stageStates?: readonly StageChipState[];
+  /** 칸(또는 좁은 폭의 메뉴 항목)을 눌렀을 때 — 잠긴 칸도 부르니 쓰는 쪽이 스낵바로 알린다 */
+  onStageSelect?: (index: number) => void;
   /** 없으면 로고만(클라이언트 셸) */
   studioName?: string;
   studioHref?: string;
@@ -148,9 +194,30 @@ export function ShellTopbar({
 }) {
   const { collapsed, toggle } = useSidebar();
   const chip = ddayChip(deadline, stageIndex, stages.length, deadlineStage, noDeadlineText);
+  const clickable = onStageSelect !== undefined && stageStates !== undefined;
+  // 좁은 폭(640 미만 · 640~1023)의 5칸 메뉴 — 트리거(로고 옆 이름 · ···)와 메뉴가 다른 칸에 있어 트리거는 바깥 클릭에서 뺀다
+  const [stageMenu, setStageMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!stageMenu) return;
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Element | null;
+      if (target?.closest("[data-stage-menu-trigger]")) return;
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setStageMenu(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setStageMenu(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [stageMenu]);
 
   return (
-    <header className="grid h-13 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-divider-default bg-background-default-main">
+    <header className="relative grid h-13 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-divider-default bg-background-default-main">
       {/* 좌우 여백(왼쪽 8 · 오른쪽 12)은 헤더가 아니라 양옆 칸이 갖는다 — 헤더에 두면 두 값의 차이만큼 가운데가 밀린다.
           한 줄 높이로 자르고 줄바꿈을 허용한다 — 들어가지 못한 조각(스튜디오 이름, 그다음 워드마크)은 다음 줄로 넘어가 보이지 않는다.
           위아래 여백(-my · py 1.5)은 잘리는 상자 안에 포커스 테두리가 들어갈 자리다. 640 미만은 한 줄(단계 이름이 말줄임) */}
@@ -182,11 +249,26 @@ export function ShellTopbar({
         >
           <b className="type-brand-wordmark">Easy Select</b>
         </Link>
-        {stageIndex !== null && (
-          <b className="ml-0.5 hidden min-w-0 truncate type-label-semibold-m text-contents-light-bgd-default max-sm:block">
-            {stages[stageIndex]}
-          </b>
-        )}
+        {stageIndex !== null &&
+          (clickable ? (
+            <button
+              type="button"
+              data-stage-menu-trigger
+              aria-haspopup="menu"
+              aria-expanded={stageMenu}
+              onClick={() => setStageMenu((v) => !v)}
+              className="ml-0.5 hidden min-w-0 cursor-pointer items-center gap-0.5 type-label-semibold-m text-contents-light-bgd-default max-sm:flex"
+            >
+              <span className="truncate">{stages[stageIndex]}</span>
+              <span className="flex shrink-0 text-contents-light-bgd-sub">
+                <DropdownIcon size={16} />
+              </span>
+            </button>
+          ) : (
+            <b className="ml-0.5 hidden min-w-0 truncate type-label-semibold-m text-contents-light-bgd-default max-sm:block">
+              {stages[stageIndex]}
+            </b>
+          ))}
         {studioName && studioHref && (
           <span className="flex h-7 shrink-0 items-center max-lg:hidden">
             <span aria-hidden className="mx-2 h-4.5 w-px bg-border-default" />
@@ -201,12 +283,18 @@ export function ShellTopbar({
         )}
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div data-coach="stages" className="flex items-center gap-2.5">
         <span className={`inline-flex items-center gap-1 rounded-(--pill) px-2.5 py-0.5 whitespace-nowrap type-label-medium-s ${DDAY_TONE_CLASS[chip.tone]}`}>
           <ScheduleIcon size={14} />
           {chip.text}
         </span>
-        <StageSegments stages={stages} stageIndex={stageIndex} />
+        <StageSegments
+          stages={stages}
+          stageIndex={stageIndex}
+          chipStates={clickable ? stageStates : undefined}
+          onSelect={clickable ? onStageSelect : undefined}
+          onMore={clickable ? () => setStageMenu((v) => !v) : undefined}
+        />
       </div>
 
       <div className="flex items-center justify-end gap-1 pr-3">
@@ -224,6 +312,41 @@ export function ShellTopbar({
           current={workspaceId !== null ? { kind: "STUDIO", workspaceId } : undefined}
         />
       </div>
+
+      {/* 좁은 폭의 5칸 메뉴 — 640 미만은 로고 옆 이름 아래(왼쪽), 640~1023은 가운데 */}
+      {stageMenu && clickable && stageIndex !== null && (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="진행 단계"
+          className="absolute top-full left-2 z-30 mt-1 flex w-52 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover) sm:left-1/2 sm:-translate-x-1/2"
+        >
+          {stages.map((name, i) => {
+            const state: PillState = i === stageIndex ? "current" : (stageStates[i] ?? "locked");
+            return (
+              <button
+                key={name}
+                type="button"
+                role="menuitem"
+                aria-current={state === "current" ? "step" : undefined}
+                onClick={() => {
+                  setStageMenu(false);
+                  if (state !== "current") onStageSelect(i);
+                }}
+                className={`flex w-full cursor-pointer items-center rounded-(--radius-4) px-3 py-2 text-left type-content-s transition-colors duration-fast ${
+                  state === "current"
+                    ? "bg-brand-chip-background font-semibold text-brand-chip-text dark:bg-brand-step-background dark:text-brand-on-fill"
+                    : state === "can"
+                      ? "text-contents-light-bgd-default hover:bg-surface-default-lightness"
+                      : "text-contents-light-bgd-disabled"
+                }`}
+              >
+                {name}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 }

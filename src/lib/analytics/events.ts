@@ -79,6 +79,8 @@ export type EventMap = {
   selection_increase_requested: { gallery_id: number; requested_count: number };
   lightbox_opened: { gallery_id: number; from: "select" | "review" };
   partner_invite_issued: { gallery_id: number };
+  /** 개인 갤러리 상단 단계 칩(이슈 147) — from · to는 단계 번호(0 업로드 ~ 4 완료). result: moved 바로 이동 · modal 확인 창 · view 읽기 전용 보기 · locked 스낵바 */
+  stage_chip_pressed: { gallery_id: number; from: number; to: number; result: "moved" | "modal" | "view" | "locked" };
   /** 셀렉 필터(이슈 149) — 조건이 바뀌고 잠깐 뒤 한 번. scores는 "5 4 0"(0 = 별점 없음), count는 보이는 장수 */
   select_filter_applied: { gallery_id: number; pick: "all" | "picked" | "unpicked"; scores: string; guest: boolean; ai: boolean; count: number };
   /** source filter = 공유폴더 모달의 "지금 보는 사진" · "별점으로"(이슈 149) */
