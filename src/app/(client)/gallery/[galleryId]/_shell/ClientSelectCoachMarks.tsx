@@ -5,6 +5,7 @@
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ClientSelectCoachMarks.tsx
  *
  * 사진 선택 → 게스트 초대 → AI 추천 → 하객 반응 → 작가에게 전달하기. 대상은 data-coach 속성.
+ * 개인 갤러리는 "사진 선택" 뒤에 상단 단계 칩(stages) 한 단계가 더 있다 — 컨셉 분류로 돌아가는 길(이슈 147).
  * 한 장 보기(별점 · 보정 요청)는 사진을 크게 열었을 때의 코치마크(LightboxCoachMarks)가 맡는다.
  * 그리기 · 기록(`sel.coach.clientSelect`)은 공통 CoachMarks.
  */
@@ -44,11 +45,21 @@ const STEPS: ReadonlyArray<CoachStep> = [
   },
 ];
 
-/** 개인 갤러리는 작가에게 전달하지 않고 요청서를 내보낸다 — 마지막 단계만 바꾼다 */
-const PERSONAL_STEPS: ReadonlyArray<CoachStep> = STEPS.map((step) =>
+/** 개인 갤러리는 작가에게 전달하지 않고 요청서를 내보낸다 — 마지막 단계를 바꾸고, 사진 선택 뒤에 단계 칩 안내를 끼운다 */
+const PERSONAL_STEPS: ReadonlyArray<CoachStep> = STEPS.flatMap((step) =>
   step.key === "submit"
-    ? { ...step, eyebrow: "내보내기", title: "선택이 완료되면 요청서 내보내기", body: "내보내면 선택이 잠기고 보정 확인 단계로 넘어가요. 보정 요청도 함께 실려요." }
-    : step,
+    ? [{ ...step, eyebrow: "내보내기", title: "선택이 완료되면 요청서 내보내기", body: "내보내면 선택이 잠기고 보정 확인 단계로 넘어가요. 보정 요청도 함께 실려요." }]
+    : step.key === "pick"
+      ? [
+          step,
+          {
+            key: "stages",
+            eyebrow: "단계 이동",
+            title: "위 단계 칩으로 돌아가요",
+            body: "컨셉 분류를 누르면 폴더를 다시 정리하고 사진을 더 올릴 수 있어요. 선택 · 별점은 그대로예요.",
+          },
+        ]
+      : [step],
 );
 
 export function ClientSelectCoachMarks({ ready, personal = false }: { ready: boolean; personal?: boolean }) {
