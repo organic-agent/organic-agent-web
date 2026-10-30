@@ -10,11 +10,11 @@
  * (useSelectionSync: 화면은 즉시, 서버는 잠깐 뒤 차이만). 타일 표시 = 체크만 + 현재 사진 올리브 선 + 별점 배지.
  * 선택은 **체크박스(왼쪽 위)만** 바꾸고 타일 클릭은 현재 사진으로 — 빼기는 확인 모달을 거친다(2026-09-12 피드백).
  * 싱글뷰(Lightbox)는 사진을 눌러 열고(선택은 왼쪽 위 체크), 닫으면 그 사진으로 스크롤한다.
- * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 별점 순이면 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
- * 정렬 기본값은 별점 순(2차 QA) — 점수 묶음(★5 → ★1 → 별점 없음)으로 그리되, 별점이 하나도 없으면 묶음 없이 그려 처음 화면은 업로드 순과 같다.
- * 정렬 메뉴의 필터는 별점 하나 · 별점 없음만(항목은 묶음 머리글과 같은 별 다섯 개, 장수는 보는 폴더 기준) — 받은 목록을 화면에서 거르고,
- * 별점을 바꾸면 그 사진은 바로 빠진다. 걸린 동안은 정렬과 무관하게 그 점수 묶음 머리글 하나를 그리드 위에 두고(별점 없음 포함)
- * AI 추천 묶음 아래 "나머지 n장" 줄은 뺀다. 폴더를 바꿔도 남고 새로고침하면 풀린다(저장 안 함, 이슈 130 · 2026-10-11 결정).
+ * 넘기는 순서는 화면에 그려진 순서(AI 추천 묶음 먼저 · 점수 묶음 순)이고, 열려 있는 동안은 열 때의 순서를 붙잡아 둔다.
+ * 정렬 메뉴는 없고 그리드는 늘 점수 묶음(★5 → ★1 → 별점 없음, 묶음 안은 업로드 순) — 별점이 하나도 없으면 묶음 없이 그려 처음 화면은 업로드 순과 같다.
+ * 필터는 헤더 오른쪽 끝 버튼 하나(SelectFilter, 이슈 149) — 선택 여부 · 별점(여러 점수 · 별점 없음) · 게스트 좋아요 · AI 추천 묶음 4개를
+ * 겹쳐 걸고, 받은 목록을 화면에서 거른다(별점을 바꾸면 그 사진은 바로 빠진다). 걸린 동안은 고른 점수 묶음만 남고 AI 추천 묶음 아래
+ * "나머지 n장" 줄은 뺀다. 폴더를 바꿔도 남고 새로고침하면 풀린다(저장 안 함, 이슈 130 · 2026-10-11 결정과 같음).
  * 별점은 사진당 한 칸을 신랑 · 신부 · 작가가 같이 쓴다(ratings API) — 화면은 override로 바로 바꾸고, 저장은 사진별로 한 번에 하나씩
  * 보낸다(기다리는 동안 다시 매기면 마지막 값만). 저장이 끝나면 그 값을 목록에 적고 override를 걷는다. 실패는 싱글뷰 안 스낵바로 알린다.
  * 싱글뷰에서 마우스로 처음 별점을 매기면 별 위 말풍선(1~5 키 모양)으로 숫자 키도 된다고 한 번 알린다(브라우저에 한 번).
@@ -37,7 +37,7 @@ import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
-import { type CustomMenu, ShellMainHeader, type SortKey, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
+import { ShellMainHeader, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
@@ -63,6 +63,7 @@ import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
+import { activeGroupCount, conditionsSummary, EMPTY_CONDITIONS, matchesConditions, ScoreStars, type SelectConditions, SelectFilterButton, SelectFilterChips } from "./SelectFilter";
 import { useAiRecommendations } from "./useAiRecommendations";
 import { reactionGroupsOf } from "./useGuestReactions";
 import { useGuestSharing } from "./useGuestSharing";
@@ -73,34 +74,6 @@ const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
   { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
 ];
-
-/** 별점 필터 — 점수 하나만(이상이 아니라 정확히 그 점수) · 별점 없음만 */
-type ScoreFilter = "none" | "5" | "4" | "3" | "2" | "1" | "unrated";
-const SCORE_FILTERS: Exclude<ScoreFilter, "none">[] = ["5", "4", "3", "2", "1", "unrated"];
-/** 메뉴 · 버튼이 읽어 주는 이름 — 보이는 건 점수 묶음 머리글과 같은 별 다섯 개(ScoreStars) · "별점 없음" */
-const SCORE_FILTER_TEXT: Record<Exclude<ScoreFilter, "none">, string> = {
-  "5": "별점 5점만",
-  "4": "별점 4점만",
-  "3": "별점 3점만",
-  "2": "별점 2점만",
-  "1": "별점 1점만",
-  unrated: "별점 없음만",
-};
-/** 필터 값 → 묶음 머리글의 점수(별점 없음은 null) */
-function scoreOfFilter(filter: Exclude<ScoreFilter, "none">): number | null {
-  return filter === "unrated" ? null : Number(filter);
-}
-function matchesScore(photo: PhotoResponse, filter: Exclude<ScoreFilter, "none">): boolean {
-  return filter === "unrated" ? !photo.score : photo.score === Number(filter);
-}
-/** 별 다섯 개(채움 = 점수) — 점수 묶음 머리글 · 정렬 메뉴의 별점 필터 · 헤더 버튼이 같이 쓴다 */
-function ScoreStars({ score, size = 14 }: { score: number; size?: number }) {
-  return (
-    <span className="flex text-brand-secondary-default" aria-label={`별점 ${score}`}>
-      {[1, 2, 3, 4, 5].map((n) => (n <= score ? <StarFillIcon key={n} size={size} /> : <StarIcon key={n} size={size} className="text-border-default" />))}
-    </span>
-  );
-}
 
 /** 하단 바의 디데이 조각 — 목표일이 없으면 빈 문자열(조각을 뺀다). 상단바 칩과 같은 표기(문구 점검 C02) */
 function ddayLabel(deadline: string | null): string {
@@ -213,29 +186,12 @@ export function SelectStage({
   const [view, setView] = useState<ClientView>("all");
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [filter, setFilter] = useState<PhotoFilter>(ALL_FILTER);
-  const [sort, setSort] = useState<SortKey>("score");
-  // 별점 필터 — 점수 하나(★n만) 또는 별점 없음만. 이미 받은 목록을 화면에서 거른다(정렬과 같은 방식)
-  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("none");
-  // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산), 정렬 목록에 "하객 좋아요순"
+  // 셀렉 필터(이슈 149) — 묶음 4개를 겹쳐 걸고 받은 목록을 화면에서 거른다. 폴더를 바꿔도 남고 새로고침하면 풀린다
+  const [conditions, setConditions] = useState<SelectConditions>(EMPTY_CONDITIONS);
+  const conditionCount = activeGroupCount(conditions);
+  // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산)
   const [guestOn, setGuestOn] = useState(false);
-  const [guestSort, setGuestSort] = useState(false);
   const likesByPhoto = sharing.reactions.likesByPhoto;
-  const guestSortMenu: CustomMenu = {
-    value: guestSort ? "guest" : sort,
-    options: [
-      { key: "guest", label: "게스트 좋아요 순" },
-      { key: "uploaded", label: "업로드 순" },
-      { key: "name", label: "이름 순" },
-      { key: "score", label: "별점 순" },
-    ],
-    onChange: (key) => {
-      if (key === "guest") setGuestSort(true);
-      else {
-        setGuestSort(false);
-        setSort(key as SortKey);
-      }
-    },
-  };
   const guestOverlay = guestOn
     ? (photo: PhotoResponse) => {
         const n = likesByPhoto.get(photo.photoId) ?? 0;
@@ -277,7 +233,7 @@ export function SelectStage({
     for (const c of folders ?? []) for (const d of c.details) for (const id of d.photoIds) map.set(id, `${c.name} / ${d.name}`);
     return (photo: PhotoResponse) => map.get(photo.photoId) ?? (unsortedIds.has(photo.photoId) ? "미분류" : null);
   }, [folders, unsortedIds]);
-  /** 폴더 필터까지 건 사진 — 별점 필터 메뉴의 장수는 이 범위에서 센다 */
+  /** 폴더 필터까지 건 사진 — 필터 패널의 장수는 이 범위에서 센다 */
   const folderPhotos = useMemo(() => {
     if (isAllFilter(filter)) return scoredPhotos;
     const ids = new Set<number>();
@@ -285,24 +241,26 @@ export function SelectStage({
     if (filter.unsorted) for (const id of unsortedIds) ids.add(id);
     return scoredPhotos.filter((p) => ids.has(p.photoId));
   }, [scoredPhotos, filter, details, unsortedIds]);
-  const visiblePhotos = useMemo(() => {
-    const list = scoreFilter === "none" ? folderPhotos : folderPhotos.filter((p) => matchesScore(p, scoreFilter));
-    if (guestOn && guestSort) return [...sortPhotos(list, "uploaded")].sort((a, b) => (likesByPhoto.get(b.photoId) ?? 0) - (likesByPhoto.get(a.photoId) ?? 0));
-    return sortPhotos(list, sort);
-  }, [folderPhotos, scoreFilter, sort, guestOn, guestSort, likesByPhoto]);
-  const scoreFilterMenu: CustomMenu = {
-    value: scoreFilter,
-    options: SCORE_FILTERS.map((key) => {
-      const score = scoreOfFilter(key);
-      return {
-        key,
-        label: score === null ? "별점 없음" : <ScoreStars score={score} />,
-        text: SCORE_FILTER_TEXT[key],
-        trailing: String(folderPhotos.filter((p) => matchesScore(p, key)).length),
-      };
-    }),
-    onChange: (key) => setScoreFilter(key as ScoreFilter),
-  };
+  /** 이번 라운드 AI 추천 전부(폴더와 무관) — 필터 "AI 추천만"의 기준 */
+  const aiRoundIds = useMemo(() => new Set(aiCurrent.map((r) => r.photo.photoId)), [aiCurrent]);
+  const conditionContext = useMemo(() => ({ pickedIds, likesByPhoto, aiIds: aiRoundIds }), [pickedIds, likesByPhoto, aiRoundIds]);
+  /** 폴더 + 필터 조건을 건 사진, 업로드 순 — 점수 묶음 안도 이 순서 */
+  const visiblePhotos = useMemo(
+    () => sortPhotos(conditionCount === 0 ? folderPhotos : folderPhotos.filter((p) => matchesConditions(p, conditions, conditionContext)), "uploaded"),
+    [folderPhotos, conditionCount, conditions, conditionContext],
+  );
+  /** 필터 이벤트 — 조건이 바뀌고 1초 뒤 한 번(체크를 연달아 눌러도 마지막 상태만). 장수는 바뀐 조건으로 바로 센다 */
+  const filterTrackRef = useRef<number | null>(null);
+  function applyConditions(next: SelectConditions) {
+    setConditions(next);
+    if (filterTrackRef.current !== null) window.clearTimeout(filterTrackRef.current);
+    if (activeGroupCount(next) === 0) return;
+    const count = folderPhotos.filter((p) => matchesConditions(p, next, conditionContext)).length;
+    filterTrackRef.current = window.setTimeout(
+      () => track("select_filter_applied", { gallery_id: galleryId, pick: next.pick, scores: [...next.scores].sort((a, b) => b - a).join(" "), guest: next.guest, ai: next.ai, count }),
+      1000,
+    );
+  }
 
   // ── 폴더 필터 ──
   function focusFolder(key: FolderKey) {
@@ -331,6 +289,10 @@ export function SelectStage({
   const focusedConcept = focusedDetail ? folders?.find((c) => c.details.some((d) => d.id === focusedDetail.id)) ?? null : null;
   // 세부 폴더 하나만 볼 때 제목 앞에 붙는 상위(컨셉) 이름 — 좁으면 헤더가 통째로 숨긴다
   const titleParent = view !== "selected" && focusedDetail && focusedConcept ? focusedConcept.name : undefined;
+  /** 제목 옆 장수 — 필터가 걸리면 "n장 / 폴더 전체" */
+  const countLabel = conditionCount > 0 ? `${visiblePhotos.length}장 / ${folderPhotos.length}` : `${visiblePhotos.length}장`;
+  /** 보는 폴더 이름(모든 사진이면 null) — 공유폴더 "지금 보는 사진"의 요약에 쓴다 */
+  const folderLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? null : filter.detailIds.size === 0 ? "미분류" : `폴더 ${filter.detailIds.size + (filter.unsorted ? 1 : 0)}개`;
   const title = (() => {
     if (view === "selected")
       return (
@@ -348,7 +310,7 @@ export function SelectStage({
       return (
         <>
           <span className="truncate">{focusedDetail.name}</span>
-          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
+          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{countLabel}</small>
         </>
       );
     if (!isAllFilter(filter)) {
@@ -356,7 +318,7 @@ export function SelectStage({
       return (
         <>
           {filter.detailIds.size === 0 ? "미분류" : `폴더 ${n}개`}
-          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
+          <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{countLabel}</small>
         </>
       );
     }
@@ -366,7 +328,7 @@ export function SelectStage({
           <PhotoIcon size={18} />
         </span>
         모든 사진
-        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{visiblePhotos.length}장</small>
+        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{countLabel}</small>
       </>
     );
   })();
@@ -388,24 +350,22 @@ export function SelectStage({
   const scopeLabel = focusedDetail ? focusedDetail.name : isAllFilter(filter) ? "모든 사진" : "보는 폴더";
   const aiUnpicked = aiPhotos.filter((p) => !pickedIds.has(p.photoId));
   /**
-   * 별점 순이면 점수별 그룹(5 → 1 → 없음) — 별점이 하나도 없으면 묶지 않는다("별점 없음 n장" 한 묶음만 보이지 않게).
-   * 별점 필터가 걸리면 정렬과 무관하게 그 점수(별점 없음 포함) 묶음 하나 — 머리글이 "지금 이 점수만 보는 중"을 알리고,
-   * AI 추천 묶음 아래 "나머지 n장" 줄의 자리를 대신한다(이슈 130).
+   * 점수별 묶음(5 → 1 → 없음), 묶음 안은 업로드 순 — 별점이 하나도 없으면 묶지 않는다("별점 없음 n장" 한 묶음만 보이지 않게).
+   * 별점 조건이 걸리면 고른 점수 묶음만 남는다(별점 없음만 골랐어도 그 머리글 하나) — 머리글이 "지금 이 점수만 보는 중"을 알리고,
+   * AI 추천 묶음 아래 "나머지 n장" 줄의 자리를 대신한다(이슈 130 · 149).
    */
   const scoreGroups = useMemo(() => {
     if (view !== "all") return null;
-    if (scoreFilter !== "none") return restPhotos.length > 0 ? [{ score: scoreOfFilter(scoreFilter), photos: restPhotos }] : null;
-    if (sort !== "score") return null;
     const groups: { score: number | null; photos: PhotoResponse[] }[] = [];
     for (const sc of [5, 4, 3, 2, 1]) {
       const ps = restPhotos.filter((p) => p.score === sc);
       if (ps.length > 0) groups.push({ score: sc, photos: ps });
     }
-    if (groups.length === 0) return null;
+    if (groups.length === 0 && conditions.scores.size === 0) return null;
     const none = restPhotos.filter((p) => !p.score);
     if (none.length > 0) groups.push({ score: null, photos: none });
-    return groups;
-  }, [sort, view, restPhotos, scoreFilter]);
+    return groups.length > 0 ? groups : null;
+  }, [view, restPhotos, conditions.scores]);
 
   // ── 전달하기 ──
   const ratedCount = scoredPhotos.filter((p) => p.score !== null).length;
@@ -427,7 +387,7 @@ export function SelectStage({
   const bottomHint = [ddayLabel(gallery.selectionDeadline), draftCount.photos > 0 ? `보정 요청 ${draftCount.photos}장` : "", submitHint ?? ""].filter(Boolean).join(" · ");
 
   // ── 싱글뷰 ──
-  /** 화면에 그려진 순서 — AI 추천 묶음이 먼저, 별점 순이면 점수 묶음 순 */
+  /** 화면에 그려진 순서 — AI 추천 묶음이 먼저, 그다음 점수 묶음 순 */
   const displayPhotos = useMemo(
     () => [...(showAiGroup ? aiPhotos : []), ...(scoreGroups ? scoreGroups.flatMap((g) => g.photos) : restPhotos)],
     [showAiGroup, aiPhotos, scoreGroups, restPhotos],
@@ -628,15 +588,18 @@ export function SelectStage({
                 }
                 zoom={zoom}
                 onZoomChange={writeZoom}
-                sort={sort}
-                onSortChange={setSort}
+                sort="uploaded"
+                onSortChange={() => {}}
                 filter="none"
                 onFilterChange={() => {}}
-                showFilters={false}
-                sortable={view === "all"}
-                customSort={guestOn ? guestSortMenu : undefined}
-                customFilter={scoreFilterMenu}
+                sortable={false}
+                trailing={
+                  view === "all" && (
+                    <SelectFilterButton conditions={conditions} onChange={applyConditions} photos={folderPhotos} context={conditionContext} visibleCount={visiblePhotos.length} />
+                  )
+                }
               />
+              {view === "all" && <SelectFilterChips conditions={conditions} onChange={applyConditions} visibleCount={visiblePhotos.length} />}
               {locked && (
                 <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
                   <span className="text-contents-light-bgd-sub">
@@ -715,7 +678,7 @@ export function SelectStage({
                         overlayOf={guestOverlay}
                       />
                     )}
-                    {aiPhotos.length > 0 && restPhotos.length > 0 && scoreFilter === "none" && (
+                    {aiPhotos.length > 0 && restPhotos.length > 0 && conditionCount === 0 && (
                       <p className="flex items-center gap-2 px-0 pt-1 type-content-xs text-contents-light-bgd-weakness after:h-px after:flex-1 after:bg-divider-default after:content-['']">
                         나머지 {restPhotos.length}장
                       </p>
@@ -862,7 +825,10 @@ export function SelectStage({
           }}
         />
       )}
-      {sharing.modals}
+      {sharing.modals({
+        // "지금 보는 사진" — 모든 사진 보기(반응 보기 아님)일 때만. 요약은 폴더 이름 + 걸린 조건
+        visible: view === "all" && !sharing.reactionsOpen ? { photoIds: visiblePhotos.map((p) => p.photoId), summary: [folderLabel, conditionsSummary(conditions)].filter(Boolean).join(" · ") } : null,
+      })}
       {increaseOpen && (
         <IncreaseRequestModal
           galleryId={galleryId}
