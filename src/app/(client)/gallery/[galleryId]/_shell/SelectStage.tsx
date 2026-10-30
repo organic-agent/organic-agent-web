@@ -22,8 +22,8 @@
  * AI 추천은 헤더 버튼 하나(폴더 단위, 입력 없음) → 결과가 그리드 맨 위 그룹 + ✦ 배지, 싱글뷰에서는 정보 탭 맨 위 "AI 추천" 칩.
  * 하단: 선택 요약 · "선택 장수 추가 요청"(작가 알림) · "작가에게 전달하기"(계약 장수를 채웠을 때만 — 서버가 정확히 채워야 받는다).
  * 개인 갤러리(personal)는 작가가 없어 전달 대신 **"요청서 내보내기"**(ExportSelectionModal: 초안 저장 → export → 잠김, 보정본을 올리기 전이면 보정 확인의 "선택 다시 하기"로 풀린다 — 이슈 132)이고
- * 장수 추가 요청이 없다(묶음 C, 2026-09-23). 대신 **"폴더 다시 정리"**로 페이지가 컨셉 분류 화면을 다시 연다(#114) —
- * 여기 체크박스는 선택 앨범 담기라, 옮기기 · 지우기용 고르기를 섞지 않으려고 화면을 나눴다.
+ * 장수 추가 요청이 없다(묶음 C, 2026-09-23). 컨셉 분류로 돌아가기는 상단 단계 칩이 맡는다(페이지의 정리 모드 · 이슈 147,
+ * 예전 하단 "폴더 다시 정리" 버튼은 뺐다). 보정이 시작된 뒤 · 마무리 뒤에는 readOnly로 다시 그린다 — 체크 · 별점 · 메모는 잠기고 필터 · 공유만 된다.
  * 전달한 뒤(submitted 이후)는 page가 ReviewStage를 그린다 — 여기는 select 단계만 다룬다(옛 제출됨 분기 정리 2026-09-12).
  * 선택 마감이 지나면 서버가 담기 · 빼기 · 별점 · 전달을 막는다 — 화면도 체크박스 · 별점 · 전달하기를 잠그고 그리드 위 배너로 알린다
  * (2차 QA). 날짜로 미리 잠그고, 서버가 마감 오류를 돌려줬을 때도 잠근다. 개인 갤러리의 목표일은 마감이 아니라 잠그지 않는다.
@@ -32,11 +32,13 @@
 import { blockInDemo } from "@/lib/demo/demoMode";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
-import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, FolderIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
+import { GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
+import { Button } from "@/components/ui/Button";
 import { ShellMainHeader, sortPhotos } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
@@ -101,7 +103,9 @@ export function SelectStage({
   onExported,
   onPhotoUrlError,
   onScoreSaved,
-  onOrganize,
+  readOnly = null,
+  stageRequest = null,
+  onStageRequestHandled,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -129,8 +133,11 @@ export function SelectStage({
   onPhotoUrlError?: () => void;
   /** 별점 저장이 끝났을 때 서버에 남은 값 — 페이지가 사진 목록에 적는다 */
   onScoreSaved: (photoId: number, score: number | null) => void;
-  /** 개인 — "폴더 다시 정리"를 누르면 페이지가 컨셉 분류 화면을 다시 연다. 지금 고른 장수를 넘겨 정리 중 사이드바가 그대로 보이게 한다 */
-  onOrganize?: (pickedCount: number) => void;
+  /** 개인 — 보정이 시작된 뒤(review) · 마무리 뒤(done)에 상단 단계 칩으로 돌아와 보기만 하는 중(이슈 147). 하단 버튼이 없고 안내만 */
+  readOnly?: "review" | "done" | null;
+  /** 상단 단계 칩 "보정 확인"이 내보내기 창을 열어 달라는 요청 — nonce가 바뀔 때마다 한 번. 장수를 못 채웠으면 안내 창 */
+  stageRequest?: { kind: "export"; nonce: number } | null;
+  onStageRequestHandled?: () => void;
 }) {
   const canEdit = phase === "select";
   /** 서버가 "선택 마감이 지났다"고 거절했을 때의 마감 값 — 갤러리를 다시 읽어 마감이 바뀌어 있으면(작가가 늦춤) 저절로 풀린다 */
@@ -281,6 +288,7 @@ export function SelectStage({
   // ── 상태줄 · 제목 ──
   const status: StatusLine = (() => {
     if (selection === null) return { text: "불러오는 중…", tone: "muted" };
+    if (readOnly) return { text: readOnly === "done" ? "마무리 · 보기만" : "보정 확인 중 · 보기만", tone: "muted" };
     // 디데이는 상단바 칩이 색과 함께 보여 주니 여기서는 장수만(문구 점검 C03)
     const count = maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`;
     return { text: `${count} 선택했어요`, tone: "accent" };
@@ -372,6 +380,13 @@ export function SelectStage({
   const requests = useMemo(() => toRequestItems(drafts, pickedIds), [drafts, pickedIds]);
   const unpickedDraftCount = draftCount.photos - requests.length;
   const canSubmit = editable && selectedCount > 0 && (maxSelectable === null || selectedCount === maxSelectable);
+  /** 상단 단계 칩 "보정 확인"(이슈 147) — 요청이 살아 있는 동안 장수를 다 채웠으면 내보내기 창, 아니면 몇 장 더 골라야 하는지 안내 창. 닫으면 요청을 끝낸다 */
+  const exportRequested = stageRequest?.kind === "export";
+  const fillNoticeOpen = exportRequested && !canSubmit;
+  function closeExport() {
+    setExportOpen(false);
+    onStageRequestHandled?.();
+  }
   const verb = personal ? "선택을 마칠" : "전달할";
   const submitHint =
     editable && maxSelectable !== null
@@ -746,7 +761,9 @@ export function SelectStage({
         onClearSelection={() => {}}
         onMoveSelection={() => {}}
         hint={
-          shownNotice ? (
+          readOnly ? (
+            readOnly === "done" ? "마무리된 갤러리 · 보기만 할 수 있어요" : "보정 확인 중 · 보기만 할 수 있어요"
+          ) : shownNotice ? (
             <button type="button" onClick={clearNotices} className="cursor-pointer text-left text-function-warning-default">
               {shownNotice}
             </button>
@@ -776,7 +793,7 @@ export function SelectStage({
             )}
           </span>
         }
-        actions={
+        actions={readOnly ? null : (
           <>
             {personal ? null : increasePending ? (
                 <span className="inline-flex items-center gap-1.5 type-label-medium-s whitespace-nowrap text-contents-light-bgd-weakness">
@@ -789,12 +806,6 @@ export function SelectStage({
                   선택 장수 추가 요청
                 </ShellCta>
               )}
-            {personal && onOrganize && canEdit && (
-              <ShellCta kind="outline" short="정리" onClick={() => onOrganize(selectedCount)}>
-                <FolderIcon size={18} />
-                폴더 다시 정리
-              </ShellCta>
-            )}
             <span data-coach="submit" className="inline-flex" title={submitHint ?? undefined}>
               {personal ? (
                 <ShellCta disabled={!canSubmit} onClick={() => setExportOpen(true)}>
@@ -808,7 +819,7 @@ export function SelectStage({
               )}
             </span>
           </>
-        }
+        )}
       />
 
       <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} personal={personal} />
@@ -841,7 +852,31 @@ export function SelectStage({
           }}
         />
       )}
-      {exportOpen && (
+      {fillNoticeOpen && (
+        <GalleryModalShell
+          title={
+            maxSelectable === null
+              ? "사진을 한 장 이상 골라 주세요"
+              : selectedCount > maxSelectable
+                ? `${maxSelectable}장까지만 마칠 수 있어요`
+                : `${maxSelectable}장을 채워야 마칠 수 있어요`
+          }
+          desc={
+            maxSelectable === null
+              ? undefined
+              : selectedCount > maxSelectable
+                ? `지금 ${selectedCount}장 · ${selectedCount - maxSelectable}장을 빼 주세요`
+                : `지금 ${selectedCount}장 · ${maxSelectable - selectedCount}장을 더 골라 주세요`
+          }
+          maxWidthClassName="max-w-105"
+          onClose={closeExport}
+        >
+          <Button kind="primary" onClick={closeExport} className="w-full">
+            확인
+          </Button>
+        </GalleryModalShell>
+      )}
+      {(exportOpen || (exportRequested && canSubmit)) && (
         <ExportSelectionModal
           galleryId={galleryId}
           selectedCount={selectedCount}
@@ -850,9 +885,9 @@ export function SelectStage({
           unpickedDraftCount={unpickedDraftCount}
           ratedCount={ratedCount}
           partnerName={partnerName}
-          onClose={() => setExportOpen(false)}
+          onClose={closeExport}
           onExported={() => {
-            setExportOpen(false);
+            closeExport();
             // 내보낸 요청은 서버 회차가 가졌으니 초안을 지운다(안 고른 사진의 초안은 남긴다)
             for (const id of pickedIds) writeDraft(galleryId, id, null);
             setLocalNotice("요청서를 내보냈어요");

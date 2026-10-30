@@ -38,9 +38,13 @@ const STEPS: ReadonlyArray<CoachStep> = [
   },
 ];
 
-/** 개인 갤러리는 사이드바에 플랜 카드도 있다 */
+/** 개인 갤러리는 사이드바에 플랜 카드도 있고, 확정 뒤에도 상단 단계 칩으로 돌아올 수 있다(이슈 147) */
 const PERSONAL_STEPS: ReadonlyArray<CoachStep> = STEPS.map((step) =>
-  step.key === "sidebar" ? { ...step, body: "갤러리 이름, 진행 상태, 플랜이 들어 있어요. 넓게 보려면 접어 두세요." } : step,
+  step.key === "sidebar"
+    ? { ...step, body: "갤러리 이름, 진행 상태, 플랜이 들어 있어요. 넓게 보려면 접어 두세요." }
+    : step.key === "confirm"
+      ? { ...step, body: "확정하면 사진 셀렉이 열려요. 위 단계 칩으로 언제든 돌아올 수 있어요." }
+      : step,
 );
 
 export function ClientCoachMarks({ ready, personal = false, onStart }: { ready: boolean; personal?: boolean; onStart?: () => void }) {
