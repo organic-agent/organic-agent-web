@@ -80,7 +80,8 @@ export function ExportSelectionModal({
       title="선택을 마칠까요?"
       desc={
         <>
-          선택을 마치면 <b className="text-contents-light-bgd-default">사진을 더 선택할 수 없고 보정 확인 단계로 넘어가요</b> · 이어서 요청서(PDF)를 내려받아요
+          선택을 마치면 <b className="text-contents-light-bgd-default">사진 선택이 잠기고 보정 확인 단계로 넘어가요</b> · 이어서 요청서(PDF)를 내려받아요.
+          보정본을 올리기 전까지는 &lsquo;선택 다시 하기&rsquo;로 되돌릴 수 있어요
         </>
       }
       maxWidthClassName="max-w-120"

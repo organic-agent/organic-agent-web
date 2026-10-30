@@ -6,7 +6,8 @@
  * 장수를 넘기면 **한 장도 담기지 않고 통째로 거절**된다 — 겹침(409)은
  * 신랑·신부가 동시에 고르다 생긴 "화면이 낡았다"는 신호라 재조회로 푼다.
  * 제출(submit) 뒤에는 담기·빼기가 잠기고, 되돌리기(withdraw)는 담당
- * 작가만 할 수 있다.
+ * 작가만 할 수 있다. 개인 갤러리는 내보내기(export)로 잠기고 부부가 직접
+ * 취소(cancelSelectionExport)한다.
  */
 
 import { isDemoActive } from "@/lib/demo/demoMode";
@@ -148,6 +149,18 @@ export function withdrawSelection(
   galleryId: number,
 ): Promise<PhotoSelectionResponse> {
   return api(`/api/v1/galleries/${galleryId}/photo-selection/withdraw`, {
+    method: "POST",
+  });
+}
+
+/**
+ * 개인 갤러리 요청서 내보내기 취소 — 두 참여자 모두. 보정 확인 단계에서 셀렉 단계로 돌아가 다시 고르고 폴더를 정리한다.
+ * 보정 메모 초안은 남는다. 실패: 409 SELECTION_409_8(보정본이 이미 올라옴) · SELECTION_409_7(내보낸 요청서 없음 — 이미 취소됨).
+ */
+export function cancelSelectionExport(
+  galleryId: number,
+): Promise<PhotoSelectionResponse> {
+  return api(`/api/v1/galleries/${galleryId}/photo-selection/export/cancel`, {
     method: "POST",
   });
 }
