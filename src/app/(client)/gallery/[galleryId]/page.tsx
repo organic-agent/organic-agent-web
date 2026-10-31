@@ -67,6 +67,7 @@ import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
 import { FinishOrganizingModal } from "./_shell/FinishOrganizingModal";
+import { EMPTY_CONDITIONS, matchesConditions, type SelectConditions, SelectFilterButton, SelectFilterChips } from "./_shell/SelectFilter";
 import { PersonalCoachMarks } from "./_shell/PersonalCoachMarks";
 import { PersonalInviteModal } from "./_shell/PersonalInviteModal";
 import { PersonalEmptyGuide } from "./_shell/PersonalEmptyGuide";
@@ -77,6 +78,9 @@ import { WaitCard } from "./_shell/WaitCard";
 import { usePersonalUpload } from "./_shell/usePersonalUpload";
 import { usePhotoUrlRefresh } from "./_shell/usePhotoUrlRefresh";
 import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf, personalPhaseOf } from "./_shell/clientStages";
+
+/** 컨셉 분류의 별점 필터는 별점만 본다 — 선택 · 좋아요 · AI 추천 맥락은 비워 둔다 */
+const NO_CONTEXT = { pickedIds: new Set<number>(), likesByPhoto: new Map<number, number>(), aiIds: new Set<number>() };
 
 /** 상단 단계 칩이 셀렉 · 보정 확인 화면 안의 창을 열어 달라는 요청(이슈 147) — nonce가 바뀔 때마다 한 번 */
 type StageRequest = { kind: "export"; nonce: number } | { kind: "cancelExport" | "close"; nonce: number };
@@ -178,6 +182,8 @@ export default function ClientGalleryPage() {
   }
   /** 보정 확인 화면이 알려 주는 것 — 선택 다시 하기가 되는지(보정본 0장) · 보관됐는지 */
   const [reviewCaps, setReviewCaps] = useState({ canCancelExport: false, archived: false });
+  /** 컨셉 분류(정리 모드 · 읽기 전용 보기)의 별점 필터(이슈 156) — 셀렉 필터와 따로 살고, 새로고침하면 풀린다 */
+  const [sortConditions, setSortConditions] = useState<SelectConditions>(EMPTY_CONDITIONS);
   useEffect(() => {
     if (!stageNotice) return;
     const timer = window.setTimeout(() => setStageNotice(null), 2400);
@@ -288,7 +294,8 @@ export default function ClientGalleryPage() {
     openUploadModal();
   }, [organizing, openUploadModal]);
 
-  const visiblePhotos = useMemo(() => {
+  /** 폴더까지 건 사진 — 별점 필터 패널의 장수는 이 범위에서 센다 */
+  const folderPhotos = useMemo(() => {
     // 올리는 동안은 PENDING도 회색 자리로 보여 준다(작가 1단계와 같음 — 끝난 뒤 남은 PENDING은 복구 배너의 몫)
     let list = isPersonal && upload.uploading ? [...allPhotos, ...pendingPhotos] : allPhotos;
     if (folderSel.kind === "detail") {
@@ -301,8 +308,8 @@ export default function ClientGalleryPage() {
       list = list.filter((p) => !sortedIds.has(p.photoId));
     }
     if (filter === "unsorted") list = list.filter((p) => !sortedIds.has(p.photoId));
-    return sortPhotos(list, sort);
-  }, [allPhotos, folderSel, folders, details, sortedIds, filter, sort, isPersonal, upload.uploading, pendingPhotos]);
+    return list;
+  }, [allPhotos, folderSel, folders, details, sortedIds, filter, isPersonal, upload.uploading, pendingPhotos]);
 
   const selectedDetail =
     folderSel.kind === "detail" ? details.find((d) => d.id === folderSel.detailId) ?? null : null;
@@ -315,6 +322,12 @@ export default function ClientGalleryPage() {
   const viewingSort = reviewing && viewing === "sort";
   const viewingSelect = reviewing && viewing === "select";
   const sorting = phase === "sort" || organizing;
+  /** 별점이 있는 컨셉 분류 — 셀렉에서 돌아온 정리 모드와 읽기 전용 보기. 첫 확정 전은 별점이 없어 배지 · 필터를 두지 않는다 */
+  const scoreTools = organizing || viewingSort;
+  const visiblePhotos = useMemo(() => {
+    const list = scoreTools && sortConditions.scores.size > 0 ? folderPhotos.filter((p) => matchesConditions(p, sortConditions, NO_CONTEXT)) : folderPhotos;
+    return sortPhotos(list, sort);
+  }, [folderPhotos, scoreTools, sortConditions, sort]);
   const editable = sorting && !contentBlocked;
 
   function toggleSelect(photoId: number) {
@@ -656,7 +669,9 @@ export default function ClientGalleryPage() {
             {upload.aiCategorizing ? "폴더 만드는 중…" : "AI 분석 중"}
           </span>
         )}
-        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{allPhotos.length}장</small>
+        <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
+          {scoreTools && sortConditions.scores.size > 0 ? `${visiblePhotos.length}장 / ${allPhotos.length}` : `${allPhotos.length}장`}
+        </small>
       </>
     );
 
@@ -807,8 +822,26 @@ export default function ClientGalleryPage() {
               </div>
             ) : (
               <>
-                {/* 컨셉 분류 단계에는 아직 별점이 없어 정렬 메뉴에서 별점 순을 뺀다 — 셀렉 중 정리는 별점이 있어 둔다 */}
-                <ShellMainHeader {...headerCommon} scoreSort={organizing || viewingSort} title={allTitle} titleParent={allTitleParent} />
+                {/* 정렬 메뉴는 없다(업로드 순 고정, 셀렉과 같음 · 이슈 156). 별점이 있는 정리 모드 · 읽기 전용 보기만 별점 필터 */}
+                <ShellMainHeader
+                  {...headerCommon}
+                  sortable={false}
+                  title={allTitle}
+                  titleParent={allTitleParent}
+                  trailing={
+                    scoreTools && (
+                      <SelectFilterButton
+                        scoresOnly
+                        conditions={sortConditions}
+                        onChange={setSortConditions}
+                        photos={folderPhotos}
+                        context={NO_CONTEXT}
+                        visibleCount={visiblePhotos.length}
+                      />
+                    )
+                  }
+                />
+                {scoreTools && <SelectFilterChips conditions={sortConditions} onChange={setSortConditions} visibleCount={visiblePhotos.length} />}
                 {isPersonal && upload.recoveryBanner}
                 <div data-coach="photos" className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
                   {visiblePhotos.length === 0 ? (
@@ -822,6 +855,7 @@ export default function ClientGalleryPage() {
                       onSelectMany={selectMany}
                       drag={photoMove.drag}
                       selectable={editable}
+                      showScore={scoreTools}
                     />
                   )}
                 </div>

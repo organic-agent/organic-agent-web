@@ -123,7 +123,7 @@ export function FoldersShot() {
             onSortChange={noop}
             filter="none"
             onFilterChange={noop}
-            scoreSort={false}
+            sortable={false}
             title={title}
             titleParent={detail ? CONCEPT_NAME : undefined}
           />
