@@ -74,7 +74,7 @@ export function SubmitSelectionModal({
       desc={
         <>
           전달하면 <b className="text-contents-light-bgd-default">더 고르거나 바꿀 수 없어요.</b> 다시 열어 달라는 건 작가에게 요청해야 해요.
-          보정 요청도 함께 전달돼요.
+          보정 작성 내용도 함께 전달돼요.
         </>
       }
       maxWidthClassName="max-w-120"
@@ -83,7 +83,7 @@ export function SubmitSelectionModal({
       <dl className="mb-5 flex flex-col type-content-s">
         <Row label="선택한 사진" value={maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`} />
         <Row
-          label="보정 요청"
+          label="보정 작성"
           value={
             requests.length === 0
               ? "없음 · 선택한 사진은 모두 기본 보정 대상이에요"
@@ -94,7 +94,7 @@ export function SubmitSelectionModal({
       </dl>
       {unpickedDraftCount > 0 && (
         <p className="mb-4 rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
-          고르지 않은 사진 {unpickedDraftCount}장에 쓴 보정 요청은 전달되지 않아요. 필요하면 먼저 그 사진을 골라 주세요.
+          고르지 않은 사진 {unpickedDraftCount}장에 적은 보정 작성 내용은 전달되지 않아요. 필요하면 먼저 그 사진을 골라 주세요.
         </p>
       )}
       {error && (

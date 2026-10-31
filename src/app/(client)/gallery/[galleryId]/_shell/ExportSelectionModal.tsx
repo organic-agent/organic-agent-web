@@ -90,14 +90,14 @@ export function ExportSelectionModal({
       <dl className="mb-5 flex flex-col type-content-s">
         <Row label="선택한 사진" value={maxSelectable !== null ? `${selectedCount} / ${maxSelectable}장` : `${selectedCount}장`} />
         <Row
-          label="보정 요청"
+          label="보정 작성"
           value={requests.length === 0 ? "없음" : `${requests.length}장 · 핀 ${points}개${refined > 0 ? ` (AI 다듬기 ${refined})` : ""}`}
         />
         <Row label="별점" value={ratedCount > 0 ? `${ratedCount}장 매김` : "없음"} />
       </dl>
       {unpickedDraftCount > 0 && (
         <p className="mb-4 rounded-(--radius-8) bg-function-warning-background px-3 py-2 type-content-xs text-contents-light-bgd-default">
-          선택하지 않은 사진 {unpickedDraftCount}장에 쓴 보정 요청은 실리지 않아요. 필요하면 먼저 그 사진을 선택해 주세요.
+          선택하지 않은 사진 {unpickedDraftCount}장에 적은 보정 작성 내용은 실리지 않아요. 필요하면 먼저 그 사진을 선택해 주세요.
         </p>
       )}
       {error && (

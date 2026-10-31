@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 클라이언트 2단계 — 셀렉 & 보정 요청 화면 (WES-312, 2026-09-12 보드 확정)
+ * 클라이언트 2단계 — 셀렉 & 보정 작성 화면 (WES-312, 2026-09-12 보드 확정 · 이름은 이슈 156에서 "보정 작성"으로)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/SelectStage.tsx
  *
  * 폴더 확정 뒤에는 폴더 열이 사라지고 2열이다: 사이드바(기본 열림 — 폴더 | 공유 탭, 체크박스 트리) + 그리드.
@@ -75,7 +75,7 @@ import { useSelectionSync } from "./useSelectionSync";
 type LightboxTab = "none" | "info" | "memo" | "guest";
 const LIGHTBOX_TABS: LightboxTabDef[] = [
   { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
-  { key: "memo", label: "보정 요청", icon: <EditNoteIcon size={18} /> },
+  { key: "memo", label: "보정 작성", icon: <EditNoteIcon size={18} /> },
 ];
 
 /** 하단 바의 디데이 조각 — 목표일이 없으면 빈 문자열(조각을 뺀다). 상단바 칩과 같은 표기(문구 점검 C02) */
@@ -414,7 +414,7 @@ export function SelectStage({
             : `${maxSelectable}장을 다 선택했어요`
       : null;
   /** 하단 바 안내 줄 — 디데이 · 보정 요청 장수 · 마치기 안내를 가운뎃점으로 잇고, 없는 조각은 뺀다(문구 점검 C02) */
-  const bottomHint = [ddayLabel(gallery.selectionDeadline), draftCount.photos > 0 ? `보정 요청 ${draftCount.photos}장` : "", submitHint ?? ""].filter(Boolean).join(" · ");
+  const bottomHint = [ddayLabel(gallery.selectionDeadline), draftCount.photos > 0 ? `보정 작성 ${draftCount.photos}장` : "", submitHint ?? ""].filter(Boolean).join(" · ");
 
   // ── 싱글뷰 ──
   /** 화면에 그려진 순서 — AI 추천 묶음이 먼저, 그다음 점수 묶음 순 */

@@ -13,7 +13,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EditNoteIcon, InfoIcon, S
 import { sampleFile, samplePhotoUrl } from "./samplePhotos";
 
 export type ShotLightboxTab = "none" | "info" | "memo";
-const TAB_LABEL: Record<ShotLightboxTab, string> = { none: "", info: "정보", memo: "보정 요청" };
+const TAB_LABEL: Record<ShotLightboxTab, string> = { none: "", info: "정보", memo: "보정 작성" };
 const noop = () => {};
 
 export function ShotLightbox({
@@ -102,7 +102,7 @@ export function ShotLightbox({
             <CtlButton label="정보" pressed={tab === "info"} onClick={noop}>
               <InfoIcon size={18} />
             </CtlButton>
-            <CtlButton label="보정 요청" pressed={tab === "memo"} onClick={noop}>
+            <CtlButton label="보정 작성" pressed={tab === "memo"} onClick={noop}>
               <EditNoteIcon size={18} />
             </CtlButton>
             <Sep />
