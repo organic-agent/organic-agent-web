@@ -45,7 +45,7 @@ export function CancelExportModal({
       title="선택을 다시 할까요?"
       desc={
         <>
-          <b className="text-contents-light-bgd-default">셀렉 단계로 돌아가 사진을 다시 고르고 폴더를 정리할 수 있어요</b> · 적어 둔 보정 요청은 그대로 남아요.
+          <b className="text-contents-light-bgd-default">셀렉 단계로 돌아가 사진을 다시 고르고 폴더를 정리할 수 있어요</b> · 적어 둔 보정 작성 내용은 그대로 남아요.
           다 고르면 선택을 다시 마치고 요청서를 새로 내려받아 주세요
         </>
       }

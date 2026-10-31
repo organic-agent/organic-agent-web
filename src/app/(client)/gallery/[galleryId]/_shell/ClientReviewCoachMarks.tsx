@@ -27,7 +27,7 @@ const STEPS: ReadonlyArray<CoachStep> = [
     key: "rerequest",
     eyebrow: "다시 요청",
     title: "더 고칠 곳이 있으면 다시 요청",
-    body: "크게 보기의 \"보정 요청\" 탭에서 보정본 위에 점을 찍어 적은 사진이 다음 회차로 보내져요. 남은 횟수만큼 할 수 있어요.",
+    body: "크게 보기의 \"보정 작성\" 탭에서 보정본 위에 점을 찍어 적은 사진이 다음 회차로 보내져요. 남은 횟수만큼 할 수 있어요.",
   },
   {
     key: "confirm",

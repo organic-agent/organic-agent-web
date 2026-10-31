@@ -337,7 +337,7 @@ export function ReviewStage({
         </span>
         보정 사진
         <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">
-          {roundLabel} {resultArrived ? "보정본" : "요청"} · {items.length}장{!resultArrived && memoCount > 0 ? ` · 보정 요청 ${memoCount}` : ""}
+          {roundLabel} {resultArrived ? "보정본" : "요청"} · {items.length}장{!resultArrived && memoCount > 0 ? ` · 보정 작성 ${memoCount}` : ""}
         </small>
       </>
     );
@@ -412,7 +412,7 @@ export function ReviewStage({
             : null;
   const lightboxTabs: LightboxTabDef[] = [
     { key: "info", label: "정보", icon: <InfoIcon size={18} /> },
-    { key: "request", label: "보정 요청", icon: <BrushIcon size={18} />, ...(requestLocked ? { empty: requestLocked } : {}) },
+    { key: "request", label: "보정 작성", icon: <BrushIcon size={18} />, ...(requestLocked ? { empty: requestLocked } : {}) },
   ];
   // 잠긴 사진으로 넘어왔으면 보정 요청 패널은 닫힌 것으로
   const openTab: Tab = tab === "request" && requestLocked ? "none" : tab;
@@ -538,7 +538,7 @@ export function ReviewStage({
                     toggleOn="check"
                     captionOf={(p) => {
                       const it = itemById.get(p.photoId);
-                      if (view === "retouch" && it) return hasMemo(it) ? it.requestText?.trim() || it.points[0]?.text || `핀 ${it.points.length}` : "보정 요청 없음";
+                      if (view === "retouch" && it) return hasMemo(it) ? it.requestText?.trim() || it.points[0]?.text || `핀 ${it.points.length}` : "보정 작성 없음";
                       return folderNameOf(p);
                     }}
                     overlayOf={overlayOf}

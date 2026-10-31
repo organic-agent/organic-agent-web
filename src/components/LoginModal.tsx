@@ -59,7 +59,7 @@ const COPY: Record<
     who: "Get started",
     line: (
       <>
-        업로드부터 보정 요청까지,
+        업로드부터 보정 작성까지,
         <br />
         사진의 여정을 한 곳에서.
       </>

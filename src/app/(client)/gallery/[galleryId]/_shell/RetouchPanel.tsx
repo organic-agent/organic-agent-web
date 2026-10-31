@@ -132,7 +132,7 @@ export function RetouchPanel({
       )}
 
       <section className="flex flex-col gap-1.5">
-        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">사진 전체 보정 요청</h4>
+        <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">사진 전체 보정 작성</h4>
         <textarea
           value={draft.requestText}
           disabled={!editable}

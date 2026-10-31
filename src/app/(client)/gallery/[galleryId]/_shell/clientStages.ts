@@ -2,7 +2,7 @@
  * 갤러리 단계(클라이언트 관점) — 단계 이름과 서버 상태 매핑
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/clientStages.ts
  *
- * 1 컨셉 분류 → 2 셀렉 & 보정 요청 → 3 보정 검토 → (4 앨범 구성) → 완료 (2026-09-12 확정).
+ * 1 컨셉 분류 → 2 셀렉 & 보정 작성 → 3 보정 검토 → (4 앨범 구성) → 완료 (2026-09-12 확정, 단계 이름은 이슈 156에서 "보정 작성"으로).
  * 앨범을 만드는 갤러리만 "앨범 구성" 칸이 있다 — 서버 응답에 그 값이 아직 없어(⑥ 갭 9) 지금은 늘 4칸이다.
  * 보정 요청은 2단계 안(싱글뷰 점 찍기)에서 하고 셀렉 제출에 실려 간다. 2↔3 반복(보정 횟수만큼)은
  * 3단계 안 상태줄이 말한다. 갤러리가 아직 열리지 않았으면(DRAFT) 단계 밖 "준비 중"(대기).
@@ -16,9 +16,9 @@
 
 import type { GalleryResponse } from "@/lib/api/galleries";
 
-const STAGES_WITH_ALBUM = ["컨셉 분류", "셀렉 & 보정 요청", "보정 검토", "앨범 구성", "완료"] as const;
-const STAGES_NO_ALBUM = ["컨셉 분류", "셀렉 & 보정 요청", "보정 검토", "완료"] as const;
-const STAGES_PERSONAL = ["업로드", "컨셉 분류", "셀렉 & 보정 요청", "보정 확인", "완료"] as const;
+const STAGES_WITH_ALBUM = ["컨셉 분류", "셀렉 & 보정 작성", "보정 검토", "앨범 구성", "완료"] as const;
+const STAGES_NO_ALBUM = ["컨셉 분류", "셀렉 & 보정 작성", "보정 검토", "완료"] as const;
+const STAGES_PERSONAL = ["업로드", "컨셉 분류", "셀렉 & 보정 작성", "보정 확인", "완료"] as const;
 
 export type ClientPhase =
   /** 작가가 아직 갤러리를 열지 않음(DRAFT) */

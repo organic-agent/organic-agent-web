@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 클라이언트 2단계(셀렉 & 보정 요청) 첫 진입 코치마크 5 (2026-09-12 보드, 2026-10-05 손질)
+ * 클라이언트 2단계(셀렉 & 보정 작성) 첫 진입 코치마크 5 (2026-09-12 보드, 2026-10-05 손질)
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ClientSelectCoachMarks.tsx
  *
  * 사진 선택 → 게스트 초대 → AI 추천 → 하객 반응 → 작가에게 전달하기. 대상은 data-coach 속성.
@@ -41,14 +41,14 @@ const STEPS: ReadonlyArray<CoachStep> = [
     key: "submit",
     eyebrow: "전달하기",
     title: "선택이 완료되면 작가에게 전달",
-    body: "장수를 다 채워야 전달할 수 있어요. 보정 요청도 함께 전달돼요.",
+    body: "장수를 다 채워야 전달할 수 있어요. 보정 작성 내용도 함께 전달돼요.",
   },
 ];
 
 /** 개인 갤러리는 작가에게 전달하지 않고 요청서를 내보낸다 — 마지막 단계를 바꾸고, 사진 선택 뒤에 단계 칩 안내를 끼운다 */
 const PERSONAL_STEPS: ReadonlyArray<CoachStep> = STEPS.flatMap((step) =>
   step.key === "submit"
-    ? [{ ...step, eyebrow: "내보내기", title: "선택이 완료되면 요청서 내보내기", body: "내보내면 선택이 잠기고 보정 확인 단계로 넘어가요. 보정 요청도 함께 실려요." }]
+    ? [{ ...step, eyebrow: "내보내기", title: "선택이 완료되면 요청서 내보내기", body: "내보내면 선택이 잠기고 보정 확인 단계로 넘어가요. 보정 작성 내용도 함께 실려요." }]
     : step.key === "pick"
       ? [
           step,

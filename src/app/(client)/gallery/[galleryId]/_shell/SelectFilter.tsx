@@ -9,6 +9,7 @@
  * 폴더를 바꿔도 남고 새로고침하면 풀린다(저장 안 함, 이슈 130과 같은 방식).
  * 헤더 버튼은 조건이 하나라도 걸리면 연보라 채움 + 보라 테두리(다크는 보라 틴트 + 흰 글자)로 바뀐다 — 숫자 배지 없음.
  * 패널 안 장수는 보는 폴더 기준이고, 다른 묶음의 조건은 적용한 채로 센다(이 줄을 고르면 몇 장이 되는지).
+ * 컨셉 분류(정리 모드)는 scoresOnly로 별점 묶음만 쓴다 — 그 화면의 체크박스는 옮기기 · 지우기용이라 "선택 여부"와 섞이지 않게(이슈 156).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -95,9 +96,12 @@ export function SelectFilterButton({
   photos,
   context,
   visibleCount,
+  scoresOnly = false,
 }: {
   conditions: SelectConditions;
   onChange: (next: SelectConditions) => void;
+  /** 별점 묶음만 — 컨셉 분류(정리 모드) */
+  scoresOnly?: boolean;
   /** 보는 폴더의 사진 — 패널 장수의 분모 */
   photos: PhotoResponse[];
   context: ConditionContext;
@@ -163,7 +167,7 @@ export function SelectFilterButton({
           aria-label="필터"
           className="absolute top-full right-0 z-20 mt-1 flex w-72 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1.5 shadow-(--shadow-hover)"
         >
-          <div className="px-1 pt-1 pb-2">
+          {!scoresOnly && <div className="px-1 pt-1 pb-2">
             <p className="px-1 pb-1.5 type-label-semibold-xs text-contents-light-bgd-weakness">선택 여부</p>
             <div role="radiogroup" aria-label="선택 여부" className="grid grid-cols-3 gap-0.5 rounded-(--radius-8) bg-surface-default-light p-0.5">
               {(Object.keys(PICK_LABEL) as PickCondition[]).map((key) => {
@@ -184,8 +188,8 @@ export function SelectFilterButton({
                 );
               })}
             </div>
-          </div>
-          <div className="border-t border-divider-default px-1 pt-1.5 pb-1">
+          </div>}
+          <div className={`px-1 pt-1.5 pb-1 ${scoresOnly ? "" : "border-t border-divider-default"}`}>
             <p className="px-1 pb-0.5 type-label-semibold-xs text-contents-light-bgd-weakness">별점</p>
             {SCORE_ROWS.map((s) => (
               <label key={s} className={ROW_CLASS}>
@@ -195,7 +199,7 @@ export function SelectFilterButton({
               </label>
             ))}
           </div>
-          <div className="border-t border-divider-default px-1 pt-1.5 pb-1">
+          {!scoresOnly && <div className="border-t border-divider-default px-1 pt-1.5 pb-1">
             <label className={ROW_CLASS}>
               <Toggle checked={conditions.guest} onChange={(v) => onChange({ ...conditions, guest: v })} aria-label="게스트 좋아요 있는 사진만" />
               게스트 좋아요 있는 사진만
@@ -206,7 +210,7 @@ export function SelectFilterButton({
               AI 추천만
               <span className={COUNT_CLASS}>{aiCount}</span>
             </label>
-          </div>
+          </div>}
           <div className="flex items-center justify-between border-t border-divider-default px-2.5 pt-2 pb-1 type-content-xs text-contents-light-bgd-sub">
             <span>
               <b className="font-semibold text-contents-light-bgd-default tabular-nums">{visibleCount}장</b> 보기

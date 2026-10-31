@@ -13,7 +13,7 @@ import { BellIcon, BrushIcon, CheckCircleIcon, LockIcon, MenuIcon, PersonAddIcon
 import { Avatar } from "@/components/ui/Avatar";
 
 /** 개인 갤러리 단계 5칸(clientStages.ts STAGES_PERSONAL) */
-export const SHOT_STAGES = ["업로드", "컨셉 분류", "셀렉 & 보정 요청", "보정 확인", "완료"] as const;
+export const SHOT_STAGES = ["업로드", "컨셉 분류", "셀렉 & 보정 작성", "보정 확인", "완료"] as const;
 export const SHOT_TITLE = "민지 · 준호 스튜디오 촬영";
 
 const PILL = "rounded-(--pill) px-3 py-1 whitespace-nowrap type-label-medium-s";

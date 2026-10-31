@@ -38,7 +38,7 @@ const STEPS: ReadonlyArray<CoachStep> = [
   },
   {
     key: "lb-memo",
-    eyebrow: "보정 요청",
+    eyebrow: "보정 작성",
     title: "고칠 곳을 사진 위에 찍어요",
     body: "사진 위를 눌러 점을 찍고 원하는 보정을 적어요. 선택한 사진의 요청만 작가에게 전달돼요.",
   },

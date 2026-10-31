@@ -34,7 +34,7 @@ const STEPS: Step[] = [
   { n: "01", label: "사진 업로드", title: ["원본을 그대로 업로드"], desc: ["여러 장을 한 번에 끌어다 업로드합니다. 업로드되는 동안 AI가 비슷한 컨셉끼리 분류합니다."], shot: <UploadShot /> },
   { n: "02", label: "컨셉 분류", title: ["AI로 컨셉별 폴더 나누기"], desc: ["비슷한 사진끼리 폴더로 묶입니다. 폴더는 수정, 변형이 가능합니다."], shot: <FoldersShot /> },
   { n: "03", label: "사진 셀렉", title: ["별점으로 빠르게 셀렉"], desc: ["별점을 매겨 후보를 추리고 마음에 드는 사진을 선택합니다.", "파트너를 초대하고, 공유 링크로 가족의 좋아요와 댓글을 모읍니다."], shot: <SelectShot /> },
-  { n: "04", label: "보정 요청 작성", title: ["사진 위에 점을 찍어 보정 요청"], desc: ["고칠 곳을 누르고 한 줄 적으면 요청서로 정리됩니다. 선택한 사진의 요청만 담깁니다."], shot: <RetouchShot /> },
+  { n: "04", label: "보정 작성", title: ["사진 위에 점을 찍어 보정 작성"], desc: ["고칠 곳을 누르고 한 줄 적으면 요청서로 정리됩니다. 선택한 사진의 요청만 담깁니다."], shot: <RetouchShot /> },
 ];
 
 export function FlowSection() {

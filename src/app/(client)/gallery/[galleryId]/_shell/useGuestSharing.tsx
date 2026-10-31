@@ -51,6 +51,8 @@ export function useGuestSharing({
   closeReactions: () => void;
   /** 공유폴더 전부의 사진별 좋아요 · 댓글 합(2단계 "하객 반응" 토글) */
   reactions: GuestReactions;
+  /** 공유폴더 수(폐기 · 만료 포함) — 0이면 "게스트 반응" 버튼이 켜지지 않고 스낵바로 알린다(이슈 156). null이면 아직 못 읽음 */
+  sessionCount: number | null;
 } {
   const collab = useCollabSessions(galleryId, true);
   const reactions = useGuestReactions(galleryId, collab.sessions);
@@ -145,5 +147,5 @@ export function useGuestSharing({
     </>
   );
 
-  return { shareTab, modals, reactionsView, reactionsOpen: openSession !== null, closeReactions: () => setReactionSession(null), reactions };
+  return { shareTab, modals, reactionsView, reactionsOpen: openSession !== null, closeReactions: () => setReactionSession(null), reactions, sessionCount: collab.sessions?.length ?? null };
 }
