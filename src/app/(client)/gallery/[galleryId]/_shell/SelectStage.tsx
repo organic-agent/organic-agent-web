@@ -34,6 +34,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { track } from "@/lib/analytics";
 import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
+import { Snackbar } from "@/components/app/Snackbar";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
@@ -196,8 +197,22 @@ export function SelectStage({
   // 셀렉 필터(이슈 149) — 묶음 4개를 겹쳐 걸고 받은 목록을 화면에서 거른다. 폴더를 바꿔도 남고 새로고침하면 풀린다
   const [conditions, setConditions] = useState<SelectConditions>(EMPTY_CONDITIONS);
   const conditionCount = activeGroupCount(conditions);
-  // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산)
+  // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산). 공유폴더가 하나도 없으면 켜지 않고 스낵바(이슈 156)
   const [guestOn, setGuestOn] = useState(false);
+  const [snack, setSnack] = useState<string | null>(null);
+  useEffect(() => {
+    if (!snack) return;
+    const timer = window.setTimeout(() => setSnack(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [snack]);
+  function toggleGuest() {
+    if (blockInDemo("게스트 반응")) return;
+    if (sharing.sessionCount === 0) {
+      setSnack("공유폴더를 만들면 게스트 반응을 볼 수 있어요");
+      return;
+    }
+    setGuestOn((v) => !v);
+  }
   const likesByPhoto = sharing.reactions.likesByPhoto;
   const guestOverlay = guestOn
     ? (photo: PhotoResponse) => {
@@ -589,7 +604,7 @@ export function SelectStage({
                     data-coach="reactions"
                     aria-pressed={guestOn}
                     aria-label="게스트 반응"
-                    onClick={() => { if (!blockInDemo("게스트 반응")) setGuestOn((v) => !v); }}
+                    onClick={toggleGuest}
                     className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
                       guestOn ? "border-brand-accent-default text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
                     }`}
@@ -822,6 +837,11 @@ export function SelectStage({
         )}
       />
 
+      {snack && (
+        <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {snack}
+        </Snackbar>
+      )}
       <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} personal={personal} />
       {/* 사진을 처음 크게 열었을 때 — 빼기 확인 창이 떠 있는 동안은 미룬다 */}
       <LightboxCoachMarks ready={editable && lightboxOpen && currentPhoto !== null && deselectId === null} personal={personal} />
