@@ -53,8 +53,8 @@ export function BeforeAfter({
         className="pointer-events-none absolute inset-0 size-full object-contain"
         style={{ clipPath: `inset(0 0 0 ${pos}%)` }}
       />
-      <span aria-hidden className="pointer-events-none absolute inset-y-0 w-0.5 bg-contents-dark-bgd-default shadow-[0_0_0_1px_rgba(0,0,0,.25)]" style={{ left: `${pos}%` }}>
-        <span className="absolute top-1/2 left-1/2 grid size-7 -translate-1/2 place-items-center rounded-full bg-contents-dark-bgd-default text-contents-light-bgd-default shadow-[0_2px_6px_rgba(0,0,0,.3)]">
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 w-0.5 bg-contents-dark-bgd-default ring-1 ring-surface-default-medium" style={{ left: `${pos}%` }}>
+        <span className="absolute top-1/2 left-1/2 grid size-7 -translate-1/2 place-items-center rounded-full bg-contents-dark-bgd-default text-contents-light-bgd-default shadow-(--shadow-pin)">
           <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 4 2 8l4 4M10 4l4 4-4 4" />
           </svg>

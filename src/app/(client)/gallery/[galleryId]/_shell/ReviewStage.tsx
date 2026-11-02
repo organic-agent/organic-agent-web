@@ -385,7 +385,7 @@ export function ReviewStage({
             <span
               key={i}
               aria-hidden
-              className="absolute grid size-4.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_1px_4px_rgba(0,0,0,.35)]"
+              className="absolute grid size-4.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-(--shadow-pin)"
               style={{ left: `${pt.x * 100}%`, top: `${pt.y * 100}%` }}
             >
               {i + 1}
@@ -848,7 +848,7 @@ export function ReviewStage({
                   <span
                     key={i}
                     title={pt.useRefinedText && pt.refinedText ? pt.refinedText : pt.text}
-                    className="absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_2px_6px_rgba(0,0,0,.35)]"
+                    className="absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-(--shadow-pin)"
                     style={{ left: `${pt.x * 100}%`, top: `${pt.y * 100}%` }}
                   >
                     {i + 1}

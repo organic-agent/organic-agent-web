@@ -280,7 +280,7 @@ export function RetouchStage({
             <span
               key={i}
               aria-hidden
-              className="absolute grid size-4.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_1px_4px_rgba(0,0,0,.35)]"
+              className="absolute grid size-4.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-(--shadow-pin)"
               style={{ left: `${pt.x * 100}%`, top: `${pt.y * 100}%` }}
             >
               {i + 1}
@@ -631,7 +631,7 @@ export function RetouchStage({
                   <span
                     key={i}
                     title={pt.useRefinedText && pt.refinedText ? pt.refinedText : pt.text}
-                    className="absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_2px_6px_rgba(0,0,0,.35)]"
+                    className="absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-(--shadow-pin)"
                     style={{ left: `${pt.x * 100}%`, top: `${pt.y * 100}%` }}
                   >
                     {i + 1}
@@ -659,7 +659,7 @@ export function RetouchStage({
                           aria-selected={compareMode === m}
                           onClick={() => setCompareMode(m)}
                           className={`flex-1 cursor-pointer rounded-(--radius-4) py-1.5 type-label-medium-s transition-colors duration-fast ${
-                            compareMode === m ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-contents-light-bgd-weakness"
+                            compareMode === m ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-(--shadow-segment)" : "text-contents-light-bgd-weakness"
                           }`}
                         >
                           {m === "slider" ? "슬라이더" : "나란히"}
@@ -758,7 +758,7 @@ function InfoPanel({ item, folderName }: { item: RetouchItem; folderName: string
 /** 싱글뷰 패널 아래 — 이 사진의 결과 올리기 · 바꾸기 */
 function ResultSlot({ item, enabled, onPick }: { item: RetouchItem; enabled: boolean; onPick: () => void }) {
   return (
-    <div className={`mt-auto flex flex-col gap-1.5 rounded-(--radius-8) border p-3 ${item.hasResult ? "border-function-success-default/40 bg-function-success-background" : "border-dashed border-border-default"}`}>
+    <div className={`mt-auto flex flex-col gap-1.5 rounded-(--radius-8) border p-3 ${item.hasResult ? "border-function-success-surface bg-function-success-background" : "border-dashed border-border-default"}`}>
       <p className={`inline-flex items-center gap-1 type-label-semibold-s ${item.hasResult ? "text-function-success-default" : "text-contents-light-bgd-default"}`}>
         {item.hasResult ? <CheckCircleIcon size={16} /> : <UploadIcon size={16} />}
         {item.hasResult ? "결과 올라옴" : "이 사진의 결과"}
