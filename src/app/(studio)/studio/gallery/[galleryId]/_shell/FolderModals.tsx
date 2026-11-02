@@ -408,7 +408,7 @@ export function DeletePhotosModal({
     >
       {pickedCount > 0 && (
         // 고른 사진이 섞여 있으면 본문과 따로 빨간 상자로 — 삭제 버튼과 같은 색이라 같은 무게로 읽힌다(2026-10-06 수민)
-        <p className="mb-5 rounded-(--radius-8) border border-function-error-default/35 bg-function-error-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
+        <p className="mb-5 rounded-(--radius-8) border border-function-error-surface bg-function-error-background px-3 py-2.5 type-content-s text-contents-light-bgd-default">
           선택된 사진 <b className="font-semibold text-function-error-default">{pickedCount}장</b>이 선택 사진에서 제외돼요
         </p>
       )}

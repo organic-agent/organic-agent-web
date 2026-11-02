@@ -139,7 +139,7 @@ export function AlbumGrid({
 
   const overlayOf = (photo: PhotoResponse): ReactNode =>
     likedIds.has(photo.photoId) ? (
-      <span className="absolute right-2 bottom-2 grid size-6.5 place-items-center rounded-full bg-brand-secondary-default text-contents-dark-bgd-default shadow-[0_1px_4px_rgba(0,0,0,.25)]">
+      <span className="absolute right-2 bottom-2 grid size-6.5 place-items-center rounded-full bg-brand-secondary-default text-contents-dark-bgd-default shadow-(--shadow-pin)">
         <HeartFillIcon size={14} />
       </span>
     ) : null;

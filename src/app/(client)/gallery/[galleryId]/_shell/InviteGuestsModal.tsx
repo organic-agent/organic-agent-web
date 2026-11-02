@@ -385,7 +385,7 @@ export function InviteGuestsBody({
           <ul className="flex flex-col gap-1 rounded-(--radius-12) bg-surface-default-lightness p-1.5" aria-label="공유폴더">
             {live.map((s) => (
               <li key={s.sessionId}>
-                <label className={`flex cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 transition-colors duration-fast hover:bg-surface-default-light ${chosen.has(s.sessionId) ? "bg-background-default-main shadow-[0_1px_2px_rgba(0,0,0,.06)]" : ""}`}>
+                <label className={`flex cursor-pointer items-center gap-2.5 rounded-(--radius-8) px-2.5 py-2 transition-colors duration-fast hover:bg-surface-default-light ${chosen.has(s.sessionId) ? "bg-background-default-main shadow-(--shadow-segment)" : ""}`}>
                   <Checkbox checked={chosen.has(s.sessionId)} onChange={() => toggle(s.sessionId)} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate type-content-m text-contents-light-bgd-default">{s.name}</span>

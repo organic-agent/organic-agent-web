@@ -238,7 +238,7 @@ export function ClientSidebar({
                 onClick={() => tabs.onTabChange(key)}
                 className={`flex-1 cursor-pointer rounded-(--radius-4) py-1.5 type-label-medium-s transition-colors duration-fast ${
                   tabs.tab === key
-                    ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,.08)]"
+                    ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-(--shadow-segment)"
                     : "text-contents-light-bgd-weakness hover:text-contents-light-bgd-sub"
                 }`}
               >

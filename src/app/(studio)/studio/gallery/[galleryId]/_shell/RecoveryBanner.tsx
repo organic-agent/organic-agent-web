@@ -77,7 +77,7 @@ export function RecoveryBanner({
         type="button"
         disabled={extracting || discarding}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex h-8 cursor-pointer items-center rounded-(--radius-8) border border-function-warning-default/40 bg-background-default-main px-3 type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
+        className="inline-flex h-8 cursor-pointer items-center rounded-(--radius-8) border border-function-warning-surface bg-background-default-main px-3 type-label-medium-s text-contents-light-bgd-default transition-colors duration-fast hover:bg-surface-default-lightness"
       >
         {extracting ? "압축을 풀고 사진을 확인하는 중…" : "이어서 올리기"}
       </button>

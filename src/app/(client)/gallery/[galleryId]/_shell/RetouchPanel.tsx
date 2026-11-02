@@ -34,7 +34,7 @@ export function RetouchPins({ points, onRemove }: { points: DraftPoint[]; onRemo
             e.stopPropagation();
             onRemove?.(p.id);
           }}
-          className={`absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-[0_2px_6px_rgba(0,0,0,.35)] ${
+          className={`absolute grid size-5.5 -translate-1/2 place-items-center rounded-full border-2 border-contents-dark-bgd-default bg-brand-secondary-default type-label-semibold-xs text-contents-dark-bgd-default shadow-(--shadow-pin) ${
             onRemove ? "cursor-pointer hover:bg-function-error-default" : "cursor-default"
           }`}
           style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}

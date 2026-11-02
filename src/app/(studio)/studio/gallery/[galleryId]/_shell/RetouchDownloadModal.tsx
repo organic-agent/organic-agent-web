@@ -127,7 +127,7 @@ export function RetouchDownloadModal({
             disabled={progress !== null}
             onClick={() => setScope(k)}
             className={`flex-1 cursor-pointer rounded-(--radius-4) py-1.5 type-label-medium-s transition-colors duration-fast ${
-              scope === k ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-contents-light-bgd-weakness"
+              scope === k ? "bg-background-default-main font-semibold text-contents-light-bgd-default shadow-(--shadow-segment)" : "text-contents-light-bgd-weakness"
             }`}
           >
             {label}
