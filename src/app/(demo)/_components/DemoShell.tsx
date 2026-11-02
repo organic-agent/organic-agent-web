@@ -93,7 +93,8 @@ export function DemoShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-3 bg-brand-accent-default px-4 type-label-medium-s text-brand-on-fill">
+      {/* 체험 띠 — 다크는 포인트 색이 밝아(#BCA9E8) 글자를 바탕색으로, 나가기 버튼은 다른 주 버튼과 같은 규칙(이슈 158) */}
+      <div className="flex h-11 shrink-0 items-center justify-between gap-3 bg-brand-accent-default px-4 type-label-medium-s text-brand-on-fill dark:text-background-default-main">
         <span className="min-w-0 truncate">체험 중 · 샘플 사진 250장 · 바뀐 것은 이 브라우저에만 남아요</span>
         <span className="flex shrink-0 items-center gap-1.5">
           <button
@@ -107,7 +108,7 @@ export function DemoShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={exit}
-            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) bg-background-default-main px-3 type-label-semibold-xs text-contents-light-bgd-default transition-opacity duration-fast hover:opacity-90"
+            className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--radius-8) bg-brand-primary-default px-3 type-label-semibold-xs text-brand-on-fill transition-colors duration-fast hover:bg-brand-primary-light"
           >
             {exitLabel}
             <ArrowRightIcon size={14} />
