@@ -360,6 +360,30 @@
         "color": "rgba(0,0,0,0.12)",
         "type": "dropShadow"
       }
+    },
+    "pin": {
+      "$type": "boxShadow",
+      "$description": "사진 위 핀 · 번호 뱃지 · 비교 슬라이더 손잡이 — 밝은 사진 위에서 떠 보이게(이슈 158)",
+      "$value": {
+        "x": "0",
+        "y": "2",
+        "blur": "6",
+        "spread": "0",
+        "color": "rgba(0,0,0,0.35)",
+        "type": "dropShadow"
+      }
+    },
+    "segment": {
+      "$type": "boxShadow",
+      "$description": "세그먼트의 눌린 칸 · 고른 행 — 바탕에서 살짝 뜸(이슈 158)",
+      "$value": {
+        "x": "0",
+        "y": "1",
+        "blur": "2",
+        "spread": "0",
+        "color": "rgba(0,0,0,0.08)",
+        "type": "dropShadow"
+      }
     }
   },
   "letterSpacing": {

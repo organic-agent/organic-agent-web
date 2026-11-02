@@ -50,6 +50,8 @@
   --size-64: 64px;
   --shadow-hover: 0 4px 14px 0 rgba(0,0,0,0.10);
   --shadow-modal: 0 16px 48px 0 rgba(0,0,0,0.12);
+  --shadow-pin: 0 2px 6px 0 rgba(0,0,0,0.35); /** 사진 위 핀 · 번호 뱃지 · 비교 슬라이더 손잡이 — 밝은 사진 위에서 떠 보이게(이슈 158) */
+  --shadow-segment: 0 1px 2px 0 rgba(0,0,0,0.08); /** 세그먼트의 눌린 칸 · 고른 행 — 바탕에서 살짝 뜸(이슈 158) */
   --letter-spacing-0: 0em;
   --letter-spacing-8: 0.08em;
   --letter-spacing-14: 0.14em;
@@ -342,7 +344,7 @@
   --brand-secondary-background: #212121;
   --brand-secondary-surface1: rgba(199, 199, 199, 0.3);
   --brand-secondary-surface2: rgba(199, 199, 199, 0.5);
-  --brand-accent-default: #9376d8; /** 강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크 primary(시안 규칙) */
+  --brand-accent-default: #bca9e8; /** 강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크는 primary(#9376D8)보다 한 단계 밝은 값으로 주 색과 구분(2026-11-02 이슈 158). 피그마 다크 primary 램프에는 아직 없는 단계라 직접 값 */
   --brand-accent-surface: rgba(147, 118, 216, 0.3); /** 강조 바탕 — 아이콘 타일 · 히어로 프레임 */
   --brand-accent-text: #c7c7c7; /** 강조 글자 — 상태줄 · 숫자 · 저장했어요 · 링크. 다크 secondary/dark(#323232)는 뱃지 안 글자용이라 여기서는 default */
   --brand-chip-background: rgba(199, 199, 199, 0.3); /** 칩 · 꼬리표 · AI 상자 · 배너 바탕(시안 "AI 내용 다듬기" 규칙) */

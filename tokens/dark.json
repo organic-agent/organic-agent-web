@@ -55,8 +55,8 @@
     "accent": {
       "default": {
         "$type": "color",
-        "$value": "{brand.primary.default}",
-        "$description": "강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크 primary(시안 규칙)"
+        "$value": "#bca9e8",
+        "$description": "강조 색 — 아이브로우 · AI 아이콘 · 테두리형 버튼 · 드롭 점선. 라이트 secondary, 다크는 primary(#9376D8)보다 한 단계 밝은 값으로 주 색과 구분(2026-11-02 이슈 158). 피그마 다크 primary 램프에는 아직 없는 단계라 직접 값"
       },
       "surface": {
         "$type": "color",
