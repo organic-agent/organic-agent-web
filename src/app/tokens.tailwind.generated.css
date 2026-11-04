@@ -68,6 +68,13 @@
   --color-function-info-sub: var(--function-info-sub);
   --color-function-info-surface: var(--function-info-surface);
   --color-function-info-background: var(--function-info-background);
+  --color-member-sky: var(--member-sky);
+  --color-member-coral: var(--member-coral);
+  --color-member-apricot: var(--member-apricot);
+  --color-member-lemon: var(--member-lemon);
+  --color-member-sage: var(--member-sage);
+  --color-member-mint: var(--member-mint);
+  --color-member-rose: var(--member-rose);
 }
 
 @layer utilities {

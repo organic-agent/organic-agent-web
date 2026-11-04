@@ -66,6 +66,8 @@ function toPhoto(id: number, displayOrder: number): PhotoResponse {
     viewUrl: sampleThumbUrl(id),
     previewReady: true,
     score: SAMPLE_SCORES[id] ?? null,
+    ratedBy: null,
+    ratedAt: null,
   };
 }
 

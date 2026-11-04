@@ -205,7 +205,7 @@ function selection(): PhotoSelectionResponse {
     selectedCount: s.selected.length,
     remainingCount: MAX_PICK - s.selected.length,
     submittedAt: s.requestedAt,
-    photos: s.selected.map((id) => ({ photo: photoOf(id)!, retouchPhotoId: s.retouch[String(id)] ? id : null, resultUrl: null })),
+    photos: s.selected.map((id) => ({ photo: photoOf(id)!, addedByUserId: DEMO_USER.id, retouchPhotoId: s.retouch[String(id)] ? id : null, resultUrl: null })),
     viewUrlTtlSeconds: TTL,
   };
 }

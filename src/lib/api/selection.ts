@@ -22,6 +22,8 @@ import { getAccessToken } from "@/lib/auth/tokenStore";
 export type SelectedPhotoResponse = {
   /** 담은 컷의 원본 사진 — 보정본으로 담았어도 원본 정보가 실린다 */
   photo: PhotoResponse;
+  /** 마지막에 담은 사람의 사용자 id — 함께 고르기에서 체크 칸 색의 기준(이슈 148). 옛 항목은 null일 수 있다 */
+  addedByUserId: number | null;
   /** 보정본으로 담았으면 그 보정 항목 id, 원본이면 null */
   retouchPhotoId: number | null;
   /** 보정본의 서명 URL — 원본으로 담은 항목은 null(그때는 photo.viewUrl로 그린다) */
@@ -41,6 +43,25 @@ export type PhotoSelectionResponse = {
   /** 서명 URL 남은 수명(초) */
   viewUrlTtlSeconds: number;
 };
+
+/**
+ * 선택 · 별점 변경 번호 — 갤러리별 비교값. 서버가 여러 대여도 같은 DB 번호를 돌려준다(서버 #351).
+ * 증가 폭 · 시각으로 해석하지 않고, 이전 값과 다르면 해당 목록 전체를 다시 읽는다.
+ */
+export type SelectionSyncResponse = {
+  /** 담기 · 빼기 · 재담기 · 제출 · 철회 · 휴지통 이동이 바꾼다 — 다르면 선택 앨범 GET */
+  selectionRevision: number;
+  /** 별점 변경 · 삭제가 바꾼다 — 다르면 별점 전체 목록 GET */
+  ratingRevision: number;
+};
+
+/**
+ * 변경 번호 조회 — 부부 참여자가 화면을 보는 동안 3초 간격으로 부른다(작가 · 게스트 403).
+ * 처음 · 재연결 때는 번호를 먼저 읽고 목록을 읽은 뒤, 목록 적용에 성공했을 때만 그 번호를 기준값으로 둔다.
+ */
+export function getSelectionSync(galleryId: number): Promise<SelectionSyncResponse> {
+  return api(`/api/v1/galleries/${galleryId}/selection-sync`);
+}
 
 /**
  * 선택 마감이 지나 서버가 담기 · 빼기 · 별점 · 전달을 막을 때의 오류 코드(403 "사진 선택 마감 기한이 지났습니다.").
