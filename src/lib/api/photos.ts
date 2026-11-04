@@ -103,6 +103,10 @@ export type PhotoResponse = {
   previewReady: boolean;
   /** 별점(1~5). 없으면 null. */
   score: number | null;
+  /** 마지막으로 별점을 매긴 사용자 id — 별점이 없거나 작가 · 게스트 응답이면 null(서버 #351) */
+  ratedBy: number | null;
+  /** 마지막 별점 수정 시각 — 별점이 없거나 작가 · 게스트 응답이면 null */
+  ratedAt: string | null;
 };
 
 export type PhotoPageResponse = {

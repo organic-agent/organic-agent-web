@@ -1,11 +1,12 @@
 /**
- * 사진 별점 API — 스웨거 [Rating] 계약의 타입화
+ * 사진 별점 API — 스웨거 [Photo Rating] 계약의 타입화
  * 위치: src/lib/api/ratings.ts
  *
- * 점수는 사진당 하나이고 누가 매겼는지로 나뉘지 않는다 — 신랑·신부·작가가
+ * 점수는 사진당 하나이고 누가 매겼는지로 나뉘지 않는다 — 부부 두 사람이
  * 같은 한 칸을 나눠 쓰고, 마지막에 매긴 사람이 ratedBy에 남는다. 부부는
- * 갤러리가 열려 있고 선택 마감 기한 안일 때만 매길 수 있다(작가는 제약 없음).
- * 매긴 점수는 사진 목록·클러스터·폴더 응답의 score로 함께 온다.
+ * 갤러리가 열려 있고 선택 마감 기한 안일 때만 매길 수 있다.
+ * 매긴 점수는 사진 목록·클러스터·폴더 응답의 score · ratedBy · ratedAt으로 함께 온다.
+ * 전체 목록(listGalleryRatings)은 함께 고르기(이슈 148)가 상대 변경을 맞출 때 쓴다 — 서버 #351.
  */
 
 import { api } from "@/lib/api/client";
@@ -14,10 +15,20 @@ export type PhotoRatingResponse = {
   photoId: number;
   /** 1~5점 */
   score: number;
-  /** 마지막으로 점수를 매긴 사용자 id — 작가일 수도 부부일 수도 있다 */
+  /** 마지막으로 점수를 매긴 참여자 id */
   ratedBy: number;
+  /** 마지막 별점 수정 시각 */
   updatedAt: string | null;
 };
+
+/**
+ * 갤러리 별점 전체 목록 — 별점 있는 사진만 photoId 순. 부부 참여자만(작가 · 게스트 403).
+ * 처음 들어올 때와 변경 번호(ratingRevision)가 바뀌었을 때 이 목록으로 별점 상태 전체를 교체한다 —
+ * 응답에 없는 사진은 별점이 없는 상태이므로 점수 · 매긴 사람 · 시각을 지운다.
+ */
+export function listGalleryRatings(galleryId: number): Promise<PhotoRatingResponse[]> {
+  return api(`/api/v1/galleries/${galleryId}/photo-ratings`);
+}
 
 /**
  * 별점 매기기 — 같은 사진에 다시 보내면 덮어쓴다(그래서 PUT).

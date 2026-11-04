@@ -134,6 +134,13 @@
   --function-info-sub: rgba(66, 137, 251, 0.7);
   --function-info-surface: rgba(66, 137, 251, 0.2);
   --function-info-background: rgba(66, 137, 251, 0.07);
+  --member-sky: #9cc9ee; /** 함께 고르는 사람 색 — 하늘. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-coral: #f4a09a; /** 함께 고르는 사람 색 — 코랄. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-apricot: #f8c48f; /** 함께 고르는 사람 색 — 살구. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-lemon: #f1dd85; /** 함께 고르는 사람 색 — 레몬. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-sage: #bbd79b; /** 함께 고르는 사람 색 — 세이지. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-mint: #9eddc4; /** 함께 고르는 사람 색 — 민트. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-rose: #f1a7cf; /** 함께 고르는 사람 색 — 로즈. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
   --label-medium-2xl-font-family: Pretendard;
   --label-medium-2xl-font-weight: 500;
   --label-medium-2xl-font-size: 20px;
@@ -399,4 +406,11 @@
   --function-info-sub: rgba(66, 137, 251, 0.7);
   --function-info-surface: rgba(66, 137, 251, 0.2);
   --function-info-background: rgba(66, 137, 251, 0.07);
+  --member-sky: #9cc9ee; /** 함께 고르는 사람 색 — 하늘. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-coral: #f4a09a; /** 함께 고르는 사람 색 — 코랄. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-apricot: #f8c48f; /** 함께 고르는 사람 색 — 살구. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-lemon: #f1dd85; /** 함께 고르는 사람 색 — 레몬. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-sage: #bbd79b; /** 함께 고르는 사람 색 — 세이지. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-mint: #9eddc4; /** 함께 고르는 사람 색 — 민트. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
+  --member-rose: #f1a7cf; /** 함께 고르는 사람 색 — 로즈. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148) */
 }

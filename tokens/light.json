@@ -317,5 +317,42 @@
         "$value": "rgba(66,137,251,0.07)"
       }
     }
+  },
+  "member": {
+    "sky": {
+      "$type": "color",
+      "$value": "#9cc9ee",
+      "$description": "함께 고르는 사람 색 — 하늘. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    },
+    "coral": {
+      "$type": "color",
+      "$value": "#f4a09a",
+      "$description": "함께 고르는 사람 색 — 코랄. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    },
+    "apricot": {
+      "$type": "color",
+      "$value": "#f8c48f",
+      "$description": "함께 고르는 사람 색 — 살구. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    },
+    "lemon": {
+      "$type": "color",
+      "$value": "#f1dd85",
+      "$description": "함께 고르는 사람 색 — 레몬. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    },
+    "sage": {
+      "$type": "color",
+      "$value": "#bbd79b",
+      "$description": "함께 고르는 사람 색 — 세이지. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    },
+    "mint": {
+      "$type": "color",
+      "$value": "#9eddc4",
+      "$description": "함께 고르는 사람 색 — 민트. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    },
+    "rose": {
+      "$type": "color",
+      "$value": "#f1a7cf",
+      "$description": "함께 고르는 사람 색 — 로즈. 체크 칸 · 이니셜 칩 · 별 · 선택됨 알약의 바탕, 글자는 검정(contents/dark-bgd/default). 라이트 · 다크 같은 값, 사진 위에서만 쓴다(이슈 148)"
+    }
   }
 }

@@ -54,7 +54,8 @@ import {
   type ConceptFolderResponse,
   type DetailFolderResponse,
 } from "@/lib/api/conceptFolders";
-import { listGalleryMembers } from "@/lib/api/galleries";
+import { type GalleryMemberResponse, listGalleryMembers } from "@/lib/api/galleries";
+import type { PhotoRatingResponse } from "@/lib/api/ratings";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { blockInDemo } from "@/lib/demo/demoMode";
 import { deletePhotos, listAllPhotosWithExpiry, type PhotoResponse } from "@/lib/api/photos";
@@ -135,7 +136,9 @@ export default function ClientGalleryPage() {
   }, [selecting, hasPreference, collapsed, setCollapsed]);
 
   const [rawFolders, setFolders] = useState<ConceptFolderResponse[] | null>(null);
-  const [memberCount, setMemberCount] = useState<number | null>(null);
+  /** 갤러리 멤버(개인: 소유자 + 파트너) — 대기 카드의 인원 수와 함께 고르기(이슈 148)의 색 · 이니셜 기준 */
+  const [members, setMembers] = useState<GalleryMemberResponse[] | null>(null);
+  const memberCount = members === null ? null : members.length;
   const [contentBlocked, setContentBlocked] = useState(false);
 
   const [view, setView] = useState<ClientView>("all");
@@ -220,9 +223,9 @@ export default function ClientGalleryPage() {
     (async () => {
       try {
         const list = await listGalleryMembers(galleryId);
-        if (!cancelled) setMemberCount(list.length);
+        if (!cancelled) setMembers(list);
       } catch {
-        if (!cancelled) setMemberCount(null);
+        if (!cancelled) setMembers(null);
       }
     })();
     return () => {
@@ -250,16 +253,56 @@ export default function ClientGalleryPage() {
   // 서명 URL은 15분 뒤 만료된다 — 만료 전에 목록을 다시 읽어 새 주소로 바꾼다. CDN 고정 주소만이면 쿠키만 늘린다
   const refreshPhotoUrls = usePhotoUrlRefresh(opened && photoUrlsExpire, photosLoadedAt, refreshPhotos);
   usePreviewAccess(galleryId, opened, refreshPhotos);
-  /** 셀렉 화면이 별점 저장을 마치면 서버에 남은 값을 목록에 적는다 */
-  const patchPhotoScore = useCallback((photoId: number, score: number | null) => {
-    setPhotos((prev) => {
-      const i = prev?.findIndex((p) => p.photoId === photoId) ?? -1;
-      if (!prev || i < 0 || prev[i].score === score) return prev;
-      const next = prev.slice();
-      next[i] = { ...prev[i], score };
-      return next;
-    });
-  }, []);
+  const meId = auth.user?.id ?? null;
+  /** 셀렉 화면이 별점 저장을 마치면 서버에 남은 값을 목록에 적는다 — 매긴 사람은 나, 시각은 지금(다음 동기화가 서버 값으로 맞춘다) */
+  const patchPhotoScore = useCallback(
+    (photoId: number, score: number | null) => {
+      setPhotos((prev) => {
+        const i = prev?.findIndex((p) => p.photoId === photoId) ?? -1;
+        if (!prev || i < 0) return prev;
+        const ratedBy = score === null ? null : meId;
+        if (prev[i].score === score && prev[i].ratedBy === ratedBy) return prev;
+        const next = prev.slice();
+        next[i] = { ...prev[i], score, ratedBy, ratedAt: score === null ? null : new Date().toISOString() };
+        return next;
+      });
+    },
+    [meId],
+  );
+  /** 함께 고르기(이슈 148) — 별점 전체 목록으로 점수 · 매긴 사람 · 시각을 통째로 바꾼다. 응답에 없는 사진은 별점 없음 */
+  const photosRef = useRef(photos);
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+  /** 상대가 바꾼 별점의 사진 — 셀렉 화면이 타일을 2초 강조한다 */
+  const [ratingChange, setRatingChange] = useState<{ ids: number[]; nonce: number } | null>(null);
+  const applyRatings = useCallback(
+    (list: PhotoRatingResponse[]) => {
+      const prev = photosRef.current;
+      if (!prev) return;
+      const byId = new Map(list.map((r) => [r.photoId, r]));
+      const changedByPartner: number[] = [];
+      let changed = false;
+      const next = prev.map((p) => {
+        const r = byId.get(p.photoId);
+        const score = r?.score ?? null;
+        const ratedBy = r?.ratedBy ?? null;
+        const ratedAt = r?.updatedAt ?? null;
+        if (p.score === score && p.ratedBy === ratedBy && p.ratedAt === ratedAt) return p;
+        changed = true;
+        if (p.score !== score || p.ratedBy !== ratedBy) {
+          // 지운 것도 상대가 한 일 — 지우면 ratedBy가 비므로 이전 매긴 사람으로 가린다
+          const actor = ratedBy ?? p.ratedBy;
+          if (actor !== null && actor !== meId) changedByPartner.push(p.photoId);
+        }
+        return { ...p, score, ratedBy, ratedAt };
+      });
+      if (!changed) return;
+      setPhotos(next);
+      if (changedByPartner.length > 0) setRatingChange({ ids: changedByPartner, nonce: Date.now() });
+    },
+    [meId],
+  );
 
   // ── 파생값 ──
   const allPhotos = useMemo(() => (photos ?? []).filter((p) => p.status === "UPLOADED"), [photos]);
@@ -730,6 +773,10 @@ export default function ClientGalleryPage() {
           onExported={() => setAutoDownload(true)}
           onPhotoUrlError={refreshPhotoUrls}
           onScoreSaved={patchPhotoScore}
+          members={members}
+          meId={meId}
+          onRatingsSynced={applyRatings}
+          ratingChange={ratingChange}
           readOnly={viewingSelect ? (phase === "done" ? "done" : "review") : null}
           stageRequest={stageRequest && stageRequest.kind === "export" ? stageRequest : null}
           onStageRequestHandled={onStageRequestHandled}
