@@ -9,10 +9,14 @@
  * 열람 범위를 확인한 뒤 저장 방식을 정한다(노션 ② 미결). 열람 횟수도 같은 이유로 이 기기 기준.
  */
 
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, useState, useSyncExternalStore } from "react";
+import { relativeTime } from "@/components/app/notificationKinds";
 import { SparkleIcon, StarFillIcon, StarIcon, VisibilityIcon } from "@/components/icons";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { memoStore, viewedStore, writeMemo } from "./clientMemory";
+
+/** 함께 고르기(이슈 148) — 마지막으로 매긴 사람. 별 색과 "이름 · 언제" 한 줄 */
+export type RaterInfo = { name: string; color: string; at: string | null; me: boolean };
 
 export function PhotoInfoPanel({
   galleryId,
@@ -21,6 +25,7 @@ export function PhotoInfoPanel({
   editable,
   aiPicked = false,
   showViewed = true,
+  rater = null,
   onRate,
 }: {
   galleryId: number;
@@ -31,12 +36,16 @@ export function PhotoInfoPanel({
   aiPicked?: boolean;
   /** 본 횟수 칩을 보일까 — 본 횟수를 세지 않는 화면(보정 확인)은 false */
   showViewed?: boolean;
+  /** 함께 고르기 — 마지막으로 매긴 사람(개인 갤러리 · 멤버 2명일 때만). 별점 기록 전체는 서버 이력이 생기면 */
+  rater?: RaterInfo | null;
   onRate: (score: number | null) => void;
 }) {
   const memoRaw = useSyncExternalStore(memoStore.subscribe, () => memoStore.readRaw(galleryId), () => "");
   const memo = memoStore.parse(memoRaw)[String(photo.photoId)] ?? "";
   const viewedRaw = useSyncExternalStore(viewedStore.subscribe, () => viewedStore.readRaw(galleryId), () => "");
   const viewed = viewedStore.parse(viewedRaw)[String(photo.photoId)] ?? 0;
+  /** "3분 전"의 기준 시각 — 패널이 열릴 때 한 번(분 단위라 보는 동안 안 바뀌어도 된다) */
+  const [now] = useState(() => Date.now());
 
   return (
     <>
@@ -72,6 +81,8 @@ export function PhotoInfoPanel({
                 aria-label={`별점 ${n}`}
                 disabled={!editable}
                 onClick={() => onRate(score === n ? null : n)}
+                // 함께 고르기 — 채운 별은 매긴 사람 색
+                style={on && rater && score !== null ? { color: rater.color } : undefined}
                 className={`grid size-7 place-items-center rounded-full transition-colors duration-fast ${
                   editable ? "cursor-pointer hover:bg-surface-default-lightness" : "cursor-default"
                 } ${on ? "text-brand-secondary-default" : "text-border-default"}`}
@@ -81,6 +92,13 @@ export function PhotoInfoPanel({
             );
           })}
           {score !== null && <span className="ml-1 type-content-xs text-contents-light-bgd-weakness">{score} / 5</span>}
+          {score !== null && rater && (
+            <span className="ml-1.5 inline-flex items-center gap-1.5 type-content-xs text-contents-light-bgd-weakness">
+              <i aria-hidden className="size-2 rounded-full" style={{ background: rater.color }} />
+              {rater.me ? "나" : rater.name}
+              {rater.at && ` · ${relativeTime(rater.at, now)}`}
+            </span>
+          )}
         </div>
       </section>
 

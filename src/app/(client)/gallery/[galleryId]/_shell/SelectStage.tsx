@@ -44,11 +44,12 @@ import { ShellMainHeader, sortPhotos } from "@/app/(studio)/studio/gallery/[gall
 import { SHELL_BODY_CLASS } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellSidebar";
 import { parseZoom, readZoomRaw, subscribeZoom, writeZoom } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/zoomMemory";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
-import type { GalleryResponse } from "@/lib/api/galleries";
+import type { GalleryMemberResponse, GalleryResponse } from "@/lib/api/galleries";
 import { ApiError } from "@/lib/api/client";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { loadOriginalUrl } from "@/lib/photoOriginal";
-import { clearPhotoRating, ratePhoto } from "@/lib/api/ratings";
+import { clearPhotoRating, type PhotoRatingResponse, ratePhoto } from "@/lib/api/ratings";
+import { assignMembers, MEMBER_INK, memberMapOf, subjectParticle } from "./members";
 import { SELECTION_DEADLINE_PASSED } from "@/lib/api/selection";
 import { isDeadlinePassed } from "../../_lib/useInvitedGallery";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
@@ -104,6 +105,10 @@ export function SelectStage({
   onExported,
   onPhotoUrlError,
   onScoreSaved,
+  members = null,
+  meId = null,
+  onRatingsSynced,
+  ratingChange = null,
   readOnly = null,
   stageRequest = null,
   onStageRequestHandled,
@@ -134,6 +139,14 @@ export function SelectStage({
   onPhotoUrlError?: () => void;
   /** 별점 저장이 끝났을 때 서버에 남은 값 — 페이지가 사진 목록에 적는다 */
   onScoreSaved: (photoId: number, score: number | null) => void;
+  /** 함께 고르기(이슈 148) — 갤러리 멤버(개인: 소유자 + 파트너). 두 명일 때만 3초 동기화 · 사람 색이 켜진다 */
+  members?: GalleryMemberResponse[] | null;
+  /** 내 사용자 id — 나 · 상대를 가른다 */
+  meId?: number | null;
+  /** 별점 전체 목록이 왔을 때 — 페이지가 사진 목록의 점수 · 매긴 사람 · 시각을 통째로 바꾼다 */
+  onRatingsSynced?: (list: PhotoRatingResponse[]) => void;
+  /** 상대가 바꾼 별점의 사진 — 타일을 2초 강조(페이지가 목록을 바꾸며 알려 준다) */
+  ratingChange?: { ids: number[]; nonce: number } | null;
   /** 개인 — 보정이 시작된 뒤(review) · 마무리 뒤(done)에 상단 단계 칩으로 돌아와 보기만 하는 중(이슈 147). 하단 버튼이 없고 안내만 */
   readOnly?: "review" | "done" | null;
   /** 상단 단계 칩 "보정 확인"이 내보내기 창을 열어 달라는 요청 — nonce가 바뀔 때마다 한 번. 장수를 못 채웠으면 안내 창 */
@@ -152,7 +165,43 @@ export function SelectStage({
     setDeadlineHit(deadlineKey);
   }
   const maxSelectable = gallery.maxSelectablePhotoCount;
-  const { selection, pickedIds, toggle, pickMany, refresh: refreshSelection, notice, clearNotice } = useSelectionSync(galleryId, canEdit, maxSelectable, noteRejection, personal);
+  // ── 함께 고르기(이슈 148) — 개인 갤러리에 부부 두 명이 있을 때만. 색 · 이니셜은 들어온 순서로 기본값(서버 색 저장은 2차) ──
+  const people = useMemo(() => assignMembers(members ?? [], meId), [members, meId]);
+  const peopleById = useMemo(() => memberMapOf(people), [people]);
+  const me = people.find((p) => p.me) ?? null;
+  const partner = people.find((p) => !p.me) ?? null;
+  const together = personal && people.length === 2 && me !== null && partner !== null;
+  const onRatingsSyncedRef = useRef(onRatingsSynced);
+  useEffect(() => {
+    onRatingsSyncedRef.current = onRatingsSynced;
+  });
+  const live = useMemo(
+    () => ({ enabled: together && canEdit, meId, onRatings: (list: PhotoRatingResponse[]) => onRatingsSyncedRef.current?.(list) }),
+    [together, canEdit, meId],
+  );
+  const { selection, pickedIds, addedByOf, toggle, pickMany, refresh: refreshSelection, notice, clearNotice, partnerChange } = useSelectionSync(galleryId, canEdit, maxSelectable, noteRejection, personal, live);
+  /** 상대가 방금 바꾼 타일 — 선택(partnerChange)과 별점(ratingChange) 중 더 최근 것, 2초 뒤 꺼진다 */
+  const [flashOff, setFlashOff] = useState(0);
+  const flash = useMemo(() => {
+    const candidates = [partnerChange ? { ids: [...partnerChange.added, ...partnerChange.removed], nonce: partnerChange.nonce } : null, ratingChange].filter((c): c is { ids: number[]; nonce: number } => c !== null);
+    const latest = candidates.sort((a, b) => b.nonce - a.nonce)[0];
+    return latest && latest.nonce > flashOff ? { ids: new Set(latest.ids), nonce: latest.nonce } : null;
+  }, [partnerChange, ratingChange, flashOff]);
+  useEffect(() => {
+    if (!flash) return;
+    const timer = window.setTimeout(() => setFlashOff(flash.nonce), 2000);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
+  const flashIds = together && flash ? flash.ids : undefined;
+  /** 담은 사람 색 — 서버 스냅샷에 아직 없는(방금 담은) 사진은 나 */
+  const checkColorOf = together ? (photo: PhotoResponse) => peopleById.get(addedByOf.get(photo.photoId) ?? -1)?.color ?? me?.color ?? null : undefined;
+  /** 매긴 사람 — 이니셜 + 색 */
+  const raterOf = together
+    ? (photo: PhotoResponse) => {
+        const who = photo.ratedBy === null ? undefined : peopleById.get(photo.ratedBy);
+        return who ? { color: who.color, initial: who.initial } : null;
+      }
+    : undefined;
   const [deselectId, setDeselectId] = useState<number | null>(null);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal && owner ? { galleryTitle: gallery.title } : undefined });
   /** 담기는 바로, 빼기는 확인 뒤 */
@@ -205,6 +254,24 @@ export function SelectStage({
     const timer = window.setTimeout(() => setSnack(null), 2400);
     return () => window.clearTimeout(timer);
   }, [snack]);
+  // 상대가 담거나 뺀 장수가 바뀌었을 때만 스낵바 — 별점 · 같은 장수의 교체는 타일 강조만(결정 ⑥)
+  const partnerSnack = useMemo(() => {
+    if (!partner || !partnerChange) return null;
+    const added = partnerChange.added.length;
+    const removed = partnerChange.removed.length;
+    if (added === removed) return null;
+    const who = `${partner.nickname}${subjectParticle(partner.nickname)}`;
+    if (removed === 0) return { text: `${who} ${added}장을 담았어요`, nonce: partnerChange.nonce };
+    if (added === 0) return { text: `${who} ${removed}장을 뺐어요`, nonce: partnerChange.nonce };
+    return { text: `${who} ${added}장을 담고 ${removed}장을 뺐어요`, nonce: partnerChange.nonce };
+  }, [partner, partnerChange]);
+  const partnerSnackRef = useRef(0);
+  useEffect(() => {
+    if (!partnerSnack || partnerSnackRef.current === partnerSnack.nonce) return;
+    partnerSnackRef.current = partnerSnack.nonce;
+    const timer = window.setTimeout(() => setSnack(partnerSnack.text), 0);
+    return () => window.clearTimeout(timer);
+  }, [partnerSnack]);
   function toggleGuest() {
     if (blockInDemo("게스트 반응")) return;
     if (sharing.sessionCount === 0) {
@@ -446,10 +513,37 @@ export function SelectStage({
   function openPhoto(photoId: number) {
     setNavIds(displayPhotos.map((p) => p.photoId));
     setCurrentId(photoId);
+    setGuardId(null);
     setScrollToId(null);
     setLightboxOpen(true);
     track("lightbox_opened", { gallery_id: galleryId, from: "select" });
     countView(galleryId, photoId);
+  }
+  // ── 상대 별점 보호(결정 ④) — 상대가 매긴 사진에서 별을 누르면 첫 번째는 바꾸지 않고 안내만, 같은 사진에서 한 번 더 누르면 바꾼다 ──
+  /** 안내를 띄운 사진 — 사진을 옮기면 비운다 */
+  const [guardId, setGuardId] = useState<number | null>(null);
+  const [guardNotice, setGuardNotice] = useState<{ text: string } | null>(null);
+  useEffect(() => {
+    if (!guardNotice) return;
+    const timer = window.setTimeout(() => setGuardNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [guardNotice]);
+  function rateGuarded(photoId: number, score: number | null) {
+    const photo = photoById.get(photoId);
+    const by = photo?.ratedBy ?? null;
+    if (together && photo && photo.score !== null && by !== null && by !== meId && guardId !== photoId) {
+      const who = peopleById.get(by)?.nickname ?? partner?.nickname ?? "함께 고르는 사람";
+      setGuardId(photoId);
+      setGuardNotice({ text: `${who}${subjectParticle(who)} ★${photo.score}를 매겼어요 · 한 번 더 누르면 내 별점으로 바꿔요` });
+      return;
+    }
+    rate(photoId, score);
+  }
+  /** 크게 보기 · 정보 패널의 마지막으로 매긴 사람 */
+  function raterInfoOf(photo: PhotoResponse) {
+    if (!together || photo.ratedBy === null || photo.score === null) return null;
+    const who = peopleById.get(photo.ratedBy);
+    return who ? { name: who.nickname, color: who.color, at: photo.ratedAt, me: who.me } : null;
   }
   function closeLightbox() {
     setLightboxOpen(false);
@@ -462,6 +556,7 @@ export function SelectStage({
     const base = currentIndex >= 0 ? currentIndex : 0;
     const next = navPhotos[(base + delta + navPhotos.length) % navPhotos.length];
     setCurrentId(next.photoId);
+    setGuardId(null);
     countView(galleryId, next.photoId);
   }
   function rate(photoId: number, score: number | null) {
@@ -696,6 +791,10 @@ export function SelectStage({
                       <PhotoGrid
                         photos={aiPhotos}
                         zoom={Math.min(100, zoom + 15)}
+                        checkColorOf={checkColorOf}
+                        raterOf={raterOf}
+                        flashIds={flashIds}
+                        flashColor={partner?.color}
                         selectedIds={pickedIds}
                         onToggle={requestToggle}
                         toggleOn="check"
@@ -733,6 +832,10 @@ export function SelectStage({
                       <PhotoGrid
                         photos={g.photos}
                         zoom={zoom}
+                        checkColorOf={checkColorOf}
+                        raterOf={raterOf}
+                        flashIds={flashIds}
+                        flashColor={partner?.color}
                         selectedIds={pickedIds}
                         onToggle={requestToggle}
                         toggleOn="check"
@@ -751,6 +854,10 @@ export function SelectStage({
                   <PhotoGrid
                     photos={restPhotos}
                     zoom={zoom}
+                    checkColorOf={checkColorOf}
+                    raterOf={raterOf}
+                    flashIds={flashIds}
+                    flashColor={partner?.color}
                     selectedIds={pickedIds}
                     onToggle={requestToggle}
                     toggleOn="check"
@@ -948,7 +1055,7 @@ export function SelectStage({
           tabs={lightboxTabs}
           onImageError={onPhotoUrlError}
           zoom={{ loadOriginal: (target) => loadOriginalUrl(galleryId, target) }}
-          notice={rateError ? { kind: "error", text: rateError.text } : null}
+          notice={rateError ? { kind: "error", text: rateError.text } : guardNotice ? { kind: "info", text: guardNotice.text } : null}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
@@ -958,14 +1065,16 @@ export function SelectStage({
               picked={pickedIds.has(currentPhoto.photoId)}
               editable={editable}
               score={currentPhoto.score}
+              starColor={raterInfoOf(currentPhoto)?.color ?? null}
+              pickColor={checkColorOf?.(currentPhoto) ?? null}
               onTogglePick={() => requestToggle(currentPhoto.photoId)}
-              onRate={(score) => rate(currentPhoto.photoId, score)}
+              onRate={(score) => rateGuarded(currentPhoto.photoId, score)}
             />
           }
           onKeyDown={(e) => {
             if (!editable) return false;
-            if (/^[1-5]$/.test(e.key)) rate(currentPhoto.photoId, Number(e.key));
-            else if (e.key === "0") rate(currentPhoto.photoId, null);
+            if (/^[1-5]$/.test(e.key)) rateGuarded(currentPhoto.photoId, Number(e.key));
+            else if (e.key === "0") rateGuarded(currentPhoto.photoId, null);
             else if (e.key === " ") {
               e.preventDefault();
               requestToggle(currentPhoto.photoId);
@@ -991,7 +1100,8 @@ export function SelectStage({
                 score={currentPhoto.score}
                 editable={editable}
                 aiPicked={aiByPhotoId.has(currentPhoto.photoId)}
-                onRate={(score) => rate(currentPhoto.photoId, score)}
+                rater={raterInfoOf(currentPhoto)}
+                onRate={(score) => rateGuarded(currentPhoto.photoId, score)}
               />
             ) : (
               <RetouchPanel galleryId={galleryId} photoId={currentPhoto.photoId} picked={pickedIds.has(currentPhoto.photoId)} editable={editable} personal={personal} />
@@ -1003,17 +1113,23 @@ export function SelectStage({
   );
 }
 
-/** 싱글뷰 하단 컨트롤 가운데 칸 — ★★★★★ | 선택 / 선택됨 (클라이언트 전용) */
+/** 싱글뷰 하단 컨트롤 가운데 칸 — ★★★★★ | 선택 / 선택됨 (클라이언트 전용). 함께 고르기면 별은 매긴 사람 색, 선택됨은 담은 사람 색 */
 function SelectionControls({
   picked,
   editable,
   score,
+  starColor = null,
+  pickColor = null,
   onTogglePick,
   onRate,
 }: {
   picked: boolean;
   editable: boolean;
   score: number | null;
+  /** 채운 별의 색 — 마지막으로 매긴 사람(없으면 흰색) */
+  starColor?: string | null;
+  /** "선택됨" 알약의 바탕 — 담은 사람(없으면 지금 보라) */
+  pickColor?: string | null;
   onTogglePick: () => void;
   onRate: (score: number | null) => void;
 }) {
@@ -1031,6 +1147,7 @@ function SelectionControls({
               aria-label={`별점 ${n}`}
               disabled={!editable}
               onClick={() => onRate(score === n ? null : n)}
+              style={on && starColor ? { color: starColor } : undefined}
               className={`grid size-7 place-items-center rounded-full transition-colors duration-fast ${editable ? "cursor-pointer hover:bg-surface-inverse-light" : "cursor-default"} ${on ? "text-contents-dark-bgd-default" : "text-contents-dark-bgd-weakness"}`}
             >
               {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
@@ -1045,6 +1162,7 @@ function SelectionControls({
         aria-pressed={picked}
         disabled={!editable}
         onClick={onTogglePick}
+        style={picked && pickColor ? { background: pickColor, color: MEMBER_INK } : undefined}
         className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s transition-colors duration-fast ${
           picked ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default hover:bg-surface-inverse-medium"
         } ${editable ? "cursor-pointer" : "cursor-default"}`}

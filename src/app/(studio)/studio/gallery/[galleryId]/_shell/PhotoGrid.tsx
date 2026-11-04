@@ -149,11 +149,16 @@ function layoutRows(photos: PhotoResponse[], width: number, rowHeight: number): 
   return rows;
 }
 
-function CheckMark({ selected, filled }: { selected: boolean; filled: boolean }) {
+/** 사람 색 위의 글자 · 체크 색 — 파스텔 위에서 어느 색이든 8:1 이상(이슈 148) */
+const MARK_INK = "var(--contents-dark-bgd-default)";
+
+function CheckMark({ selected, filled, color = null }: { selected: boolean; filled: boolean; color?: string | null }) {
   const on = selected ? (filled ? "bg-contents-light-bgd-default border-contents-light-bgd-default opacity-100" : "bg-surface-default-dark opacity-100") : "bg-surface-default-medium opacity-0 group-hover:opacity-100";
   return (
     <span
       aria-hidden
+      // 함께 고르기 — 담은 사람 색으로 칠한 칸(색이 없으면 지금 모양)
+      style={selected && color ? { background: color, borderColor: color, color: MARK_INK } : undefined}
       className={`grid size-5.5 place-items-center rounded-(--radius-4) border border-contents-dark-bgd-default text-contents-dark-bgd-default transition-opacity duration-fast ${on}`}
     >
       {/* 고르기 전(마우스를 올렸을 때)의 체크는 흐리게 — 고른 사진의 체크와 헷갈리지 않게(2차 QA) */}
@@ -165,10 +170,10 @@ function CheckMark({ selected, filled }: { selected: boolean; filled: boolean })
 }
 
 /** 표시만(타일 전체가 토글) */
-function Check({ selected, filled }: { selected: boolean; filled: boolean }) {
+function Check({ selected, filled, color }: { selected: boolean; filled: boolean; color?: string | null }) {
   return (
     <span className="absolute top-2.5 left-2.5">
-      <CheckMark selected={selected} filled={filled} />
+      <CheckMark selected={selected} filled={filled} color={color} />
     </span>
   );
 }
@@ -177,10 +182,12 @@ function Check({ selected, filled }: { selected: boolean; filled: boolean }) {
 function CheckArea({
   selected,
   filled,
+  color,
   onPaintStart,
 }: {
   selected: boolean;
   filled: boolean;
+  color?: string | null;
   /** 칠하기를 시작했으면 true */
   onPaintStart: (e: ReactPointerEvent) => boolean;
 }) {
@@ -192,7 +199,7 @@ function CheckArea({
       }}
       className="absolute top-0 left-0 grid size-11 place-items-start p-2.5"
     >
-      <CheckMark selected={selected} filled={filled} />
+      <CheckMark selected={selected} filled={filled} color={color} />
     </span>
   );
 }
@@ -201,12 +208,14 @@ function CheckArea({
 function CheckButton({
   selected,
   filled,
+  color,
   label,
   onToggle,
   onPaintStart,
 }: {
   selected: boolean;
   filled: boolean;
+  color?: string | null;
   label: string;
   onToggle: (shift: boolean) => void;
   /** 칠하기를 시작했으면 true */
@@ -228,10 +237,13 @@ function CheckButton({
       onDoubleClick={(e) => e.stopPropagation()}
       className="absolute top-0 left-0 grid size-11 cursor-pointer place-items-start p-2.5 focus-visible:outline-2 focus-visible:outline-contents-dark-bgd-default"
     >
-      <CheckMark selected={selected} filled={filled} />
+      <CheckMark selected={selected} filled={filled} color={color} />
     </button>
   );
 }
+
+/** 함께 고르기 — 매긴 사람 표시(이니셜 + 색). 배지가 있으면 별 자리를 이니셜로, 없으면 칩 하나 */
+export type RaterMark = { color: string; initial: string };
 
 const LINE_SELECTED = "shadow-[inset_0_0_0_2px_var(--contents-light-bgd-default),inset_0_0_0_4px_var(--background-default-main)]";
 const LINE_CURRENT = "shadow-[inset_0_0_0_2px_var(--brand-primary-default),inset_0_0_0_4px_var(--background-default-main)]";
@@ -256,6 +268,10 @@ export function PhotoGrid({
   onSelectMany,
   drag = null,
   gutter = true,
+  checkColorOf,
+  raterOf,
+  flashIds,
+  flashColor,
 }: {
   photos: PhotoResponse[];
   /** 0~100 — 기준 행 높이로 바뀐다 */
@@ -292,6 +308,14 @@ export function PhotoGrid({
   drag?: PhotoDragBinding | null;
   /** false면 양옆 여백(px-5, 480 미만 px-3) 없음 — 부모가 1080 컨테이너 등으로 여백을 맡을 때(게스트 그리드) */
   gutter?: boolean;
+  /** 함께 고르기(이슈 148) — 담은 사람 색. 고른 사진의 체크 칸을 이 색으로 칠한다(null이면 지금 모양) */
+  checkColorOf?: (photo: PhotoResponse) => string | null;
+  /** 함께 고르기 — 매긴 사람. 별점 배지가 있으면 별 자리를 이니셜로 바꾸고 바탕을 색으로, 배지가 없으면(점수 묶음 보기) 이니셜 칩 */
+  raterOf?: (photo: PhotoResponse) => RaterMark | null;
+  /** 상대가 방금 바꾼 사진 — 2초 동안 안쪽 선으로 강조(값이 바뀔 때마다 다시) */
+  flashIds?: ReadonlySet<number>;
+  /** 강조 선 색 — 상대 색 */
+  flashColor?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -502,6 +526,10 @@ export function PhotoGrid({
             };
             const scoreShown = showScore && photo.score !== null && detailed;
             const aiPicked = aiIds?.has(photo.photoId) ?? false;
+            const checkColor = selected ? (checkColorOf?.(photo) ?? null) : null;
+            // 매긴 사람 — 작은 줌(detailed 아님)에서는 배지와 같이 숨긴다
+            const rater = detailed && photo.score !== null ? (raterOf?.(photo) ?? null) : null;
+            const raterChip = rater !== null && !scoreShown;
             const label = `${photo.originalFileName}${selected ? " 선택됨" : ""}${photo.score ? ` 별점 ${photo.score}` : ""}`;
             return (
               <div
@@ -570,6 +598,7 @@ export function PhotoGrid({
                   <CheckButton
                     selected={selected}
                     filled={markStyle === "check"}
+                    color={checkColor}
                     label={selected ? "선택 해제" : "선택"}
                     onToggle={(shift) => chooseOne(photo.photoId, shift)}
                     onPaintStart={(e) => startPaint(photo.photoId, e)}
@@ -578,22 +607,42 @@ export function PhotoGrid({
                   <CheckArea
                     selected={selected}
                     filled={markStyle === "check"}
+                    color={checkColor}
                     onPaintStart={(e) => startPaint(photo.photoId, e)}
                   />
                 ) : (
-                  selected && <Check selected={selected} filled={markStyle === "check"} />
+                  selected && <Check selected={selected} filled={markStyle === "check"} color={checkColor} />
                 )}
                 {overlayOf?.(photo, detailed)}
-                {/* 오른쪽 위 — 별점 · AI 추천 ✦ (둘 다 있으면 나란히). 눌리지 않게 해 타일 클릭을 막지 않는다 */}
-                {(scoreShown || aiPicked) && (
+                {/* 상대가 방금 바꾼 사진 — 안쪽 선이 2초에 걸쳐 사라진다(사진이 타일을 덮어 겹 요소로) */}
+                {flashIds?.has(photo.photoId) && (
+                  <span
+                    aria-hidden
+                    style={{ boxShadow: `inset 0 0 0 3px ${flashColor ?? "var(--brand-accent-default)"}`, animation: "photo-flash 2s ease-out forwards" }}
+                    className="pointer-events-none absolute inset-0 rounded-(--radius-8)"
+                  />
+                )}
+                {/* 오른쪽 위 — 별점 · 매긴 사람 · AI 추천 ✦ (여럿이면 나란히). 눌리지 않게 해 타일 클릭을 막지 않는다 */}
+                {(scoreShown || raterChip || aiPicked) && (
                   <span className="pointer-events-none absolute top-2 right-2 flex items-center gap-1">
                     {scoreShown && (
                       <span
                         aria-hidden
+                        // 함께 고르기 — 매긴 사람이 있으면 별 자리에 이니셜, 바탕은 그 사람 색
+                        style={rater ? { background: rater.color, color: MARK_INK, boxShadow: "var(--shadow-pin)" } : undefined}
                         className="inline-flex h-4.5 items-center gap-0.5 rounded-(--pill) bg-surface-default-dark pr-1.5 pl-1 type-label-semibold-xs text-contents-dark-bgd-default"
                       >
-                        <StarFillIcon size={11} />
+                        {rater ? <span className="font-bold">{rater.initial}</span> : <StarFillIcon size={11} />}
                         {photo.score}
+                      </span>
+                    )}
+                    {raterChip && rater && (
+                      <span
+                        aria-hidden
+                        style={{ background: rater.color, color: MARK_INK, boxShadow: "var(--shadow-pin)" }}
+                        className="grid size-5 place-items-center rounded-full type-label-semibold-xs font-bold"
+                      >
+                        {rater.initial}
                       </span>
                     )}
                     {aiPicked && (

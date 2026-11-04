@@ -102,6 +102,17 @@
   }
 }
 
+/* ─── 함께 고르기 — 상대가 바꾼 타일을 2초 강조(PhotoGrid flashIds, 이슈 148) ───
+   사진(img)이 타일을 덮어 타일의 inset 그림자는 안 보이므로, 겹 요소의 안쪽 선이 서서히 사라진다 */
+@keyframes photo-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 /* ─── 랜딩 흐름 화면의 커서 클릭 물결(shots/ShotChrome.tsx ShotCursor) ─── */
 @keyframes shot-click {
   from {
