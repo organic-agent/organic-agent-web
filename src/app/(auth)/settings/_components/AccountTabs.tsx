@@ -1,18 +1,20 @@
 "use client";
 
 /**
- * 설정 › 계정 — 프로필 · 화면 · 알림 · 회원 탈퇴
+ * 설정 › 계정 — 프로필 · 화면(테마 · 함께 고르기 색) · 알림 · 회원 탈퇴
  * 위치: src/app/(auth)/settings/_components/AccountTabs.tsx
  */
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { assignMembers, MEMBER_COLORS, MEMBER_INK, memberColorVar } from "@/app/(client)/gallery/[galleryId]/_shell/members";
 import { buildIdentifyProps, track } from "@/lib/analytics";
 import { DarkModeIcon, InfoIcon, LightModeIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
-import { deleteMyAccount, updateNickname, type User } from "@/lib/api/auth";
+import { deleteMyAccount, updateMyColor, updateNickname, type User, type UserColorKey } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
+import { type GalleryMemberResponse, listGalleryMembers } from "@/lib/api/galleries";
 import { setAuthenticated } from "@/lib/auth/authStore";
 import { logout } from "@/lib/auth/logout";
 import { useTheme, type Theme } from "@/lib/theme";
@@ -133,33 +135,168 @@ const THEMES: ReadonlyArray<{ value: Theme; label: string; desc: string }> = [
   { value: "dark", label: "다크", desc: "어두운 배경" },
 ];
 
-export function AccountDisplayTab() {
+export function AccountDisplayTab({ user }: { user: User }) {
   const { theme, setTheme } = useTheme();
   return (
-    <Section title="화면">
-      <div role="radiogroup" aria-label="테마" className="grid grid-cols-2 gap-2.5">
-        {THEMES.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            role="radio"
-            aria-checked={theme === t.value}
-            onClick={() => setTheme(t.value)}
-            className="flex cursor-pointer flex-col gap-2 rounded-(--radius-12) border border-divider-default bg-background-default-main p-3.5 text-left transition-[border-color,box-shadow] duration-fast hover:border-brand-secondary-light aria-checked:border-brand-primary-default aria-checked:shadow-[inset_0_0_0_1px_var(--brand-primary-default)]"
-          >
-            <span
-              className={`grid h-11 place-items-center rounded-(--radius-8) border border-divider-default ${
-                t.value === "dark" ? "bg-[#202020] text-[#FFFFFF]" : "bg-white text-[#323232]"
-              }`}
+    <>
+      <Section title="화면">
+        <div role="radiogroup" aria-label="테마" className="grid grid-cols-2 gap-2.5">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="radio"
+              aria-checked={theme === t.value}
+              onClick={() => setTheme(t.value)}
+              className="flex cursor-pointer flex-col gap-2 rounded-(--radius-12) border border-divider-default bg-background-default-main p-3.5 text-left transition-[border-color,box-shadow] duration-fast hover:border-brand-secondary-light aria-checked:border-brand-primary-default aria-checked:shadow-[inset_0_0_0_1px_var(--brand-primary-default)]"
             >
-              {t.value === "dark" ? <DarkModeIcon size={20} /> : <LightModeIcon size={20} />}
+              <span
+                className={`grid h-11 place-items-center rounded-(--radius-8) border border-divider-default ${
+                  t.value === "dark" ? "bg-[#202020] text-[#FFFFFF]" : "bg-white text-[#323232]"
+                }`}
+              >
+                {t.value === "dark" ? <DarkModeIcon size={20} /> : <LightModeIcon size={20} />}
+              </span>
+              <span className="type-label-semibold-s text-contents-light-bgd-default">{t.label}</span>
+              <span className="-mt-1.5 type-content-xs text-contents-light-bgd-weakness">{t.desc}</span>
+            </button>
+          ))}
+        </div>
+      </Section>
+      <MemberColorSection user={user} />
+    </>
+  );
+}
+
+/**
+ * 함께 고르기 색(이슈 148 2차) — 개인 갤러리가 있는 사람에게만 보인다. 일곱 색 중 하나를 누르면 바로 저장하고(PUT /users/me/color),
+ * 함께 고르는 사람이 쓰는 색은 막는다. 안 골랐으면 들어온 순서의 기본 색이 골라진 것으로 보인다(members.assignMembers와 같은 규칙).
+ * 상대 · 미리보기는 첫 개인 갤러리의 멤버 목록으로 그린다(개인 갤러리는 보통 하나).
+ */
+function MemberColorSection({ user }: { user: User }) {
+  const gallery = user.workspaces.find((w) => w.kind === "GALLERY" && w.workspaceType === "PERSONAL" && w.galleryId !== null) ?? null;
+  const galleryId = gallery?.galleryId ?? null;
+  const [members, setMembers] = useState<GalleryMemberResponse[] | null>(null);
+  const [saving, setSaving] = useState<UserColorKey | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (galleryId === null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await listGalleryMembers(galleryId);
+        if (!cancelled) setMembers(list);
+      } catch {
+        if (!cancelled) setMembers([]); // 못 읽으면 상대 없이 — 색 고르기는 된다
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [galleryId]);
+
+  if (galleryId === null) return null;
+
+  // 멤버 목록에는 저장 전 색이 있을 수 있어 내 색은 user.color를 앞세운다
+  const people = assignMembers((members ?? []).map((m) => (m.userId === user.id ? { ...m, color: user.color } : m)), user.id);
+  const me = people.find((p) => p.me) ?? null;
+  const partner = people.find((p) => !p.me) ?? null;
+  const myKey: UserColorKey | null = saving ?? user.color ?? me?.colorKey ?? null;
+  const myInitial = me?.initial ?? ([...user.nickname.trim()][0] ?? "?").toUpperCase();
+
+  async function pick(key: UserColorKey) {
+    if (saving !== null || key === myKey) return;
+    setSaving(key);
+    setBanner(null);
+    try {
+      const updated = await updateMyColor(key);
+      setAuthenticated({ ...user, ...updated, workspaces: updated.workspaces ?? user.workspaces });
+      setMembers((prev) => prev?.map((m) => (m.userId === user.id ? { ...m, color: key } : m)) ?? prev);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.message : "저장하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  return (
+    <Section title="함께 고르기 색">
+      <div className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] items-center gap-x-3 gap-y-4">
+        <span className="type-label-medium-m text-contents-light-bgd-default">내 색</span>
+        <div role="radiogroup" aria-label="내 색" className="flex flex-wrap items-center gap-2.5">
+          {MEMBER_COLORS.map((c) => {
+            const selected = c.key === myKey;
+            const taken = !selected && partner !== null && partner.colorKey === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-disabled={taken || undefined}
+                aria-label={taken ? `${c.name} · ${partner.nickname} 색` : c.name}
+                title={taken ? `${partner.nickname} 색` : c.name}
+                onClick={() => {
+                  if (!taken) void pick(c.key);
+                }}
+                style={{ background: memberColorVar(c.key), color: MEMBER_INK }}
+                className={`grid size-9 place-items-center rounded-full transition-[transform,box-shadow,opacity] duration-fast ${
+                  taken ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:scale-105"
+                } ${selected ? "shadow-[0_0_0_2px_var(--background-default-main),0_0_0_4px_var(--contents-light-bgd-default)]" : ""}`}
+              >
+                {selected && <CheckGlyph className="size-4" />}
+                {taken && <span className="type-label-semibold-xs font-bold">{partner.initial}</span>}
+              </button>
+            );
+          })}
+        </div>
+        {partner && (
+          <>
+            <span className="type-label-medium-m text-contents-light-bgd-default">함께 고르는 사람</span>
+            <span className="inline-flex items-center gap-2 type-content-s text-contents-light-bgd-default">
+              <i aria-hidden className="size-3 rounded-full" style={{ background: partner.color }} />
+              {partner.nickname} · {MEMBER_COLORS.find((c) => c.key === partner.colorKey)?.name}
             </span>
-            <span className="type-label-semibold-s text-contents-light-bgd-default">{t.label}</span>
-            <span className="-mt-1.5 type-content-xs text-contents-light-bgd-weakness">{t.desc}</span>
-          </button>
-        ))}
+          </>
+        )}
+        <span className="type-label-medium-m text-contents-light-bgd-default">미리보기</span>
+        <div className="flex items-center gap-2.5">
+          {myKey && <PreviewTile color={memberColorVar(myKey)} initial={myInitial} />}
+          {partner && <PreviewTile color={partner.color} initial={partner.initial} />}
+        </div>
       </div>
+      {banner && (
+        <p role="alert" className="mt-4 type-content-xs text-function-error-default">
+          {banner}
+        </p>
+      )}
     </Section>
+  );
+}
+
+/** 그리드 타일 축소판 — 왼쪽 위 체크 칸(담은 사람 색) · 오른쪽 위 이니셜 칩(매긴 사람 색), 셀렉 화면 PhotoGrid와 같은 모양 */
+function PreviewTile({ color, initial }: { color: string; initial: string }) {
+  return (
+    <span aria-hidden className="relative block h-14 w-18 rounded-(--radius-8) bg-surface-default-light">
+      <span style={{ background: color, color: MEMBER_INK }} className="absolute top-1.5 left-1.5 grid size-5 place-items-center rounded-(--radius-4)">
+        <CheckGlyph className="size-3.5" />
+      </span>
+      <span
+        style={{ background: color, color: MEMBER_INK, boxShadow: "var(--shadow-pin)" }}
+        className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full type-label-semibold-xs font-bold"
+      >
+        {initial}
+      </span>
+    </span>
+  );
+}
+
+function CheckGlyph({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 16 16" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 8.5 6.5 11.5 12.5 5" />
+    </svg>
   );
 }
 

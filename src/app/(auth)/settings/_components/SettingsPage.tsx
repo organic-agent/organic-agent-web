@@ -188,7 +188,7 @@ export function SettingsPage() {
           onChange={(next) => go({ tab: next })}
         />
         {tab === "profile" && <AccountProfileTab key={user.nickname} user={user} />}
-        {tab === "display" && <AccountDisplayTab />}
+        {tab === "display" && <AccountDisplayTab user={user} />}
         {tab === "notifications" && <AccountNotificationsTab />}
         {tab === "delete" && <AccountDeleteTab user={user} />}
       </>
