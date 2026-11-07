@@ -7,6 +7,7 @@
  * 갤러리가 열려 있고 선택 마감 기한 안일 때만 매길 수 있다.
  * 매긴 점수는 사진 목록·클러스터·폴더 응답의 score · ratedBy · ratedAt으로 함께 온다.
  * 전체 목록(listGalleryRatings)은 함께 고르기(이슈 148)가 상대 변경을 맞출 때 쓴다 — 서버 #351.
+ * 사진별 기록(listPhotoRatingHistory)은 별점이 실제로 바뀐 커밋마다 한 줄씩 쌓인 이력이다 — 서버 #374.
  */
 
 import { api } from "@/lib/api/client";
@@ -28,6 +29,27 @@ export type PhotoRatingResponse = {
  */
 export function listGalleryRatings(galleryId: number): Promise<PhotoRatingResponse[]> {
   return api(`/api/v1/galleries/${galleryId}/photo-ratings`);
+}
+
+/** 사진 별점이 바뀐 기록 한 줄 */
+export type PhotoRatingHistoryResponse = {
+  /** 기록 id — 클수록 나중 기록 */
+  id: number;
+  /** 1~5점. null이면 이때 별점을 지웠다 */
+  score: number | null;
+  /** 매기거나 지운 참여자 id — 멤버 목록의 userId와 맞춰 이름 · 색을 칠한다 */
+  ratedBy: number;
+  /** 바뀐 시각 */
+  ratedAt: string;
+};
+
+/**
+ * 사진 한 장의 별점 기록 — 최신순 최대 50건. 점수나 매긴 사람이 실제로 바뀔 때만 한 줄 생기므로
+ * 변경 번호(ratingRevision)가 바뀔 때만 다시 읽으면 된다. 부부만(작가 · 외부인 403), 휴지통 사진 404.
+ * 이 기능(서버 PR 384) 전에 매긴 별점은 기록이 없다.
+ */
+export function listPhotoRatingHistory(galleryId: number, photoId: number): Promise<PhotoRatingHistoryResponse[]> {
+  return api(`/api/v1/galleries/${galleryId}/photos/${photoId}/rating-history`);
 }
 
 /**

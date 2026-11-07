@@ -6,16 +6,20 @@
  * 크게 보기의 별과 "선택됨" 알약을 그 사람 색으로 칠한다. 글자 · 체크는 항상 검정(contents/dark-bgd/default)이라
  * 라이트 · 다크에서 같은 모양이다.
  *
- * 색은 서버 사용자 정보에 저장될 예정(서버 요청 중)이고, 그 전까지는 들어온 순서로 기본 색만 쓴다 — 먼저 들어온 사람 하늘,
- * 두 번째 코랄. 서버가 색을 주면 여기 assign만 바꾸면 된다(설정 화면의 색 고르기는 2차 PR).
+ * 색은 각자 설정(계정 › 화면)에서 고른 키가 서버 사용자 정보에 저장되고(서버 #374), 멤버 목록의 color로 온다 — 어느 기기에서
+ * 봐도, 상대 화면에서도 같은 색. 안 골랐으면 들어온 순서로 기본 색 — 먼저 들어온 사람 하늘, 두 번째 코랄.
+ * 두 사람이 같은 색을 골랐으면(서버는 막지 않는다) 먼저 들어온 사람이 그 색을 갖고 나중 사람은 기본 순서에서 안 쓰인 색을 받는다.
  *
  * 이니셜은 닉네임 첫 글자(영문은 대문자). 두 사람 첫 글자가 같으면 두 글자까지 쓴다.
  */
 
+import { USER_COLOR_KEYS, type UserColorKey } from "@/lib/api/auth";
 import type { GalleryMemberResponse } from "@/lib/api/galleries";
 
-/** 고를 수 있는 일곱 색 — 토큰 member/* (tokens/light.json · dark.json, 두 모드 같은 값) */
-export const MEMBER_COLORS = [
+export type MemberColorKey = UserColorKey;
+
+/** 고를 수 있는 일곱 색 — 키는 서버와 같고(lib/api/auth) 값은 토큰 member/* (tokens/light.json · dark.json, 두 모드 같은 값) */
+export const MEMBER_COLORS: ReadonlyArray<{ key: MemberColorKey; name: string }> = [
   { key: "sky", name: "하늘" },
   { key: "coral", name: "코랄" },
   { key: "apricot", name: "살구" },
@@ -23,11 +27,10 @@ export const MEMBER_COLORS = [
   { key: "sage", name: "세이지" },
   { key: "mint", name: "민트" },
   { key: "rose", name: "로즈" },
-] as const;
-export type MemberColorKey = (typeof MEMBER_COLORS)[number]["key"];
+];
 
-/** 기본 색 — 먼저 들어온 사람부터 */
-const DEFAULT_ORDER: MemberColorKey[] = ["sky", "coral"];
+/** 기본 색 — 먼저 들어온 사람부터. 둘 다 쓰였으면 나머지 색 순서대로 */
+const DEFAULT_ORDER: readonly MemberColorKey[] = ["sky", "coral", ...USER_COLOR_KEYS.filter((k) => k !== "sky" && k !== "coral")];
 
 /** CSS 변수 참조 — 인라인 style에 그대로 넣는다 */
 export const memberColorVar = (key: MemberColorKey) => `var(--member-${key})`;
@@ -54,7 +57,8 @@ function initialOf(nickname: string, length: number): string {
 }
 
 /**
- * 멤버 목록에 색 · 이니셜을 붙인다 — 들어온 순서(joinedAt, 없으면 목록 순)로 기본 색을 준다.
+ * 멤버 목록에 색 · 이니셜을 붙인다 — 들어온 순서(joinedAt, 없으면 목록 순)로 본다. 서버 color가 있으면 그 색(먼저 들어온
+ * 사람이 우선, 겹치면 나중 사람은 기본 순서로), 없으면 기본 순서에서 아직 안 쓰인 색.
  * 두 사람 첫 글자가 같으면 둘 다 두 글자.
  */
 export function assignMembers(members: GalleryMemberResponse[], meId: number | null): Member[] {
@@ -62,10 +66,22 @@ export function assignMembers(members: GalleryMemberResponse[], meId: number | n
     .map((m, i) => ({ m, i, at: m.joinedAt ? new Date(m.joinedAt).getTime() : Number.NEGATIVE_INFINITY }))
     .sort((a, b) => a.at - b.at || a.i - b.i)
     .map(({ m }) => m);
+  const claimed = new Set<MemberColorKey>();
+  const picked = ordered.map((m) => {
+    if (m.color === null || claimed.has(m.color)) return null;
+    claimed.add(m.color);
+    return m.color;
+  });
+  const colorKeys = picked.map((key) => {
+    if (key) return key;
+    const fallback = DEFAULT_ORDER.find((k) => !claimed.has(k)) ?? DEFAULT_ORDER[0];
+    claimed.add(fallback);
+    return fallback;
+  });
   const firsts = ordered.map((m) => initialOf(m.nickname, 1));
   const clash = new Set(firsts.filter((c, i) => firsts.indexOf(c) !== i));
   return ordered.map((m, i) => {
-    const colorKey = DEFAULT_ORDER[i] ?? MEMBER_COLORS[i % MEMBER_COLORS.length].key;
+    const colorKey = colorKeys[i];
     const first = firsts[i];
     return {
       userId: m.userId,

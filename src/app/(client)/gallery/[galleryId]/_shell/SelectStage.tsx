@@ -64,6 +64,7 @@ import { increaseStore, readIncreaseRequest, writeIncreaseRequest } from "./incr
 import { IncreaseRequestModal } from "./IncreaseRequestModal";
 import { GuestReactionPanel } from "./GuestReactionPanel";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
+import { useRatingHistory } from "./useRatingHistory";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
@@ -165,7 +166,7 @@ export function SelectStage({
     setDeadlineHit(deadlineKey);
   }
   const maxSelectable = gallery.maxSelectablePhotoCount;
-  // ── 함께 고르기(이슈 148) — 개인 갤러리에 부부 두 명이 있을 때만. 색 · 이니셜은 들어온 순서로 기본값(서버 색 저장은 2차) ──
+  // ── 함께 고르기(이슈 148) — 개인 갤러리에 부부 두 명이 있을 때만. 색은 각자 설정에서 고른 것(멤버 목록 color), 없으면 들어온 순서 기본값 ──
   const people = useMemo(() => assignMembers(members ?? [], meId), [members, meId]);
   const peopleById = useMemo(() => memberMapOf(people), [people]);
   const me = people.find((p) => p.me) ?? null;
@@ -175,8 +176,17 @@ export function SelectStage({
   useEffect(() => {
     onRatingsSyncedRef.current = onRatingsSynced;
   });
+  /** 열린 사진의 별점 기록을 다시 읽을 때 — 변경 번호가 바뀌어 전체 목록을 받았을 때와 내 별점 저장이 끝났을 때 오른다 */
+  const [historyVersion, setHistoryVersion] = useState(0);
   const live = useMemo(
-    () => ({ enabled: together && canEdit, meId, onRatings: (list: PhotoRatingResponse[]) => onRatingsSyncedRef.current?.(list) }),
+    () => ({
+      enabled: together && canEdit,
+      meId,
+      onRatings: (list: PhotoRatingResponse[]) => {
+        onRatingsSyncedRef.current?.(list);
+        setHistoryVersion((v) => v + 1);
+      },
+    }),
     [together, canEdit, meId],
   );
   const { selection, pickedIds, addedByOf, toggle, pickMany, refresh: refreshSelection, notice, clearNotice, partnerChange } = useSelectionSync(galleryId, canEdit, maxSelectable, noteRejection, personal, live);
@@ -510,6 +520,17 @@ export function SelectStage({
     },
   ];
   const shownTab: LightboxTab = tab === "guest" && guestGroups.length === 0 ? "none" : tab;
+  // 별점 기록(2차) — 정보 탭이 열려 있는 동안만 읽는다. 매긴 사람은 멤버 목록으로 이름 · 색을 찾고, 나는 "나"
+  const historyOn = together && lightboxOpen && shownTab === "info";
+  const history = useRatingHistory(galleryId, historyOn ? currentId : null, historyOn, historyVersion);
+  const historyRows = useMemo(
+    () =>
+      history.rows?.map((h) => {
+        const who = peopleById.get(h.ratedBy);
+        return { id: h.id, score: h.score, name: who ? (who.me ? "나" : who.nickname) : "함께 고르는 사람", color: who?.color ?? null, at: h.ratedAt };
+      }) ?? null,
+    [history.rows, peopleById],
+  );
   function openPhoto(photoId: number) {
     setNavIds(displayPhotos.map((p) => p.photoId));
     setCurrentId(photoId);
@@ -574,12 +595,14 @@ export function SelectStage({
   /** 한 사진의 별점을 서버와 맞춘다 — 요청이 엇갈려 옛 값이 남지 않게 한 번에 하나씩, 바라는 값이 바뀌었으면 이어서 보낸다 */
   async function saveRating(photoId: number, job: { saved: number | null; want: number | null }) {
     let failure: unknown = null;
+    let sent = false;
     while (job.want !== job.saved) {
       const sending = job.want;
       try {
         if (sending === null) await clearPhotoRating(galleryId, photoId);
         else await ratePhoto(galleryId, photoId, sending);
         job.saved = sending;
+        sent = true;
         track("photo_rated", { gallery_id: galleryId, score: sending ?? 0 });
       } catch (err) {
         // 그사이 다시 매겼으면 그 값을 이어서 보내 본다
@@ -591,6 +614,8 @@ export function SelectStage({
     rateJobsRef.current.delete(photoId);
     // 서버에 남은 값을 목록에 적고 덮어쓰기를 걷는다 — 실패했으면 화면이 그 값으로 되돌아간다
     onScoreSaved(photoId, job.saved);
+    // 내 별점이 서버에 남았으면 기록이 한 줄 늘었다 — 열린 사진의 기록을 바로 다시 읽는다(3초 동기화를 기다리지 않게)
+    if (sent) setHistoryVersion((v) => v + 1);
     setScoreOverrides((prev) => {
       const next = new Map(prev);
       next.delete(photoId);
@@ -1101,6 +1126,7 @@ export function SelectStage({
                 editable={editable}
                 aiPicked={aiByPhotoId.has(currentPhoto.photoId)}
                 rater={raterInfoOf(currentPhoto)}
+                history={together ? { rows: historyRows, failed: history.failed } : null}
                 onRate={(score) => rateGuarded(currentPhoto.photoId, score)}
               />
             ) : (

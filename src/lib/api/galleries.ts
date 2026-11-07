@@ -3,6 +3,7 @@
  * 위치: src/lib/api/galleries.ts
  */
 
+import type { UserColorKey } from "@/lib/api/auth";
 import { api } from "@/lib/api/client";
 
 /** 갤러리 화면의 6단계 진행 상태 — 홈 카드 칩·필터가 이 값으로 갈린다 */
@@ -214,6 +215,8 @@ export type GalleryMemberResponse = {
   email: string | null;
   /** 초대를 수락한 시각. */
   joinedAt: string | null;
+  /** 함께 고르기 색 — 그 사람이 설정에서 고른 키. null이면 웹이 들어온 순서로 기본 색을 준다(서버 #374) */
+  color: UserColorKey | null;
 };
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 싱글뷰 "정보" 탭 — 칩(AI 추천 · 처음 보는 사진 / n번 봤어요) · 별점 · 내 메모(이 기기에만 저장 — 공유는 서버 API가 생기면)
+ * 싱글뷰 "정보" 탭 — 칩(AI 추천 · 처음 보는 사진 / n번 봤어요) · 별점(함께 고르기면 매긴 사람 · 기록) · 내 메모(이 기기에만 저장 — 공유는 서버 API가 생기면)
  * 본 횟수는 셀렉 화면의 싱글뷰만 센다 — 세지 않는 보정 확인 화면은 본 횟수 칩을 끈다(showViewed).
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/PhotoInfoPanel.tsx
  *
@@ -17,6 +17,8 @@ import { memoStore, viewedStore, writeMemo } from "./clientMemory";
 
 /** 함께 고르기(이슈 148) — 마지막으로 매긴 사람. 별 색과 "이름 · 언제" 한 줄 */
 export type RaterInfo = { name: string; color: string; at: string | null; me: boolean };
+/** 함께 고르기 — 별점 기록 한 줄(최신이 위). score null은 지움, color null은 멤버 목록에 없는 사람 */
+export type RatingHistoryRow = { id: number; score: number | null; name: string; color: string | null; at: string };
 
 export function PhotoInfoPanel({
   galleryId,
@@ -26,6 +28,7 @@ export function PhotoInfoPanel({
   aiPicked = false,
   showViewed = true,
   rater = null,
+  history = null,
   onRate,
 }: {
   galleryId: number;
@@ -36,8 +39,10 @@ export function PhotoInfoPanel({
   aiPicked?: boolean;
   /** 본 횟수 칩을 보일까 — 본 횟수를 세지 않는 화면(보정 확인)은 false */
   showViewed?: boolean;
-  /** 함께 고르기 — 마지막으로 매긴 사람(개인 갤러리 · 멤버 2명일 때만). 별점 기록 전체는 서버 이력이 생기면 */
+  /** 함께 고르기 — 마지막으로 매긴 사람(개인 갤러리 · 멤버 2명일 때만) */
   rater?: RaterInfo | null;
+  /** 함께 고르기 — 이 사진의 별점 기록(서버 #374). rows null은 아직 못 읽음. 기록이 없으면 구역을 그리지 않는다 */
+  history?: { rows: RatingHistoryRow[] | null; failed: boolean } | null;
   onRate: (score: number | null) => void;
 }) {
   const memoRaw = useSyncExternalStore(memoStore.subscribe, () => memoStore.readRaw(galleryId), () => "");
@@ -102,6 +107,25 @@ export function PhotoInfoPanel({
         </div>
       </section>
 
+      {/* 별점 기록 — 사람 색 점 · 이름 · 점수(지움) · 시각 한 줄씩, 최신이 위. 못 읽었거나 비어 있으면 구역 자체를 두지 않는다 */}
+      {history?.rows && history.rows.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">별점 기록</h4>
+          <ol className="flex flex-col gap-1.5">
+            {history.rows.map((h) => (
+              <li key={h.id} className="flex items-center gap-2 type-content-xs text-contents-light-bgd-default">
+                <i aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: h.color ?? "var(--border-default)" }} />
+                <span className="truncate">{h.name}</span>
+                <span className={`shrink-0 ${h.score === null ? "text-contents-light-bgd-weakness" : "font-semibold"}`}>
+                  {h.score === null ? "지움" : `★${h.score}`}
+                </span>
+                <span className="ml-auto shrink-0 text-contents-light-bgd-weakness">{historyTime(h.at, now)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       <section className="flex flex-col gap-1.5">
         <h4 className="type-label-semibold-xs text-contents-light-bgd-weakness">내 메모</h4>
         <textarea
@@ -114,6 +138,18 @@ export function PhotoInfoPanel({
       </section>
     </>
   );
+}
+
+/** 기록 시각 — 오늘 · 어제는 시각만, 그 전은 "월.일 시:분" */
+function historyTime(iso: string, now: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const dayOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayOf(new Date(now)) - dayOf(d)) / 86_400_000);
+  if (days === 0) return `오늘 ${hm}`;
+  if (days === 1) return `어제 ${hm}`;
+  return `${d.getMonth() + 1}.${d.getDate()} ${hm}`;
 }
 
 // 연한 칩 — 브랜드 올리브를 옅게 깐 바탕에 같은 색의 진한 글자, 여러 번 본 사진은 회색 (2026-10-05 시안)
