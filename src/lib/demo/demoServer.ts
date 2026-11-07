@@ -177,7 +177,7 @@ function gallery(): GalleryResponse {
     planId: "FREE",
   };
 }
-const MEMBERS: GalleryMemberResponse[] = [{ memberId: 1, userId: DEMO_USER.id, nickname: DEMO_USER.nickname, email: null, joinedAt: daysFromNow(-3) }];
+const MEMBERS: GalleryMemberResponse[] = [{ memberId: 1, userId: DEMO_USER.id, nickname: DEMO_USER.nickname, email: null, joinedAt: daysFromNow(-3), color: null }];
 
 // ── 폴더 ──
 function detailsOf(s: Saved): DetailFolderResponse[] {
@@ -321,6 +321,7 @@ const g = `/galleries/(\\d+)`;
 
 // 사용자 · 갤러리
 on("GET", "/users/me", () => DEMO_USER);
+on("PUT", "/users/me/color", (_m, body) => ({ ...DEMO_USER, color: body.color ?? null }));
 on("POST", "/auth/logout", () => undefined);
 on("GET", "/galleries", () => [gallery()]);
 on("GET", `${g}`, () => gallery());
@@ -375,6 +376,8 @@ on("DELETE", `${g}/photos/(\\d+)/rating`, (m) => {
   save();
   return undefined;
 });
+// 별점 기록(이슈 148 2차) — 체험은 혼자라 함께 고르기가 꺼져 있어 부르지 않지만, 경로는 둔다
+on("GET", `${g}/photos/(\\d+)/rating-history`, () => []);
 
 // 폴더
 on("GET", `${g}/concept-folders`, () => load().folders);

@@ -37,6 +37,13 @@ export type UserWorkspace = {
   workspaceType: "PERSONAL" | "STUDIO" | null;
 };
 
+/**
+ * 함께 고르기(이슈 148)의 사람 색 키 — 일곱 개는 웹이 정하고 색상값(토큰 member/*)도 웹이 가진다. 서버는 어느 기기에서
+ * 봐도 같은 키가 나오도록 저장만 한다(서버 #374). 키를 더하면 서버 UserColor · DB CHECK도 함께 넓혀야 한다.
+ */
+export const USER_COLOR_KEYS = ["sky", "coral", "apricot", "lemon", "sage", "mint", "rose"] as const;
+export type UserColorKey = (typeof USER_COLOR_KEYS)[number];
+
 export type User = {
   id: number;
   provider: OAuthProvider;
@@ -46,6 +53,8 @@ export type User = {
   createdAt: string | null;
   /** 소속 목록. 비어 있으면 아직 역할을 정하지 않은 신규 사용자다 */
   workspaces: UserWorkspace[];
+  /** 함께 고르기 색 — 설정에서 고른 키. 안 골랐으면 null(웹이 들어온 순서로 기본 색을 준다) */
+  color: UserColorKey | null;
 };
 
 /**
@@ -93,9 +102,17 @@ export function getMe(): Promise<User> {
   return api("/api/v1/users/me");
 }
 
-/** 서비스 닉네임 수정 — OAuth 제공자의 이름과 별개로 저장된다 */
+/** 서비스 닉네임 수정 — OAuth 제공자의 이름과 별개로 저장된다. 색(color)은 건드리지 않는다 */
 export function updateNickname(nickname: string): Promise<User> {
   return api("/api/v1/users/me", { method: "PATCH", body: { nickname } });
+}
+
+/**
+ * 함께 고르기 색 바꾸기 — null이면 고른 색을 지운다(기본 색으로). 모르는 키 · 대문자는 400 USER_400_2.
+ * 닉네임과 경로를 나눈 건 닉네임만 보낼 때 색이 지워지는 일을 막으려는 서버 결정(PR 384).
+ */
+export function updateMyColor(color: UserColorKey | null): Promise<User> {
+  return api("/api/v1/users/me/color", { method: "PUT", body: { color } });
 }
 
 /**

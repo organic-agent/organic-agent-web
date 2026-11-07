@@ -66,6 +66,7 @@ export const DEMO_USER: User = {
   email: null,
   role: "USER",
   createdAt: null,
+  color: null,
   workspaces: [
     {
       id: -1,
