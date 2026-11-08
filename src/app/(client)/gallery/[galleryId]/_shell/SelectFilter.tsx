@@ -235,10 +235,13 @@ export function SelectFilterChips({
   conditions,
   onChange,
   visibleCount,
+  action,
 }: {
   conditions: SelectConditions;
   onChange: (next: SelectConditions) => void;
   visibleCount: number;
+  /** 장수 오른쪽에 붙는 동작 — 별점 조건을 걸었을 때 "n장 휴지통으로"(이슈 160) */
+  action?: React.ReactNode;
 }) {
   const chips: { key: string; label: string; clear: () => void }[] = [];
   if (conditions.pick !== "all") chips.push({ key: "pick", label: PICK_LABEL[conditions.pick], clear: () => onChange({ ...conditions, pick: "all" }) });
@@ -260,6 +263,7 @@ export function SelectFilterChips({
         조건 해제
       </button>
       <span className="ml-auto type-content-xs text-contents-light-bgd-weakness tabular-nums">{visibleCount}장</span>
+      {action}
     </div>
   );
 }

@@ -47,6 +47,7 @@ export function usePhotoMove({
   clearSelection,
   folderOf,
   onMoved,
+  onTrash,
 }: {
   galleryId: number;
   /** 사진을 옮길 수 있는 화면인가(컨셉 분류 · 폴더 확정 전) */
@@ -59,6 +60,8 @@ export function usePhotoMove({
   folderOf: (photoId: number) => number | null;
   /** 옮긴 뒤 폴더 · 사진 다시 불러오기 */
   onMoved: () => Promise<void> | void;
+  /** 폴더 열 맨 아래 휴지통 행에 놓았다(이슈 160) — 쓰는 쪽이 제외 API · 되돌리기를 맡는다. 없으면 그 행은 놓을 곳이 아니다 */
+  onTrash?: (photoIds: number[]) => void;
 }) {
   const [ids, setIds] = useState<number[] | null>(null);
   const [over, setOver] = useState<FolderDropTarget | null>(null);
@@ -124,9 +127,9 @@ export function usePhotoMove({
   );
 
   // 포인터 리스너는 enabled에만 묶는다(선택 · 폴더가 바뀌어도 진행 중인 끌기가 끊기지 않게) — 최신 값은 여기서 읽는다
-  const latestRef = useRef({ selectedIds, runMove });
+  const latestRef = useRef({ selectedIds, runMove, onTrash });
   useEffect(() => {
-    latestRef.current = { selectedIds, runMove };
+    latestRef.current = { selectedIds, runMove, onTrash };
   });
 
   useEffect(() => {
@@ -176,6 +179,10 @@ export function usePhotoMove({
       draggedRef.current = true;
       stop();
       if (!target || target.kind === "concept") return;
+      if (target.kind === "trash") {
+        latestRef.current.onTrash?.(session.ids);
+        return;
+      }
       void latestRef.current.runMove(session.ids, target.kind === "detail" ? target.id : null);
     }
     window.addEventListener("pointermove", onPointerMove);
