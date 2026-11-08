@@ -54,6 +54,7 @@ import {
   type ConceptFolderResponse,
   type DetailFolderResponse,
 } from "@/lib/api/conceptFolders";
+import { EXCLUSION_LOCKED, excludePhotos, restoreExcludedPhotos } from "@/lib/api/exclusions";
 import { type GalleryMemberResponse, listGalleryMembers } from "@/lib/api/galleries";
 import type { PhotoRatingResponse } from "@/lib/api/ratings";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
@@ -75,6 +76,8 @@ import { PersonalEmptyGuide } from "./_shell/PersonalEmptyGuide";
 import { personalMembershipOf } from "./_shell/personalGallery";
 import { ReviewStage } from "./_shell/ReviewStage";
 import { SelectStage } from "./_shell/SelectStage";
+import { TRASH_CONFIRM_FROM, TrashConfirmModal } from "./_shell/TrashView";
+import { useExcludedPhotos } from "./_shell/useExcludedPhotos";
 import { WaitCard } from "./_shell/WaitCard";
 import { usePersonalUpload } from "./_shell/usePersonalUpload";
 import { usePhotoUrlRefresh } from "./_shell/usePhotoUrlRefresh";
@@ -372,6 +375,17 @@ export default function ClientGalleryPage() {
     return sortPhotos(list, sort);
   }, [folderPhotos, scoreTools, sortConditions, sort]);
   const editable = sorting && !contentBlocked;
+  // ── 셀렉 휴지통(이슈 160) — 컨셉 분류 · 정리 모드에서 고른 사진을 휴지통으로(선택 바 버튼 · 폴더 열 휴지통 행에 끌어 놓기). 복원은 셀렉 화면의 휴지통에서 ──
+  const [trashVersion, setTrashVersion] = useState(0);
+  const trash = useExcludedPhotos(galleryId, opened && sorting, trashVersion);
+  /** 20장 넘게 보내기 전에 묻는 중인 사진들 */
+  const [trashConfirm, setTrashConfirm] = useState<number[] | null>(null);
+  const [trashSnack, setTrashSnack] = useState<{ text: string; action?: { label: string; onClick: () => void } } | null>(null);
+  useEffect(() => {
+    if (!trashSnack) return;
+    const timer = window.setTimeout(() => setTrashSnack(null), trashSnack.action ? 5000 : 2400);
+    return () => window.clearTimeout(timer);
+  }, [trashSnack]);
 
   function toggleSelect(photoId: number) {
     setSelected((prev) => {
@@ -412,6 +426,8 @@ export default function ClientGalleryPage() {
     clearSelection,
     folderOf,
     onMoved: refreshFolders,
+    // 폴더 열 맨 아래 휴지통 행에 놓으면(이슈 160) — 20장 넘으면 묻고, 아니면 바로
+    onTrash: (ids) => requestTrash(ids),
   });
   const folderMerge = useFolderMerge({ galleryId, folders, selection: folderSel, refreshFolders, setSelection: setFolderSel });
   const anyModalOpen = folderModal !== null || moveOpen || confirmOpen || deletePhotosOpen || folderMerge.modalOpen;
@@ -472,6 +488,45 @@ export default function ClientGalleryPage() {
     }
     setDeletePickedCount(picked);
     setDeletePhotosOpen(true);
+  }
+  /** 고른 사진(또는 끌어다 놓은 사진)을 휴지통으로 — 서버가 선택에서도 뺀다. 되돌리기는 복원(담김은 셀렉 화면에서 다시) */
+  async function trashNow(ids: number[]) {
+    if (ids.length === 0) return;
+    try {
+      const n = await excludePhotos(galleryId, ids);
+      setSelected(new Set());
+      setTrashVersion((v) => v + 1);
+      await Promise.all([refreshPhotos(), refreshFolders()]);
+      if (organizing) {
+        try {
+          setOrganizingPicked((await getPhotoSelection(galleryId)).selectedCount);
+        } catch {
+          // 못 읽으면 다음에 셀렉 화면에서 맞춰진다
+        }
+      }
+      setTrashSnack({ text: `${n}장을 휴지통으로 옮겼어요`, action: { label: "되돌리기", onClick: () => void untrash(ids) } });
+    } catch (err) {
+      setNotice(err instanceof ApiError && err.code === EXCLUSION_LOCKED ? "요청서를 내보낸 뒤라 바꿀 수 없어요" : err instanceof ApiError ? err.message : "휴지통으로 옮기지 못했어요 · 다시 시도해 주세요");
+      // 500장씩 나눠 보내다 실패했으면 앞 묶음은 이미 옮겨졌을 수 있다 — 서버 기준으로 맞춘다
+      void Promise.all([refreshPhotos(), refreshFolders()]);
+      setTrashVersion((v) => v + 1);
+    }
+  }
+  async function untrash(ids: number[]) {
+    setTrashSnack(null);
+    try {
+      await restoreExcludedPhotos(galleryId, ids);
+      setTrashVersion((v) => v + 1);
+      await Promise.all([refreshPhotos(), refreshFolders()]);
+      setTrashSnack({ text: "되돌렸어요" });
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : "되돌리지 못했어요 · 셀렉 화면의 휴지통에서 복원할 수 있어요");
+    }
+  }
+  function requestTrash(ids: number[]) {
+    if (ids.length === 0) return;
+    if (ids.length >= TRASH_CONFIRM_FROM) setTrashConfirm(ids);
+    else void trashNow(ids);
   }
   async function confirmDeletePhotos() {
     await deletePhotos(galleryId, [...selected]);
@@ -833,6 +888,8 @@ export default function ClientGalleryPage() {
                 onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
                 dropping={photoMove.dropping}
                 dropOver={photoMove.dropOver}
+                // 부부가 사진을 옮길 수 있을 때만 휴지통 행(끌어 놓는 자리 · 장수). 작가 화면에는 없다
+                trash={editable ? { count: trash.total } : null}
                 pendingNote={
                   folders && folders.length === 0
                     ? isPersonal
@@ -923,6 +980,7 @@ export default function ClientGalleryPage() {
           onClearSelection={() => setSelected(new Set())}
           onMoveSelection={() => setMoveOpen(true)}
           onDeleteSelection={isPersonal && sorting ? () => void openDeletePhotos() : undefined}
+          onTrashSelection={editable ? () => requestTrash([...selected]) : undefined}
           hint={bottomHint}
           hintIsNotice={Boolean(notice) || (isPersonal && Boolean(upload.hint))}
           progress={isPersonal ? upload.progress ?? undefined : undefined}
@@ -1000,6 +1058,22 @@ export default function ClientGalleryPage() {
       <PersonalCoachMarks ready={isPersonal && phase === "upload" && photos !== null && !upload.modalOpen} owner={personal?.owner ?? true} />
       {photoMove.overlay}
       {folderMerge.overlay}
+      {trashConfirm && (
+        <TrashConfirmModal
+          count={trashConfirm.length}
+          onClose={() => setTrashConfirm(null)}
+          onConfirm={() => {
+            const ids = trashConfirm;
+            setTrashConfirm(null);
+            void trashNow(ids);
+          }}
+        />
+      )}
+      {trashSnack && (
+        <Snackbar kind="info" action={trashSnack.action} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {trashSnack.text}
+        </Snackbar>
+      )}
       {stageNotice && (
         <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
           {stageNotice}

@@ -16,7 +16,7 @@
  */
 
 import { Children, isValidElement, type ReactNode } from "react";
-import { DeleteForeverIcon, SelectAllIcon } from "@/components/icons";
+import { DeleteForeverIcon, SelectAllIcon, TrashIcon } from "@/components/icons";
 
 /** 버튼 내용이 "아이콘 + 글자"인지 — 맨 앞이 요소(아이콘)이고 나머지가 전부 글자 · 숫자일 때만 */
 function splitIconLabel(children: ReactNode): { icon: ReactNode; label: string } | null {
@@ -87,6 +87,7 @@ export function ShellBottomBar({
   onClearSelection,
   onMoveSelection,
   onDeleteSelection,
+  onTrashSelection,
   hint,
   hintIsNotice = false,
   progress,
@@ -102,6 +103,8 @@ export function ShellBottomBar({
   onMoveSelection: () => void;
   /** 없으면 삭제 버튼을 두지 않는다(클라이언트 — 사진은 작가의 것) */
   onDeleteSelection?: () => void;
+  /** 고른 사진을 셀렉 휴지통으로(이슈 160, 부부만) — 삭제(실제 삭제 · 빨강) 왼쪽에 기본 색으로. 없으면 버튼을 두지 않는다 */
+  onTrashSelection?: () => void;
   /** 선택이 없을 때 왼쪽 문구 — 860 미만에서는 버튼에 자리를 내주고 숨는다 */
   hint: ReactNode;
   /** 지금 문구가 안내가 아니라 알림(오류 · 방금 일어난 일)일 때 — 좁아도 숨기지 않는다 */
@@ -130,6 +133,12 @@ export function ShellBottomBar({
             <ShellCta kind="outline" onClick={onSelectAll}>
               <SelectAllIcon size={18} />
               모두 선택 ({visibleCount})
+            </ShellCta>
+          )}
+          {onTrashSelection && (
+            <ShellCta kind="outline" onClick={onTrashSelection}>
+              <TrashIcon size={18} />
+              휴지통으로
             </ShellCta>
           )}
           {onDeleteSelection && (

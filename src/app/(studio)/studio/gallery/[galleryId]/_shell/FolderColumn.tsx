@@ -39,10 +39,11 @@ export type FolderSelection =
   | { kind: "detail"; conceptId: number; detailId: number }
   | { kind: "unsorted" };
 
-/** 사진을 끌어 놓을 수 있는 곳 — concept는 놓는 곳이 아니라 "머물면 펼친다" */
+/** 사진을 끌어 놓을 수 있는 곳 — concept는 놓는 곳이 아니라 "머물면 펼친다". trash는 셀렉 휴지통(이슈 160, 부부 화면만) */
 export type FolderDropTarget =
   | { kind: "detail"; id: number }
   | { kind: "unsorted" }
+  | { kind: "trash" }
   | { kind: "concept"; id: number };
 
 /** 놓을 곳 찾기 — 폴더 열의 data-drop을 읽는다(사진 끌기 · 세부 폴더 끌기 공용) */
@@ -51,6 +52,7 @@ export function folderDropTargetAt(x: number, y: number): FolderDropTarget | nul
   const raw = el?.dataset.drop;
   if (!raw) return null;
   if (raw === "unsorted") return { kind: "unsorted" };
+  if (raw === "trash") return { kind: "trash" };
   const [kind, rest] = raw.split(":");
   const id = Number(rest);
   if (!Number.isFinite(id)) return null;
@@ -62,7 +64,7 @@ export function folderDropTargetAt(x: number, y: number): FolderDropTarget | nul
 export function sameFolderDropTarget(a: FolderDropTarget | null, b: FolderDropTarget | null) {
   if (a === null || b === null) return a === b;
   if (a.kind !== b.kind) return false;
-  return a.kind === "unsorted" || b.kind === "unsorted" || a.id === b.id;
+  return !("id" in a) || !("id" in b) || a.id === b.id;
 }
 
 /** 세부 폴더 하나와 그 컨셉 — 합치기의 원본 · 대상 */
@@ -111,6 +113,7 @@ export function FolderColumn({
   onPickMerge,
   dropping = false,
   dropOver = null,
+  trash = null,
 }: {
   /** null = 불러오는 중 */
   folders: ConceptFolderResponse[] | null;
@@ -134,6 +137,8 @@ export function FolderColumn({
   dropping?: boolean;
   /** 지금 올라와 있는 곳 */
   dropOver?: FolderDropTarget | null;
+  /** 맨 아래 "휴지통 n" 행(이슈 160) — 사진을 끌어다 놓는 곳. 부부의 컨셉 분류 · 정리 모드에서만 준다(작가 화면에는 없다). count null이면 "—" */
+  trash?: { count: number | null } | null;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [menu, setMenu] = useState<MenuTarget | null>(null);
@@ -607,6 +612,22 @@ export function FolderColumn({
               <span className="type-content-xs text-contents-light-bgd-weakness">{unsortedCount}</span>
             </button>
           </li>
+          {trash && (
+            <li className="mt-1.5 border-t border-divider-default pt-1.5">
+              {/* 눌러서 열지는 않는다(휴지통 화면은 셀렉 사이드바의 몫) — 끌어다 놓는 자리와 장수만 */}
+              <div
+                data-drop={dropping ? "trash" : undefined}
+                data-nodrop={dragging && !dropping ? "" : undefined}
+                className={`flex w-full items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s text-contents-light-bgd-sub ${dropClass(dragging, dropping, dropping && dropOver?.kind === "trash")}`}
+              >
+                <span className="flex shrink-0 text-contents-light-bgd-weakness">
+                  <TrashIcon size={16} />
+                </span>
+                <span className="min-w-0 flex-1 truncate">휴지통</span>
+                <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">{trash.count ?? "—"}</span>
+              </div>
+            </li>
+          )}
         </ul>
       )}
       {mergeSource && (
