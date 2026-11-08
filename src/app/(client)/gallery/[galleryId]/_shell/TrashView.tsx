@@ -11,6 +11,7 @@
  */
 
 import type { ReactNode } from "react";
+import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
 import { PhotoGrid, type RaterMark } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
@@ -107,6 +108,17 @@ export function TrashView({
         )}
       </div>
     </>
+  );
+}
+
+/** 묶음째 보낼 때 장수가 많으면(20장 넘게) 한 번 묻는다 — 한 장 · 적은 장수는 스낵바 되돌리기로 충분 */
+export const TRASH_CONFIRM_FROM = 21;
+
+export function TrashConfirmModal({ count, onClose, onConfirm }: { count: number; onClose: () => void; onConfirm: () => void }) {
+  return (
+    <GalleryModalShell title={`${count}장을 휴지통으로 옮길까요?`} desc="선택에서도 빠져요 · 휴지통에서 언제든 되살릴 수 있어요" maxWidthClassName="max-w-105" onClose={onClose}>
+      <GalleryModalButtons onClose={onClose} onConfirm={onConfirm} confirmLabel="휴지통으로" />
+    </GalleryModalShell>
   );
 }
 

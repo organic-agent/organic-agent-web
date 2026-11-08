@@ -66,7 +66,7 @@ import { GuestReactionPanel } from "./GuestReactionPanel";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { useRatingHistory } from "./useRatingHistory";
 import { EXCLUSION_LOCKED, excludePhotos, restoreExcludedPhotos } from "@/lib/api/exclusions";
-import { TrashBottomBar, TrashView } from "./TrashView";
+import { TRASH_CONFIRM_FROM, TrashBottomBar, TrashConfirmModal, TrashView } from "./TrashView";
 import { useExcludedPhotos } from "./useExcludedPhotos";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
@@ -192,6 +192,8 @@ export function SelectStage({
   /** 휴지통 화면에서 되살리려고 고른 사진 */
   const [restoreSel, setRestoreSel] = useState<Set<number>>(() => new Set());
   const [restoreBusy, setRestoreBusy] = useState(false);
+  /** 묶음째 보내기 전에 묻는 중인 사진들(20장 넘을 때) */
+  const [trashConfirm, setTrashConfirm] = useState<number[] | null>(null);
   /** 크게 보기에서 방금 휴지통으로 보낸 사진 — 페이지가 목록을 다시 읽기 전까지 화면에서 먼저 뺀다(되돌리면 다시 넣는다) */
   const [hiddenIds, setHiddenIds] = useState<Set<number>>(() => new Set());
   const onExclusionsChangedRef = useRef(onExclusionsChanged);
@@ -666,7 +668,7 @@ export function SelectStage({
     try {
       await excludePhotos(galleryId, [photoId]);
       afterExclusionChange();
-      setSnack({ text: "휴지통으로 옮겼어요", ms: 4000, action: { label: "되돌리기", onClick: () => void undoExclude(photoId, wasPicked) } });
+      setSnack({ text: "휴지통으로 옮겼어요", ms: 4000, action: { label: "되돌리기", onClick: () => void undoExcludeMany([photoId], wasPicked ? [photoId] : []) } });
     } catch (err) {
       setHiddenIds((prev) => {
         const n = new Set(prev);
@@ -676,21 +678,50 @@ export function SelectStage({
       setLocalNotice(exclusionError(err, "휴지통으로 옮기지 못했어요 · 다시 시도해 주세요"));
     }
   }
-  async function undoExclude(photoId: number, repick: boolean) {
+  /** 방금 보낸 것을 되돌린다 — 복원 + 담겨 있던 사진(repick)은 다시 담기 */
+  async function undoExcludeMany(ids: number[], repick: number[]) {
     setSnack(null);
     try {
-      await restoreExcludedPhotos(galleryId, [photoId]);
+      await restoreExcludedPhotos(galleryId, ids);
       setHiddenIds((prev) => {
         const n = new Set(prev);
-        n.delete(photoId);
+        for (const id of ids) n.delete(id);
         return n;
       });
       afterExclusionChange();
-      if (repick) pickMany([photoId]);
+      if (repick.length > 0) pickMany(repick);
       setSnack({ text: "되돌렸어요" });
     } catch (err) {
       setLocalNotice(exclusionError(err, "되돌리지 못했어요 · 휴지통에서 복원할 수 있어요"));
     }
+  }
+  /** 별점 조건을 건 사진 전부를 휴지통으로(결정 ② D) — 화면에서 먼저 빼고 스낵바로 되돌리기. 20장 넘으면 먼저 묻는다(requestExcludeMany) */
+  async function excludeMany(ids: number[]) {
+    if (!editable || ids.length === 0) return;
+    const repick = ids.filter((id) => pickedIds.has(id));
+    setHiddenIds((prev) => {
+      const n = new Set(prev);
+      for (const id of ids) n.add(id);
+      return n;
+    });
+    try {
+      const n = await excludePhotos(galleryId, ids);
+      afterExclusionChange();
+      setSnack({ text: `${n}장을 휴지통으로 옮겼어요`, ms: 5000, action: { label: "되돌리기", onClick: () => void undoExcludeMany(ids, repick) } });
+    } catch (err) {
+      setHiddenIds((prev) => {
+        const n = new Set(prev);
+        for (const id of ids) n.delete(id);
+        return n;
+      });
+      setLocalNotice(exclusionError(err, "휴지통으로 옮기지 못했어요 · 다시 시도해 주세요"));
+      // 500장씩 나눠 보내다 실패했으면 앞 묶음은 이미 옮겨졌을 수 있다 — 서버 기준으로 맞춘다
+      afterExclusionChange();
+    }
+  }
+  function requestExcludeMany(ids: number[]) {
+    if (ids.length >= TRASH_CONFIRM_FROM) setTrashConfirm(ids);
+    else void excludeMany(ids);
   }
   /** 휴지통 화면 · 크게 보기의 복원 — 선택 목록에는 자동으로 담기지 않는다(서버 규칙) */
   async function restoreMany(ids: number[]) {
@@ -930,7 +961,26 @@ export function SelectStage({
                   )
                 }
               />
-              {view === "all" && <SelectFilterChips conditions={conditions} onChange={applyConditions} visibleCount={visiblePhotos.length} />}
+              {view === "all" && (
+                <SelectFilterChips
+                  conditions={conditions}
+                  onChange={applyConditions}
+                  visibleCount={visiblePhotos.length}
+                  // 별점 조건을 건 뒤에만 — 남은 사진 전부를 휴지통으로(결정 ② D). 묶음 머리에는 두지 않는다
+                  action={
+                    editable && conditions.scores.size > 0 && visiblePhotos.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => requestExcludeMany(visiblePhotos.map((p) => p.photoId))}
+                        className="ml-2.5 inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) border border-border-default px-2.5 type-label-semibold-xs text-contents-light-bgd-sub transition-colors duration-fast hover:bg-surface-default-lightness"
+                      >
+                        <TrashIcon size={14} />
+                        {visiblePhotos.length}장 휴지통으로
+                      </button>
+                    ) : undefined
+                  }
+                />
+              )}
               {locked && (
                 <div className="mx-5 mb-2 flex items-center gap-2.5 rounded-(--radius-8) bg-surface-default-medium px-3 py-2.5 type-content-s text-contents-light-bgd-default">
                   <span className="text-contents-light-bgd-sub">
@@ -1173,6 +1223,17 @@ export function SelectStage({
       {/* 사진을 처음 크게 열었을 때 — 빼기 확인 창이 떠 있는 동안은 미룬다 */}
       <LightboxCoachMarks ready={editable && lightboxOpen && currentPhoto !== null && deselectId === null} personal={personal} />
 
+      {trashConfirm && (
+        <TrashConfirmModal
+          count={trashConfirm.length}
+          onClose={() => setTrashConfirm(null)}
+          onConfirm={() => {
+            const ids = trashConfirm;
+            setTrashConfirm(null);
+            void excludeMany(ids);
+          }}
+        />
+      )}
       {deselectId !== null && photoById.get(deselectId) && (
         <DeselectConfirmModal
           photo={photoById.get(deselectId)!}
