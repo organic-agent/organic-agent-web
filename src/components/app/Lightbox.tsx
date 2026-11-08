@@ -134,8 +134,8 @@ export function Lightbox({
   onKeyDown?: (e: KeyboardEvent) => boolean | void;
   /** 사진이 그려지지 않았을 때(주소 만료 등) — 부모가 목록을 다시 읽어 새 주소를 준다 */
   onImageError?: () => void;
-  /** 컨트롤 위에 띄울 알림 — 띄우고 지우는 때는 부모가 정한다 */
-  notice?: { kind: SnackbarKind; text: string } | null;
+  /** 컨트롤 위에 띄울 알림 — 띄우고 지우는 때는 부모가 정한다. action이 있으면 오른쪽에 동작 버튼(휴지통으로 옮긴 뒤 "되돌리기") */
+  notice?: { kind: SnackbarKind; text: string; action?: { label: string; onClick: () => void } } | null;
   /** 사진 확대를 켠다. photoNode를 그리는 동안(전/후 비교)과 미리보기가 없을 때는 꺼진다 */
   zoom?: LightboxZoom;
 }) {
@@ -351,7 +351,7 @@ export function Lightbox({
           )}
 
           {(notice ?? edge ?? (z.zoomed && shownOriginal?.status === "slow" ? shownOriginal : null)) && (
-            <Snackbar kind={notice?.kind ?? "info"} className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
+            <Snackbar kind={notice?.kind ?? "info"} action={notice?.action} className="absolute bottom-18 left-1/2 z-10 -translate-x-1/2">
               {notice?.text ?? edge?.text ?? "큰 사진 불러오는 중"}
             </Snackbar>
           )}

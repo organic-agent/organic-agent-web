@@ -270,6 +270,7 @@ export function PhotoGrid({
   gutter = true,
   checkColorOf,
   raterOf,
+  markOf,
   flashIds,
   flashColor,
 }: {
@@ -312,6 +313,8 @@ export function PhotoGrid({
   checkColorOf?: (photo: PhotoResponse) => string | null;
   /** 함께 고르기 — 매긴 사람. 별점 배지가 있으면 별 자리를 이니셜로 바꾸고 바탕을 색으로, 배지가 없으면(점수 묶음 보기) 이니셜 칩 */
   raterOf?: (photo: PhotoResponse) => RaterMark | null;
+  /** 점수와 무관한 오른쪽 위 이니셜 칩 — 셀렉 휴지통의 치운 사람(이슈 160). raterOf가 그릴 것이 없을 때 그 자리에 */
+  markOf?: (photo: PhotoResponse) => RaterMark | null;
   /** 상대가 방금 바꾼 사진 — 2초 동안 안쪽 선으로 강조(값이 바뀔 때마다 다시) */
   flashIds?: ReadonlySet<number>;
   /** 강조 선 색 — 상대 색 */
@@ -527,8 +530,8 @@ export function PhotoGrid({
             const scoreShown = showScore && photo.score !== null && detailed;
             const aiPicked = aiIds?.has(photo.photoId) ?? false;
             const checkColor = selected ? (checkColorOf?.(photo) ?? null) : null;
-            // 매긴 사람 — 작은 줌(detailed 아님)에서는 배지와 같이 숨긴다
-            const rater = detailed && photo.score !== null ? (raterOf?.(photo) ?? null) : null;
+            // 매긴 사람 — 작은 줌(detailed 아님)에서는 배지와 같이 숨긴다. 점수가 없거나 raterOf가 없으면 markOf(휴지통의 치운 사람)가 그 자리
+            const rater = detailed ? ((photo.score !== null ? raterOf?.(photo) : null) ?? markOf?.(photo) ?? null) : null;
             const raterChip = rater !== null && !scoreShown;
             const label = `${photo.originalFileName}${selected ? " 선택됨" : ""}${photo.score ? ` 별점 ${photo.score}` : ""}`;
             return (

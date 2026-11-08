@@ -32,7 +32,7 @@
 import { blockInDemo } from "@/lib/demo/demoMode";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
-import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon, TrashIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { Snackbar } from "@/components/app/Snackbar";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
@@ -65,6 +65,9 @@ import { IncreaseRequestModal } from "./IncreaseRequestModal";
 import { GuestReactionPanel } from "./GuestReactionPanel";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { useRatingHistory } from "./useRatingHistory";
+import { EXCLUSION_LOCKED, excludePhotos, restoreExcludedPhotos } from "@/lib/api/exclusions";
+import { TrashBottomBar, TrashView } from "./TrashView";
+import { useExcludedPhotos } from "./useExcludedPhotos";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
@@ -110,6 +113,7 @@ export function SelectStage({
   meId = null,
   onRatingsSynced,
   ratingChange = null,
+  onExclusionsChanged,
   readOnly = null,
   stageRequest = null,
   onStageRequestHandled,
@@ -148,6 +152,8 @@ export function SelectStage({
   onRatingsSynced?: (list: PhotoRatingResponse[]) => void;
   /** 상대가 바꾼 별점의 사진 — 타일을 2초 강조(페이지가 목록을 바꾸며 알려 준다) */
   ratingChange?: { ids: number[]; nonce: number } | null;
+  /** 휴지통(이슈 160) 이동 · 복원이 있었을 때(내 것 · 상대 것) — 페이지가 사진 · 폴더 목록을 다시 읽는다 */
+  onExclusionsChanged?: () => void;
   /** 개인 — 보정이 시작된 뒤(review) · 마무리 뒤(done)에 상단 단계 칩으로 돌아와 보기만 하는 중(이슈 147). 하단 버튼이 없고 안내만 */
   readOnly?: "review" | "done" | null;
   /** 상단 단계 칩 "보정 확인"이 내보내기 창을 열어 달라는 요청 — nonce가 바뀔 때마다 한 번. 장수를 못 채웠으면 안내 창 */
@@ -178,6 +184,20 @@ export function SelectStage({
   });
   /** 열린 사진의 별점 기록을 다시 읽을 때 — 변경 번호가 바뀌어 전체 목록을 받았을 때와 내 별점 저장이 끝났을 때 오른다 */
   const [historyVersion, setHistoryVersion] = useState(0);
+  // ── 셀렉 휴지통(이슈 160) — 사이드바 트리 맨 아래 "휴지통 n" 행이 유일한 입구. 치운 사진은 일반 목록 · 폴더 · 추천 · 공유에서 빠지고 선택에서도 빠진다 ──
+  /** 휴지통 화면을 보는 중 */
+  const [trashOpen, setTrashOpen] = useState(false);
+  /** 휴지통 목록을 다시 읽을 때 — 내가 옮기거나 복원한 뒤, 상대의 변경 번호가 바뀌었을 때 오른다 */
+  const [trashVersion, setTrashVersion] = useState(0);
+  /** 휴지통 화면에서 되살리려고 고른 사진 */
+  const [restoreSel, setRestoreSel] = useState<Set<number>>(() => new Set());
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  /** 크게 보기에서 방금 휴지통으로 보낸 사진 — 페이지가 목록을 다시 읽기 전까지 화면에서 먼저 뺀다(되돌리면 다시 넣는다) */
+  const [hiddenIds, setHiddenIds] = useState<Set<number>>(() => new Set());
+  const onExclusionsChangedRef = useRef(onExclusionsChanged);
+  useEffect(() => {
+    onExclusionsChangedRef.current = onExclusionsChanged;
+  });
   const live = useMemo(
     () => ({
       enabled: together && canEdit,
@@ -185,6 +205,11 @@ export function SelectStage({
       onRatings: (list: PhotoRatingResponse[]) => {
         onRatingsSyncedRef.current?.(list);
         setHistoryVersion((v) => v + 1);
+      },
+      // 상대가 휴지통으로 옮기거나 복원함 — 페이지가 사진 · 폴더를, 여기서 휴지통 목록을 다시 읽는다(공유 정보는 아래 effect가 이어 받는다)
+      onExclusions: () => {
+        onExclusionsChangedRef.current?.();
+        setTrashVersion((v) => v + 1);
       },
     }),
     [together, canEdit, meId],
@@ -214,6 +239,18 @@ export function SelectStage({
     : undefined;
   const [deselectId, setDeselectId] = useState<number | null>(null);
   const sharing = useGuestSharing({ galleryId, photos, folders, pickedIds, inviteOpen, onInviteClose, personal: personal && owner ? { galleryTitle: gallery.title } : undefined });
+  /** 휴지통 목록 — 행의 장수와 휴지통 화면이 같이 쓴다. 변경이 있을 때마다(trashVersion) 다시 읽고, 공유 정보도 같이 맞춘다 */
+  const trash = useExcludedPhotos(galleryId, true, trashVersion);
+  const trashPhotos = useMemo(() => trash.photos ?? [], [trash.photos]);
+  const trashById = useMemo(() => new Map(trashPhotos.map((p) => [p.photoId, p])), [trashPhotos]);
+  const reloadSessionsRef = useRef(sharing.reloadSessions);
+  useEffect(() => {
+    reloadSessionsRef.current = sharing.reloadSessions;
+  });
+  useEffect(() => {
+    // 처음(0)은 페이지가 막 읽은 뒤라 건너뛴다 — 제외 · 복원으로 공유 사진 수가 바뀐 뒤에만
+    if (trashVersion > 0) void reloadSessionsRef.current();
+  }, [trashVersion]);
   /** 담기는 바로, 빼기는 확인 뒤 */
   function requestToggle(photoId: number) {
     if (!editable) return;
@@ -258,10 +295,11 @@ export function SelectStage({
   const conditionCount = activeGroupCount(conditions);
   // 하객 반응 겹쳐 보기(2026-09-13) — 켜면 타일에 ♥ n(공유폴더 전부 합산). 공유폴더가 하나도 없으면 켜지 않고 스낵바(이슈 156)
   const [guestOn, setGuestOn] = useState(false);
-  const [snack, setSnack] = useState<string | null>(null);
+  /** 아래 가운데 스낵바 — 되돌리기 같은 동작이 붙으면 조금 더 오래(ms) */
+  const [snack, setSnack] = useState<{ text: string; action?: { label: string; onClick: () => void }; ms?: number } | null>(null);
   useEffect(() => {
     if (!snack) return;
-    const timer = window.setTimeout(() => setSnack(null), 2400);
+    const timer = window.setTimeout(() => setSnack(null), snack.ms ?? 2400);
     return () => window.clearTimeout(timer);
   }, [snack]);
   // 상대가 담거나 뺀 장수가 바뀌었을 때만 스낵바 — 별점 · 같은 장수의 교체는 타일 강조만(결정 ⑥)
@@ -279,13 +317,13 @@ export function SelectStage({
   useEffect(() => {
     if (!partnerSnack || partnerSnackRef.current === partnerSnack.nonce) return;
     partnerSnackRef.current = partnerSnack.nonce;
-    const timer = window.setTimeout(() => setSnack(partnerSnack.text), 0);
+    const timer = window.setTimeout(() => setSnack({ text: partnerSnack.text }), 0);
     return () => window.clearTimeout(timer);
   }, [partnerSnack]);
   function toggleGuest() {
     if (blockInDemo("게스트 반응")) return;
     if (sharing.sessionCount === 0) {
-      setSnack("공유폴더를 만들면 게스트 반응을 볼 수 있어요");
+      setSnack({ text: "공유폴더를 만들면 게스트 반응을 볼 수 있어요" });
       return;
     }
     setGuestOn((v) => !v);
@@ -308,10 +346,11 @@ export function SelectStage({
   const draftCount = useMemo(() => countDrafts(drafts), [drafts]);
 
   // ── 파생값 ──
-  const scoredPhotos = useMemo(
-    () => (scoreOverrides.size === 0 ? photos : photos.map((p) => (scoreOverrides.has(p.photoId) ? { ...p, score: scoreOverrides.get(p.photoId) ?? null } : p))),
-    [photos, scoreOverrides],
-  );
+  const scoredPhotos = useMemo(() => {
+    // 크게 보기에서 방금 휴지통으로 보낸 사진은 페이지가 목록을 다시 읽기 전에도 뺀다
+    const shown = hiddenIds.size === 0 ? photos : photos.filter((p) => !hiddenIds.has(p.photoId));
+    return scoreOverrides.size === 0 ? shown : shown.map((p) => (scoreOverrides.has(p.photoId) ? { ...p, score: scoreOverrides.get(p.photoId) ?? null } : p));
+  }, [photos, scoreOverrides, hiddenIds]);
   const photoById = useMemo(() => new Map(scoredPhotos.map((p) => [p.photoId, p])), [scoredPhotos]);
   // 고른 사진 — 화면(local)이 정본, 서버 응답의 보정본 정보는 아직 안 쓴다
   const pickedPhotos = useMemo(
@@ -364,10 +403,12 @@ export function SelectStage({
   // ── 폴더 필터 ──
   function focusFolder(key: FolderKey) {
     setView("all");
+    setTrashOpen(false);
     setFilter(key === "unsorted" ? { detailIds: new Set(), unsorted: true } : { detailIds: new Set([key]), unsorted: false });
   }
   function toggleFolder(key: FolderKey) {
     setView("all");
+    setTrashOpen(false);
     setFilter((prev) => {
       if (key === "unsorted") return { detailIds: prev.detailIds, unsorted: !prev.unsorted };
       const next = new Set(prev.detailIds);
@@ -500,8 +541,9 @@ export function SelectStage({
     [showAiGroup, aiPhotos, scoreGroups, restPhotos],
   );
   const navPhotos = useMemo(
-    () => (navIds === null ? displayPhotos : navIds.map((id) => photoById.get(id)).filter((p): p is PhotoResponse => p !== undefined)),
-    [navIds, displayPhotos, photoById],
+    // 휴지통 화면에서 연 사진은 일반 목록에 없어 휴지통 목록에서 찾는다
+    () => (navIds === null ? displayPhotos : navIds.map((id) => photoById.get(id) ?? trashById.get(id)).filter((p): p is PhotoResponse => p !== undefined)),
+    [navIds, displayPhotos, photoById, trashById],
   );
   const currentIndex = currentId === null ? -1 : navPhotos.findIndex((p) => p.photoId === currentId);
   const currentPhoto = currentIndex >= 0 ? navPhotos[currentIndex] : null;
@@ -565,6 +607,123 @@ export function SelectStage({
     if (!together || photo.ratedBy === null || photo.score === null) return null;
     const who = peopleById.get(photo.ratedBy);
     return who ? { name: who.nickname, color: who.color, at: photo.ratedAt, me: who.me } : null;
+  }
+  // ── 휴지통(이슈 160) — 트리 행으로 열고, 체크로 되살릴 사진을 골라 복원한다. 크게 보기에서는 한 장씩 휴지통으로 ──
+  function openTrash() {
+    setTrashOpen(true);
+    setView("all");
+    setFilter(ALL_FILTER);
+    setRestoreSel(new Set());
+    sharing.closeReactions();
+  }
+  function toggleRestore(photoId: number) {
+    setRestoreSel((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  }
+  /** 치운 사람 — 함께 고르기 색 · 이니셜(개인 갤러리 멤버 2명일 때만) */
+  const excluderOf = together
+    ? (photo: PhotoResponse) => {
+        const who = photo.excludedBy === null ? undefined : peopleById.get(photo.excludedBy);
+        return who ? { color: who.color, initial: who.initial } : null;
+      }
+    : undefined;
+  function exclusionError(err: unknown, fallback: string) {
+    if (err instanceof ApiError && err.code === EXCLUSION_LOCKED) return "요청서를 내보낸 뒤라 바꿀 수 없어요";
+    return err instanceof ApiError ? err.message : fallback;
+  }
+  /** 옮기거나 복원한 뒤 맞추기 — 휴지통 목록(trashVersion, 공유도 따라 읽는다) · 선택 · 사진 · 폴더(페이지) */
+  function afterExclusionChange() {
+    setTrashVersion((v) => v + 1);
+    void refreshSelection();
+    onExclusionsChanged?.();
+  }
+  function openTrashPhoto(photoId: number) {
+    setNavIds(trashPhotos.map((p) => p.photoId));
+    setCurrentId(photoId);
+    setGuardId(null);
+    setScrollToId(null);
+    setTab("none");
+    setLightboxOpen(true);
+  }
+  /** 크게 보기에서 한 장 휴지통으로 — 화면에서 먼저 빼고 다음 사진으로 넘어간다. 확인 창 대신 스낵바 되돌리기 */
+  async function excludeOne(photoId: number) {
+    if (!editable) return;
+    // 담겨 있던 사진이면 되돌릴 때 다시 담는다 — 서버는 복원해도 선택에 자동으로 담지 않으므로 "되돌리기"가 여기서 채운다
+    const wasPicked = pickedIds.has(photoId);
+    const idx = navPhotos.findIndex((p) => p.photoId === photoId);
+    const next = navPhotos.length > 1 ? navPhotos[(idx + 1) % navPhotos.length] : null;
+    setHiddenIds((prev) => new Set(prev).add(photoId));
+    setNavIds((prev) => (prev ? prev.filter((id) => id !== photoId) : prev));
+    if (next) {
+      setCurrentId(next.photoId);
+      setGuardId(null);
+      countView(galleryId, next.photoId);
+    } else closeLightbox();
+    try {
+      await excludePhotos(galleryId, [photoId]);
+      afterExclusionChange();
+      setSnack({ text: "휴지통으로 옮겼어요", ms: 4000, action: { label: "되돌리기", onClick: () => void undoExclude(photoId, wasPicked) } });
+    } catch (err) {
+      setHiddenIds((prev) => {
+        const n = new Set(prev);
+        n.delete(photoId);
+        return n;
+      });
+      setLocalNotice(exclusionError(err, "휴지통으로 옮기지 못했어요 · 다시 시도해 주세요"));
+    }
+  }
+  async function undoExclude(photoId: number, repick: boolean) {
+    setSnack(null);
+    try {
+      await restoreExcludedPhotos(galleryId, [photoId]);
+      setHiddenIds((prev) => {
+        const n = new Set(prev);
+        n.delete(photoId);
+        return n;
+      });
+      afterExclusionChange();
+      if (repick) pickMany([photoId]);
+      setSnack({ text: "되돌렸어요" });
+    } catch (err) {
+      setLocalNotice(exclusionError(err, "되돌리지 못했어요 · 휴지통에서 복원할 수 있어요"));
+    }
+  }
+  /** 휴지통 화면 · 크게 보기의 복원 — 선택 목록에는 자동으로 담기지 않는다(서버 규칙) */
+  async function restoreMany(ids: number[]) {
+    if (!editable || ids.length === 0 || restoreBusy) return;
+    setRestoreBusy(true);
+    // 크게 보기에서 복원했으면 남은 다음 사진으로, 마지막이면 닫는다
+    if (lightboxOpen && currentId !== null && ids.includes(currentId)) {
+      const rest = navPhotos.filter((p) => !ids.includes(p.photoId));
+      if (rest.length === 0) closeLightbox();
+      else {
+        const idx = navPhotos.findIndex((p) => p.photoId === currentId);
+        const next = navPhotos.slice(idx + 1).find((p) => !ids.includes(p.photoId)) ?? rest[0];
+        setCurrentId(next.photoId);
+        setNavIds(rest.map((p) => p.photoId));
+      }
+    }
+    try {
+      const n = await restoreExcludedPhotos(galleryId, ids);
+      setRestoreSel(new Set());
+      setHiddenIds((prev) => {
+        if (prev.size === 0) return prev;
+        const nx = new Set(prev);
+        for (const id of ids) nx.delete(id);
+        return nx;
+      });
+      afterExclusionChange();
+      setSnack({ text: `${n}장을 복원했어요` });
+    } catch (err) {
+      setLocalNotice(exclusionError(err, "복원하지 못했어요 · 다시 시도해 주세요"));
+      setTrashVersion((v) => v + 1);
+    } finally {
+      setRestoreBusy(false);
+    }
   }
   function closeLightbox() {
     setLightboxOpen(false);
@@ -644,6 +803,24 @@ export function SelectStage({
     clearNotice();
     setLocalNotice(null);
   }
+  /** 헤더의 "게스트 반응" 겹쳐 보기 토글 — 일반 보기와 휴지통 화면이 같이 쓴다 */
+  const guestToggleButton = (
+    <button
+      type="button"
+      data-coach="reactions"
+      aria-pressed={guestOn}
+      aria-label="게스트 반응"
+      onClick={toggleGuest}
+      className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
+        guestOn ? "border-brand-accent-default text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
+      }`}
+    >
+      <span className={guestOn ? "text-brand-accent-default" : "text-contents-light-bgd-sub"}>
+        <GroupIcon size={18} />
+      </span>
+      <span className="max-[860px]:hidden">게스트 반응</span>
+    </button>
+  );
 
   return (
     <>
@@ -659,6 +836,7 @@ export function SelectStage({
             view={view}
             onViewChange={(next) => {
               setView(next);
+              setTrashOpen(false);
               sharing.closeReactions();
               if (next !== "all") setFilter(ALL_FILTER);
             }}
@@ -666,14 +844,15 @@ export function SelectStage({
               tab: sideTab,
               onTabChange: setSideTab,
               folder:
-                folders && folders.length > 0 ? (
+                folders && (folders.length > 0 || (trash.total ?? 0) > 0) ? (
                   <ClientFolderTree
                     folders={folders}
                     pickedIds={pickedIds}
                     unsortedIds={unsortedIds}
-                    filter={view === "all" ? filter : ALL_FILTER}
+                    filter={view === "all" && !trashOpen ? filter : ALL_FILTER}
                     onFocus={focusFolder}
                     onToggle={toggleFolder}
+                    trash={{ count: trash.total, open: trashOpen, onOpen: openTrash }}
                   />
                 ) : (
                   <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요 · 모든 사진에서 선택하면 돼요</p>
@@ -687,6 +866,22 @@ export function SelectStage({
         <main className="flex min-w-0 flex-1 flex-col">
           {!photosLoaded ? (
             <div className="flex-1" aria-busy="true" />
+          ) : trashOpen ? (
+            <TrashView
+              state={trash}
+              photos={trashPhotos}
+              zoom={zoom}
+              onZoomChange={writeZoom}
+              leading={guestToggleButton}
+              editable={editable && !restoreBusy}
+              selected={restoreSel}
+              onToggle={toggleRestore}
+              currentId={currentId}
+              onOpen={openTrashPhoto}
+              markOf={excluderOf}
+              captionOf={folderNameOf}
+              overlayOf={guestOverlay}
+            />
           ) : photos.length === 0 ? (
             <div className="grid flex-1 place-items-center px-6 py-8">
               <p className="type-content-s text-contents-light-bgd-sub">아직 올라온 사진이 없어요</p>
@@ -719,21 +914,7 @@ export function SelectStage({
                       <span className="max-[860px]:hidden">AI 추천{aiPhotos.length > 0 ? ` ${aiPhotos.length}` : ""}</span>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    data-coach="reactions"
-                    aria-pressed={guestOn}
-                    aria-label="게스트 반응"
-                    onClick={toggleGuest}
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-(--radius-8) border px-3 whitespace-nowrap type-content-s transition-colors duration-fast max-[860px]:px-2.25 ${
-                      guestOn ? "border-brand-accent-default text-contents-light-bgd-default" : "border-border-default text-contents-light-bgd-default hover:bg-surface-default-lightness"
-                    }`}
-                  >
-                    <span className={guestOn ? "text-brand-accent-default" : "text-contents-light-bgd-sub"}>
-                      <GroupIcon size={18} />
-                    </span>
-                    <span className="max-[860px]:hidden">게스트 반응</span>
-                  </button>
+                  {guestToggleButton}
                   </>
                 }
                 zoom={zoom}
@@ -903,6 +1084,18 @@ export function SelectStage({
         )}
       </div>
 
+      {trashOpen ? (
+        <TrashBottomBar
+          editable={editable}
+          lockNote={readOnly === "done" ? "마무리된 갤러리 · 조회만 할 수 있어요" : readOnly ? "요청서를 내보낸 뒤라 조회만 할 수 있어요" : "선택 마감이 지나 조회만 할 수 있어요"}
+          selectedCount={restoreSel.size}
+          total={trashPhotos.length}
+          busy={restoreBusy}
+          onClear={() => setRestoreSel(new Set())}
+          onSelectAll={() => setRestoreSel(new Set(trashPhotos.map((p) => p.photoId)))}
+          onRestore={() => void restoreMany([...restoreSel])}
+        />
+      ) : (
       <ShellBottomBar
         selectionCount={0}
         onClearSelection={() => {}}
@@ -968,10 +1161,12 @@ export function SelectStage({
           </>
         )}
       />
+      )}
 
-      {snack && (
-        <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
-          {snack}
+      {/* 크게 보기가 열려 있으면 그 안의 알림(notice)이 대신 보여 준다 — 여기 띄우면 모달 뒤에 가려진다 */}
+      {snack && !lightboxOpen && (
+        <Snackbar kind="info" action={snack.action} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {snack.text}
         </Snackbar>
       )}
       <ClientSelectCoachMarks ready={editable && photosLoaded && photos.length > 0 && selection !== null && !lightboxOpen} personal={personal} />
@@ -990,7 +1185,7 @@ export function SelectStage({
       )}
       {sharing.modals({
         // "지금 보는 사진" — 모든 사진 보기(반응 보기 아님)일 때만. 요약은 폴더 이름 + 걸린 조건
-        visible: view === "all" && !sharing.reactionsOpen ? { photoIds: visiblePhotos.map((p) => p.photoId), summary: [folderLabel, conditionsSummary(conditions)].filter(Boolean).join(" · ") } : null,
+        visible: view === "all" && !sharing.reactionsOpen && !trashOpen ? { photoIds: visiblePhotos.map((p) => p.photoId), summary: [folderLabel, conditionsSummary(conditions)].filter(Boolean).join(" · ") } : null,
       })}
       {increaseOpen && (
         <IncreaseRequestModal
@@ -1076,28 +1271,43 @@ export function SelectStage({
           index={currentIndex}
           total={navPhotos.length}
           caption={folderNameOf(currentPhoto)}
-          tab={shownTab}
-          tabs={lightboxTabs}
+          tab={trashOpen ? "none" : shownTab}
+          tabs={trashOpen ? [] : lightboxTabs}
           onImageError={onPhotoUrlError}
           zoom={{ loadOriginal: (target) => loadOriginalUrl(galleryId, target) }}
-          notice={rateError ? { kind: "error", text: rateError.text } : guardNotice ? { kind: "info", text: guardNotice.text } : null}
+          // 페이지 스낵바는 크게 보기 뒤에 가려지므로, 열려 있는 동안은 같은 내용을 크게 보기 안 알림으로(휴지통 "되돌리기" 포함)
+          notice={rateError ? { kind: "error", text: rateError.text } : guardNotice ? { kind: "info", text: guardNotice.text } : snack ? { kind: "info", text: snack.text, action: snack.action } : null}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}
           onNext={() => step(1)}
           middle={
-            <SelectionControls
-              picked={pickedIds.has(currentPhoto.photoId)}
-              editable={editable}
-              score={currentPhoto.score}
-              starColor={raterInfoOf(currentPhoto)?.color ?? null}
-              pickColor={checkColorOf?.(currentPhoto) ?? null}
-              onTogglePick={() => requestToggle(currentPhoto.photoId)}
-              onRate={(score) => rateGuarded(currentPhoto.photoId, score)}
-            />
+            trashOpen ? (
+              // 휴지통에서 연 사진 — 별점 · 선택 대신 복원 하나
+              <button
+                type="button"
+                disabled={!editable || restoreBusy}
+                onClick={() => void restoreMany([currentPhoto.photoId])}
+                className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-(--pill) bg-surface-inverse-light px-2.5 type-label-semibold-s text-contents-dark-bgd-default transition-colors duration-fast hover:bg-surface-inverse-medium disabled:cursor-default disabled:opacity-60"
+              >
+                <RefreshIcon size={16} />
+                복원
+              </button>
+            ) : (
+              <SelectionControls
+                picked={pickedIds.has(currentPhoto.photoId)}
+                editable={editable}
+                score={currentPhoto.score}
+                starColor={raterInfoOf(currentPhoto)?.color ?? null}
+                pickColor={checkColorOf?.(currentPhoto) ?? null}
+                onTogglePick={() => requestToggle(currentPhoto.photoId)}
+                onRate={(score) => rateGuarded(currentPhoto.photoId, score)}
+                onTrash={editable ? () => void excludeOne(currentPhoto.photoId) : undefined}
+              />
+            )
           }
           onKeyDown={(e) => {
-            if (!editable) return false;
+            if (!editable || trashOpen) return false;
             if (/^[1-5]$/.test(e.key)) rateGuarded(currentPhoto.photoId, Number(e.key));
             else if (e.key === "0") rateGuarded(currentPhoto.photoId, null);
             else if (e.key === " ") {
@@ -1116,7 +1326,7 @@ export function SelectStage({
           }
           onPhotoClick={tab === "memo" && editable ? (x, y) => addPoint(currentPhoto.photoId, x, y) : undefined}
           panel={
-            shownTab === "guest" ? (
+            trashOpen ? null : shownTab === "guest" ? (
               <GuestReactionPanel galleryId={galleryId} photoId={currentPhoto.photoId} groups={guestGroups} />
             ) : shownTab === "info" ? (
               <PhotoInfoPanel
@@ -1148,6 +1358,7 @@ function SelectionControls({
   pickColor = null,
   onTogglePick,
   onRate,
+  onTrash,
 }: {
   picked: boolean;
   editable: boolean;
@@ -1158,6 +1369,8 @@ function SelectionControls({
   pickColor?: string | null;
   onTogglePick: () => void;
   onRate: (score: number | null) => void;
+  /** 휴지통으로(이슈 160) — 있으면 "선택" 오른쪽에 휴지통 아이콘. 확인 창 없이 바로, 스낵바로 되돌린다 */
+  onTrash?: () => void;
 }) {
   return (
     <>
@@ -1200,6 +1413,20 @@ function SelectionControls({
         )}
         {picked ? "선택됨" : "선택"}
       </button>
+      {onTrash && (
+        <>
+          <Sep />
+          <button
+            type="button"
+            aria-label="휴지통으로"
+            title="휴지통으로"
+            onClick={onTrash}
+            className="grid size-7 cursor-pointer place-items-center rounded-full text-contents-dark-bgd-default transition-colors duration-fast hover:bg-surface-inverse-light"
+          >
+            <TrashIcon size={20} />
+          </button>
+        </>
+      )}
     </>
   );
 }

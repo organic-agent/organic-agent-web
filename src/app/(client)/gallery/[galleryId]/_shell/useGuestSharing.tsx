@@ -53,6 +53,8 @@ export function useGuestSharing({
   reactions: GuestReactions;
   /** 공유폴더 수(폐기 · 만료 포함) — 0이면 "게스트 반응" 버튼이 켜지지 않고 스낵바로 알린다(이슈 156). null이면 아직 못 읽음 */
   sessionCount: number | null;
+  /** 공유폴더 목록 다시 읽기 — 휴지통 이동 · 복원 뒤 공유 사진 수가 바뀌었을 때(이슈 160) */
+  reloadSessions: () => Promise<CollabSessionResponse[] | null>;
 } {
   const collab = useCollabSessions(galleryId, true);
   const reactions = useGuestReactions(galleryId, collab.sessions);
@@ -147,5 +149,5 @@ export function useGuestSharing({
     </>
   );
 
-  return { shareTab, modals, reactionsView, reactionsOpen: openSession !== null, closeReactions: () => setReactionSession(null), reactions, sessionCount: collab.sessions?.length ?? null };
+  return { shareTab, modals, reactionsView, reactionsOpen: openSession !== null, closeReactions: () => setReactionSession(null), reactions, sessionCount: collab.sessions?.length ?? null, reloadSessions: collab.reload };
 }

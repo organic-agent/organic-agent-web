@@ -7,10 +7,11 @@
  * 작가 사이드바 트리(SidebarFolderTree)와 같은 생김새에 **체크박스**가 붙는다.
  * 이름을 누르면 그 폴더만 보고, 체크하면 여러 폴더를 겹쳐 본다(필터). 세부 폴더마다 "고른 수 / 전체".
  * 맨 아래 미분류도 같은 문법. 모두 풀면 "모든 사진"(내비 행이 그 역할).
+ * 그 아래 "휴지통 n"(이슈 160) — 셀렉에서 치워 둔(제외) 사진의 화면으로 가는 행. 체크박스 자리에 휴지통 아이콘이라 겹쳐 보기와 섞이지 않는다.
  */
 
 import { useState } from "react";
-import { ChevronRightIcon, DropdownIcon, FolderOffIcon } from "@/components/icons";
+import { ChevronRightIcon, DropdownIcon, FolderOffIcon, TrashIcon } from "@/components/icons";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 
 /** 그리드에 보일 사진 범위 — 비어 있고 unsorted=false면 모든 사진 */
@@ -103,6 +104,7 @@ export function ClientFolderTree({
   filter,
   onFocus,
   onToggle,
+  trash = null,
 }: {
   folders: ConceptFolderResponse[];
   /** 고른 사진 id — 폴더별 고른 수 */
@@ -114,6 +116,8 @@ export function ClientFolderTree({
   onFocus: (key: FolderKey) => void;
   /** 체크 — 겹쳐 보기 토글 */
   onToggle: (key: FolderKey) => void;
+  /** 셀렉 휴지통 행(이슈 160) — count null이면 아직 못 읽음("—"). 없으면 행을 그리지 않는다 */
+  trash?: { count: number | null; open: boolean; onOpen: () => void } | null;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   function toggleCollapse(id: number) {
@@ -185,6 +189,34 @@ export function ClientFolderTree({
               </span>
             }
           />
+        </div>
+      )}
+      {trash && (
+        <div className="mt-2 border-t border-divider-default pt-1.5">
+          <div
+            role="button"
+            tabIndex={0}
+            data-sidebar-item
+            aria-current={trash.open || undefined}
+            onClick={trash.onOpen}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                trash.onOpen();
+              }
+            }}
+            className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) py-2 pr-2.5 pl-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-light ${
+              trash.open
+                ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
+                : "text-contents-light-bgd-sub"
+            }`}
+          >
+            <span className="flex shrink-0 text-contents-light-bgd-weakness">
+              <TrashIcon size={16} />
+            </span>
+            <span className="min-w-0 flex-1 truncate">휴지통</span>
+            <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness tabular-nums">{trash.count ?? "—"}</span>
+          </div>
         </div>
       )}
     </div>

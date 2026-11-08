@@ -53,6 +53,8 @@ export type SelectionSyncResponse = {
   selectionRevision: number;
   /** 별점 변경 · 삭제가 바꾼다 — 다르면 별점 전체 목록 GET */
   ratingRevision: number;
+  /** 셀렉 휴지통 이동 · 복원이 바꾼다(서버 PR 365) — 다르면 일반 사진 · 제외 목록 · 폴더 · 공유 정보를 다시 읽는다 */
+  exclusionRevision: number;
 };
 
 /**
