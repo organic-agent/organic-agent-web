@@ -105,6 +105,10 @@ export type PhotoResponse = {
   score: number | null;
   /** 마지막으로 별점을 매긴 사용자 id — 별점이 없거나 작가 · 게스트 응답이면 null(서버 #351) */
   ratedBy: number | null;
+  /** 셀렉 휴지통(제외) 시각 — 일반 목록에는 제외 사진이 안 오므로 보통 null. 제외 목록(lib/api/exclusions)에서만 값이 있다. 복원하면 null */
+  excludedAt: string | null;
+  /** 셀렉에서 제외한 참여자 id — 멤버 목록의 userId와 맞춰 이름 · 색을 칠한다. 복원하면 null */
+  excludedBy: number | null;
   /** 마지막 별점 수정 시각 — 별점이 없거나 작가 · 게스트 응답이면 null */
   ratedAt: string | null;
 };

@@ -43,6 +43,8 @@ type Saved = {
   sessionPhotos: Record<string, number[]>;
   retouch: Record<string, RetouchEntry>;
   nextId: number;
+  /** 셀렉 휴지통(이슈 160) — 제외한 사진 id → 언제 · 누가. 예전 저장분에는 없을 수 있어 load()가 채운다 */
+  excluded: Record<string, { at: string; by: number }>;
 };
 
 export type DemoPhase = "sort" | "select" | "review";
@@ -93,6 +95,7 @@ function fresh(): Saved {
     folders: freshFolders(),
     sessions: [],
     sessionPhotos: {},
+    excluded: {},
     retouch: {},
     nextId: 100,
   };
@@ -108,7 +111,7 @@ function load(): Saved {
   } catch {
     saved = null;
   }
-  state = saved && saved.v === 1 ? saved : fresh();
+  state = saved && saved.v === 1 ? { ...saved, excluded: saved.excluded ?? {} } : fresh();
   return state;
 }
 function save() {
@@ -147,11 +150,20 @@ const PHOTO_BY_ID = new Map(SAMPLE_PHOTOS.map((p) => [p.photoId, p]));
 function photoOf(id: number): PhotoResponse | null {
   const base = PHOTO_BY_ID.get(id);
   if (!base) return null;
-  const score = load().scores[String(id)];
-  return { ...base, viewUrl: samplePhotoUrl(id), score: score ?? null };
+  const s = load();
+  const score = s.scores[String(id)];
+  const ex = s.excluded[String(id)];
+  return { ...base, viewUrl: samplePhotoUrl(id), score: score ?? null, excludedAt: ex?.at ?? null, excludedBy: ex?.by ?? null };
 }
+/** 일반 목록 — 휴지통(제외) 사진은 빠진다(서버와 같음) */
 function allPhotos(): PhotoResponse[] {
-  return SAMPLE_PHOTOS.map((p) => photoOf(p.photoId)!);
+  const ex = load().excluded;
+  return SAMPLE_PHOTOS.filter((p) => !ex[String(p.photoId)]).map((p) => photoOf(p.photoId)!);
+}
+/** 휴지통 사진 — id 순 */
+function excludedPhotos(): PhotoResponse[] {
+  const ex = load().excluded;
+  return SAMPLE_PHOTOS.filter((p) => ex[String(p.photoId)]).map((p) => photoOf(p.photoId)!);
 }
 function gallery(): GalleryResponse {
   const s = load();
@@ -349,6 +361,45 @@ on("PUT", "/notifications/settings", (_m, body) => body);
 // 사진
 on("GET", `${g}/photos/summary`, () => ({ total: 250, pending: 0, uploaded: 250, embedded: 250, scored: 250, categorized: 250, failed: 0 }));
 on("GET", `${g}/photos/trash`, () => ({ contents: [], totalCount: 0, page: 0, size: 200, hasNext: false }));
+// 셀렉 휴지통(제외, 이슈 160) — 제외하면 선택에서도 빠지고, 복원해도 선택에 자동으로 담기지 않는다(서버 규칙)
+on("GET", `${g}/photos/exclusions`, (_m, _b, q) => {
+  const page = Number(q.get("page") ?? 0);
+  const size = Number(q.get("size") ?? 200);
+  const all = excludedPhotos();
+  const contents = all.slice(page * size, page * size + size);
+  return { page, size, totalCount: all.length, hasNext: (page + 1) * size < all.length, contents, viewUrlTtlSeconds: TTL, viewUrlsExpire: false };
+});
+on("PUT", `${g}/photos/exclusions`, (_m, body) => {
+  const s = load();
+  const ids = [...new Set(((body.photoIds as number[]) ?? []).map(Number))];
+  if (ids.length === 0 || ids.length > 500) return fail(400, "PHOTO_400_10", "사진을 1장 이상 500장까지 보낼 수 있어요");
+  if (s.stage === "RETOUCH") return fail(409, "PHOTO_409_2", "요청서를 내보낸 뒤라 바꿀 수 없어요");
+  let count = 0;
+  for (const id of ids) {
+    if (!PHOTO_BY_ID.has(id)) return fail(404, "PHOTO_404_1", "이 갤러리의 사진이 아니에요");
+    if (s.excluded[String(id)]) continue;
+    s.excluded[String(id)] = { at: now(), by: DEMO_USER.id };
+    count += 1;
+  }
+  const drop = new Set(ids);
+  s.selected = s.selected.filter((id) => !drop.has(id));
+  save();
+  return { count };
+});
+on("DELETE", `${g}/photos/exclusions`, (_m, body) => {
+  const s = load();
+  const ids = [...new Set(((body.photoIds as number[]) ?? []).map(Number))];
+  if (ids.length === 0 || ids.length > 500) return fail(400, "PHOTO_400_10", "사진을 1장 이상 500장까지 보낼 수 있어요");
+  if (s.stage === "RETOUCH") return fail(409, "PHOTO_409_2", "요청서를 내보낸 뒤라 바꿀 수 없어요");
+  let count = 0;
+  for (const id of ids) {
+    if (!s.excluded[String(id)]) continue;
+    delete s.excluded[String(id)];
+    count += 1;
+  }
+  save();
+  return { count };
+});
 on("GET", `${g}/photos`, (_m, _b, q) => {
   const page = Number(q.get("page") ?? 0);
   const size = Number(q.get("size") ?? 200);

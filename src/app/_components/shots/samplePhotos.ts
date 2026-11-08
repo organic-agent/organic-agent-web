@@ -68,6 +68,8 @@ function toPhoto(id: number, displayOrder: number): PhotoResponse {
     score: SAMPLE_SCORES[id] ?? null,
     ratedBy: null,
     ratedAt: null,
+    excludedAt: null,
+    excludedBy: null,
   };
 }
 
