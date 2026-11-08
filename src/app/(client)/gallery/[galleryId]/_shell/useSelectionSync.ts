@@ -15,6 +15,7 @@
  *   목록 적용에 성공했을 때만 그 번호를 기준값으로 둔다(목록 뒤에 읽은 번호를 기준으로 삼으면 그 사이 변경을 놓친다).
  *   요청은 겹치지 않게 직렬이고, 갤러리를 떠난 뒤 온 늦은 응답은 버린다. 실패하면 기준값을 그대로 두고 다음 주기에 다시.
  * - 상대가 바꾼 선택은 partnerChange로 알린다(담은 · 뺀 id) — 화면이 타일을 잠깐 강조하고 장수가 바뀌면 스낵바를 띄운다.
+ * - 휴지통(제외, 이슈 160)은 exclusionRevision이 바뀌면 onExclusions로 알리기만 한다 — 사진 · 폴더는 페이지가, 휴지통 목록은 셀렉 화면이 다시 읽는다.
  * - live가 꺼져 있으면(스튜디오 초대 · 혼자) 전처럼 15초마다 · 탭이 다시 보일 때 스냅샷만 읽는다.
  */
 
@@ -54,6 +55,8 @@ export function useSelectionSync(
     meId: number | null;
     /** 별점 전체 목록이 왔을 때 — 화면이 사진 목록의 점수 · 매긴 사람 · 시각을 통째로 바꾼다 */
     onRatings: (list: PhotoRatingResponse[]) => void;
+    /** 휴지통 변경 번호(exclusionRevision)가 바뀌었을 때(이슈 160) — 화면이 사진 · 폴더 · 공유 · 휴지통 목록을 다시 읽는다. 처음 들어올 때는 부르지 않는다 */
+    onExclusions?: () => void;
   },
 ) {
   const [server, setServer] = useState<PhotoSelectionResponse | null>(null);
@@ -71,8 +74,10 @@ export function useSelectionSync(
   const liveEnabled = live?.enabled ?? false;
   const meId = live?.meId ?? null;
   const onRatingsRef = useRef(live?.onRatings);
+  const onExclusionsRef = useRef(live?.onExclusions);
   useEffect(() => {
     onRatingsRef.current = live?.onRatings;
+    onExclusionsRef.current = live?.onExclusions;
   });
 
   /** 새 스냅샷에서 상대가 바꾼 것 — 내가 담은(addedByUserId가 나) 항목과 지금 보내는 중인 것은 뺀다 */
@@ -164,6 +169,8 @@ export function useSelectionSync(
           if (cancelled) return;
           onRatingsRef.current?.(list);
         }
+        // 휴지통(제외)은 목록을 여기서 읽지 않고 화면에 알리기만 — 사진 · 폴더는 페이지가, 휴지통 목록은 셀렉 화면이 다시 읽는다
+        if (known !== null && known.exclusionRevision !== rev.exclusionRevision) onExclusionsRef.current?.();
         known = rev;
       } catch {
         // 기준값은 그대로 — 다음 주기에 다시

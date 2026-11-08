@@ -777,6 +777,11 @@ export default function ClientGalleryPage() {
           meId={meId}
           onRatingsSynced={applyRatings}
           ratingChange={ratingChange}
+          onExclusionsChanged={() => {
+            // 휴지통 이동 · 복원(내 것 · 상대 것) — 일반 목록과 폴더를 서버 기준으로 다시 맞춘다(이슈 160)
+            void refreshPhotos();
+            void refreshFolders();
+          }}
           readOnly={viewingSelect ? (phase === "done" ? "done" : "review") : null}
           stageRequest={stageRequest && stageRequest.kind === "export" ? stageRequest : null}
           onStageRequestHandled={onStageRequestHandled}
