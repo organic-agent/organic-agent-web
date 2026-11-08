@@ -76,7 +76,7 @@ import { PersonalEmptyGuide } from "./_shell/PersonalEmptyGuide";
 import { personalMembershipOf } from "./_shell/personalGallery";
 import { ReviewStage } from "./_shell/ReviewStage";
 import { SelectStage } from "./_shell/SelectStage";
-import { TRASH_CONFIRM_FROM, TrashConfirmModal } from "./_shell/TrashView";
+import { TRASH_CONFIRM_FROM, TrashBottomBar, TrashConfirmModal, TrashView } from "./_shell/TrashView";
 import { useExcludedPhotos } from "./_shell/useExcludedPhotos";
 import { WaitCard } from "./_shell/WaitCard";
 import { usePersonalUpload } from "./_shell/usePersonalUpload";
@@ -380,6 +380,11 @@ export default function ClientGalleryPage() {
   const trash = useExcludedPhotos(galleryId, opened && sorting, trashVersion);
   /** 20장 넘게 보내기 전에 묻는 중인 사진들 */
   const [trashConfirm, setTrashConfirm] = useState<number[] | null>(null);
+  /** 폴더 열의 휴지통 행을 눌러 휴지통 화면을 보는 중 — 컨셉 분류 단계에는 셀렉 사이드바가 없어 여기서도 보고 복원한다 */
+  const [trashOpen, setTrashOpen] = useState(false);
+  const trashPhotos = useMemo(() => trash.photos ?? [], [trash.photos]);
+  const [restoreSel, setRestoreSel] = useState<Set<number>>(() => new Set());
+  const [restoreBusy, setRestoreBusy] = useState(false);
   const [trashSnack, setTrashSnack] = useState<{ text: string; action?: { label: string; onClick: () => void } } | null>(null);
   useEffect(() => {
     if (!trashSnack) return;
@@ -433,7 +438,8 @@ export default function ClientGalleryPage() {
   const anyModalOpen = folderModal !== null || moveOpen || confirmOpen || deletePhotosOpen || folderMerge.modalOpen;
   // ⌘/Ctrl+A — 컨셉 분류에서, 입력란 · 모달이 아닐 때 보고 있는 사진 전부
   useEffect(() => {
-    if (!editable || anyModalOpen) return;
+    // 휴지통 화면을 보는 중에는 그리드가 없으니 전체 선택도 없다
+    if (!editable || anyModalOpen || trashOpen) return;
     function onKeyDown(e: KeyboardEvent) {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "a") return;
       const target = e.target as HTMLElement | null;
@@ -443,11 +449,12 @@ export default function ClientGalleryPage() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editable, anyModalOpen, visiblePhotos]);
+  }, [editable, anyModalOpen, trashOpen, visiblePhotos]);
 
   function changeFolder(next: FolderSelection) {
     setFolderSel(next);
     setView("all");
+    setTrashOpen(false);
     setSelected(new Set());
   }
 
@@ -527,6 +534,37 @@ export default function ClientGalleryPage() {
     if (ids.length === 0) return;
     if (ids.length >= TRASH_CONFIRM_FROM) setTrashConfirm(ids);
     else void trashNow(ids);
+  }
+  function openTrash() {
+    setTrashOpen(true);
+    setView("all");
+    setSelected(new Set());
+    setRestoreSel(new Set());
+  }
+  function toggleRestore(photoId: number) {
+    setRestoreSel((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  }
+  /** 휴지통 화면의 복원 — 원래 폴더로 돌아가고 선택에는 자동으로 담기지 않는다(서버 규칙) */
+  async function restoreNow(ids: number[]) {
+    if (ids.length === 0 || restoreBusy) return;
+    setRestoreBusy(true);
+    try {
+      const n = await restoreExcludedPhotos(galleryId, ids);
+      setRestoreSel(new Set());
+      setTrashVersion((v) => v + 1);
+      await Promise.all([refreshPhotos(), refreshFolders()]);
+      setTrashSnack({ text: `${n}장을 복원했어요` });
+    } catch (err) {
+      setNotice(err instanceof ApiError && err.code === EXCLUSION_LOCKED ? "요청서를 내보낸 뒤라 바꿀 수 없어요" : err instanceof ApiError ? err.message : "복원하지 못했어요 · 다시 시도해 주세요");
+      setTrashVersion((v) => v + 1);
+    } finally {
+      setRestoreBusy(false);
+    }
   }
   async function confirmDeletePhotos() {
     await deletePhotos(galleryId, [...selected]);
@@ -860,6 +898,7 @@ export default function ClientGalleryPage() {
               onViewChange={(next) => {
                 setView(next);
                 setFolderSel({ kind: "all" });
+                setTrashOpen(false);
                 setSelected(new Set());
               }}
             />
@@ -888,8 +927,8 @@ export default function ClientGalleryPage() {
                 onPickMerge={photoMove.drag ? folderMerge.pick : undefined}
                 dropping={photoMove.dropping}
                 dropOver={photoMove.dropOver}
-                // 부부가 사진을 옮길 수 있을 때만 휴지통 행(끌어 놓는 자리 · 장수). 작가 화면에는 없다
-                trash={editable ? { count: trash.total } : null}
+                // 부부가 사진을 옮길 수 있을 때만 휴지통 행(끌어 놓는 자리 · 장수 · 누르면 휴지통 화면). 작가 화면에는 없다
+                trash={editable ? { count: trash.total, open: trashOpen, onOpen: openTrash } : null}
                 pendingNote={
                   folders && folders.length === 0
                     ? isPersonal
@@ -925,6 +964,9 @@ export default function ClientGalleryPage() {
                 {upload.recoveryBanner}
                 <PersonalEmptyGuide />
               </>
+            ) : trashOpen ? (
+              // 컨셉 분류 · 정리 모드의 휴지통 화면 — 셀렉과 같은 부품, 여기서도 복원한다(크게 보기는 없음)
+              <TrashView state={trash} photos={trashPhotos} zoom={zoom} onZoomChange={writeZoom} editable={editable && !restoreBusy} selected={restoreSel} onToggle={toggleRestore} />
             ) : allPhotos.length === 0 ? (
               <div className="grid flex-1 place-items-center px-6 py-8">
                 <p className="type-content-s text-contents-light-bgd-sub">아직 올라온 사진이 없어요</p>
@@ -973,6 +1015,18 @@ export default function ClientGalleryPage() {
           </main>
         </div>
 
+        {trashOpen ? (
+          <TrashBottomBar
+            editable={editable}
+            lockNote="조회만 할 수 있어요"
+            selectedCount={restoreSel.size}
+            total={trashPhotos.length}
+            busy={restoreBusy}
+            onClear={() => setRestoreSel(new Set())}
+            onSelectAll={() => setRestoreSel(new Set(trashPhotos.map((p) => p.photoId)))}
+            onRestore={() => void restoreNow([...restoreSel])}
+          />
+        ) : (
         <ShellBottomBar
           selectionCount={selected.size}
           visibleCount={visiblePhotos.filter((p) => p.status === "UPLOADED").length}
@@ -986,6 +1040,7 @@ export default function ClientGalleryPage() {
           progress={isPersonal ? upload.progress ?? undefined : undefined}
           actions={bottomActions}
         />
+        )}
 
         {isPersonal && upload.modal}
 

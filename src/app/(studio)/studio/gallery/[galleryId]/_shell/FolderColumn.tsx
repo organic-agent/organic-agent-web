@@ -137,8 +137,11 @@ export function FolderColumn({
   dropping?: boolean;
   /** 지금 올라와 있는 곳 */
   dropOver?: FolderDropTarget | null;
-  /** 맨 아래 "휴지통 n" 행(이슈 160) — 사진을 끌어다 놓는 곳. 부부의 컨셉 분류 · 정리 모드에서만 준다(작가 화면에는 없다). count null이면 "—" */
-  trash?: { count: number | null } | null;
+  /**
+   * 맨 아래 "휴지통 n" 행(이슈 160) — 사진을 끌어다 놓는 곳이자 누르면 휴지통 화면(onOpen). 부부의 컨셉 분류 · 정리 모드에서만 준다
+   * (작가 화면에는 없다). count null이면 "—". open이면 지금 보는 곳으로 강조
+   */
+  trash?: { count: number | null; open?: boolean; onOpen?: () => void } | null;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [menu, setMenu] = useState<MenuTarget | null>(null);
@@ -614,18 +617,23 @@ export function FolderColumn({
           </li>
           {trash && (
             <li className="mt-1.5 border-t border-divider-default pt-1.5">
-              {/* 눌러서 열지는 않는다(휴지통 화면은 셀렉 사이드바의 몫) — 끌어다 놓는 자리와 장수만 */}
-              <div
+              {/* 끌어다 놓는 자리 + 누르면 휴지통 화면(치운 사진 보기 · 복원). 보는 중(open)이면 폴더 행처럼 강조 */}
+              <button
+                type="button"
+                aria-current={trash.open || undefined}
                 data-drop={dropping ? "trash" : undefined}
                 data-nodrop={dragging && !dropping ? "" : undefined}
-                className={`flex w-full items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s text-contents-light-bgd-sub ${dropClass(dragging, dropping, dropping && dropOver?.kind === "trash")}`}
+                onClick={trash.onOpen}
+                className={`flex w-full items-center gap-1.5 rounded-(--radius-4) px-1 py-1.5 text-left type-content-s transition-colors duration-fast ${
+                  trash.onOpen ? "cursor-pointer hover:bg-surface-default-lightness" : "cursor-default"
+                } ${trash.open ? "bg-surface-default-light font-semibold text-contents-light-bgd-default" : "text-contents-light-bgd-sub"} ${dropClass(dragging, dropping, dropping && dropOver?.kind === "trash")}`}
               >
                 <span className="flex shrink-0 text-contents-light-bgd-weakness">
                   <TrashIcon size={16} />
                 </span>
                 <span className="min-w-0 flex-1 truncate">휴지통</span>
                 <span className="type-content-xs text-contents-light-bgd-weakness tabular-nums">{trash.count ?? "—"}</span>
-              </div>
+              </button>
             </li>
           )}
         </ul>
