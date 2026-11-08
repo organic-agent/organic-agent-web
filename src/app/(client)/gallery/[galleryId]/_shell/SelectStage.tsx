@@ -32,7 +32,7 @@
 import { blockInDemo } from "@/lib/demo/demoMode";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
-import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SelectAllIcon, SparkleIcon, StarFillIcon, StarIcon, TrashIcon } from "@/components/icons";
+import { AddPhotoIcon, CheckCircleIcon, DownloadIcon, EditNoteIcon, GroupIcon, HeartFillIcon, InfoIcon, LockIcon, PhotoIcon, PlaylistAddCheckIcon, RefreshIcon, SparkleIcon, StarFillIcon, StarIcon, TrashIcon } from "@/components/icons";
 import { Lightbox, type LightboxTabDef, Sep } from "@/components/app/Lightbox";
 import { Snackbar } from "@/components/app/Snackbar";
 import { deadlineOffset } from "@/app/(studio)/_lib/galleryStatus";
@@ -66,6 +66,7 @@ import { GuestReactionPanel } from "./GuestReactionPanel";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { useRatingHistory } from "./useRatingHistory";
 import { EXCLUSION_LOCKED, excludePhotos, restoreExcludedPhotos } from "@/lib/api/exclusions";
+import { TrashBottomBar, TrashView } from "./TrashView";
 import { useExcludedPhotos } from "./useExcludedPhotos";
 import { countDrafts, draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { SubmitSelectionModal } from "./SubmitSelectionModal";
@@ -651,6 +652,8 @@ export function SelectStage({
   /** 크게 보기에서 한 장 휴지통으로 — 화면에서 먼저 빼고 다음 사진으로 넘어간다. 확인 창 대신 스낵바 되돌리기 */
   async function excludeOne(photoId: number) {
     if (!editable) return;
+    // 담겨 있던 사진이면 되돌릴 때 다시 담는다 — 서버는 복원해도 선택에 자동으로 담지 않으므로 "되돌리기"가 여기서 채운다
+    const wasPicked = pickedIds.has(photoId);
     const idx = navPhotos.findIndex((p) => p.photoId === photoId);
     const next = navPhotos.length > 1 ? navPhotos[(idx + 1) % navPhotos.length] : null;
     setHiddenIds((prev) => new Set(prev).add(photoId));
@@ -663,7 +666,7 @@ export function SelectStage({
     try {
       await excludePhotos(galleryId, [photoId]);
       afterExclusionChange();
-      setSnack({ text: "휴지통으로 옮겼어요", ms: 4000, action: { label: "되돌리기", onClick: () => void undoExclude(photoId) } });
+      setSnack({ text: "휴지통으로 옮겼어요", ms: 4000, action: { label: "되돌리기", onClick: () => void undoExclude(photoId, wasPicked) } });
     } catch (err) {
       setHiddenIds((prev) => {
         const n = new Set(prev);
@@ -673,7 +676,7 @@ export function SelectStage({
       setLocalNotice(exclusionError(err, "휴지통으로 옮기지 못했어요 · 다시 시도해 주세요"));
     }
   }
-  async function undoExclude(photoId: number) {
+  async function undoExclude(photoId: number, repick: boolean) {
     setSnack(null);
     try {
       await restoreExcludedPhotos(galleryId, [photoId]);
@@ -683,6 +686,7 @@ export function SelectStage({
         return n;
       });
       afterExclusionChange();
+      if (repick) pickMany([photoId]);
       setSnack({ text: "되돌렸어요" });
     } catch (err) {
       setLocalNotice(exclusionError(err, "되돌리지 못했어요 · 휴지통에서 복원할 수 있어요"));
@@ -863,59 +867,21 @@ export function SelectStage({
           {!photosLoaded ? (
             <div className="flex-1" aria-busy="true" />
           ) : trashOpen ? (
-            <>
-              <ShellMainHeader
-                title={
-                  <>
-                    <span className="flex text-contents-light-bgd-weakness">
-                      <TrashIcon size={18} />
-                    </span>
-                    휴지통
-                    {trash.total !== null && <small className="ml-1 type-content-s font-normal text-contents-light-bgd-weakness">{trash.total}장</small>}
-                  </>
-                }
-                leading={guestToggleButton}
-                zoom={zoom}
-                onZoomChange={writeZoom}
-                sort="uploaded"
-                onSortChange={() => {}}
-                filter="none"
-                onFilterChange={() => {}}
-                sortable={false}
-              />
-              <div className="scrollbar-slim scrollbar-stable min-h-0 flex-1 overflow-y-auto">
-                {trash.photos === null ? (
-                  trash.failed ? (
-                    <p role="alert" className="flex items-center justify-center gap-3 px-5 py-10 type-content-s text-function-error-default">
-                      휴지통을 불러오지 못했어요
-                      <button type="button" onClick={trash.reload} className="cursor-pointer type-content-s font-semibold text-contents-light-bgd-default underline underline-offset-2">
-                        다시 시도
-                      </button>
-                    </p>
-                  ) : (
-                    <div className="h-40" aria-busy="true" />
-                  )
-                ) : trashPhotos.length === 0 ? (
-                  <p className="px-5 py-10 text-center type-content-s text-contents-light-bgd-sub">휴지통이 비어 있어요</p>
-                ) : (
-                  <PhotoGrid
-                    photos={trashPhotos}
-                    zoom={zoom}
-                    selectedIds={restoreSel}
-                    onToggle={toggleRestore}
-                    toggleOn="check"
-                    selectable={editable && !restoreBusy}
-                    markStyle="check"
-                    currentId={currentId}
-                    showScore={false}
-                    onOpen={openTrashPhoto}
-                    markOf={excluderOf}
-                    captionOf={folderNameOf}
-                    overlayOf={guestOverlay}
-                  />
-                )}
-              </div>
-            </>
+            <TrashView
+              state={trash}
+              photos={trashPhotos}
+              zoom={zoom}
+              onZoomChange={writeZoom}
+              leading={guestToggleButton}
+              editable={editable && !restoreBusy}
+              selected={restoreSel}
+              onToggle={toggleRestore}
+              currentId={currentId}
+              onOpen={openTrashPhoto}
+              markOf={excluderOf}
+              captionOf={folderNameOf}
+              overlayOf={guestOverlay}
+            />
           ) : photos.length === 0 ? (
             <div className="grid flex-1 place-items-center px-6 py-8">
               <p className="type-content-s text-contents-light-bgd-sub">아직 올라온 사진이 없어요</p>
@@ -1119,46 +1085,16 @@ export function SelectStage({
       </div>
 
       {trashOpen ? (
-        // 휴지통 하단 바 — 정리 모드 선택 바와 같은 문법(n장 선택 · 선택 해제 · 모두 선택 · 복원). 고를 수 없으면 왜인지 한 줄
-        <div className="flex h-15 shrink-0 items-center justify-between gap-3 border-t border-divider-default bg-background-default-main px-5 max-[480px]:px-3">
-          {!editable ? (
-            <span className="inline-flex min-w-0 items-center gap-1.5 type-content-m text-contents-light-bgd-weakness">
-              <LockIcon size={16} />
-              <span className="truncate">{readOnly ? "요청서를 내보낸 뒤라 조회만 할 수 있어요" : "선택 마감이 지나 조회만 할 수 있어요"}</span>
-            </span>
-          ) : restoreSel.size > 0 ? (
-            <>
-              <span className="type-content-m whitespace-nowrap text-contents-light-bgd-sub">
-                <b className="type-label-semibold-l text-contents-light-bgd-default">{restoreSel.size}장</b> 선택
-              </span>
-              <div className="flex items-center gap-2">
-                <ShellCta kind="outline" onClick={() => setRestoreSel(new Set())}>
-                  선택 해제
-                </ShellCta>
-                {restoreSel.size < trashPhotos.length && (
-                  <ShellCta kind="outline" onClick={() => setRestoreSel(new Set(trashPhotos.map((p) => p.photoId)))}>
-                    <SelectAllIcon size={18} />
-                    모두 선택 ({trashPhotos.length})
-                  </ShellCta>
-                )}
-                <ShellCta disabled={restoreBusy} onClick={() => void restoreMany([...restoreSel])}>
-                  <RefreshIcon size={18} />
-                  {restoreBusy ? "복원하는 중…" : "복원"}
-                </ShellCta>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="type-content-m text-contents-light-bgd-sub">{trashPhotos.length > 0 ? "되살릴 사진을 고르세요" : null}</span>
-              {trashPhotos.length > 0 && (
-                <ShellCta kind="outline" onClick={() => setRestoreSel(new Set(trashPhotos.map((p) => p.photoId)))}>
-                  <SelectAllIcon size={18} />
-                  모두 선택 ({trashPhotos.length})
-                </ShellCta>
-              )}
-            </>
-          )}
-        </div>
+        <TrashBottomBar
+          editable={editable}
+          lockNote={readOnly === "done" ? "마무리된 갤러리 · 조회만 할 수 있어요" : readOnly ? "요청서를 내보낸 뒤라 조회만 할 수 있어요" : "선택 마감이 지나 조회만 할 수 있어요"}
+          selectedCount={restoreSel.size}
+          total={trashPhotos.length}
+          busy={restoreBusy}
+          onClear={() => setRestoreSel(new Set())}
+          onSelectAll={() => setRestoreSel(new Set(trashPhotos.map((p) => p.photoId)))}
+          onRestore={() => void restoreMany([...restoreSel])}
+        />
       ) : (
       <ShellBottomBar
         selectionCount={0}
@@ -1227,7 +1163,8 @@ export function SelectStage({
       />
       )}
 
-      {snack && (
+      {/* 크게 보기가 열려 있으면 그 안의 알림(notice)이 대신 보여 준다 — 여기 띄우면 모달 뒤에 가려진다 */}
+      {snack && !lightboxOpen && (
         <Snackbar kind="info" action={snack.action} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
           {snack.text}
         </Snackbar>
@@ -1338,7 +1275,8 @@ export function SelectStage({
           tabs={trashOpen ? [] : lightboxTabs}
           onImageError={onPhotoUrlError}
           zoom={{ loadOriginal: (target) => loadOriginalUrl(galleryId, target) }}
-          notice={rateError ? { kind: "error", text: rateError.text } : guardNotice ? { kind: "info", text: guardNotice.text } : null}
+          // 페이지 스낵바는 크게 보기 뒤에 가려지므로, 열려 있는 동안은 같은 내용을 크게 보기 안 알림으로(휴지통 "되돌리기" 포함)
+          notice={rateError ? { kind: "error", text: rateError.text } : guardNotice ? { kind: "info", text: guardNotice.text } : snack ? { kind: "info", text: snack.text, action: snack.action } : null}
           onTabChange={(next) => setTab(next as LightboxTab)}
           onClose={closeLightbox}
           onPrev={() => step(-1)}

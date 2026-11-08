@@ -56,6 +56,8 @@ import { draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } fr
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
 import { PersonalReRequestModal } from "./PersonalReRequestModal";
 import { SendReRequestModal } from "./SendReRequestModal";
+import { TrashBottomBar, TrashView } from "./TrashView";
+import { useExcludedPhotos } from "./useExcludedPhotos";
 import { useGuestSharing } from "./useGuestSharing";
 
 type Tab = "none" | "info" | "request";
@@ -138,6 +140,10 @@ export function ReviewStage({
   const [selectedRoundNo, setSelectedRoundNo] = useState<number | null>(null);
   const [view, setView] = useState<ClientView>("retouch");
   const [folderFilter, setFolderFilter] = useState<PhotoFilter>(ALL_FILTER);
+  /** 셀렉 휴지통(이슈 160) — 보정 확인에서는 조회만. 요청서를 내보낸 뒤라 복원은 서버가 막고(409), "선택 다시 하기"로 돌아온 뒤 한다 */
+  const [trashOpen, setTrashOpen] = useState(false);
+  const trash = useExcludedPhotos(galleryId, true, 0);
+  const trashPhotos = useMemo(() => trash.photos ?? [], [trash.photos]);
   const [sideTab, setSideTab] = useState<"folder" | "share">("folder");
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -225,11 +231,13 @@ export function ReviewStage({
   }, [folders, photos]);
   function focusFolder(key: FolderKey) {
     setView("all");
+    setTrashOpen(false);
     setCurrentId(null);
     setFolderFilter(key === "unsorted" ? { detailIds: new Set(), unsorted: true } : { detailIds: new Set([key]), unsorted: false });
   }
   function toggleFolder(key: FolderKey) {
     setView("all");
+    setTrashOpen(false);
     setCurrentId(null);
     setFolderFilter((prev) => {
       if (key === "unsorted") return { detailIds: prev.detailIds, unsorted: !prev.unsorted };
@@ -435,6 +443,7 @@ export function ReviewStage({
             view={view}
             onViewChange={(next) => {
               setView(next);
+              setTrashOpen(false);
               setCurrentId(null);
               setFolderFilter(ALL_FILTER);
               sharing.closeReactions();
@@ -461,14 +470,25 @@ export function ReviewStage({
               tab: sideTab,
               onTabChange: setSideTab,
               folder:
-                folders && folders.length > 0 ? (
+                folders && (folders.length > 0 || (trash.total ?? 0) > 0) ? (
                   <ClientFolderTree
                     folders={folders}
                     pickedIds={selectedIds}
                     unsortedIds={unsortedIds}
-                    filter={view === "all" ? folderFilter : ALL_FILTER}
+                    filter={view === "all" && !trashOpen ? folderFilter : ALL_FILTER}
                     onFocus={focusFolder}
                     onToggle={toggleFolder}
+                    trash={{
+                      count: trash.total,
+                      open: trashOpen,
+                      onOpen: () => {
+                        setTrashOpen(true);
+                        setView("all");
+                        setCurrentId(null);
+                        setFolderFilter(ALL_FILTER);
+                        sharing.closeReactions();
+                      },
+                    }}
                   />
                 ) : (
                   <p className="px-2 type-content-xs text-contents-light-bgd-weakness">폴더가 없어요</p>
@@ -482,6 +502,8 @@ export function ReviewStage({
         <main className="flex min-w-0 flex-1 flex-col">
           {!overview && !overviewError ? (
             <div className="flex-1" aria-busy="true" />
+          ) : trashOpen ? (
+            <TrashView state={trash} photos={trashPhotos} zoom={zoom} onZoomChange={writeZoom} editable={false} selected={EMPTY_IDS} onToggle={() => {}} captionOf={folderNameOf} />
           ) : (
             <>
               <ShellMainHeader
@@ -552,6 +574,18 @@ export function ReviewStage({
         )}
       </div>
 
+      {trashOpen ? (
+        <TrashBottomBar
+          editable={false}
+          lockNote={archived ? "마무리된 갤러리 · 조회만 할 수 있어요" : personal ? "요청서를 내보낸 뒤라 조회만 할 수 있어요" : "작가에게 전달한 뒤라 조회만 할 수 있어요"}
+          lockAction={canCancelExport ? { label: "선택 다시 하기", onClick: () => setCancelExportOpen(true) } : undefined}
+          selectedCount={0}
+          total={trashPhotos.length}
+          onClear={() => {}}
+          onSelectAll={() => {}}
+          onRestore={() => {}}
+        />
+      ) : (
       <ShellBottomBar
         selectionCount={0}
         onClearSelection={() => {}}
@@ -659,6 +693,7 @@ export function ReviewStage({
           </>
         }
       />
+      )}
 
       {sharing.modals()}
       <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !lightboxOpen && !confirmOpen && !downloadOpen} />
