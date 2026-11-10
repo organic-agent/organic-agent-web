@@ -19,7 +19,7 @@ import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "../../_shell/ShellSidebar";
 import { AlbumBanner } from "./AlbumBanner";
-import { AlbumToolbar } from "./AlbumToolbar";
+import { AlbumToolbar, GuideSettings } from "./AlbumToolbar";
 import { MoveConfirmModal } from "./MoveConfirmModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
 import { SpreadCanvas, type AlbumTool } from "./SpreadCanvas";
@@ -80,6 +80,8 @@ export function AlbumWorkspace({
   const [zoom, setZoom] = useState(50);
   const [tool, setTool] = useState<AlbumTool>("select");
   const [ratioLock, setRatioLock] = useState(true);
+  const [guideDir, setGuideDir] = useState<"h" | "v">("h");
+  const [guideAll, setGuideAll] = useState(false);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
   const [areaRef, areaSize] = useBoxSize();
 
@@ -112,7 +114,7 @@ export function AlbumWorkspace({
     ? { ...frameMm(pickedFrame, album.page), crossing: crossesGutter(pickedFrame), hasPhoto: album.assign[pickedFrame.id] !== undefined }
     : null;
   const hint =
-    tool === "frame" ? "펼침면 위를 끌어서 프레임을 그려요" : tool === "guide" ? "눌러서 안내선을 놓아요" : "사진을 누르면 다음 배치 위치에 들어가요";
+    tool === "frame" ? "펼침면 위를 끌어서 프레임을 그려요" : tool === "guide" ? "눌러서 안내선을 놓아요 · 밖으로 끌어내면 지워져요" : "사진을 누르면 다음 배치 위치에 들어가요";
 
   // 남은 자리에 맞춘 폭(위아래 여백 · 툴바 자리를 뺀다) × 줌 — 펼침면 비율은 앨범 사이즈대로
   const fitW = Math.max(240, Math.min(areaSize.w - 96, (areaSize.h - 48 - 72) * spreadRatio(album.page)));
@@ -223,6 +225,7 @@ export function AlbumWorkspace({
                           tool={tool}
                           ratioLock={ratioLock}
                           canDraw={!editor.atCap}
+                          guideDir={guideDir}
                           photoOf={photoOf}
                           onFrame={editor.onFrame}
                           onPick={editor.pickFrame}
@@ -234,6 +237,9 @@ export function AlbumWorkspace({
                           }}
                           onCapHit={editor.capHit}
                           onTooSmall={() => editor.toast("프레임이 너무 작아요 · 조금 더 크게 끌어 주세요", false, "warning")}
+                          onAddGuide={(dir, pos) => editor.putGuide(dir, pos, guideAll)}
+                          onMoveGuide={editor.shiftGuide}
+                          onRemoveGuide={editor.dropGuide}
                         />
                       )}
                     </div>
@@ -247,6 +253,7 @@ export function AlbumWorkspace({
                     onResize={(dim, mm) => pickedFrame && editor.resizeFrame(pickedFrame.id, dim, mm, ratioLock)}
                     onRemovePhoto={editor.removePicked}
                     onDeleteFrame={() => pickedFrame && editor.removeFrame(pickedFrame.id)}
+                    extra={tool === "guide" ? <GuideSettings dir={guideDir} onDir={setGuideDir} all={guideAll} onAll={setGuideAll} /> : undefined}
                     spread={album.spread}
                     spreadCount={spreadCount}
                     onGo={go}

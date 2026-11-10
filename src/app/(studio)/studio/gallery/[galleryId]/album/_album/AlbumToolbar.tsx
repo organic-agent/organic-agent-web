@@ -49,6 +49,37 @@ function MmField({ label, name, value, onCommit }: { label: string; name: string
   );
 }
 
+/** 안내선 도구 앞부분 — 가로선 · 세로선 · 전체 펼침면(놓는 순간 켜져 있으면 모든 펼침면에) */
+export function GuideSettings({ dir, onDir, all, onAll }: { dir: "h" | "v"; onDir: (dir: "h" | "v") => void; all: boolean; onAll: (all: boolean) => void }) {
+  return (
+    <>
+      {(
+        [
+          ["h", "가로선"],
+          ["v", "세로선"],
+        ] as const
+      ).map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={dir === key}
+          onClick={() => onDir(key)}
+          className={`flex h-8 cursor-pointer items-center rounded-(--radius-8) px-3 type-label-medium-s whitespace-nowrap ${dir === key ? "bg-brand-accent-default text-white" : "bg-white/10 hover:bg-white/15"}`}
+        >
+          {label}
+        </button>
+      ))}
+      <label className="ml-1 inline-flex cursor-pointer items-center gap-1.5 type-content-xs whitespace-nowrap">
+        <input type="checkbox" checked={all} onChange={(e) => {
+            onAll(e.target.checked);
+            e.currentTarget.blur(); // V R F 단축키가 바로 듣게
+          }} className="size-4 accent-(--brand-accent-default)" />
+        전체 펼침면
+      </label>
+    </>
+  );
+}
+
 export type ToolbarFrame = {
   w: number;
   h: number;

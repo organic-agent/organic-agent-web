@@ -19,14 +19,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SnackbarKind } from "@/components/app/Snackbar";
 import {
   addFrame,
+  addGuide,
   clearSelection,
   deleteFrame,
   frameLabel,
   goSpread,
   indexFrames,
+  moveGuide,
   movePhoto,
   photoFrame,
   placePhoto,
+  removeGuide,
   removePhoto,
   resizeFrameMm,
   sameContent,
@@ -34,6 +37,7 @@ import {
   setFrameRect,
   syncSelection,
   type Album,
+  type Guide,
   type Rect,
 } from "@/lib/album/model";
 import type { AlbumDoc, AlbumRepository, SavedKind } from "@/lib/album/store";
@@ -218,6 +222,17 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     setAlbum(selectFrame({ ...album, cursorMode: "auto" }, F, frameId));
   }
 
+  // ── 안내선(PR ②) — 더하기 · 옮기기는 조용히, 지우기는 되돌리기 스낵바 ──
+  function putGuide(dir: Guide["dir"], pos: number, all: boolean) {
+    commit(addGuide(album, dir, pos, all), "");
+  }
+  function shiftGuide(guideId: string, pos: number) {
+    commit(moveGuide(album, guideId, pos), "");
+  }
+  function dropGuide(guideId: string) {
+    commit(removeGuide(album, guideId), "안내선을 지웠어요");
+  }
+
   const picked = album.cursorMode === "manual" && album.cursor ? album.cursor : null;
 
   return {
@@ -235,6 +250,9 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     placeFrame,
     resizeFrame,
     removeFrame,
+    putGuide,
+    shiftGuide,
+    dropGuide,
     toast,
     removePicked,
     picked,
