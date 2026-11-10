@@ -9,6 +9,7 @@
  * 펼침면 위에는 배너(보정 상태 · 선택에서 빠진 사진), 머리줄 제목 옆에는 마지막 저장 시각, 하단에는 "임시 저장"(바꾼 게 남으면 점).
  * 도구(PR ②) — 선택 · 안내선 · 프레임. 프레임을 그리면 선택 도구로 돌아와 새 프레임을 고른 상태가 된다.
  * 위치 조정은 바꾸는 동안 여기 상태로만 두고, 끝낼 때 한 번 저장한다(되돌리기 한 번).
+ * 앨범 미리보기(PR ③) — 머리줄 오른쪽 버튼 · 좁은 화면 안내 카드에서 연다. 편집 화면의 지금 모습을 그대로 보여 준다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -20,6 +21,7 @@ import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "../../_shell/ShellSidebar";
 import { AlbumBanner } from "./AlbumBanner";
+import { AlbumPreview } from "./AlbumPreview";
 import { AlbumToolbar, GuideSettings } from "./AlbumToolbar";
 import { MoveConfirmModal } from "./MoveConfirmModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
@@ -60,14 +62,30 @@ const hhmm = (iso: string) => {
   return Number.isNaN(d.getTime()) ? "" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+function PreviewButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-brand-accent-surface px-3 type-label-medium-s whitespace-nowrap text-brand-accent-text transition-opacity duration-fast hover:opacity-85"
+    >
+      <AlbumIcon size={16} />
+      앨범 미리보기
+    </button>
+  );
+}
+
 export function AlbumWorkspace({
   galleryId,
+  title,
   initialDoc,
   photos,
   retouchBanner,
   renderSidebar,
 }: {
   galleryId: number;
+  /** 갤러리 제목 — 미리보기 머리줄 */
+  title?: string;
   initialDoc: AlbumDoc;
   photos: AlbumPhoto[];
   /** 보정 상태 배너 — 닫았어도 상태(key)가 바뀌면 다시 뜬다 */
@@ -84,6 +102,7 @@ export function AlbumWorkspace({
   const [guideDir, setGuideDir] = useState<"h" | "v">("h");
   const [guideAll, setGuideAll] = useState(false);
   const [cropEdit, setCropEdit] = useState<CropEdit | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   /** 사진이 든 펼침면을 지울지 묻는 중 */
   const [spreadAsk, setSpreadAsk] = useState<{ index: number; photos: number } | null>(null);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
@@ -147,15 +166,15 @@ export function AlbumWorkspace({
   useEffect(() => {
     spreadAskRef.current = spreadAsk;
   });
-  const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop });
+  const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen });
   useEffect(() => {
-    keysRef.current = { editor, tool, changeTool, cropping: activeCrop !== null, finishCrop };
+    keysRef.current = { editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen };
   });
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop } = keysRef.current;
+      const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop, previewOpen: previewing } = keysRef.current;
       const t = e.target instanceof Element ? e.target : null;
-      if (ed.moveAsk || spreadAskRef.current || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      if (ed.moveAsk || spreadAskRef.current || previewing || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
       // 위치 조정 중에는 Esc · Enter(끝)만
       if (cropping) {
         if (e.key === "Escape" || e.key === "Enter") endCrop();
@@ -229,6 +248,7 @@ export function AlbumWorkspace({
                 filter="none"
                 onFilterChange={() => {}}
                 sortable={false}
+                trailing={<PreviewButton onClick={() => setPreviewOpen(true)} />}
               />
             </div>
             <div className="flex min-h-0 flex-1">
@@ -319,6 +339,9 @@ export function AlbumWorkspace({
             </span>
             <b className="type-title-s text-contents-light-bgd-default">앨범 편집은 넓은 화면에서 할 수 있어요</b>
             <span className="type-content-s text-contents-light-bgd-sub">컴퓨터에서 열거나 창을 더 넓혀 주세요</span>
+            <span className="mt-2">
+              <PreviewButton onClick={() => setPreviewOpen(true)} />
+            </span>
           </div>
         </main>
       </div>
@@ -327,6 +350,7 @@ export function AlbumWorkspace({
           {snack.text}
         </Snackbar>
       )}
+      {previewOpen && <AlbumPreview album={album} photoOf={photoOf} title={title} onClose={() => setPreviewOpen(false)} />}
       {spreadAsk && (
         <DeleteSpreadModal
           index={spreadAsk.index}

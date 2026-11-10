@@ -128,6 +128,7 @@ function StudioAlbumScreen() {
       {gallery && doc && photos ? (
         <AlbumWorkspace
           galleryId={galleryId}
+          title={gallery.title}
           initialDoc={doc}
           photos={photos}
           retouchBanner={banner}
