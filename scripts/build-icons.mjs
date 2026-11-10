@@ -96,6 +96,7 @@ const ICONS = [
   ['PlaylistAddCheckIcon', 'playlist_add_check'],
   ['DownloadIcon', 'download'],
   ['HourglassIcon', 'hourglass_top'],
+  ['AlbumIcon', 'book_2'], // 앨범 구성(이슈 168)
 ];
 
 const paths = (symbol) => {
