@@ -127,7 +127,8 @@ export function ShellSidebar({
   maxSelectable: number | null;
   /** 2단계부터 내비 아래에 들어오는 폴더 트리 */
   folderTree?: ReactNode;
-  view: ShellView;
+  /** 지금 보기 — 앨범 화면처럼 내비 세 행이 아닌 곳은 null */
+  view: ShellView | null;
   onViewChange: (view: ShellView) => void;
   /** 3단계부터 — 보정 대상 장수. 없으면(1 · 2단계) 잠김 */
   retouchCount?: number | null;
