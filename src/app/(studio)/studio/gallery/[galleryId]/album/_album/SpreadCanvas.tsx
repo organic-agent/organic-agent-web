@@ -13,6 +13,8 @@
  * - 프레임: 펼침면 위를 끌어 새 프레임을 그린다. 접힘을 넘어 두 쪽에 걸쳐도 된다(걸친 프레임은 사진 위에 접힘 그늘을 한 번 더)
  * - 안내선: 누른 자리에 가로선 · 세로선을 놓고(끌어서 맞춘 뒤 손을 뗀 자리), 있는 선은 끌어 옮긴다. 펼침면 밖으로 끌어내면 지운다.
  *   안내선은 화면에만 보이는 선(앨범에는 찍히지 않음) — 다른 도구에서도 보이고 프레임이 맞붙는다
+ * 클라이언트(PR ③) — mode "photo"(수정 가능)는 프레임 고르기 · 위치 조정만(옮기기 · 크기 · 그리기 · 안내선 없음),
+ *   "view"(보기만)는 누를 수 없고 번호 · 말풍선 · 빈 칸 보라 바탕도 없다. 안내선은 스튜디오에만 보인다.
  * - 위치 조정(사진이 든 프레임 — 도구 막대 버튼 · 두 번 누르기): 프레임 안을 끌어 사진을 옮기고, 위 막대(− 슬라이더 + · 맞춤 · 완료)나
  *   휠로 1~4배 키운다. 프레임 밖으로 넘친 부분은 흐리게 보인다. 프레임 밖을 누르거나 Esc · 완료로 끝내면 한 번 저장한다
  * 끄는 동안에는 화면에만 미리 보여 주고 손을 떼면 한 번 저장한다(되돌리기 한 번). 가장자리는 쪽 가장자리 · 가운데 · 접힘 ·
@@ -52,6 +54,8 @@ import { cropStyle } from "./photoCrop";
 import type { AlbumPhoto } from "./useAlbumSource";
 
 export type AlbumTool = "select" | "guide" | "frame";
+/** 누가 보는지 — studio 전부 · photo 사진 교체 · 위치 조정만(클라이언트 수정 가능) · view 보기만 */
+export type CanvasMode = "studio" | "photo" | "view";
 
 const GONE_BG = "repeating-linear-gradient(135deg, rgba(26,26,26,.05) 0 8px, rgba(26,26,26,.10) 8px 16px)";
 /** 안내선 색 — 흰 종이 위 도구 선이라 테마와 상관없이 고정(디자인 도구 관례인 청록, 시안 그대로) */
@@ -150,6 +154,7 @@ function FrameBox({
   onClick,
   onDoubleClick,
   onClear,
+  mode,
 }: {
   frame: Frame;
   /** 지금 그릴 자리(끄는 중이면 미리 보기) */
@@ -176,11 +181,13 @@ function FrameBox({
   onClick: (e: MouseEvent) => void;
   onDoubleClick: () => void;
   onClear: () => void;
+  mode: CanvasMode;
 }) {
+  const view = mode === "view";
   const h = rect.h * spreadH;
   const empty = !photo;
   const picked = cursor && manual;
-  const tip = tool === "select" && cursor && !dragging && !cropping ? (manual ? (empty ? "넣을 사진을 고르세요" : "바꿀 사진을 고르세요") : "다음 배치 위치") : null;
+  const tip = !view && tool === "select" && cursor && !dragging && !cropping ? (manual ? (empty ? "넣을 사진을 고르세요" : "바꿀 사진을 고르세요") : "다음 배치 위치") : null;
   const crossing = crossesGutter(frameOfRect(rect));
   const ghost = cropping && crop && photoAR ? cropRect(crop, frameAR, photoAR) : null;
   const scaleBy = (s: number) => crop && photoAR && onCropLive(scaleCrop(crop, s, frameAR, photoAR));
@@ -201,10 +208,13 @@ function FrameBox({
         type="button"
         onClick={onClick}
         onDoubleClick={onDoubleClick}
+        disabled={view}
         aria-label={`${pad2(frame.no)} 프레임${photo ? ` · ${photo.fileName}` : gone ? " · 선택에서 빠짐" : " · 비어 있음"}`}
         aria-pressed={picked}
-        className={`relative block size-full overflow-hidden ${cropping ? "cursor-grab active:cursor-grabbing" : tool === "select" ? (picked ? "cursor-move" : "cursor-pointer") : "cursor-crosshair"} ${empty && !gone ? "bg-brand-accent-surface" : ""} ${
-          cropping
+        className={`relative block size-full overflow-hidden ${view ? "cursor-default" : cropping ? "cursor-grab active:cursor-grabbing" : tool === "select" ? (picked && mode === "studio" ? "cursor-move" : "cursor-pointer") : "cursor-crosshair"} ${empty && !gone ? (view ? "bg-[#efefec]" : "bg-brand-accent-surface") : ""} ${
+          view
+            ? ""
+            : cropping
             ? "outline-2 -outline-offset-2 outline-brand-accent-default"
             : cursor && tool === "select"
             ? "outline-2 -outline-offset-2 outline-dashed outline-brand-accent-default"
@@ -237,7 +247,7 @@ function FrameBox({
         )}
         <span
           aria-hidden
-          className={`pointer-events-none absolute inset-0 flex items-center justify-center font-semibold ${cropping ? "opacity-0" : ""} ${photo ? "text-white/70" : gone ? "text-black/25" : "text-brand-accent-default/45"}`}
+          className={`pointer-events-none absolute inset-0 flex items-center justify-center font-semibold ${cropping || view ? "opacity-0" : ""} ${photo ? "text-white/70" : gone ? "text-black/25" : "text-brand-accent-default/45"}`}
           style={{ fontSize: Math.max(12, Math.round(h / 5)) }}
         >
           {pad2(frame.no)}
@@ -278,7 +288,7 @@ function FrameBox({
           </button>
         </div>
       )}
-      {picked && tool === "select" && !cropping &&
+      {picked && tool === "select" && !cropping && mode === "studio" &&
         HANDLES.map((hd) => (
           <i
             key={hd.dir}
@@ -333,6 +343,7 @@ export function SpreadCanvas({
   onStartCrop,
   onCropLive,
   onCropDone,
+  mode = "studio",
 }: {
   album: Album;
   F: FrameIndex;
@@ -364,6 +375,7 @@ export function SpreadCanvas({
   onStartCrop: (frameId: string) => void;
   onCropLive: (c: Crop) => void;
   onCropDone: () => void;
+  mode?: CanvasMode;
 }) {
   const spread = album.spreads[album.spread];
   const frames = F.of(album.spread);
@@ -553,6 +565,7 @@ export function SpreadCanvas({
       dragRef.current = { kind: "pan", c0: crop.crop, x0: e.clientX, y0: e.clientY, bw: fb.width, bh: fb.height, frameAR: (f.w * album.page.w) / (f.h * album.page.h), photoAR };
       return;
     }
+    if (mode !== "studio") return;
     const { b, tolX, tolY } = measure();
     const guides = visibleGuides(album);
     if (tool === "frame") {
@@ -650,6 +663,7 @@ export function SpreadCanvas({
             onPhotoAR={onPhotoAR}
             onCropLive={onCropLive}
             onCropDone={onCropDone}
+            mode={mode}
             onClick={(e) => {
               e.stopPropagation();
               // 두 번 누르기의 두 번째는 위치 조정이 받는다
@@ -657,13 +671,14 @@ export function SpreadCanvas({
               onFrame(f.id);
             }}
             onDoubleClick={() => {
-              if (tool === "select" && !crop && pid !== undefined) onStartCrop(f.id);
+              if (mode !== "view" && tool === "select" && !crop && pid !== undefined) onStartCrop(f.id);
             }}
             onClear={onClear}
           />
         );
       })}
-      {visibleGuides(album).map((g) => {
+      {mode === "studio" &&
+        visibleGuides(album).map((g) => {
         const moving = guideLive?.id === g.id;
         return (
           <GuideLine

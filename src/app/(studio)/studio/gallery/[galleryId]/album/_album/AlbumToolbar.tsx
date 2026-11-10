@@ -7,6 +7,7 @@
  * 디자이너 시안 Case 1 · 4(프로토타입 Toolbar)를 따른다. 앞부분이 있으면 펼침면 이동은 숨긴다(띠 · ← → 로 이동).
  * - 고른 프레임: 가로 · 세로(mm, 칸을 떠나거나 Enter로 반영) · 비율 고정 · (두 쪽에 걸침) · 사진이 있으면 위치 조정 · 빼기, 비었으면 삭제
  * - 위치 조정 중: 위치 조정(눌린 상태 — 다시 누르면 끝) · 빼기
+ * 클라이언트(PR ③)는 도구 버튼 · 크기 칸 · 프레임 삭제 없이 위치 조정 · 비우기 · 펼침면 이동만(시안 2판 5번 장면).
  * 단축키 V 선택 · R 안내선 · F 프레임은 작업 화면이 받는다.
  */
 
@@ -101,6 +102,11 @@ export function AlbumToolbar({
   cropping,
   onCrop,
   extra,
+  showTools = true,
+  frameSize = true,
+  allowDelete = true,
+  removeLabel = "빼기",
+  pagerAlways = false,
   spread,
   spreadCount,
   onGo,
@@ -119,6 +125,16 @@ export function AlbumToolbar({
   onCrop: () => void;
   /** 도구별 앞부분(안내선 설정 · 위치 조정 버튼) */
   extra?: ReactNode;
+  /** false — 선택 · 안내선 · 프레임 도구 버튼을 두지 않는다(클라이언트) */
+  showTools?: boolean;
+  /** false — 고른 프레임의 가로 · 세로 칸 · 비율 고정을 두지 않는다 */
+  frameSize?: boolean;
+  /** false — 빈 프레임 삭제를 두지 않는다 */
+  allowDelete?: boolean;
+  /** 사진 빼기 버튼 이름 — 클라이언트는 "비우기" */
+  removeLabel?: string;
+  /** 앞부분이 있어도 펼침면 이동을 둔다(도구 버튼이 없어 자리가 남을 때) */
+  pagerAlways?: boolean;
   spread: number;
   spreadCount: number;
   onGo: (spread: number) => void;
@@ -140,14 +156,24 @@ export function AlbumToolbar({
       위치 조정
     </button>
   );
+  const removeButton = (
+    <button type="button" onClick={onRemovePhoto} className={BTN}>
+      <TrashIcon size={18} />
+      {removeLabel}
+    </button>
+  );
   const ctx = cropping ? (
     <>
       {cropButton}
-      <button type="button" onClick={onRemovePhoto} className={BTN}>
-        <TrashIcon size={18} />
-        빼기
-      </button>
+      {removeButton}
     </>
+  ) : frame && !frameSize ? (
+    frame.hasPhoto ? (
+      <>
+        {cropButton}
+        {removeButton}
+      </>
+    ) : null
   ) : frame ? (
     <>
       <MmField label="W" name="가로" value={frame.w} onCommit={(mm) => onResize("w", mm)} />
@@ -167,16 +193,13 @@ export function AlbumToolbar({
       {extra}
       {frame.hasPhoto && cropButton}
       {frame.hasPhoto ? (
-        <button type="button" onClick={onRemovePhoto} className={BTN}>
-          <TrashIcon size={18} />
-          빼기
-        </button>
-      ) : (
+        removeButton
+      ) : allowDelete ? (
         <button type="button" onClick={onDeleteFrame} className={BTN}>
           <TrashIcon size={18} />
           삭제
         </button>
-      )}
+      ) : null}
     </>
   ) : (
     extra
@@ -184,13 +207,10 @@ export function AlbumToolbar({
 
   return (
     <div className="absolute bottom-4 left-1/2 z-[5] flex -translate-x-1/2 items-center gap-1 rounded-(--radius-12) bg-surface-default-darkness p-1.5 text-contents-dark-bgd-default shadow-[0_6px_20px_rgba(0,0,0,.25)]">
-      {ctx && (
-        <>
-          <span className="flex items-center gap-1.5 pl-1.5">{ctx}</span>
-          <Sep />
-        </>
-      )}
-      {tools.map((t) => (
+      {ctx && <span className="flex items-center gap-1.5 pl-1.5">{ctx}</span>}
+      {ctx && (showTools || pagerAlways) && <Sep />}
+      {showTools &&
+        tools.map((t) => (
         <button
           key={t.key}
           type="button"
@@ -203,9 +223,9 @@ export function AlbumToolbar({
           {t.icon}
         </button>
       ))}
-      {!ctx && (
+      {(!ctx || pagerAlways) && (
         <>
-          <Sep />
+          {showTools && <Sep />}
           <button
             type="button"
             aria-label="이전 펼침면"

@@ -7,6 +7,7 @@
  * 선택에서 빠진 프레임이 있는 펼침면은 오른쪽 위에 회색 점.
  * 펼침면 관리(PR ②) — 우클릭 메뉴는 "펼침면 n 삭제" 하나(마지막 한 장은 못 지움), 끌어서 순서 바꾸기(보라 세로선이 놓일 자리),
  * 끝의 "펼침면 추가". 사진이 든 펼침면을 지울지는 작업 화면이 묻는다.
+ * 클라이언트(PR ③)는 관리 없이 보기 · 이동만(manage false). 고친 펼침면은 보라 점(accentDots).
  */
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
@@ -34,6 +35,8 @@ export function SpreadStrip({
   onAdd,
   onDelete,
   onMove,
+  manage = true,
+  accentDots,
 }: {
   album: Album;
   F: FrameIndex;
@@ -44,6 +47,10 @@ export function SpreadStrip({
   onDelete: (spread: number) => void;
   /** before = 옮기기 전 순서에서 "이 펼침면 앞에"(끝이면 개수) */
   onMove: (from: number, before: number) => void;
+  /** false — 우클릭 메뉴 · 끌기 · 추가 없음(클라이언트) */
+  manage?: boolean;
+  /** 보라 점 — 클라이언트가 고친 펼침면 */
+  accentDots?: ReadonlySet<number>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
@@ -107,9 +114,10 @@ export function SpreadStrip({
             <button
               type="button"
               aria-current={current}
-              draggable
+              draggable={manage}
               onClick={() => onGo(s)}
               onContextMenu={(e) => {
+                if (!manage) return;
                 e.preventDefault();
                 const x = e.clientX + MENU_W + 8 > window.innerWidth ? e.clientX - MENU_W : e.clientX + 4;
                 const y = e.clientY + MENU_H + 8 > window.innerHeight ? e.clientY - MENU_H - 4 : e.clientY + 4;
@@ -147,6 +155,7 @@ export function SpreadStrip({
                     </span>
                   );
                 })}
+                {accentDots?.has(s) && <span aria-label="고친 곳 있음" className="absolute -top-1.5 -right-1.5 size-3 rounded-full border-2 border-background-default-main bg-brand-accent-default" />}
                 {grayDots.has(s) && <span aria-label="선택에서 빠진 프레임 있음" className="absolute -top-1.5 -right-1.5 size-3 rounded-full border-2 border-background-default-main bg-surface-default-medium" />}
               </span>
               <span className={`type-content-xs whitespace-nowrap ${current ? "font-semibold text-brand-accent-text" : "text-contents-light-bgd-sub"}`}>펼침면 {s + 1}</span>
@@ -155,6 +164,7 @@ export function SpreadStrip({
         );
       })}
       {showBar(count) && <DropBar />}
+      {manage && (
       <button
         type="button"
         onClick={onAdd}
@@ -166,6 +176,7 @@ export function SpreadStrip({
         </span>
         <span className="type-content-xs whitespace-nowrap">펼침면 추가</span>
       </button>
+      )}
       {menu && (
         <div
           data-spread-menu

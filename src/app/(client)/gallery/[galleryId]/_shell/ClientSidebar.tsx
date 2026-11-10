@@ -7,11 +7,12 @@
  * 작가 셸 사이드바와 같은 문법. 1단계(컨셉 분류)에서는 폴더가 폴더 열(3열)에 있으니 트리를 두지 않고,
  * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다. 단계 진행은 상단바 가운데 세그먼트가 맡는다
  * (2026-09-15 — 여기 있던 2px 줄 삭제).
+ * 앨범(이슈 168) — 스튜디오가 앨범을 보내면 "보정 사진" 아래 "앨범" 행. 앨범 화면에서는 그 행이 지금 자리(view null).
  * 640 미만에서는 화면 폭을 다 쓰고 본문은 숨는다 — 볼 것을 고르는 행(data-sidebar-item)을 누르면 닫힌다(작가 사이드바와 같음).
  */
 
 import type { ReactNode } from "react";
-import { BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon, ScheduleIcon } from "@/components/icons";
+import { AlbumIcon, BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon, ScheduleIcon } from "@/components/icons";
 import { useSidebar } from "@/components/SidebarProvider";
 import type { ClientPhase } from "./clientStages";
 
@@ -67,6 +68,9 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
 }
 
 export type ClientView = "all" | "selected" | "retouch";
+
+/** 사이드바 "앨범" 행 — trailing은 펼침면 수 등 */
+export type ClientSidebarAlbum = { trailing: string; current?: boolean; onOpen: () => void };
 
 export type StatusLine = { text: string; tone: "muted" | "accent" | "warning" | "error" };
 
@@ -138,6 +142,7 @@ export function ClientSidebar({
   selectedLockNote = "폴더 확정 뒤",
   selectionClickable = true,
   retouchLockNote = "셀렉 뒤",
+  album,
 }: {
   title: string;
   status: StatusLine;
@@ -145,7 +150,8 @@ export function ClientSidebar({
   photoCount: number | null;
   selectedCount: number;
   maxSelectable: number | null;
-  view: ClientView;
+  /** null — 사진 보기가 아닌 화면(앨범) */
+  view: ClientView | null;
   onViewChange: (view: ClientView) => void;
   /** 내비 아래 폴더 트리(탭 없이) */
   folderTree?: ReactNode;
@@ -162,6 +168,8 @@ export function ClientSidebar({
   /** false면 "선택한 사진"을 누르지 못한다 — 장수는 보인다(셀렉 중 폴더 다시 정리) */
   selectionClickable?: boolean;
   retouchLockNote?: string;
+  /** 스튜디오가 보낸 앨범 행 */
+  album?: ClientSidebarAlbum | null;
 }) {
   const waiting = phase === "wait";
   const selectionOpen = phase !== "wait" && phase !== "sort";
@@ -224,6 +232,7 @@ export function ClientSidebar({
             disabled={retouchCount === undefined || retouchCount === null}
             onClick={() => onViewChange("retouch")}
           />
+          {album && <NavRow icon={<AlbumIcon size={18} />} label="앨범" trailing={album.trailing} selected={album.current === true} onClick={album.onOpen} />}
         </nav>
         {extra}
 
