@@ -34,9 +34,11 @@ import {
   resizeFrameMm,
   sameContent,
   selectFrame,
+  setCrop,
   setFrameRect,
   syncSelection,
   type Album,
+  type Crop,
   type Guide,
   type Rect,
 } from "@/lib/album/model";
@@ -233,6 +235,12 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     commit(removeGuide(album, guideId), "안내선을 지웠어요");
   }
 
+  // ── 위치 조정(PR ②) — 끝낼 때 한 번 저장 ──
+  function setFrameCrop(frameId: string, c: Crop) {
+    const next = setCrop(album, frameId, c);
+    if (next !== album && F.byId[frameId]) commit(next, `${frameLabel(F.byId[frameId], album.spread)} 프레임 사진 위치를 바꿨어요`);
+  }
+
   const picked = album.cursorMode === "manual" && album.cursor ? album.cursor : null;
 
   return {
@@ -250,6 +258,7 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     placeFrame,
     resizeFrame,
     removeFrame,
+    setFrameCrop,
     putGuide,
     shiftGuide,
     dropGuide,

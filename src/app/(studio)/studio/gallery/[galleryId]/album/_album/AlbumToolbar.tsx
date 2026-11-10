@@ -6,11 +6,12 @@
  *
  * 디자이너 시안 Case 1 · 4(프로토타입 Toolbar)를 따른다. 앞부분이 있으면 펼침면 이동은 숨긴다(띠 · ← → 로 이동).
  * - 고른 프레임: 가로 · 세로(mm, 칸을 떠나거나 Enter로 반영) · 비율 고정 · (두 쪽에 걸침) · 사진이 있으면 위치 조정 · 빼기, 비었으면 삭제
+ * - 위치 조정 중: 위치 조정(눌린 상태 — 다시 누르면 끝) · 빼기
  * 단축키 V 선택 · R 안내선 · F 프레임은 작업 화면이 받는다.
  */
 
 import type { ReactNode } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, FrameToolIcon, GuideToolIcon, LinkIcon, SelectToolIcon, TrashIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, CropIcon, FrameToolIcon, GuideToolIcon, LinkIcon, SelectToolIcon, TrashIcon } from "@/components/icons";
 import type { AlbumTool } from "./SpreadCanvas";
 
 const BTN = "flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-2.5 type-label-medium-s whitespace-nowrap hover:bg-white/10";
@@ -96,6 +97,8 @@ export function AlbumToolbar({
   onResize,
   onRemovePhoto,
   onDeleteFrame,
+  cropping,
+  onCrop,
   extra,
   spread,
   spreadCount,
@@ -110,6 +113,9 @@ export function AlbumToolbar({
   onResize: (dim: "w" | "h", mm: number) => void;
   onRemovePhoto: () => void;
   onDeleteFrame: () => void;
+  /** 위치 조정 중인지 · 위치 조정 시작/끝 */
+  cropping: boolean;
+  onCrop: () => void;
   /** 도구별 앞부분(안내선 설정 · 위치 조정 버튼) */
   extra?: ReactNode;
   spread: number;
@@ -121,7 +127,27 @@ export function AlbumToolbar({
     { key: "guide", label: "안내선 (R)", icon: <GuideToolIcon size={18} /> },
     { key: "frame", label: "프레임 (F)", icon: <FrameToolIcon size={18} /> },
   ];
-  const ctx = frame ? (
+  const cropButton = (
+    <button
+      type="button"
+      data-crop-keep
+      aria-pressed={cropping}
+      onClick={onCrop}
+      className={cropping ? "flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) bg-brand-accent-default px-2.5 type-label-medium-s whitespace-nowrap text-white" : BTN}
+    >
+      <CropIcon size={18} />
+      위치 조정
+    </button>
+  );
+  const ctx = cropping ? (
+    <>
+      {cropButton}
+      <button type="button" onClick={onRemovePhoto} className={BTN}>
+        <TrashIcon size={18} />
+        빼기
+      </button>
+    </>
+  ) : frame ? (
     <>
       <MmField label="W" name="가로" value={frame.w} onCommit={(mm) => onResize("w", mm)} />
       <button
@@ -138,6 +164,7 @@ export function AlbumToolbar({
       {frame.crossing && <span className="ml-1 rounded-(--radius-4) bg-white/12 px-2 py-0.5 type-label-semibold-xs whitespace-nowrap">두 쪽에 걸침</span>}
       <Sep />
       {extra}
+      {frame.hasPhoto && cropButton}
       {frame.hasPhoto ? (
         <button type="button" onClick={onRemovePhoto} className={BTN}>
           <TrashIcon size={18} />

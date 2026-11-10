@@ -13,32 +13,42 @@
  * - 프레임: 펼침면 위를 끌어 새 프레임을 그린다. 접힘을 넘어 두 쪽에 걸쳐도 된다(걸친 프레임은 사진 위에 접힘 그늘을 한 번 더)
  * - 안내선: 누른 자리에 가로선 · 세로선을 놓고(끌어서 맞춘 뒤 손을 뗀 자리), 있는 선은 끌어 옮긴다. 펼침면 밖으로 끌어내면 지운다.
  *   안내선은 화면에만 보이는 선(앨범에는 찍히지 않음) — 다른 도구에서도 보이고 프레임이 맞붙는다
+ * - 위치 조정(사진이 든 프레임 — 도구 막대 버튼 · 두 번 누르기): 프레임 안을 끌어 사진을 옮기고, 위 막대(− 슬라이더 + · 맞춤 · 완료)나
+ *   휠로 1~4배 키운다. 프레임 밖으로 넘친 부분은 흐리게 보인다. 프레임 밖을 누르거나 Esc · 완료로 끝내면 한 번 저장한다
  * 끄는 동안에는 화면에만 미리 보여 주고 손을 떼면 한 번 저장한다(되돌리기 한 번). 가장자리는 쪽 가장자리 · 가운데 · 접힘 ·
  * 안내선 · 다른 프레임에 6px 안이면 맞붙는다. 끄는 동안 위에 "번호 · 가로 × 세로 mm"를 띄운다.
  */
 
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { CloseIcon } from "@/components/icons";
+import { CloseIcon, MinusIcon, PlusIcon } from "@/components/icons";
 import {
+  CROP_MAX,
+  CROP_MIN,
   clamp,
+  cropRect,
   crossesGutter,
   frameMm,
   frameOfRect,
+  getCrop,
   minFrame,
   pad2,
+  panCrop,
   rectOf,
+  scaleCrop,
   snapEdge,
   snapLines,
   snapSpan,
   spreadRatio,
   visibleGuides,
   type Album,
+  type Crop,
   type Frame,
   type FrameIndex,
   type Guide,
   type PageSize,
   type Rect,
 } from "@/lib/album/model";
+import { cropStyle } from "./photoCrop";
 import type { AlbumPhoto } from "./useAlbumSource";
 
 export type AlbumTool = "select" | "guide" | "frame";
@@ -56,7 +66,11 @@ type Drag =
   | { kind: "move"; id: string; x0: number; y0: number; r0: Rect; started: boolean; rect: Rect | null }
   | { kind: "resize"; id: string; dir: string; x0: number; y0: number; r0: Rect; rect: Rect | null }
   | { kind: "draw"; sx: number; sy: number; rect: Rect | null }
-  | { kind: "guide"; id: string | null; dir: Guide["dir"]; pos: number; out: boolean };
+  | { kind: "guide"; id: string | null; dir: Guide["dir"]; pos: number; out: boolean }
+  | { kind: "pan"; c0: Crop; x0: number; y0: number; bw: number; bh: number; frameAR: number; photoAR: number };
+
+/** 위치 조정 중인 프레임 */
+export type CropEdit = { frameId: string; crop: Crop };
 
 type GuideLive = { id: string | null; dir: Guide["dir"]; pos: number; out: boolean };
 
@@ -124,7 +138,15 @@ function FrameBox({
   tool,
   dragging,
   tag,
+  crop,
+  cropping,
+  frameAR,
+  photoAR,
+  onPhotoAR,
+  onCropLive,
+  onCropDone,
   onClick,
+  onDoubleClick,
   onClear,
 }: {
   frame: Frame;
@@ -140,23 +162,49 @@ function FrameBox({
   dragging: boolean;
   /** 끄는 동안 위에 띄울 크기 */
   tag: string | null;
+  /** 사진 위치(위치 조정 중이면 바꾸는 중인 값) */
+  crop: Crop | null;
+  cropping: boolean;
+  /** 프레임 · 사진 가로/세로 비율 — 사진 비율은 이미지를 받은 뒤 안다 */
+  frameAR: number;
+  photoAR: number | undefined;
+  onPhotoAR: (photoId: number, ar: number) => void;
+  onCropLive: (c: Crop) => void;
+  onCropDone: () => void;
   onClick: (e: MouseEvent) => void;
+  onDoubleClick: () => void;
   onClear: () => void;
 }) {
   const h = rect.h * spreadH;
   const empty = !photo;
   const picked = cursor && manual;
-  const tip = tool === "select" && cursor && !dragging ? (manual ? (empty ? "넣을 사진을 고르세요" : "바꿀 사진을 고르세요") : "다음 배치 위치") : null;
+  const tip = tool === "select" && cursor && !dragging && !cropping ? (manual ? (empty ? "넣을 사진을 고르세요" : "바꿀 사진을 고르세요") : "다음 배치 위치") : null;
   const crossing = crossesGutter(frameOfRect(rect));
+  const ghost = cropping && crop && photoAR ? cropRect(crop, frameAR, photoAR) : null;
+  const scaleBy = (s: number) => crop && photoAR && onCropLive(scaleCrop(crop, s, frameAR, photoAR));
   return (
-    <div className="absolute" data-frame={frame.id} style={boxStyle(rect)}>
+    <div className={`absolute ${cropping ? "z-[2]" : ""}`} data-frame={frame.id} data-crop-keep={cropping || undefined} style={boxStyle(rect)}>
+      {ghost && photo?.src && (
+        // 프레임 밖으로 넘친 부분 — 흐리게
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photo.src}
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute max-w-none opacity-35"
+          style={{ left: `${ghost.l}%`, top: `${ghost.t}%`, width: `${ghost.w}%`, height: `${ghost.h}%` }}
+        />
+      )}
       <button
         type="button"
         onClick={onClick}
+        onDoubleClick={onDoubleClick}
         aria-label={`${pad2(frame.no)} 프레임${photo ? ` · ${photo.fileName}` : gone ? " · 선택에서 빠짐" : " · 비어 있음"}`}
         aria-pressed={picked}
-        className={`relative block size-full overflow-hidden ${tool === "select" ? (picked ? "cursor-move" : "cursor-pointer") : "cursor-crosshair"} ${empty && !gone ? "bg-brand-accent-surface" : ""} ${
-          cursor && tool === "select"
+        className={`relative block size-full overflow-hidden ${cropping ? "cursor-grab active:cursor-grabbing" : tool === "select" ? (picked ? "cursor-move" : "cursor-pointer") : "cursor-crosshair"} ${empty && !gone ? "bg-brand-accent-surface" : ""} ${
+          cropping
+            ? "outline-2 -outline-offset-2 outline-brand-accent-default"
+            : cursor && tool === "select"
             ? "outline-2 -outline-offset-2 outline-dashed outline-brand-accent-default"
             : tool === "select"
               ? "hover:outline-2 hover:-outline-offset-2 hover:outline-brand-accent-default/50"
@@ -166,7 +214,17 @@ function FrameBox({
       >
         {photo?.src && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo.src} alt="" draggable={false} className="size-full object-cover" />
+          <img
+            src={photo.src}
+            alt=""
+            draggable={false}
+            className="size-full object-cover"
+            style={cropStyle(crop)}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight && crop) onPhotoAR(crop.pid, img.naturalWidth / img.naturalHeight);
+            }}
+          />
         )}
         {crossing && (
           <span
@@ -177,7 +235,7 @@ function FrameBox({
         )}
         <span
           aria-hidden
-          className={`pointer-events-none absolute inset-0 flex items-center justify-center font-semibold ${photo ? "text-white/70" : gone ? "text-black/25" : "text-brand-accent-default/45"}`}
+          className={`pointer-events-none absolute inset-0 flex items-center justify-center font-semibold ${cropping ? "opacity-0" : ""} ${photo ? "text-white/70" : gone ? "text-black/25" : "text-brand-accent-default/45"}`}
           style={{ fontSize: Math.max(12, Math.round(h / 5)) }}
         >
           {pad2(frame.no)}
@@ -188,7 +246,37 @@ function FrameBox({
           </span>
         )}
       </button>
-      {picked && tool === "select" &&
+      {cropping && crop && (
+        <div
+          data-crop-keep
+          data-nodrag
+          className="absolute bottom-full left-1/2 z-[6] mb-3 flex w-max min-w-65 -translate-x-1/2 items-center gap-1.5 rounded-(--radius-12) bg-surface-default-darkness px-2 py-1.5 text-white shadow-[0_6px_20px_rgba(0,0,0,.25)]"
+        >
+          <button type="button" aria-label="작게" onClick={() => scaleBy(crop.s - 0.1)} className="flex size-7 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10">
+            <MinusIcon size={18} />
+          </button>
+          <input
+            type="range"
+            aria-label="배율"
+            min={CROP_MIN * 100}
+            max={CROP_MAX * 100}
+            value={Math.round(crop.s * 100)}
+            disabled={!photoAR}
+            onChange={(e) => scaleBy(Number(e.target.value) / 100)}
+            className="w-28 flex-1 accent-white"
+          />
+          <button type="button" aria-label="크게" onClick={() => scaleBy(crop.s + 0.1)} className="flex size-7 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10">
+            <PlusIcon size={18} />
+          </button>
+          <button type="button" onClick={() => onCropLive({ pid: crop.pid, s: 1, px: 0.5, py: 0.5 })} className="h-7 cursor-pointer rounded-(--radius-8) bg-white/14 px-2.5 type-label-medium-s whitespace-nowrap hover:bg-white/20">
+            맞춤
+          </button>
+          <button type="button" onClick={onCropDone} className="h-7 cursor-pointer rounded-(--radius-8) bg-brand-accent-default px-2.5 type-label-medium-s whitespace-nowrap">
+            완료
+          </button>
+        </div>
+      )}
+      {picked && tool === "select" && !cropping &&
         HANDLES.map((hd) => (
           <i
             key={hd.dir}
@@ -239,6 +327,10 @@ export function SpreadCanvas({
   onAddGuide,
   onMoveGuide,
   onRemoveGuide,
+  crop,
+  onStartCrop,
+  onCropLive,
+  onCropDone,
 }: {
   album: Album;
   F: FrameIndex;
@@ -265,6 +357,11 @@ export function SpreadCanvas({
   onAddGuide: (dir: Guide["dir"], pos: number) => void;
   onMoveGuide: (guideId: string, pos: number) => void;
   onRemoveGuide: (guideId: string) => void;
+  /** 위치 조정 중인 프레임 */
+  crop: CropEdit | null;
+  onStartCrop: (frameId: string) => void;
+  onCropLive: (c: Crop) => void;
+  onCropDone: () => void;
 }) {
   const spread = album.spreads[album.spread];
   const frames = F.of(album.spread);
@@ -278,11 +375,45 @@ export function SpreadCanvas({
   /** 놓거나 끄는 중인 안내선 · 안내선 도구로 가리키는 자리(화면에만) */
   const [guideLive, setGuideLive] = useState<GuideLive | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  /** 사진 가로/세로 비율(사진 id별) — 이미지를 받으면 채운다. 끌어 옮기기 · 넘친 부분에 쓴다 */
+  const [ratios, setRatios] = useState<Record<number, number>>({});
+  const onPhotoAR = (photoId: number, ar: number) => setRatios((r) => (r[photoId] === ar ? r : { ...r, [photoId]: ar }));
+  const cropping = crop !== null;
 
-  const latest = useRef({ album, F, ratioLock, onPick, onFrameRect, onDrawFrame, onTooSmall, onAddGuide, onMoveGuide, onRemoveGuide });
+  const latest = useRef({ album, F, ratioLock, onPick, onFrameRect, onDrawFrame, onTooSmall, onAddGuide, onMoveGuide, onRemoveGuide, crop, ratios, onCropLive, onCropDone });
   useEffect(() => {
-    latest.current = { album, F, ratioLock, onPick, onFrameRect, onDrawFrame, onTooSmall, onAddGuide, onMoveGuide, onRemoveGuide };
+    latest.current = { album, F, ratioLock, onPick, onFrameRect, onDrawFrame, onTooSmall, onAddGuide, onMoveGuide, onRemoveGuide, crop, ratios, onCropLive, onCropDone };
   });
+
+  // 위치 조정 — 프레임 · 막대 밖을 누르면 끝(캡처 단계라 다른 동작보다 먼저)
+  useEffect(() => {
+    if (!cropping) return;
+    function onDown(e: PointerEvent) {
+      const t = e.target instanceof Element ? e.target : null;
+      if (t?.closest("[data-crop-keep]")) return;
+      latest.current.onCropDone();
+    }
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [cropping]);
+
+  // 위치 조정 — 휠로 배율(React onWheel은 passive라 직접 붙인다)
+  useEffect(() => {
+    const el = spreadRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      const { crop: c, F: idx, album: a, ratios: rs, onCropLive: live } = latest.current;
+      const t = e.target instanceof Element ? e.target : null;
+      if (!c || !t?.closest(`[data-frame="${c.frameId}"]`) || t.closest("[data-nodrag]")) return;
+      const f = idx.byId[c.frameId];
+      const photoAR = rs[c.crop.pid];
+      if (!f || !photoAR) return;
+      e.preventDefault();
+      live(scaleCrop(c.crop, c.crop.s * Math.exp(-e.deltaY * 0.0015), (f.w * a.page.w) / (f.h * a.page.h), photoAR));
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   /** 화면 좌표 → 안내선 자리(펼침면 좌표) · 펼침면 밖으로 끌어냈는지 */
   function guidePos(dir: Guide["dir"], clientX: number, clientY: number) {
@@ -307,6 +438,10 @@ export function SpreadCanvas({
     function onMove(e: PointerEvent) {
       const d = dragRef.current;
       if (!d || !spreadRef.current) return;
+      if (d.kind === "pan") {
+        latest.current.onCropLive(panCrop(d.c0, ((e.clientX - d.x0) / d.bw) * 100, ((e.clientY - d.y0) / d.bh) * 100, d.frameAR, d.photoAR));
+        return;
+      }
       if (d.kind === "guide") {
         const g = guidePos(d.dir, e.clientX, e.clientY);
         d.pos = g.pos;
@@ -364,6 +499,7 @@ export function SpreadCanvas({
       dragRef.current = null;
       if (!d) return;
       const { album: a, onFrameRect: place, onDrawFrame: draw, onTooSmall: tooSmall, onAddGuide: addG, onMoveGuide: moveG, onRemoveGuide: removeG } = latest.current;
+      if (d.kind === "pan") return;
       if (d.kind === "guide") {
         setGuideLive(null);
         if (d.id === null) addG(d.dir, d.pos);
@@ -404,6 +540,17 @@ export function SpreadCanvas({
     if (e.button !== 0 || !spreadRef.current) return;
     const t = e.target instanceof Element ? e.target : null;
     if (!t || t.closest("[data-nodrag]")) return;
+    if (crop) {
+      // 위치 조정 중 — 그 프레임 안을 끌면 사진 옮기기, 나머지는 막는다(밖을 누르면 위에서 끝낸다)
+      const fEl = t.closest<HTMLElement>(`[data-frame="${crop.frameId}"]`);
+      const f = F.byId[crop.frameId];
+      const photoAR = ratios[crop.crop.pid];
+      if (!fEl || !f || !photoAR) return;
+      e.preventDefault();
+      const fb = fEl.getBoundingClientRect();
+      dragRef.current = { kind: "pan", c0: crop.crop, x0: e.clientX, y0: e.clientY, bw: fb.width, bh: fb.height, frameAR: (f.w * album.page.w) / (f.h * album.page.h), photoAR };
+      return;
+    }
     const { b, tolX, tolY } = measure();
     const guides = visibleGuides(album);
     if (tool === "frame") {
@@ -479,6 +626,8 @@ export function SpreadCanvas({
         const pid = album.assign[f.id];
         const dragging = live?.id === f.id;
         const rect = dragging ? live.rect : rectOf(f);
+        const cropping = crop?.frameId === f.id;
+        const c = cropping ? crop.crop : getCrop(album, f.id);
         return (
           <FrameBox
             key={f.id}
@@ -492,10 +641,21 @@ export function SpreadCanvas({
             tool={tool}
             dragging={dragging}
             tag={dragging ? sizeLabel(f.no, rect, album.page) : null}
+            crop={c}
+            cropping={cropping}
+            frameAR={(rect.w * album.page.w) / (rect.h * album.page.h)}
+            photoAR={c ? ratios[c.pid] : undefined}
+            onPhotoAR={onPhotoAR}
+            onCropLive={onCropLive}
+            onCropDone={onCropDone}
             onClick={(e) => {
               e.stopPropagation();
-              if (suppressClick.current || tool !== "select") return;
+              // 두 번 누르기의 두 번째는 위치 조정이 받는다
+              if (suppressClick.current || tool !== "select" || crop || e.detail > 1) return;
               onFrame(f.id);
+            }}
+            onDoubleClick={() => {
+              if (tool === "select" && !crop && pid !== undefined) onStartCrop(f.id);
             }}
             onClear={onClear}
           />

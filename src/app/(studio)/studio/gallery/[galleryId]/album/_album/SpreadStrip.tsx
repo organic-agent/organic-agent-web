@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useRef } from "react";
-import { spreadRatio, type Album, type FrameIndex } from "@/lib/album/model";
+import { getCrop, spreadRatio, type Album, type FrameIndex } from "@/lib/album/model";
+import { cropStyle } from "./photoCrop";
 import type { AlbumPhoto } from "./useAlbumSource";
 
 export function SpreadStrip({
@@ -56,7 +57,7 @@ export function SpreadStrip({
                   >
                     {photo?.src && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photo.src} alt="" loading="lazy" draggable={false} className="size-full object-cover" />
+                      <img src={photo.src} alt="" loading="lazy" draggable={false} className="size-full object-cover" style={cropStyle(getCrop(album, f.id))} />
                     )}
                   </span>
                 );

@@ -8,12 +8,13 @@
  * 펼침면 크기는 남은 자리에 맞춘 뒤 줌으로 키운다(기본 = 맞춤). 키우면 펼침면 칸이 스크롤된다.
  * 펼침면 위에는 배너(보정 상태 · 선택에서 빠진 사진), 머리줄 제목 옆에는 마지막 저장 시각, 하단에는 "임시 저장"(바꾼 게 남으면 점).
  * 도구(PR ②) — 선택 · 안내선 · 프레임. 프레임을 그리면 선택 도구로 돌아와 새 프레임을 고른 상태가 된다.
+ * 위치 조정은 바꾸는 동안 여기 상태로만 두고, 끝낼 때 한 번 저장한다(되돌리기 한 번).
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Snackbar } from "@/components/app/Snackbar";
 import { AlbumIcon } from "@/components/icons";
-import { crossesGutter, frameMm, goneSpreads, pad2, placedCount, ranks as rankOf, spreadRatio } from "@/lib/album/model";
+import { crossesGutter, frameMm, getCrop, goneSpreads, pad2, placedCount, ranks as rankOf, spreadRatio, type Crop } from "@/lib/album/model";
 import { localAlbumRepository, type AlbumDoc } from "@/lib/album/store";
 import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
@@ -22,7 +23,7 @@ import { AlbumBanner } from "./AlbumBanner";
 import { AlbumToolbar, GuideSettings } from "./AlbumToolbar";
 import { MoveConfirmModal } from "./MoveConfirmModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
-import { SpreadCanvas, type AlbumTool } from "./SpreadCanvas";
+import { SpreadCanvas, type AlbumTool, type CropEdit } from "./SpreadCanvas";
 import { SpreadStrip } from "./SpreadStrip";
 import { useAlbumEditor } from "./useAlbumEditor";
 import type { AlbumPhoto, RetouchBanner } from "./useAlbumSource";
@@ -82,6 +83,7 @@ export function AlbumWorkspace({
   const [ratioLock, setRatioLock] = useState(true);
   const [guideDir, setGuideDir] = useState<"h" | "v">("h");
   const [guideAll, setGuideAll] = useState(false);
+  const [cropEdit, setCropEdit] = useState<CropEdit | null>(null);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
   const [areaRef, areaSize] = useBoxSize();
 
@@ -105,7 +107,24 @@ export function AlbumWorkspace({
   const showGone = goneFrames.length > 0 && editor.banner.gone !== goneKey;
   const goneNames = goneFrames.slice(0, 3).map((f) => `펼침면 ${f.spread + 1}의 ${pad2(f.no)}`).join(" · ") + (goneFrames.length > 3 ? ` 외 ${goneFrames.length - 3}곳` : "");
 
+  // 위치 조정 — 그 프레임의 사진이 바뀌었으면(선택에서 빠짐 등) 조정도 끝난 것으로 본다
+  const activeCrop = cropEdit && album.assign[cropEdit.frameId] === cropEdit.crop.pid ? cropEdit : null;
+  function startCrop(frameId: string) {
+    const c = getCrop(album, frameId);
+    if (!c) return;
+    editor.pickFrame(frameId);
+    setTool("select");
+    setCropEdit({ frameId, crop: c });
+  }
+  function finishCrop() {
+    if (!cropEdit) return;
+    setCropEdit(null);
+    if (album.assign[cropEdit.frameId] === cropEdit.crop.pid) editor.setFrameCrop(cropEdit.frameId, cropEdit.crop);
+  }
+  const cropLive = (c: Crop) => setCropEdit((cur) => (cur ? { ...cur, crop: c } : cur));
+
   function changeTool(next: AlbumTool) {
+    finishCrop();
     if (next !== "select" && editor.picked) editor.clearPick();
     setTool(next);
   }
@@ -122,15 +141,20 @@ export function AlbumWorkspace({
 
   // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · V R F 도구 · Delete 고른 프레임의 사진 빼기(비었으면 프레임 삭제) ·
   // Esc 고르기 풀기 · 선택 도구로(입력칸 · 창이 열려 있으면 그대로)
-  const keysRef = useRef({ editor, tool, changeTool });
+  const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop });
   useEffect(() => {
-    keysRef.current = { editor, tool, changeTool };
+    keysRef.current = { editor, tool, changeTool, cropping: activeCrop !== null, finishCrop };
   });
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const { editor: ed, tool: cur, changeTool: toTool } = keysRef.current;
+      const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop } = keysRef.current;
       const t = e.target instanceof Element ? e.target : null;
       if (ed.moveAsk || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      // 위치 조정 중에는 Esc · Enter(끝)만
+      if (cropping) {
+        if (e.key === "Escape" || e.key === "Enter") endCrop();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
         ed.undo();
@@ -240,6 +264,10 @@ export function AlbumWorkspace({
                           onAddGuide={(dir, pos) => editor.putGuide(dir, pos, guideAll)}
                           onMoveGuide={editor.shiftGuide}
                           onRemoveGuide={editor.dropGuide}
+                          crop={activeCrop}
+                          onStartCrop={startCrop}
+                          onCropLive={cropLive}
+                          onCropDone={finishCrop}
                         />
                       )}
                     </div>
@@ -253,6 +281,8 @@ export function AlbumWorkspace({
                     onResize={(dim, mm) => pickedFrame && editor.resizeFrame(pickedFrame.id, dim, mm, ratioLock)}
                     onRemovePhoto={editor.removePicked}
                     onDeleteFrame={() => pickedFrame && editor.removeFrame(pickedFrame.id)}
+                    cropping={activeCrop !== null}
+                    onCrop={() => (activeCrop ? finishCrop() : pickedFrame && startCrop(pickedFrame.id))}
                     extra={tool === "guide" ? <GuideSettings dir={guideDir} onDir={setGuideDir} all={guideAll} onAll={setGuideAll} /> : undefined}
                     spread={album.spread}
                     spreadCount={spreadCount}
