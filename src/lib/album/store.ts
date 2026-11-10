@@ -7,7 +7,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import type { Album } from "./model";
+import { normalizeAlbum, type Album } from "./model";
 
 export type SavedKind = "auto" | "manual";
 
@@ -22,6 +22,12 @@ export type AlbumDoc = {
   banner: { retouch: string | null; gone: string | null };
 };
 
+/** 새 앨범 저장 단위 */
+export function newAlbumDoc(album: Album): AlbumDoc {
+  const now = new Date().toISOString();
+  return { v: 1, album, createdAt: now, savedAt: now, savedKind: "auto", banner: { retouch: null, gone: null } };
+}
+
 export interface AlbumRepository {
   load(galleryId: number): AlbumDoc | null;
   /** 실패하면 던진다(저장 공간 부족 · 막힌 브라우저) */
@@ -35,7 +41,9 @@ function parse(raw: string | null): AlbumDoc | null {
   if (!raw) return null;
   try {
     const doc = JSON.parse(raw) as AlbumDoc;
-    return doc && doc.v === 1 && doc.album && Array.isArray(doc.album.spreads) ? doc : null;
+    if (!doc || doc.v !== 1 || !doc.album || !Array.isArray(doc.album.spreads)) return null;
+    // PR ① 저장본(사이즈 · 펼침면 id · 안내선 · 위치 없음)도 연다
+    return { ...doc, album: normalizeAlbum(doc.album) };
   } catch {
     return null;
   }

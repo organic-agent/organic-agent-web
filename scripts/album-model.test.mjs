@@ -132,3 +132,154 @@ test("다른 펼침면 프레임 이름은 펼침면을 붙인다", () => {
   assert.equal(moved.spread, 2);
   assert.equal(moved.cursor, "s3f1");
 });
+
+// ── PR ② 사이즈 · 프레임 · 펼침면 · 안내선 · 위치 조정 ──
+
+const blank = (pages = 6, cap = 3) => {
+  const album = M.createAlbum({ start: "blank", page: { w: 305, h: 305, name: "12 × 12" }, pages, cap });
+  return { album, F: M.indexFrames(album.spreads) };
+};
+
+test("빈 펼침면으로 만들면 페이지 수의 절반만큼 빈 펼침면, 기본 틀은 상한을 넘는 프레임을 뺀다", () => {
+  const { album, F } = blank(6);
+  assert.equal(album.spreads.length, 3);
+  assert.equal(F.list.length, 0);
+  assert.equal(album.cursor, null);
+  assert.deepEqual(album.spreads.map((s) => s.id), ["sp1", "sp2", "sp3"]);
+  const t = M.createAlbum({ start: "template", page: M.DEFAULT_PAGE, pages: 60, cap: 10 });
+  assert.equal(t.spreads.length, 30);
+  assert.equal(M.indexFrames(t.spreads).list.length, 10);
+  assert.equal(t.spreads[29].frames.length, 0);
+});
+
+test("프레임은 상한(선택 장수)까지만 더해지고, 새 프레임을 고른 상태가 된다", () => {
+  let { album, F } = blank(4, 2);
+  let r = M.addFrame(album, F, { x: 0.1, y: 0.1, w: 0.5, h: 0.5 }, 2);
+  assert.equal(r.album.cursor, "fr1");
+  assert.equal(r.album.cursorMode, "manual");
+  assert.equal(r.toast, "01 프레임을 더했어요");
+  album = r.album;
+  F = M.indexFrames(album.spreads);
+  r = M.addFrame(album, F, { x: 1.1, y: 0.1, w: 0.5, h: 0.5 }, 2);
+  assert.equal(r.album.spreads[0].frames[1].p, 1);
+  album = r.album;
+  F = M.indexFrames(album.spreads);
+  assert.equal(M.addFrame(album, F, { x: 0.1, y: 0.6, w: 0.2, h: 0.2 }, 2), null);
+});
+
+test("두 쪽에 걸친 프레임은 p 0에 x + w > 1로 담기고 펼침면 밖으로는 못 나간다", () => {
+  const { album, F } = blank();
+  const r = M.addFrame(album, F, { x: 0.6, y: 0.1, w: 0.8, h: 0.5 }, 3);
+  const f = r.album.spreads[0].frames[0];
+  assert.deepEqual({ p: f.p, x: f.x, w: f.w }, { p: 0, x: 0.6, w: 0.8 });
+  assert.equal(M.crossesGutter(f), true);
+  const moved = M.setFrameRect(r.album, f.id, { x: 1.8, y: 0.8, w: 0.8, h: 0.5 });
+  const g = moved.spreads[0].frames[0];
+  assert.deepEqual(M.rectOf(g), { x: 1.2, y: 0.5, w: 0.8, h: 0.5 });
+  assert.equal(g.p, 1);
+  assert.equal(M.crossesGutter(g), false);
+});
+
+test("프레임을 지우면 사진은 패널로 돌아가고 번호가 다시 매겨진다", () => {
+  let { album, F } = blank();
+  for (const x of [0.05, 0.4, 1.1]) {
+    album = M.addFrame(album, F, { x, y: 0.1, w: 0.3, h: 0.3 }, 3).album;
+    F = M.indexFrames(album.spreads);
+  }
+  album = M.placePhoto(M.clearSelection(album, F), F, 7).album;
+  assert.equal(album.assign.fr1, 7);
+  const r = M.deleteFrame(album, F, "fr1");
+  assert.equal(r.album.assign.fr1, undefined);
+  assert.match(r.toast, /01 프레임을 지웠어요 · 사진은 패널로 돌아갔어요/);
+  const nF = M.indexFrames(r.album.spreads);
+  assert.equal(nF.byId.fr2.no, 1);
+});
+
+test("mm로 크기를 바꾸면 비율 고정이면 다른 쪽도 같은 배율", () => {
+  let { album, F } = blank();
+  album = M.addFrame(album, F, { x: 0.1, y: 0.1, w: 0.4, h: 0.2 }, 3).album;
+  F = M.indexFrames(album.spreads);
+  const a = M.resizeFrameMm(album, F, "fr1", "w", 244, true);
+  const f = a.spreads[0].frames[0];
+  assert.deepEqual(M.frameMm(f, album.page), { w: 244, h: 122 });
+  const b = M.resizeFrameMm(album, F, "fr1", "h", 5, false);
+  assert.equal(M.frameMm(b.spreads[0].frames[0], album.page).h, 10); // 가장 작은 프레임 10mm
+});
+
+test("펼침면 더하기 · 지우기 · 순서 바꾸기", () => {
+  let { album } = blank(4);
+  let r = M.addSpread(album);
+  assert.equal(r.album.spreads.length, 3);
+  assert.equal(r.album.spread, 2);
+  assert.equal(r.album.spreads[2].id, "sp3");
+  album = { ...r.album, spread: 0 };
+  // sp1을 맨 끝으로 — 보던 펼침면이 따라간다
+  r = M.moveSpread(album, 0, 3);
+  assert.deepEqual(r.album.spreads.map((s) => s.id), ["sp2", "sp3", "sp1"]);
+  assert.equal(r.album.spread, 2);
+  assert.equal(M.moveSpread(album, 1, 1), null);
+  assert.equal(M.moveSpread(album, 1, 2), null);
+  // 사진이 든 펼침면 지우기 — 사진 · 그 펼침면 안내선 정리
+  let F = M.indexFrames(album.spreads);
+  album = M.addFrame(album, F, { x: 0.1, y: 0.1, w: 0.3, h: 0.3 }, 3).album;
+  F = M.indexFrames(album.spreads);
+  album = M.placePhoto(M.clearSelection(album, F), F, 9).album;
+  album = M.addGuide(album, "h", 0.5, false);
+  album = M.addGuide(album, "v", 1.5, true);
+  const d = M.deleteSpread(album, 0);
+  assert.equal(d.album.spreads.length, 2);
+  assert.deepEqual(d.album.assign, {});
+  assert.deepEqual(d.album.guides.map((g) => g.scope), ["all"]);
+  assert.match(d.toast, /사진 1장은 패널로/);
+  assert.equal(M.deleteSpread({ ...album, spreads: [album.spreads[0]] }, 0), null);
+});
+
+test("안내선은 전체 또는 그 펼침면에만 보인다", () => {
+  let { album } = blank(4);
+  album = M.addGuide(album, "v", 0.7, false);
+  album = M.addGuide(album, "h", 0.3, true);
+  assert.equal(M.visibleGuides(album).length, 2);
+  assert.equal(M.visibleGuides({ ...album, spread: 1 }).length, 1);
+  album = M.moveGuide(album, "gd1", 5);
+  assert.equal(album.guides[0].pos, 2);
+  assert.equal(M.removeGuide(album, "gd1").guides.length, 1);
+});
+
+test("맞붙기 — 가까운 선으로, 옮길 때는 가까운 가장자리로", () => {
+  const lines = M.snapLines("x", [{ id: "g", dir: "v", pos: 0.7, scope: "all" }], []);
+  assert.ok(lines.includes(1) && lines.includes(0.7));
+  assert.equal(M.snapEdge(0.98, lines, 0.03), 1);
+  assert.equal(M.snapEdge(0.9, lines, 0.03), 0.9);
+  assert.ok(Math.abs(M.snapSpan(0.42, 0.3, lines, 0.03) - 0.4) < 1e-9); // 끝(0.72)이 0.7에 붙는다
+});
+
+test("위치 조정 — 사진을 바꾸면 무시, 기본값이면 지우고 배율을 바꿔도 가운데를 지킨다", () => {
+  let { album, F } = blank();
+  album = M.addFrame(album, F, { x: 0.1, y: 0.1, w: 0.4, h: 0.4 }, 3).album;
+  F = M.indexFrames(album.spreads);
+  album = M.placePhoto(album, F, 5).album;
+  assert.deepEqual(M.getCrop(album, "fr1"), { pid: 5, s: 1, px: 0.5, py: 0.5 });
+  const c = M.scaleCrop(M.getCrop(album, "fr1"), 2, 1, 1.5);
+  assert.equal(c.s, 2);
+  assert.ok(Math.abs(c.px - 0.5) < 1e-9);
+  const moved = M.panCrop(c, 10, 0, 1, 1.5);
+  assert.ok(moved.px < 0.5); // 사진을 오른쪽으로 옮기면 왼쪽이 더 보인다
+  album = M.setCrop(album, "fr1", moved);
+  assert.equal(album.crop.fr1.pid, 5);
+  assert.equal(M.setCrop(album, "fr1", { pid: 5, s: 1, px: 0.5, py: 0.5 }).crop.fr1, undefined);
+  const swapped = { ...album, assign: { fr1: 6 } };
+  assert.deepEqual(M.getCrop(swapped, "fr1"), { pid: 6, s: 1, px: 0.5, py: 0.5 });
+});
+
+test("PR ① 저장본을 열면 펼침면 id · 사이즈 · 안내선 · 위치를 채운다", () => {
+  const old = M.createAlbum();
+  const raw = { ...old, spreads: old.spreads.map(({ frames, deco }) => ({ frames, deco })) };
+  delete raw.page;
+  delete raw.guides;
+  delete raw.crop;
+  const n = M.normalizeAlbum(raw);
+  assert.equal(n.spreads[3].id, "sp4");
+  assert.deepEqual(n.page, M.DEFAULT_PAGE);
+  assert.deepEqual(n.guides, []);
+  assert.deepEqual(n.crop, {});
+});
