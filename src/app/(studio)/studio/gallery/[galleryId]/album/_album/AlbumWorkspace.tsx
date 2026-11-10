@@ -7,20 +7,22 @@
  * 사이드바는 페이지가 그려 넘긴다(앨범에 들어오면 접혀 있다). 1024 미만에서는 편집을 막고 안내 한 장만 둔다.
  * 펼침면 크기는 남은 자리에 맞춘 뒤 줌으로 키운다(기본 = 맞춤). 키우면 펼침면 칸이 스크롤된다.
  * 펼침면 위에는 배너(보정 상태 · 선택에서 빠진 사진), 머리줄 제목 옆에는 마지막 저장 시각, 하단에는 "임시 저장"(바꾼 게 남으면 점).
+ * 도구(PR ②) — 선택 · 안내선 · 프레임. 프레임을 그리면 선택 도구로 돌아와 새 프레임을 고른 상태가 된다.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Snackbar } from "@/components/app/Snackbar";
-import { AlbumIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
-import { goneSpreads, pad2, placedCount, ranks as rankOf, spreadRatio } from "@/lib/album/model";
+import { AlbumIcon } from "@/components/icons";
+import { crossesGutter, frameMm, goneSpreads, pad2, placedCount, ranks as rankOf, spreadRatio } from "@/lib/album/model";
 import { localAlbumRepository, type AlbumDoc } from "@/lib/album/store";
 import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "../../_shell/ShellSidebar";
 import { AlbumBanner } from "./AlbumBanner";
+import { AlbumToolbar } from "./AlbumToolbar";
 import { MoveConfirmModal } from "./MoveConfirmModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
-import { SpreadCanvas } from "./SpreadCanvas";
+import { SpreadCanvas, type AlbumTool } from "./SpreadCanvas";
 import { SpreadStrip } from "./SpreadStrip";
 import { useAlbumEditor } from "./useAlbumEditor";
 import type { AlbumPhoto, RetouchBanner } from "./useAlbumSource";
@@ -76,6 +78,8 @@ export function AlbumWorkspace({
   const editor = useAlbumEditor(galleryId, initialDoc, selectedIds, localAlbumRepository);
   const { album, F, go } = editor;
   const [zoom, setZoom] = useState(50);
+  const [tool, setTool] = useState<AlbumTool>("select");
+  const [ratioLock, setRatioLock] = useState(true);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
   const [areaRef, areaSize] = useBoxSize();
 
@@ -99,18 +103,30 @@ export function AlbumWorkspace({
   const showGone = goneFrames.length > 0 && editor.banner.gone !== goneKey;
   const goneNames = goneFrames.slice(0, 3).map((f) => `펼침면 ${f.spread + 1}의 ${pad2(f.no)}`).join(" · ") + (goneFrames.length > 3 ? ` 외 ${goneFrames.length - 3}곳` : "");
 
+  function changeTool(next: AlbumTool) {
+    if (next !== "select" && editor.picked) editor.clearPick();
+    setTool(next);
+  }
+  const pickedFrame = tool === "select" && editor.picked ? F.byId[editor.picked] : undefined;
+  const toolbarFrame = pickedFrame
+    ? { ...frameMm(pickedFrame, album.page), crossing: crossesGutter(pickedFrame), hasPhoto: album.assign[pickedFrame.id] !== undefined }
+    : null;
+  const hint =
+    tool === "frame" ? "펼침면 위를 끌어서 프레임을 그려요" : tool === "guide" ? "눌러서 안내선을 놓아요" : "사진을 누르면 다음 배치 위치에 들어가요";
+
   // 남은 자리에 맞춘 폭(위아래 여백 · 툴바 자리를 뺀다) × 줌 — 펼침면 비율은 앨범 사이즈대로
   const fitW = Math.max(240, Math.min(areaSize.w - 96, (areaSize.h - 48 - 72) * spreadRatio(album.page)));
   const spreadW = Math.round(fitW * scaleOf(zoom));
 
-  // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · Delete 고른 프레임 사진 빼기 · Esc 고르기 풀기(입력칸 · 창이 열려 있으면 그대로)
-  const keysRef = useRef(editor);
+  // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · V R F 도구 · Delete 고른 프레임의 사진 빼기(비었으면 프레임 삭제) ·
+  // Esc 고르기 풀기 · 선택 도구로(입력칸 · 창이 열려 있으면 그대로)
+  const keysRef = useRef({ editor, tool, changeTool });
   useEffect(() => {
-    keysRef.current = editor;
+    keysRef.current = { editor, tool, changeTool };
   });
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const ed = keysRef.current;
+      const { editor: ed, tool: cur, changeTool: toTool } = keysRef.current;
       const t = e.target instanceof Element ? e.target : null;
       if (ed.moveAsk || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
@@ -119,10 +135,17 @@ export function AlbumWorkspace({
       } else if (e.metaKey || e.ctrlKey || e.altKey) return;
       else if (e.key === "ArrowLeft") ed.go(ed.album.spread - 1);
       else if (e.key === "ArrowRight") ed.go(ed.album.spread + 1);
-      else if ((e.key === "Delete" || e.key === "Backspace") && ed.canRemove) {
+      else if (e.key === "v" || e.key === "V") toTool("select");
+      else if (e.key === "r" || e.key === "R") toTool("guide");
+      else if (e.key === "f" || e.key === "F") toTool("frame");
+      else if ((e.key === "Delete" || e.key === "Backspace") && ed.picked && cur === "select") {
         e.preventDefault();
-        ed.removePicked();
-      } else if (e.key === "Escape" && ed.picked) ed.clearPick();
+        if (ed.canRemove) ed.removePicked();
+        else ed.removeFrame(ed.picked);
+      } else if (e.key === "Escape") {
+        if (ed.picked) ed.clearPick();
+        else if (cur !== "select") toTool("select");
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -193,47 +216,41 @@ export function AlbumWorkspace({
                   <div ref={areaRef} className="scrollbar-slim absolute inset-0 overflow-auto">
                     <div className="flex min-h-full min-w-full items-center justify-center px-12 pt-12 pb-24" style={{ width: spreadW + 96 > areaSize.w ? spreadW + 96 : undefined }}>
                       {areaSize.w > 0 && (
-                        <SpreadCanvas album={album} F={F} width={spreadW} photoOf={photoOf} onFrame={editor.onFrame} onBackground={editor.clearPick} onClear={editor.clearPick} />
+                        <SpreadCanvas
+                          album={album}
+                          F={F}
+                          width={spreadW}
+                          tool={tool}
+                          ratioLock={ratioLock}
+                          canDraw={!editor.atCap}
+                          photoOf={photoOf}
+                          onFrame={editor.onFrame}
+                          onPick={editor.pickFrame}
+                          onBackground={editor.clearPick}
+                          onClear={editor.clearPick}
+                          onFrameRect={editor.placeFrame}
+                          onDrawFrame={(rect) => {
+                            if (editor.drawFrame(rect)) setTool("select");
+                          }}
+                          onCapHit={editor.capHit}
+                          onTooSmall={() => editor.toast("프레임이 너무 작아요 · 조금 더 크게 끌어 주세요", false, "warning")}
+                        />
                       )}
                     </div>
                   </div>
-                  <div className="absolute bottom-4 left-1/2 z-[5] flex -translate-x-1/2 items-center gap-1 rounded-(--radius-12) bg-surface-default-darkness p-1.5 text-contents-dark-bgd-default shadow-[0_6px_20px_rgba(0,0,0,.25)]">
-                    {editor.canRemove && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={editor.removePicked}
-                          className="flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-2.5 type-label-medium-s hover:bg-white/10"
-                        >
-                          <TrashIcon size={18} />
-                          빼기
-                        </button>
-                        <span aria-hidden className="mx-1 h-5 w-px bg-current opacity-20" />
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      aria-label="이전 펼침면"
-                      disabled={album.spread === 0}
-                      onClick={() => go(album.spread - 1)}
-                      className="flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
-                    >
-                      <ChevronLeftIcon size={18} />
-                    </button>
-                    <span className="px-1 type-label-semibold-s tabular-nums">
-                      {album.spread + 1}
-                      <span className="font-normal opacity-60"> / {spreadCount}</span>
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="다음 펼침면"
-                      disabled={album.spread === spreadCount - 1}
-                      onClick={() => go(album.spread + 1)}
-                      className="flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
-                    >
-                      <ChevronRightIcon size={18} />
-                    </button>
-                  </div>
+                  <AlbumToolbar
+                    tool={tool}
+                    onTool={changeTool}
+                    frame={toolbarFrame}
+                    ratioLock={ratioLock}
+                    onRatioLock={setRatioLock}
+                    onResize={(dim, mm) => pickedFrame && editor.resizeFrame(pickedFrame.id, dim, mm, ratioLock)}
+                    onRemovePhoto={editor.removePicked}
+                    onDeleteFrame={() => pickedFrame && editor.removeFrame(pickedFrame.id)}
+                    spread={album.spread}
+                    spreadCount={spreadCount}
+                    onGo={go}
+                  />
                 </div>
                 <SpreadStrip album={album} F={F} photoOf={photoOf} grayDots={grayDots} onGo={go} />
               </div>
@@ -250,7 +267,7 @@ export function AlbumWorkspace({
         </main>
       </div>
       {snack && (
-        <Snackbar kind="info" action={snack.undoable && editor.canUndo ? { label: "되돌리기", onClick: editor.undo } : undefined} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+        <Snackbar kind={snack.kind} action={snack.undoable && editor.canUndo ? { label: "되돌리기", onClick: editor.undo } : undefined} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
           {snack.text}
         </Snackbar>
       )}
@@ -262,7 +279,7 @@ export function AlbumWorkspace({
           selectionCount={0}
           onClearSelection={() => {}}
           onMoveSelection={() => {}}
-          hint="사진을 누르면 다음 배치 위치에 들어가요"
+          hint={hint}
           status={
             <span className="flex items-center gap-3.5">
               <Counter label="프레임" value={F.list.length} of={photos.length} />

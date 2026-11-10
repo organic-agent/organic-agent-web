@@ -12,11 +12,15 @@
  * 사진을 누르면: 아직 안 넣은 사진은 다음 배치 위치(또는 고른 프레임)에 넣는다 — 고른 프레임에 사진이 있으면 확인 없이 바꾸고
  * 되돌리기 스낵바. 이미 다른 프레임에 넣은 사진이면 옮길지 묻는다(원래 자리는 비고, 맞바꾸지 않는다).
  * 넣기 · 바꾸기 · 옮기기 · 빼기는 되돌리기 대상(최근 50번, 저장하지 않음). 프레임 고르기 · 펼침면 이동은 대상이 아니다.
+ * PR ② — 프레임 그리기 · 옮기기 · 크기 · 지우기도 되돌리기 대상. 프레임은 클라이언트가 선택한 사진 수(cap)까지만 그린다.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { SnackbarKind } from "@/components/app/Snackbar";
 import {
+  addFrame,
   clearSelection,
+  deleteFrame,
   frameLabel,
   goSpread,
   indexFrames,
@@ -24,17 +28,20 @@ import {
   photoFrame,
   placePhoto,
   removePhoto,
+  resizeFrameMm,
   sameContent,
   selectFrame,
+  setFrameRect,
   syncSelection,
   type Album,
+  type Rect,
 } from "@/lib/album/model";
 import type { AlbumDoc, AlbumRepository, SavedKind } from "@/lib/album/store";
 
 const UNDO_MAX = 50;
 const AUTOSAVE_MS = 30_000;
 
-export type AlbumSnack = { id: number; text: string; undoable: boolean };
+export type AlbumSnack = { id: number; text: string; undoable: boolean; kind: SnackbarKind };
 export type MoveAsk = { photoId: number; from: string; to: string };
 
 export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selectedIds: ReadonlySet<number>, repo: AlbumRepository) {
@@ -100,8 +107,8 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     };
   }, []);
 
-  function toast(text: string, undoable: boolean) {
-    setSnack(text ? { id: Date.now(), text, undoable } : null);
+  function toast(text: string, undoable: boolean, kind: SnackbarKind = "info") {
+    setSnack(text ? { id: Date.now(), text, undoable, kind } : null);
   }
   /** 되돌리기 대상인 바꿈 */
   function commit(next: Album, text: string) {
@@ -176,6 +183,41 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     setSnack(null);
   }
 
+  // ── 프레임(PR ②) ──
+  const cap = selectedIds.size;
+  const atCap = F.list.length >= cap;
+  function capHit() {
+    toast(`선택한 사진이 ${cap}장이라 프레임을 더 그릴 수 없어요`, false, "warning");
+  }
+  /** 그린 프레임 더하기 — 상한이면 알리고 false */
+  function drawFrame(rect: Rect): boolean {
+    const r = addFrame(album, F, rect, cap);
+    if (!r) {
+      capHit();
+      return false;
+    }
+    commit(r.album, r.toast);
+    return true;
+  }
+  /** 끌어서 옮기거나 크기를 바꾼 프레임 — 스낵바 없이 되돌리기만 */
+  function placeFrame(frameId: string, rect: Rect) {
+    const next = setFrameRect(album, frameId, rect);
+    if (next !== album) commit(next, "");
+  }
+  function resizeFrame(frameId: string, dim: "w" | "h", mm: number, lockRatio: boolean) {
+    const next = resizeFrameMm(album, F, frameId, dim, mm, lockRatio);
+    if (next !== album) commit(next, "");
+  }
+  function removeFrame(frameId: string) {
+    const r = deleteFrame(album, F, frameId);
+    if (r) commit(r.album, r.toast);
+  }
+  /** 프레임 고르기(이미 골랐으면 그대로) — 끌기를 시작할 때 */
+  function pickFrame(frameId: string) {
+    if (album.cursor === frameId && album.cursorMode === "manual") return;
+    setAlbum(selectFrame({ ...album, cursorMode: "auto" }, F, frameId));
+  }
+
   const picked = album.cursorMode === "manual" && album.cursor ? album.cursor : null;
 
   return {
@@ -184,7 +226,16 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     go,
     onPhoto,
     onFrame,
+    pickFrame,
     clearPick,
+    cap,
+    atCap,
+    capHit,
+    drawFrame,
+    placeFrame,
+    resizeFrame,
+    removeFrame,
+    toast,
     removePicked,
     picked,
     canRemove: picked !== null && album.assign[picked] !== undefined,
