@@ -8,13 +8,15 @@
  * 펼침면 크기는 남은 자리에 맞춘 뒤 줌으로 키운다(기본 = 맞춤). 키우면 펼침면 칸이 스크롤된다.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AlbumIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Snackbar } from "@/components/app/Snackbar";
+import { AlbumIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
 import { ranks as rankOf, placedCount } from "@/lib/album/model";
 import type { AlbumDoc } from "@/lib/album/store";
 import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "../../_shell/ShellSidebar";
+import { MoveConfirmModal } from "./MoveConfirmModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
 import { SpreadCanvas } from "./SpreadCanvas";
 import { SpreadStrip } from "./SpreadStrip";
@@ -58,7 +60,8 @@ export function AlbumWorkspace({
   /** 사이드바(펼쳐져 있을 때만) — 넣은 장수를 상태줄 · 앨범 행에 쓴다 */
   renderSidebar: (placed: number) => ReactNode;
 }) {
-  const { album, F, go } = useAlbumEditor(initialDoc);
+  const editor = useAlbumEditor(initialDoc);
+  const { album, F, go } = editor;
   const [zoom, setZoom] = useState(50);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
   const [areaRef, areaSize] = useBoxSize();
@@ -74,17 +77,40 @@ export function AlbumWorkspace({
   const fitW = Math.max(240, Math.min(areaSize.w - 96, (areaSize.h - 48 - 72) * 2));
   const spreadW = Math.round(fitW * scaleOf(zoom));
 
-  // ← → 펼침면 이동(입력칸에 있을 때는 그대로)
+  // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · Delete 고른 프레임 사진 빼기 · Esc 고르기 풀기(입력칸 · 창이 열려 있으면 그대로)
+  const keysRef = useRef(editor);
+  useEffect(() => {
+    keysRef.current = editor;
+  });
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const t = e.target as HTMLElement | null;
-      if (t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
-      if (e.key === "ArrowLeft") go(album.spread - 1);
-      else if (e.key === "ArrowRight") go(album.spread + 1);
+      const ed = keysRef.current;
+      const t = e.target instanceof Element ? e.target : null;
+      if (ed.moveAsk || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        ed.undo();
+      } else if (e.metaKey || e.ctrlKey || e.altKey) return;
+      else if (e.key === "ArrowLeft") ed.go(ed.album.spread - 1);
+      else if (e.key === "ArrowRight") ed.go(ed.album.spread + 1);
+      else if ((e.key === "Delete" || e.key === "Backspace") && ed.canRemove) {
+        e.preventDefault();
+        ed.removePicked();
+      } else if (e.key === "Escape" && ed.picked) ed.clearPick();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [go, album.spread]);
+  }, []);
+
+  // 스낵바 — 3.2초 뒤 사라진다
+  const snack = editor.snack;
+  const hideSnack = editor.hideSnack;
+  useEffect(() => {
+    if (!snack) return;
+    const timer = window.setTimeout(hideSnack, 3200);
+    return () => window.clearTimeout(timer);
+  }, [snack, hideSnack]);
+  const moveAsk = editor.moveAsk;
 
   return (
     <>
@@ -115,17 +141,30 @@ export function AlbumWorkspace({
               />
             </div>
             <div className="flex min-h-0 flex-1">
-              <PhotoPanel photos={photos} ranks={ranks} cols={cols} onColsChange={setCols} onPhoto={() => {}} />
+              <PhotoPanel photos={photos} ranks={ranks} cols={cols} onColsChange={setCols} onPhoto={editor.onPhoto} />
               <div className="flex min-w-0 flex-1 flex-col bg-background-default-sub">
                 <div className="relative min-h-0 flex-1">
                   <div ref={areaRef} className="scrollbar-slim absolute inset-0 overflow-auto">
                     <div className="flex min-h-full min-w-full items-center justify-center px-12 pt-12 pb-24" style={{ width: spreadW + 96 > areaSize.w ? spreadW + 96 : undefined }}>
                       {areaSize.w > 0 && (
-                        <SpreadCanvas album={album} F={F} width={spreadW} photoOf={photoOf} onFrame={() => {}} onBackground={() => {}} onClear={() => {}} />
+                        <SpreadCanvas album={album} F={F} width={spreadW} photoOf={photoOf} onFrame={editor.onFrame} onBackground={editor.clearPick} onClear={editor.clearPick} />
                       )}
                     </div>
                   </div>
                   <div className="absolute bottom-4 left-1/2 z-[5] flex -translate-x-1/2 items-center gap-1 rounded-(--radius-12) bg-surface-default-darkness p-1.5 text-contents-dark-bgd-default shadow-[0_6px_20px_rgba(0,0,0,.25)]">
+                    {editor.canRemove && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={editor.removePicked}
+                          className="flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-2.5 type-label-medium-s hover:bg-white/10"
+                        >
+                          <TrashIcon size={18} />
+                          빼기
+                        </button>
+                        <span aria-hidden className="mx-1 h-5 w-px bg-current opacity-20" />
+                      </>
+                    )}
                     <button
                       type="button"
                       aria-label="이전 펼침면"
@@ -164,6 +203,14 @@ export function AlbumWorkspace({
           </div>
         </main>
       </div>
+      {snack && (
+        <Snackbar kind="info" action={snack.undoable && editor.canUndo ? { label: "되돌리기", onClick: editor.undo } : undefined} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {snack.text}
+        </Snackbar>
+      )}
+      {moveAsk && F.byId[moveAsk.from] && F.byId[moveAsk.to] && (
+        <MoveConfirmModal photo={photoOf(moveAsk.photoId)} from={F.byId[moveAsk.from]} to={F.byId[moveAsk.to]} onClose={editor.cancelMove} onConfirm={editor.confirmMove} />
+      )}
       <div className="max-[1023px]:hidden">
         <ShellBottomBar
           selectionCount={0}
