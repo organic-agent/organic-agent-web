@@ -3,7 +3,8 @@
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/clientStages.ts
  *
  * 1 컨셉 분류 → 2 셀렉 & 보정 작성 → 3 보정 검토 → (4 앨범 구성) → 완료 (2026-09-12 확정, 단계 이름은 이슈 156에서 "보정 작성"으로).
- * 앨범을 만드는 갤러리만 "앨범 구성" 칸이 있다 — 서버 응답에 그 값이 아직 없어(⑥ 갭 9) 지금은 늘 4칸이다.
+ * 앨범을 만드는 갤러리만 "앨범 구성" 칸이 있다 — 서버 응답에 그 값이 아직 없어(⑥ 갭 9) 서버 앨범 전에는
+ * 스튜디오가 이 브라우저에서 앨범을 보냈을 때(albumShared, 이슈 168 화면만 · 플래그 뒤)만 5칸이 되고, 보정을 확정한(ARCHIVED) 뒤면 "앨범 구성" 칸이다.
  * 보정 요청은 2단계 안(싱글뷰 점 찍기)에서 하고 셀렉 제출에 실려 간다. 2↔3 반복(보정 횟수만큼)은
  * 3단계 안 상태줄이 말한다. 갤러리가 아직 열리지 않았으면(DRAFT) 단계 밖 "준비 중"(대기).
  * 컨셉 분류인지 셀렉인지는 서버 stage가 아니라 **폴더 확정 여부**(photoOrganizationRequired ·
@@ -38,16 +39,16 @@ export type ClientPhase =
   /** 완료(ARCHIVED) */
   | "done";
 
-/** 앨범을 만드는 갤러리인지 — 서버 필드가 생기면 여기만 바꾼다 */
-export function hasAlbum(gallery: GalleryResponse): boolean {
+/** 앨범을 만드는 갤러리인지 — 서버 필드가 생기면 여기만 바꾼다. albumShared = 스튜디오가 앨범을 보냄(서버 전 화면만) */
+export function hasAlbum(gallery: GalleryResponse, albumShared = false): boolean {
   void gallery; // 서버가 앨범 여부를 주면 이 값으로 가른다
-  return false;
+  return albumShared;
 }
 
 /** 이 갤러리의 단계 이름 목록(앨범 여부에 따라 4칸 · 5칸, 개인은 5칸) */
-export function clientStagesOf(gallery: GalleryResponse | null, personal = false): readonly string[] {
+export function clientStagesOf(gallery: GalleryResponse | null, personal = false, albumShared = false): readonly string[] {
   if (personal) return STAGES_PERSONAL;
-  return gallery && hasAlbum(gallery) ? STAGES_WITH_ALBUM : STAGES_NO_ALBUM;
+  return gallery && hasAlbum(gallery, albumShared) ? STAGES_WITH_ALBUM : STAGES_NO_ALBUM;
 }
 
 /** 개인 갤러리의 단계 — photoCount는 PENDING(올리는 중) 포함, null이면 아직 못 읽음(컨셉 분류 자리) */
@@ -65,11 +66,12 @@ export function personalPhaseOf(gallery: GalleryResponse, photoCount: number | n
   }
 }
 
-export function clientPhaseOf(gallery: GalleryResponse): ClientPhase {
+export function clientPhaseOf(gallery: GalleryResponse, albumShared = false): ClientPhase {
   if (gallery.status === "DRAFT") return "wait";
   switch (gallery.stage) {
     case "ARCHIVED":
-      return "done";
+      // 보정을 확정한 뒤 스튜디오가 앨범을 보냈으면 앨범 구성
+      return albumShared ? "album" : "done";
     case "DELIVERY":
       // 전달 단계와 앨범 단계의 대응은 백엔드 확인 항목 — 지금은 앨범 갤러리면 앨범, 아니면 보정 검토로 본다
       return hasAlbum(gallery) ? "album" : "review";
@@ -85,8 +87,8 @@ export function clientPhaseOf(gallery: GalleryResponse): ClientPhase {
 }
 
 /** 0부터 시작하는 단계 번호 — 대기(wait)는 0(컨셉 분류 자리), 전달함은 보정 검토 칸, 완료는 마지막 */
-export function clientStageIndexOf(phase: ClientPhase, gallery: GalleryResponse | null, personal = false): number {
-  const stages = clientStagesOf(gallery, personal);
+export function clientStageIndexOf(phase: ClientPhase, gallery: GalleryResponse | null, personal = false, albumShared = false): number {
+  const stages = clientStagesOf(gallery, personal, albumShared);
   if (personal) {
     switch (phase) {
       case "wait":
@@ -122,7 +124,7 @@ export function clientStageIndexOf(phase: ClientPhase, gallery: GalleryResponse 
 }
 
 /** 상단 칩 · 사이드바 상태줄에 쓰는 단계 이름 */
-export function clientStageLabelOf(phase: ClientPhase, gallery: GalleryResponse | null, personal = false): string {
+export function clientStageLabelOf(phase: ClientPhase, gallery: GalleryResponse | null, personal = false, albumShared = false): string {
   if (phase === "wait") return "준비 중";
-  return clientStagesOf(gallery, personal)[clientStageIndexOf(phase, gallery, personal)];
+  return clientStagesOf(gallery, personal, albumShared)[clientStageIndexOf(phase, gallery, personal, albumShared)];
 }

@@ -47,7 +47,7 @@ import { CancelExportModal } from "./CancelExportModal";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { PersonalReviewCoachMarks } from "./PersonalReviewCoachMarks";
-import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
+import { ClientSidebar, type ClientSidebarAlbum, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
 import type { ClientPhase } from "./clientStages";
@@ -95,6 +95,7 @@ export function ReviewStage({
   stageRequest = null,
   onStageRequestHandled,
   onCapabilities,
+  album = null,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -119,6 +120,8 @@ export function ReviewStage({
   onStageRequestHandled?: () => void;
   /** 페이지가 칩 상태를 정하는 데 쓰는 것 — 선택 다시 하기가 되는지 · 보관됐는지 */
   onCapabilities?: (caps: { canCancelExport: boolean; archived: boolean }) => void;
+  /** 스튜디오가 보낸 앨범 — 사이드바 "앨범" 행(이슈 168) */
+  album?: ClientSidebarAlbum | null;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [detailNonce, setDetailNonce] = useState(0);
@@ -290,6 +293,7 @@ export function ReviewStage({
       if (resultCount === 0) return { text: activeRoundNo !== null && activeRoundNo > 1 ? `${roundLabel} 요청서 · 보정본 기다리는 중` : "선택 완료 · 보정본 기다리는 중", tone: "muted" };
       return { text: `보정본 ${resultCount} / ${items.length}장 · 원본과 비교할 수 있어요`, tone: "accent" };
     }
+    if (archived && album) return { text: "앨범 구성 · 스튜디오가 보냈어요", tone: "accent" };
     if (archived) return { text: `보정 확정 · ${rounds.length}회 · 보관됨`, tone: "muted" };
     if (waiting) return { text: `${roundLabel} 보정 중${remaining !== null ? ` · 남은 횟수 ${remaining}` : ""}`, tone: "muted" };
     if (resultArrived) return { text: `${roundLabel} 결과 도착 · ${items.length}장 · 확인해 주세요`, tone: "accent" };
@@ -440,6 +444,7 @@ export function ReviewStage({
             selectedCount={items.length}
             maxSelectable={gallery.maxSelectablePhotoCount}
             retouchCount={items.length}
+            album={album}
             view={view}
             onViewChange={(next) => {
               setView(next);
