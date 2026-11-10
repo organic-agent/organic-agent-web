@@ -27,9 +27,8 @@ import { localAlbumRepository, type AlbumDoc } from "@/lib/album/store";
 import { ShellSidebar } from "../_shell/ShellSidebar";
 import { ShellTopbar } from "../_shell/ShellTopbar";
 import { SHELL_STAGES, stageIndexOf } from "../_shell/stages";
-import { useSelectionWatch } from "../_shell/useSelectionWatch";
 import { AlbumWorkspace } from "./_album/AlbumWorkspace";
-import { useAlbumSource } from "./_album/useAlbumSource";
+import { useAlbumSelection, useAlbumSource } from "./_album/useAlbumSource";
 
 export default function StudioAlbumPage() {
   return ALBUM_EDITOR_ENABLED ? <StudioAlbumScreen /> : <BackToGallery />;
@@ -107,9 +106,9 @@ function StudioAlbumScreen() {
     };
   }, [galleryId, router]);
 
-  const { selection, reload: reloadSelection } = useSelectionWatch(galleryId, gallery !== null);
+  const { selection, reload: reloadSelection } = useAlbumSelection(galleryId, gallery !== null);
   usePreviewAccess(galleryId, gallery !== null, reloadSelection);
-  const { photos, retouchCount } = useAlbumSource(galleryId, gallery, selection);
+  const { photos, banner, retouchCount } = useAlbumSource(galleryId, gallery, selection);
 
   const baseStage = gallery ? stageIndexOf(gallery, { albumInProgress: true }) : null;
   const stageIndex = baseStage === 1 && selection?.status === "SUBMITTED" ? 2 : baseStage;
@@ -138,8 +137,10 @@ function StudioAlbumScreen() {
       />
       {gallery && doc && photos ? (
         <AlbumWorkspace
+          galleryId={galleryId}
           initialDoc={doc}
           photos={photos}
+          retouchBanner={banner}
           renderSidebar={(placed) =>
             !collapsed && (
               <ShellSidebar

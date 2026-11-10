@@ -190,9 +190,10 @@ export function placePhoto(album: Album, F: FrameIndex, photoId: number): EditRe
   }
   const next = withAutoCursor(base, F, f.gi + 1);
   const nxt = next.cursor ? F.byId[next.cursor] : null;
-  const spreadFull = F.of(album.spread).every((x) => next.assign[x.id] !== undefined);
-  if (nxt && nxt.spread !== album.spread && spreadFull) {
-    return { album: next, toast: `펼침면 ${album.spread + 1} 완성 · 다음 펼침면으로 넘어갔어요`, navTo: nxt.spread };
+  // 넣은 프레임의 펼침면이 다 찼으면 다음 펼침면으로(지금 보는 펼침면과 다를 수 있다)
+  const spreadFull = F.of(f.spread).every((x) => next.assign[x.id] !== undefined);
+  if (nxt && nxt.spread !== f.spread && spreadFull) {
+    return { album: next, toast: `펼침면 ${f.spread + 1} 완성 · 다음 펼침면으로 넘어갔어요`, navTo: nxt.spread };
   }
   return { album: next, toast: "" };
 }
@@ -264,6 +265,17 @@ export function syncSelection(album: Album, F: FrameIndex, selected: ReadonlySet
   const base = { ...album, assign, gone };
   const next = album.cursorMode === "manual" && album.cursor && assign[album.cursor] !== undefined ? base : withAutoCursor(base, F, spreadStartGi(F, album.spread));
   return { album: next, removed };
+}
+
+const sameRecord = (x: Record<string, number>, y: Record<string, number>) => {
+  if (x === y) return true;
+  const keys = Object.keys(x);
+  return keys.length === Object.keys(y).length && keys.every((k) => x[k] === y[k]);
+};
+
+/** 저장할 내용이 같은지 — 보는 펼침면 · 다음 배치 위치는 저장거리가 아니다. 선택 맞추기가 새 객체를 만들어도 내용으로 비교한다 */
+export function sameContent(a: Album, b: Album): boolean {
+  return a.spreads === b.spreads && sameRecord(a.assign, b.assign) && sameRecord(a.gone, b.gone);
 }
 
 /** 선택에서 빠진 프레임이 있는 펼침면들 */

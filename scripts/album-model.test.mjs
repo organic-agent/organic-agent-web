@@ -100,6 +100,29 @@ test("선택에서 빠진 사진은 저절로 비우고 gone으로 표시, 그 �
   assert.equal(M.goneSpreads(c, F).size, 0);
 });
 
+test("보는 펼침면과 다른 펼침면을 다 채워도 그 펼침면 번호로 알리고 넘어간다", () => {
+  const { album, F } = fresh();
+  let a = placeAll(album, F, [101, 102, 103, 104]); // 펼침면 2의 첫 칸까지
+  a = { ...a, spread: 0 };
+  const r = M.placePhoto(a, F, 105);
+  assert.equal(r.navTo, 2);
+  assert.match(r.toast, /펼침면 2 완성/);
+});
+
+test("펼침면 이동 · 커서만 바뀌면 저장거리가 아니다", () => {
+  const { album, F } = fresh();
+  const a = placeAll(album, F, [101]);
+  assert.equal(M.sameContent(a, M.goSpread(a, F, 3)), true);
+  assert.equal(M.sameContent(a, M.selectFrame(a, F, "s1f1")), true);
+  assert.equal(M.sameContent(a, M.placePhoto(a, F, 102).album), false);
+  // 선택 맞추기를 다시 해도(새 객체) 내용이 같으면 같다
+  const b = placeAll(album, F, [101, 102]);
+  const once = M.syncSelection(b, F, new Set([101])).album;
+  const twice = M.syncSelection(b, F, new Set([101])).album;
+  assert.notEqual(once, twice);
+  assert.equal(M.sameContent(once, twice), true);
+});
+
 test("다른 펼침면 프레임 이름은 펼침면을 붙인다", () => {
   const { album, F } = fresh();
   const f = F.byId.s3f1;

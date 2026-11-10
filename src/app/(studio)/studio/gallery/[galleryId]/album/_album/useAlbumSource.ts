@@ -5,13 +5,14 @@
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/album/_album/useAlbumSource.ts
  *
  * 사진은 선택 앨범 순서 그대로. 보정본이 있으면 보정본을 쓴다 — 보낸(COMPLETED) 회차의 결과만 보고, 뒤 회차가 앞 회차를 덮는다.
+ * 선택 앨범은 10초마다 · 창으로 돌아올 때 다시 읽고, 못 읽으면 마지막 값을 그대로 둔다(편집 중인 화면이 사라지지 않게).
  * 보정 배너(보정 전 · 회차 반영 · 확정)도 회차 목록에서 정해서 함께 돌려준다. 결과 주소는 서명 URL이라 수명 전에 다시 읽는다.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import { getRetouchRound, type RetouchOverviewResponse } from "@/lib/api/retouch";
-import type { PhotoSelectionResponse } from "@/lib/api/selection";
+import { getPhotoSelection, type PhotoSelectionResponse } from "@/lib/api/selection";
 import { useRetouchOverview } from "../../_shell/useRetouchOverview";
 
 export type AlbumPhoto = {
@@ -26,6 +27,40 @@ export type AlbumPhoto = {
 export type RetouchBanner = { key: string; tone: "warn" | "info" | "ok"; title: string; body: string };
 
 const EMPTY_RESULTS = new Map<number, string>();
+const SELECTION_MS = 10_000;
+
+/** 선택 앨범 — 못 읽으면 마지막 값 유지. reload는 미리보기 쿠키가 안 실리는 환경에서 서명 URL로 다시 읽을 때 */
+export function useAlbumSelection(galleryId: number, enabled: boolean) {
+  const [selection, setSelection] = useState<PhotoSelectionResponse | null>(null);
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    async function tick() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const res = await getPhotoSelection(galleryId);
+        if (!cancelled) setSelection(res);
+      } catch {
+        // 다음 차례에 다시 — 마지막 값은 그대로
+      }
+    }
+    void tick();
+    const timer = window.setInterval(() => void tick(), SELECTION_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [galleryId, enabled, nonce]);
+  return { selection, reload: () => setNonce((n) => n + 1) };
+}
 
 /** 보낸 회차의 결과 주소 — photoId → 마지막 회차 결과 */
 function useRoundResults(galleryId: number, overview: RetouchOverviewResponse | null) {
