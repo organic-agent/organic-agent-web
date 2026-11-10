@@ -283,3 +283,7 @@ test("PR ① 저장본을 열면 펼침면 id · 사이즈 · 안내선 · 위�
   assert.deepEqual(n.guides, []);
   assert.deepEqual(n.crop, {});
 });
+
+test("숫자 뒤 조사 — 2 · 4 · 5 · 9로 끝나면 를", () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 9, 10, 12, 23].map(M.eulReul).join(""), "을를을를를을를을를을");
+});

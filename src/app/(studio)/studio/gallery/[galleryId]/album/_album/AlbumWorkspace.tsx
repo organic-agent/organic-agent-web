@@ -24,7 +24,7 @@ import { AlbumToolbar, GuideSettings } from "./AlbumToolbar";
 import { MoveConfirmModal } from "./MoveConfirmModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
 import { SpreadCanvas, type AlbumTool, type CropEdit } from "./SpreadCanvas";
-import { SpreadStrip } from "./SpreadStrip";
+import { DeleteSpreadModal, SpreadStrip } from "./SpreadStrip";
 import { useAlbumEditor } from "./useAlbumEditor";
 import type { AlbumPhoto, RetouchBanner } from "./useAlbumSource";
 
@@ -84,6 +84,8 @@ export function AlbumWorkspace({
   const [guideDir, setGuideDir] = useState<"h" | "v">("h");
   const [guideAll, setGuideAll] = useState(false);
   const [cropEdit, setCropEdit] = useState<CropEdit | null>(null);
+  /** 사진이 든 펼침면을 지울지 묻는 중 */
+  const [spreadAsk, setSpreadAsk] = useState<{ index: number; photos: number } | null>(null);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
   const [areaRef, areaSize] = useBoxSize();
 
@@ -141,6 +143,10 @@ export function AlbumWorkspace({
 
   // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · V R F 도구 · Delete 고른 프레임의 사진 빼기(비었으면 프레임 삭제) ·
   // Esc 고르기 풀기 · 선택 도구로(입력칸 · 창이 열려 있으면 그대로)
+  const spreadAskRef = useRef(spreadAsk);
+  useEffect(() => {
+    spreadAskRef.current = spreadAsk;
+  });
   const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop });
   useEffect(() => {
     keysRef.current = { editor, tool, changeTool, cropping: activeCrop !== null, finishCrop };
@@ -149,7 +155,7 @@ export function AlbumWorkspace({
     function onKeyDown(e: KeyboardEvent) {
       const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop } = keysRef.current;
       const t = e.target instanceof Element ? e.target : null;
-      if (ed.moveAsk || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      if (ed.moveAsk || spreadAskRef.current || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
       // 위치 조정 중에는 Esc · Enter(끝)만
       if (cropping) {
         if (e.key === "Escape" || e.key === "Enter") endCrop();
@@ -289,7 +295,20 @@ export function AlbumWorkspace({
                     onGo={go}
                   />
                 </div>
-                <SpreadStrip album={album} F={F} photoOf={photoOf} grayDots={grayDots} onGo={go} />
+                <SpreadStrip
+                  album={album}
+                  F={F}
+                  photoOf={photoOf}
+                  grayDots={grayDots}
+                  onGo={go}
+                  onAdd={editor.appendSpread}
+                  onDelete={(index) => {
+                    const photos = editor.photosIn(index);
+                    if (photos > 0) setSpreadAsk({ index, photos });
+                    else editor.removeSpread(index);
+                  }}
+                  onMove={editor.reorderSpread}
+                />
               </div>
             </div>
           </div>
@@ -307,6 +326,17 @@ export function AlbumWorkspace({
         <Snackbar kind={snack.kind} action={snack.undoable && editor.canUndo ? { label: "되돌리기", onClick: editor.undo } : undefined} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
           {snack.text}
         </Snackbar>
+      )}
+      {spreadAsk && (
+        <DeleteSpreadModal
+          index={spreadAsk.index}
+          photos={spreadAsk.photos}
+          onClose={() => setSpreadAsk(null)}
+          onConfirm={() => {
+            editor.removeSpread(spreadAsk.index);
+            setSpreadAsk(null);
+          }}
+        />
       )}
       {moveAsk && F.byId[moveAsk.from] && F.byId[moveAsk.to] && (
         <MoveConfirmModal photo={photoOf(moveAsk.photoId)} from={F.byId[moveAsk.from]} to={F.byId[moveAsk.to]} onClose={editor.cancelMove} onConfirm={editor.confirmMove} />

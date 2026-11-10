@@ -187,6 +187,9 @@ export function indexFrames(spreads: SpreadDef[]): FrameIndex {
 
 export const pad2 = (n: number) => String(n).padStart(2, "0");
 
+/** 숫자 뒤 목적격 조사 — 끝자리 읽기(이 · 사 · 오 · 구)가 받침 없으면 "를" */
+export const eulReul = (n: number) => ([2, 4, 5, 9].includes(Math.abs(n) % 10) ? "를" : "을");
+
 /** 스낵바 · 배너에 쓰는 프레임 이름 — 지금 보는 펼침면이면 번호만("02"), 아니면 "펼침면 3의 02" */
 export function frameLabel(f: Frame, currentSpread: number): string {
   return f.spread === currentSpread ? pad2(f.no) : `펼침면 ${f.spread + 1}의 ${pad2(f.no)}`;
@@ -479,7 +482,7 @@ export function addSpread(album: Album): EditResult {
   const spreads = [...album.spreads, { id, frames: [], deco: null }];
   const nF = indexFrames(spreads);
   const spread = spreads.length - 1;
-  return { album: withAutoCursor({ ...withSpreads(album, spreads), spread }, nF, spreadStartGi(nF, spread)), toast: `펼침면 ${spreads.length}을 더했어요` };
+  return { album: withAutoCursor({ ...withSpreads(album, spreads), spread }, nF, spreadStartGi(nF, spread)), toast: `펼침면 ${spreads.length}${eulReul(spreads.length)} 더했어요` };
 }
 
 /** 펼침면 지우기 — 마지막 한 장은 못 지운다. 들어 있던 사진은 패널로, 그 펼침면에만 둔 안내선도 지운다 */
@@ -499,7 +502,7 @@ export function deleteSpread(album: Album, index: number): EditResult | null {
   const nF = indexFrames(spreads);
   return {
     album: withAutoCursor(base, nF, spreadStartGi(nF, spread)),
-    toast: `펼침면 ${index + 1}을 지웠어요${photos ? ` · 사진 ${photos}장은 패널로 돌아갔어요` : ""}`,
+    toast: `펼침면 ${index + 1}${eulReul(index + 1)} 지웠어요${photos ? ` · 사진 ${photos}장은 패널로 돌아갔어요` : ""}`,
   };
 }
 
@@ -515,7 +518,7 @@ export function moveSpread(album: Album, from: number, before: number): EditResu
   const viewing = album.spreads[album.spread]?.id;
   const spread = Math.max(0, spreads.findIndex((s) => s.id === viewing));
   const nF = indexFrames(spreads);
-  return { album: withAutoCursor({ ...withSpreads(album, spreads), spread }, nF, spreadStartGi(nF, spread)), toast: `펼침면 ${from + 1}을 ${to + 1}번째로 옮겼어요` };
+  return { album: withAutoCursor({ ...withSpreads(album, spreads), spread }, nF, spreadStartGi(nF, spread)), toast: "펼침면 순서를 바꿨어요" };
 }
 
 // ── 안내선 ──

@@ -20,13 +20,16 @@ import type { SnackbarKind } from "@/components/app/Snackbar";
 import {
   addFrame,
   addGuide,
+  addSpread,
   clearSelection,
   deleteFrame,
+  deleteSpread,
   frameLabel,
   goSpread,
   indexFrames,
   moveGuide,
   movePhoto,
+  moveSpread,
   photoFrame,
   placePhoto,
   removeGuide,
@@ -241,6 +244,22 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     if (next !== album && F.byId[frameId]) commit(next, `${frameLabel(F.byId[frameId], album.spread)} 프레임 사진 위치를 바꿨어요`);
   }
 
+  // ── 펼침면 관리(PR ②) ──
+  function appendSpread() {
+    const r = addSpread(album);
+    commit(r.album, r.toast);
+  }
+  function removeSpread(index: number) {
+    const r = deleteSpread(album, index);
+    if (r) commit(r.album, r.toast);
+  }
+  function reorderSpread(from: number, before: number) {
+    const r = moveSpread(album, from, before);
+    if (r) commit(r.album, r.toast);
+  }
+  /** 펼침면에 넣은 사진 수 — 지우기 전에 물을지 */
+  const photosIn = (index: number) => F.of(index).filter((f) => album.assign[f.id] !== undefined).length;
+
   const picked = album.cursorMode === "manual" && album.cursor ? album.cursor : null;
 
   return {
@@ -259,6 +278,10 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     resizeFrame,
     removeFrame,
     setFrameCrop,
+    appendSpread,
+    removeSpread,
+    reorderSpread,
+    photosIn,
     putGuide,
     shiftGuide,
     dropGuide,
