@@ -387,6 +387,9 @@ export function fitRect(r: Rect): Rect {
   return { x: clamp(r.x, 0, 2 - w), y: clamp(r.y, 0, 1 - h), w, h };
 }
 
+/** 펼침면 가로 ÷ 세로 */
+export const spreadRatio = (page: PageSize) => (2 * page.w) / page.h;
+
 /** 겹치지 않는 새 id — prefix + (쓰인 번호 중 가장 큰 것 + 1) */
 function nextId(prefix: string, used: Iterable<string>): string {
   let max = 0;

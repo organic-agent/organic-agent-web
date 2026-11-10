@@ -6,12 +6,12 @@
  *
  * 종이는 화면 테마와 상관없이 흰색(실제 앨범). 프레임 상태: 사진 있음 · 빈 칸(보라 옅은 바탕) ·
  * 선택에서 빠짐(회색 빗금 + 칩) · 다음 배치 위치(보라 점선 + 말풍선) · 고른 프레임(보라 점선 + 어두운 말풍선 · ✕).
- * 사진은 프레임을 꽉 채운다(위치 조정은 PR ②).
+ * 펼침면 비율은 앨범 사이즈(한 쪽 가로 × 세로 mm)를 따른다.
  */
 
 import type { MouseEvent } from "react";
 import { CloseIcon } from "@/components/icons";
-import { pad2, type Album, type Frame, type FrameIndex } from "@/lib/album/model";
+import { pad2, spreadRatio, type Album, type Frame, type FrameIndex } from "@/lib/album/model";
 import type { AlbumPhoto } from "./useAlbumSource";
 
 const GONE_BG = "repeating-linear-gradient(135deg, rgba(26,26,26,.05) 0 8px, rgba(26,26,26,.10) 8px 16px)";
@@ -22,7 +22,7 @@ function FrameBox({
   gone,
   cursor,
   manual,
-  width,
+  spreadH,
   onClick,
   onClear,
 }: {
@@ -31,12 +31,12 @@ function FrameBox({
   gone: boolean;
   cursor: boolean;
   manual: boolean;
-  /** 펼침면 폭(px) — 번호 글자 크기 */
-  width: number;
+  /** 펼침면 높이(px) — 번호 글자 크기 */
+  spreadH: number;
   onClick: (e: MouseEvent) => void;
   onClear: () => void;
 }) {
-  const h = frame.h * width * 0.5;
+  const h = frame.h * spreadH;
   const empty = !photo;
   const tip = cursor ? (manual ? (empty ? "넣을 사진을 고르세요" : "바꿀 사진을 고르세요") : "다음 배치 위치") : null;
   return (
@@ -101,7 +101,7 @@ export function SpreadCanvas({
 }: {
   album: Album;
   F: FrameIndex;
-  /** 펼침면 폭(px) — 높이는 절반 */
+  /** 펼침면 폭(px) — 높이는 앨범 사이즈 비율로 */
   width: number;
   photoOf: (photoId: number) => AlbumPhoto | null;
   onFrame: (frameId: string) => void;
@@ -111,10 +111,11 @@ export function SpreadCanvas({
 }) {
   const spread = album.spreads[album.spread];
   const frames = F.of(album.spread);
+  const height = Math.round(width / spreadRatio(album.page));
   return (
     <div
       className="relative shrink-0 bg-white shadow-[0_10px_30px_rgba(0,0,0,.14),0_1px_3px_rgba(0,0,0,.08)]"
-      style={{ width, height: width / 2 }}
+      style={{ width, height }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onBackground();
       }}
@@ -147,7 +148,7 @@ export function SpreadCanvas({
             gone={album.gone[f.id] !== undefined}
             cursor={album.cursor === f.id}
             manual={album.cursorMode === "manual"}
-            width={width}
+            spreadH={height}
             onClick={(e) => {
               e.stopPropagation();
               onFrame(f.id);

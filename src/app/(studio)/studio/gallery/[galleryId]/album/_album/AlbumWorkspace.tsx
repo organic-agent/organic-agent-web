@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Snackbar } from "@/components/app/Snackbar";
 import { AlbumIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
-import { goneSpreads, pad2, placedCount, ranks as rankOf } from "@/lib/album/model";
+import { goneSpreads, pad2, placedCount, ranks as rankOf, spreadRatio } from "@/lib/album/model";
 import { localAlbumRepository, type AlbumDoc } from "@/lib/album/store";
 import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
@@ -99,8 +99,8 @@ export function AlbumWorkspace({
   const showGone = goneFrames.length > 0 && editor.banner.gone !== goneKey;
   const goneNames = goneFrames.slice(0, 3).map((f) => `펼침면 ${f.spread + 1}의 ${pad2(f.no)}`).join(" · ") + (goneFrames.length > 3 ? ` 외 ${goneFrames.length - 3}곳` : "");
 
-  // 남은 자리에 맞춘 폭(위아래 여백 · 툴바 자리를 뺀다) × 줌
-  const fitW = Math.max(240, Math.min(areaSize.w - 96, (areaSize.h - 48 - 72) * 2));
+  // 남은 자리에 맞춘 폭(위아래 여백 · 툴바 자리를 뺀다) × 줌 — 펼침면 비율은 앨범 사이즈대로
+  const fitW = Math.max(240, Math.min(areaSize.w - 96, (areaSize.h - 48 - 72) * spreadRatio(album.page)));
   const spreadW = Math.round(fitW * scaleOf(zoom));
 
   // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · Delete 고른 프레임 사진 빼기 · Esc 고르기 풀기(입력칸 · 창이 열려 있으면 그대로)

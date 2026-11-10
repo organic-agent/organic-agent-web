@@ -4,9 +4,9 @@
  * 작가 — 앨범 구성(이슈 168 PR ①, 스튜디오 쪽)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/album/page.tsx
  *
- * 들어오는 길은 사이드바 "＋ 앨범 만들기"(선택 사진 1장부터) · 보정 확정 뒤 하단 주 버튼뿐이다. 처음 들어오면 이 브라우저에
- * 앨범을 만든다(기본 틀 — 펼침면 24 · 프레임 34). 서버 계약 전(1단계)이라 플래그(NEXT_PUBLIC_ALBUM_EDITOR)가 꺼져 있으면
- * 갤러리 화면으로 돌려보낸다.
+ * 들어오는 길은 사이드바 "＋ 앨범 만들기"(선택 사진 1장부터) · 보정 확정 뒤 하단 주 버튼뿐이다. 앨범은 갤러리 화면의 "앨범 만들기"
+ * 창에서 만든다(PR ②) — 이 브라우저에 앨범이 없는데 이 주소로 오면 갤러리 화면으로 돌려보내 그 창을 연다(?album=new).
+ * 서버 계약 전(1단계)이라 플래그(NEXT_PUBLIC_ALBUM_EDITOR)가 꺼져 있으면 갤러리 화면으로 돌려보낸다.
  * 들어오면 사이드바를 접어 펼침면 자리를 넓히고, 나가면 들어오기 전 상태로 돌린다(1024 미만은 편집을 막으므로 그대로).
  * 사이드바의 다른 행을 누르면 갤러리 화면의 그 보기로 돌아간다(?view=).
  */
@@ -22,7 +22,6 @@ import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
-import { createAlbum } from "@/lib/album/model";
 import { localAlbumRepository, type AlbumDoc } from "@/lib/album/store";
 import { ShellSidebar } from "../_shell/ShellSidebar";
 import { ShellTopbar } from "../_shell/ShellTopbar";
@@ -42,11 +41,6 @@ function BackToGallery() {
     router.replace(`/studio/gallery/${params.galleryId}`);
   }, [router, params.galleryId]);
   return null;
-}
-
-function newDoc(): AlbumDoc {
-  const now = new Date().toISOString();
-  return { v: 1, album: createAlbum(), createdAt: now, savedAt: now, savedKind: "auto", banner: { retouch: null, gone: null } };
 }
 
 function StudioAlbumScreen() {
@@ -80,15 +74,11 @@ function StudioAlbumScreen() {
         const [s] = await Promise.allSettled([fetchStudio(g.workspaceId), issuePreviewAccess(galleryId)]);
         if (cancelled) return;
         if (s.status === "fulfilled") setStudio(s.value);
-        // 이 브라우저에 앨범이 없으면 지금 만든다("앨범 만들기")
-        let d = localAlbumRepository.load(galleryId);
+        // 이 브라우저에 앨범이 없으면 갤러리 화면의 "앨범 만들기" 창으로
+        const d = localAlbumRepository.load(galleryId);
         if (!d) {
-          d = newDoc();
-          try {
-            localAlbumRepository.save(galleryId, d);
-          } catch {
-            // 저장이 막힌 브라우저 — 편집은 되고, 저장 실패는 편집기 머리줄이 알린다
-          }
+          router.replace(`/studio/gallery/${galleryId}?album=new`);
+          return;
         }
         setGallery(g);
         setDoc(d);

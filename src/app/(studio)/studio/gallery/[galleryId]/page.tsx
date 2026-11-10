@@ -59,7 +59,8 @@ import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
 import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
-import { useAlbumSummary } from "@/lib/album/store";
+import { createAlbum } from "@/lib/album/model";
+import { localAlbumRepository, newAlbumDoc, useAlbumSummary } from "@/lib/album/store";
 import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
 import { ExtendDeadlineModal } from "./_shell/ExtendDeadlineModal";
@@ -79,6 +80,7 @@ import { RecoveryBanner } from "./_shell/RecoveryBanner";
 import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "./_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type SidebarAlbum, type StatusLine } from "./_shell/ShellSidebar";
+import { CreateAlbumModal } from "./album/_album/CreateAlbumModal";
 import { ShellTopbar } from "./_shell/ShellTopbar";
 import { StudioGalleryCoachMarks, type StudioCoachScene } from "./_shell/StudioGalleryCoachMarks";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
@@ -132,8 +134,11 @@ export default function StudioGalleryShellPage() {
   const [members, setMembers] = useState<GalleryMemberResponse[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // 앨범 화면 사이드바에서 돌아올 때 ?view=selected 처럼 보기를 실어 온다(이슈 168)
-  const viewParam = useSearchParams().get("view");
+  // 앨범 화면 사이드바에서 돌아올 때 ?view=selected 처럼 보기를 실어 온다(이슈 168). 앨범 없이 앨범 주소로 가면 ?album=new로 돌아와 만들기 창을 연다
+  const searchParams = useSearchParams();
+  const viewParam = searchParams.get("view");
+  const albumParam = searchParams.get("album");
+  const [albumCreateOpen, setAlbumCreateOpen] = useState(albumParam === "new");
   const initialView: ShellView | null = viewParam === "all" || viewParam === "selected" || viewParam === "retouch" ? viewParam : null;
   const [view, setView] = useState<ShellView>(initialView === "retouch" ? "all" : (initialView ?? "all"));
   const [folderSel, setFolderSel] = useState<FolderSelection>({ kind: "all" });
@@ -335,8 +340,17 @@ export default function StudioGalleryShellPage() {
   const albumSelected = selection?.selectedCount ?? 0;
   const albumNav: SidebarAlbum | null =
     ALBUM_EDITOR_ENABLED && gallery !== null && stageIndex >= 1 && (albumSelected > 0 || albumSummary.exists)
-      ? { exists: albumSummary.exists, placed: albumSummary.placed, selected: albumSelected, onOpen: () => router.push(`/studio/gallery/${galleryId}/album`) }
+      ? {
+          exists: albumSummary.exists,
+          placed: albumSummary.placed,
+          selected: albumSelected,
+          onOpen: () => (albumSummary.exists ? router.push(`/studio/gallery/${galleryId}/album`) : setAlbumCreateOpen(true)),
+        }
       : null;
+  function closeAlbumCreate() {
+    setAlbumCreateOpen(false);
+    if (albumParam) router.replace(`/studio/gallery/${galleryId}${viewParam ? `?view=${viewParam}` : ""}`);
+  }
   // 사이드바 기본값: 사진 업로드 단계는 닫힘 · 셀렉 대기부터 열림. 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다.
   // 640 미만에서는 사이드바가 사진을 가리므로 저절로 열지 않는다(클라이언트 화면과 같은 규칙)
   useEffect(() => {
@@ -1329,6 +1343,21 @@ export default function StudioGalleryShellPage() {
           onConfirm={() => {
             setConfirmKind(null);
             showComingSoon();
+          }}
+        />
+      )}
+      {albumCreateOpen && albumNav && !albumSummary.exists && (
+        <CreateAlbumModal
+          selectedCount={albumSelected}
+          onClose={closeAlbumCreate}
+          onCreate={(opts) => {
+            try {
+              localAlbumRepository.save(galleryId, newAlbumDoc(createAlbum(opts)));
+            } catch {
+              return false;
+            }
+            router.push(`/studio/gallery/${galleryId}/album`);
+            return true;
           }}
         />
       )}

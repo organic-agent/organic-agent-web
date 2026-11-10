@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import type { Album, FrameIndex } from "@/lib/album/model";
+import { spreadRatio, type Album, type FrameIndex } from "@/lib/album/model";
 import type { AlbumPhoto } from "./useAlbumSource";
 
 export function SpreadStrip({
@@ -29,6 +29,7 @@ export function SpreadStrip({
     ref.current?.querySelector<HTMLElement>('[aria-current="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [album.spread]);
 
+  const tileW = Math.round(56 * spreadRatio(album.page));
   return (
     <div ref={ref} className="scrollbar-slim flex h-28 shrink-0 items-center gap-1 overflow-x-auto border-t border-divider-default px-3.5" aria-label="펼침면">
       {album.spreads.map((_, s) => {
@@ -43,7 +44,7 @@ export function SpreadStrip({
               current ? "bg-surface-default-lightness" : "hover:bg-surface-default-lightness"
             }`}
           >
-            <span className={`relative block h-14 w-28 bg-white ${current ? "ring-2 ring-brand-accent-default" : "ring-1 ring-divider-default"}`}>
+            <span className={`relative block h-14 bg-white ${current ? "ring-2 ring-brand-accent-default" : "ring-1 ring-divider-default"}`} style={{ width: tileW }}>
               {F.of(s).map((f) => {
                 const pid = album.assign[f.id];
                 const photo = pid === undefined ? null : photoOf(pid);
