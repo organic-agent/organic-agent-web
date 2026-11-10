@@ -13,6 +13,7 @@
  * 되돌리기 스낵바. 이미 다른 프레임에 넣은 사진이면 옮길지 묻는다(원래 자리는 비고, 맞바꾸지 않는다).
  * 넣기 · 바꾸기 · 옮기기 · 빼기는 되돌리기 대상(최근 50번, 저장하지 않음). 프레임 고르기 · 펼침면 이동은 대상이 아니다.
  * PR ② — 프레임 그리기 · 옮기기 · 크기 · 지우기도 되돌리기 대상. 프레임은 클라이언트가 선택한 사진 수(cap)까지만 그린다.
+ * PR ③ — 클라이언트에게 보내기(보기만 · 수정 가능): 그때의 앨범을 share에 담아 바로 저장한다. 클라이언트 사본도 이 훅으로 고친다.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -45,7 +46,7 @@ import {
   type Guide,
   type Rect,
 } from "@/lib/album/model";
-import type { AlbumDoc, AlbumRepository, SavedKind } from "@/lib/album/store";
+import type { AlbumDoc, AlbumRepository, AlbumShare, AlbumShareMode, SavedKind } from "@/lib/album/store";
 
 const UNDO_MAX = 50;
 const AUTOSAVE_MS = 30_000;
@@ -67,13 +68,16 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
   const [banner, setBanner] = useState(initialDoc.banner);
   /** 닫은 배너의 최신 값 — 두 배너를 연달아 닫아도 앞의 것을 덮지 않게 */
   const bannerRef = useRef(initialDoc.banner);
+  /** 클라이언트에게 보낸 것 — 저장할 때마다 함께 둔다 */
+  const [share, setShare] = useState<AlbumShare | null>(initialDoc.share ?? null);
+  const shareRef = useRef<AlbumShare | null>(initialDoc.share ?? null);
   const [saveError, setSaveError] = useState(false);
   const dirty = !sameContent(album, saved.album);
 
   function persist(kind: SavedKind, nextBanner = bannerRef.current): boolean {
     const at = new Date().toISOString();
     try {
-      repo.save(galleryId, { v: 1, album, createdAt: initialDoc.createdAt, savedAt: at, savedKind: kind, banner: nextBanner });
+      repo.save(galleryId, { ...initialDoc, album, savedAt: at, savedKind: kind, banner: nextBanner, share: shareRef.current });
       setSaved({ album, at, kind });
       setSaveError(false);
       return true;
@@ -84,6 +88,18 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
   }
   function saveNow() {
     toast(persist("manual") ? "임시 저장했어요" : "저장하지 못했어요 · 잠시 뒤 다시 눌러 주세요", false);
+  }
+  /** 클라이언트에게 보내기 — 지금 앨범을 담아 바로 저장(서버 전에는 이 브라우저에만) */
+  function send(mode: AlbumShareMode) {
+    const prev = shareRef.current;
+    shareRef.current = { mode, sentAt: new Date().toISOString(), album };
+    if (!persist("manual")) {
+      shareRef.current = prev;
+      toast("보내지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");
+      return;
+    }
+    setShare(shareRef.current);
+    toast(`클라이언트에게 보냈어요 · ${mode === "view" ? "보기만" : "수정 가능"}`, false, "success");
   }
   /** 배너 닫기 — 그 상태 키를 기억(상태가 바뀌면 다시 뜬다) */
   function dismissBanner(kind: "retouch" | "gone", key: string) {
@@ -297,6 +313,8 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     confirmMove,
     cancelMove: () => setMoveAsk(null),
     dirty,
+    share,
+    send,
     saved,
     saveError,
     saveNow,

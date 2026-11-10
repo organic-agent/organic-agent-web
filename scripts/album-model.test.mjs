@@ -287,3 +287,14 @@ test("PR ① 저장본을 열면 펼침면 id · 사이즈 · 안내선 · 위�
 test("숫자 뒤 조사 — 2 · 4 · 5 · 9로 끝나면 를", () => {
   assert.deepEqual([1, 2, 3, 4, 5, 6, 9, 10, 12, 23].map(M.eulReul).join(""), "을를을를를을를을를을");
 });
+
+test("클라이언트가 고친 곳 — 사진이 바뀌었거나 위치가 바뀐 프레임만", () => {
+  const { album, F } = fresh();
+  const base = placeAll(album, F, [101, 102, 103]);
+  let cur = M.placePhoto(M.selectFrame(base, F, "s1f2"), F, 200).album; // 02 교체
+  cur = M.setCrop(cur, "s1f3", { pid: 103, s: 1.5, px: 0.3, py: 0.5 }); // 03 위치
+  assert.deepEqual([...M.changedFrames(base, cur)].sort(), ["s1f2", "s1f3"]);
+  assert.equal(M.changedFrames(base, base).size, 0);
+  // 기본 위치를 지운 것과 기본값을 적은 것은 같다
+  assert.equal(M.changedFrames(base, M.setCrop(base, "s1f1", { pid: 101, s: 1, px: 0.5, py: 0.5 })).size, 0);
+});

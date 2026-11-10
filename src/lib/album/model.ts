@@ -353,6 +353,22 @@ export function sameContent(a: Album, b: Album): boolean {
   return a.spreads === b.spreads && a.guides === b.guides && a.crop === b.crop && a.page === b.page && sameRecord(a.assign, b.assign) && sameRecord(a.gone, b.gone);
 }
 
+/** 클라이언트가 고친 프레임 — 스튜디오가 보낸 앨범(base)과 사진 · 위치가 다른 곳 */
+export function changedFrames(base: Album, cur: Album): Set<string> {
+  const out = new Set<string>();
+  const ids = new Set([...Object.keys(base.assign), ...Object.keys(cur.assign), ...Object.keys(base.crop), ...Object.keys(cur.crop)]);
+  for (const id of ids) {
+    if (base.assign[id] !== cur.assign[id]) {
+      out.add(id);
+      continue;
+    }
+    const a = getCrop(base, id);
+    const b = getCrop(cur, id);
+    if (a && b && (a.s !== b.s || a.px !== b.px || a.py !== b.py)) out.add(id);
+  }
+  return out;
+}
+
 /** 선택에서 빠진 프레임이 있는 펼침면들 */
 export function goneSpreads(album: Album, F: FrameIndex): Set<number> {
   const s = new Set<number>();
