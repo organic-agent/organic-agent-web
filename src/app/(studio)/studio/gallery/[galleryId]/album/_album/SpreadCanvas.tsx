@@ -56,6 +56,8 @@ export type AlbumTool = "select" | "guide" | "frame";
 const GONE_BG = "repeating-linear-gradient(135deg, rgba(26,26,26,.05) 0 8px, rgba(26,26,26,.10) 8px 16px)";
 /** 안내선 색 — 흰 종이 위 도구 선이라 테마와 상관없이 고정(디자인 도구 관례인 청록, 시안 그대로) */
 const GUIDE = "#19c3d6";
+/** 흰 종이 위에 뜨는 말풍선 · 꼬리표 바탕 — 종이처럼 테마와 상관없이 어둡게 */
+const ON_PAPER = "bg-[rgb(38,38,38)]";
 /** 안내선을 이만큼(px) 펼침면 밖으로 끌어내면 지운다 */
 const GUIDE_OUT_PX = 16;
 /** 맞붙는 거리 · 끌기로 보는 거리(px) */
@@ -110,7 +112,7 @@ function sizeLabel(no: number, r: Rect, page: PageSize) {
 
 function SizeTag({ text }: { text: string }) {
   return (
-    <span className="pointer-events-none absolute bottom-full left-0 z-[4] mb-2 rounded-(--radius-4) bg-surface-default-darkness px-2 py-0.5 type-label-semibold-xs whitespace-nowrap text-white tabular-nums">
+    <span className={`pointer-events-none absolute bottom-full left-0 z-[4] mb-2 rounded-(--radius-4) ${ON_PAPER} px-2 py-0.5 type-label-semibold-xs whitespace-nowrap text-white tabular-nums`}>
       {text}
     </span>
   );
@@ -241,7 +243,7 @@ function FrameBox({
           {pad2(frame.no)}
         </span>
         {empty && gone && (
-          <span className="absolute bottom-3 left-1/2 inline-flex h-6 -translate-x-1/2 items-center whitespace-nowrap rounded-(--pill) bg-surface-default-dark px-2.5 type-label-semibold-xs text-white">
+          <span className="absolute bottom-3 left-1/2 inline-flex h-6 -translate-x-1/2 items-center whitespace-nowrap rounded-(--pill) bg-[rgba(26,26,26,.6)] px-2.5 type-label-semibold-xs text-white">
             선택에서 빠짐
           </span>
         )}
@@ -250,9 +252,9 @@ function FrameBox({
         <div
           data-crop-keep
           data-nodrag
-          className="absolute bottom-full left-1/2 z-[6] mb-3 flex w-max min-w-65 -translate-x-1/2 items-center gap-1.5 rounded-(--radius-12) bg-surface-default-darkness px-2 py-1.5 text-white shadow-[0_6px_20px_rgba(0,0,0,.25)]"
+          className="absolute bottom-full left-1/2 z-[6] mb-3 flex w-max min-w-65 -translate-x-1/2 items-center gap-1.5 rounded-(--radius-12) bg-surface-default-darkness px-2 py-1.5 text-contents-dark-bgd-default shadow-[0_6px_20px_rgba(0,0,0,.25)]"
         >
-          <button type="button" aria-label="작게" onClick={() => scaleBy(crop.s - 0.1)} className="flex size-7 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10">
+          <button type="button" aria-label="작게" onClick={() => scaleBy(crop.s - 0.1)} className="flex size-7 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-current/10">
             <MinusIcon size={18} />
           </button>
           <input
@@ -263,15 +265,15 @@ function FrameBox({
             value={Math.round(crop.s * 100)}
             disabled={!photoAR}
             onChange={(e) => scaleBy(Number(e.target.value) / 100)}
-            className="w-28 flex-1 accent-white"
+            className="w-28 flex-1 accent-current"
           />
-          <button type="button" aria-label="크게" onClick={() => scaleBy(crop.s + 0.1)} className="flex size-7 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10">
+          <button type="button" aria-label="크게" onClick={() => scaleBy(crop.s + 0.1)} className="flex size-7 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-current/10">
             <PlusIcon size={18} />
           </button>
-          <button type="button" onClick={() => onCropLive({ pid: crop.pid, s: 1, px: 0.5, py: 0.5 })} className="h-7 cursor-pointer rounded-(--radius-8) bg-white/14 px-2.5 type-label-medium-s whitespace-nowrap hover:bg-white/20">
+          <button type="button" onClick={() => onCropLive({ pid: crop.pid, s: 1, px: 0.5, py: 0.5 })} className="h-7 cursor-pointer rounded-(--radius-8) bg-current/14 px-2.5 type-label-medium-s whitespace-nowrap hover:bg-current/20">
             맞춤
           </button>
-          <button type="button" onClick={onCropDone} className="h-7 cursor-pointer rounded-(--radius-8) bg-brand-accent-default px-2.5 type-label-medium-s whitespace-nowrap">
+          <button type="button" onClick={onCropDone} className="h-7 cursor-pointer rounded-(--radius-8) bg-brand-accent-default px-2.5 type-label-medium-s whitespace-nowrap text-white">
             완료
           </button>
         </div>
@@ -291,7 +293,7 @@ function FrameBox({
         <span
           data-nodrag
           className={`absolute bottom-full left-1/2 z-[3] inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-(--radius-8) py-1.5 type-label-semibold-xs text-white ${
-            manual ? "mb-4 bg-surface-default-darkness pr-1.5 pl-3" : "mb-2 bg-brand-accent-default px-3"
+            manual ? `mb-4 ${ON_PAPER} pr-1.5 pl-3` : "mb-2 bg-brand-accent-default px-3"
           }`}
         >
           {tip}
@@ -300,7 +302,7 @@ function FrameBox({
               <CloseIcon size={14} />
             </button>
           )}
-          <i aria-hidden className={`absolute top-full left-1/2 size-2.5 -translate-x-1/2 -translate-y-1.5 rotate-45 ${manual ? "bg-surface-default-darkness" : "bg-brand-accent-default"}`} />
+          <i aria-hidden className={`absolute top-full left-1/2 size-2.5 -translate-x-1/2 -translate-y-1.5 rotate-45 ${manual ? ON_PAPER : "bg-brand-accent-default"}`} />
         </span>
       )}
     </div>

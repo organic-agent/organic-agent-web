@@ -14,7 +14,8 @@ import type { ReactNode } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, CropIcon, FrameToolIcon, GuideToolIcon, LinkIcon, SelectToolIcon, TrashIcon } from "@/components/icons";
 import type { AlbumTool } from "./SpreadCanvas";
 
-const BTN = "flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-2.5 type-label-medium-s whitespace-nowrap hover:bg-white/10";
+// 막대는 다크 모드에서 밝게 뒤집힌다(surface-default-darkness) — 글자는 토큰, 옅은 바탕은 글자색 기준 반투명
+const BTN = "flex h-8 cursor-pointer items-center gap-1.5 rounded-(--radius-8) px-2.5 type-label-medium-s whitespace-nowrap hover:bg-current/10";
 
 function Sep() {
   return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-current opacity-20" />;
@@ -43,7 +44,7 @@ function MmField({ label, name, value, onCommit }: { label: string; name: string
             e.currentTarget.blur();
           }
         }}
-        className="h-7 w-13 rounded-(--radius-4) bg-white/12 text-center type-label-semibold-s text-white tabular-nums outline-none focus:ring-1 focus:ring-white/60"
+        className="h-7 w-13 rounded-(--radius-4) bg-current/12 text-center type-label-semibold-s text-contents-dark-bgd-default tabular-nums outline-none focus:ring-1 focus:ring-current/60"
       />
       mm
     </label>
@@ -65,7 +66,7 @@ export function GuideSettings({ dir, onDir, all, onAll }: { dir: "h" | "v"; onDi
           type="button"
           aria-pressed={dir === key}
           onClick={() => onDir(key)}
-          className={`flex h-8 cursor-pointer items-center rounded-(--radius-8) px-3 type-label-medium-s whitespace-nowrap ${dir === key ? "bg-brand-accent-default text-white" : "bg-white/10 hover:bg-white/15"}`}
+          className={`flex h-8 cursor-pointer items-center rounded-(--radius-8) px-3 type-label-medium-s whitespace-nowrap ${dir === key ? "bg-brand-accent-default text-white" : "bg-current/10 hover:bg-current/15"}`}
         >
           {label}
         </button>
@@ -156,12 +157,12 @@ export function AlbumToolbar({
         aria-pressed={ratioLock}
         title="비율 고정"
         onClick={() => onRatioLock(!ratioLock)}
-        className={`flex size-7 cursor-pointer items-center justify-center rounded-(--radius-4) ${ratioLock ? "bg-white/18 text-white" : "text-white/50 hover:bg-white/10"}`}
+        className={`flex size-7 cursor-pointer items-center justify-center rounded-(--radius-4) ${ratioLock ? "bg-current/18" : "opacity-50 hover:bg-current/10"}`}
       >
         <LinkIcon size={16} />
       </button>
       <MmField label="H" name="세로" value={frame.h} onCommit={(mm) => onResize("h", mm)} />
-      {frame.crossing && <span className="ml-1 rounded-(--radius-4) bg-white/12 px-2 py-0.5 type-label-semibold-xs whitespace-nowrap">두 쪽에 걸침</span>}
+      {frame.crossing && <span className="ml-1 rounded-(--radius-4) bg-current/12 px-2 py-0.5 type-label-semibold-xs whitespace-nowrap">두 쪽에 걸침</span>}
       <Sep />
       {extra}
       {frame.hasPhoto && cropButton}
@@ -197,7 +198,7 @@ export function AlbumToolbar({
           aria-pressed={tool === t.key}
           title={t.label}
           onClick={() => onTool(t.key)}
-          className={`flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) ${tool === t.key ? "bg-brand-accent-default text-white" : "hover:bg-white/10"}`}
+          className={`flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) ${tool === t.key ? "bg-brand-accent-default text-white" : "hover:bg-current/10"}`}
         >
           {t.icon}
         </button>
@@ -210,7 +211,7 @@ export function AlbumToolbar({
             aria-label="이전 펼침면"
             disabled={spread === 0}
             onClick={() => onGo(spread - 1)}
-            className="flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-current/10 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronLeftIcon size={18} />
           </button>
@@ -223,7 +224,7 @@ export function AlbumToolbar({
             aria-label="다음 펼침면"
             disabled={spread === spreadCount - 1}
             onClick={() => onGo(spread + 1)}
-            className="flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-white/10 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-(--radius-8) hover:bg-current/10 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronRightIcon size={18} />
           </button>
