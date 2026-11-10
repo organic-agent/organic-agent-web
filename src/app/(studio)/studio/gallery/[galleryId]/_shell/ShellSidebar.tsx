@@ -14,10 +14,12 @@
 
 import type { ReactNode } from "react";
 import {
+  AlbumIcon,
   BrushIcon,
   CheckCircleIcon,
   LockIcon,
   PhotoIcon,
+  PlusIcon,
 } from "@/components/icons";
 import { useSidebar } from "@/components/SidebarProvider";
 
@@ -28,6 +30,21 @@ import { useSidebar } from "@/components/SidebarProvider";
 export const SHELL_BODY_CLASS = "flex min-h-0 flex-1 max-sm:has-[>aside]:[&>:not(aside)]:hidden";
 
 export type ShellView = "all" | "selected" | "retouch";
+
+/**
+ * 사이드바 "앨범" 행(이슈 168) — 선택 사진이 1장이라도 생기면 "＋ 앨범 만들기", 만든 뒤에는 "앨범 n / m".
+ * 들어오는 길은 이 행과(보정 확정 뒤) 하단 주 버튼뿐이다. 칸을 눌러 단계를 오가는 건 이슈 167에서.
+ */
+export type SidebarAlbum = {
+  exists: boolean;
+  /** 넣은 장수 */
+  placed: number;
+  /** 클라이언트가 고른 장수 */
+  selected: number;
+  /** 앨범 화면을 보는 중 */
+  current?: boolean;
+  onOpen: () => void;
+};
 
 export type StatusLine = {
   text: string;
@@ -47,6 +64,7 @@ function NavRow({
   trailing,
   selected,
   disabled = false,
+  accent = false,
   onClick,
   coach,
 }: {
@@ -55,6 +73,8 @@ function NavRow({
   trailing: ReactNode;
   selected: boolean;
   disabled?: boolean;
+  /** 보라 글자 행 — "＋ 앨범 만들기"처럼 할 일을 내미는 행 */
+  accent?: boolean;
   onClick: () => void;
   /** 코치마크가 가리킬 때의 data-coach 값 */
   coach?: string;
@@ -70,10 +90,12 @@ function NavRow({
       className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-weakness disabled:hover:bg-transparent ${
         selected
           ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
-          : "text-contents-light-bgd-default"
+          : accent
+            ? "font-semibold text-brand-accent-text"
+            : "text-contents-light-bgd-default"
       }`}
     >
-      <span className="flex shrink-0 text-contents-light-bgd-sub">{icon}</span>
+      <span className={`flex shrink-0 ${accent && !selected ? "text-brand-accent-text" : "text-contents-light-bgd-sub"}`}>{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       <span className="shrink-0 type-content-xs text-contents-light-bgd-weakness">{trailing}</span>
     </button>
@@ -91,11 +113,13 @@ export function ShellSidebar({
   view,
   onViewChange,
   retouchCount,
+  album,
   extra,
 }: {
   title: string;
   status: StatusLine;
-  photoCount: number;
+  /** 모든 사진 장수 — 앨범 화면처럼 사진 목록을 읽지 않는 곳은 null(—) */
+  photoCount: number | null;
   /** 1단계 — 선택한 사진 항목 잠김 */
   selectedLocked: boolean;
   /** 클라이언트가 고른 장수 (2단계부터) */
@@ -107,6 +131,8 @@ export function ShellSidebar({
   onViewChange: (view: ShellView) => void;
   /** 3단계부터 — 보정 대상 장수. 없으면(1 · 2단계) 잠김 */
   retouchCount?: number | null;
+  /** 앨범 행(이슈 168) — 없으면 행이 없다(플래그 꺼짐 · 선택 사진 0장) */
+  album?: SidebarAlbum | null;
   /** 내비 아래 · 폴더 트리 위(회차 목록) */
   extra?: ReactNode;
 }) {
@@ -129,7 +155,7 @@ export function ShellSidebar({
           <NavRow
             icon={<PhotoIcon size={18} />}
             label="모든 사진"
-            trailing={photoCount}
+            trailing={photoCount ?? "—"}
             selected={view === "all"}
             onClick={() => onViewChange("all")}
           />
@@ -175,6 +201,23 @@ export function ShellSidebar({
             disabled={retouchCount === undefined || retouchCount === null}
             onClick={() => onViewChange("retouch")}
           />
+          {album &&
+            (album.exists ? (
+              <NavRow
+                icon={<AlbumIcon size={18} />}
+                label="앨범"
+                trailing={
+                  <span className="font-semibold text-contents-light-bgd-default tabular-nums">
+                    {album.placed}
+                    <span className="font-normal text-contents-light-bgd-weakness"> / {album.selected}</span>
+                  </span>
+                }
+                selected={album.current === true}
+                onClick={album.onOpen}
+              />
+            ) : (
+              <NavRow icon={<PlusIcon size={18} />} label="앨범 만들기" trailing={null} selected={false} accent onClick={album.onOpen} />
+            ))}
         </nav>
 
         {extra}
