@@ -10,6 +10,7 @@
  * 도구(PR ②) — 선택 · 안내선 · 프레임. 프레임을 그리면 선택 도구로 돌아와 새 프레임을 고른 상태가 된다.
  * 위치 조정은 바꾸는 동안 여기 상태로만 두고, 끝낼 때 한 번 저장한다(되돌리기 한 번).
  * 앨범 미리보기(PR ③) — 머리줄 오른쪽 버튼 · 좁은 화면 안내 카드에서 연다. 편집 화면의 지금 모습을 그대로 보여 준다.
+ * 클라이언트에게 보내기(PR ③) — 프레임 수와 넣은 사진 수가 선택 장수와 같을 때만(디자이너 규칙 "프레임 수 = 사진 수"). 한 번 보낸 뒤에는 "다시 보내기".
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -24,6 +25,7 @@ import { AlbumBanner } from "./AlbumBanner";
 import { AlbumPreview } from "./AlbumPreview";
 import { AlbumToolbar, GuideSettings } from "./AlbumToolbar";
 import { MoveConfirmModal } from "./MoveConfirmModal";
+import { SendAlbumModal } from "./SendAlbumModal";
 import { PhotoPanel, readPanelCols, type PanelCols } from "./PhotoPanel";
 import { SpreadCanvas, type AlbumTool, type CropEdit } from "./SpreadCanvas";
 import { DeleteSpreadModal, SpreadStrip } from "./SpreadStrip";
@@ -103,6 +105,7 @@ export function AlbumWorkspace({
   const [guideAll, setGuideAll] = useState(false);
   const [cropEdit, setCropEdit] = useState<CropEdit | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   /** 사진이 든 펼침면을 지울지 묻는 중 */
   const [spreadAsk, setSpreadAsk] = useState<{ index: number; photos: number } | null>(null);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
@@ -153,8 +156,17 @@ export function AlbumWorkspace({
   const toolbarFrame = pickedFrame
     ? { ...frameMm(pickedFrame, album.page), crossing: crossesGutter(pickedFrame), hasPhoto: album.assign[pickedFrame.id] !== undefined }
     : null;
+  // 보내기 — 프레임 수 = 사진 수, 모두 넣었을 때
+  const frameGap = F.list.length !== photos.length;
+  const canSend = photos.length > 0 && !frameGap && placed === photos.length;
   const hint =
-    tool === "frame" ? "펼침면 위를 끌어서 프레임을 그려요" : tool === "guide" ? "눌러서 안내선을 놓아요 · 밖으로 끌어내면 지워져요" : "사진을 누르면 다음 배치 위치에 들어가요";
+    tool === "frame"
+      ? "펼침면 위를 끌어서 프레임을 그려요"
+      : tool === "guide"
+        ? "눌러서 안내선을 놓아요 · 밖으로 끌어내면 지워져요"
+        : frameGap && placed > 0
+          ? `프레임 수가 사진 수(${photos.length})와 같아야 보낼 수 있어요`
+          : "사진을 누르면 다음 배치 위치에 들어가요";
 
   // 남은 자리에 맞춘 폭(위아래 여백 · 툴바 자리를 뺀다) × 줌 — 펼침면 비율은 앨범 사이즈대로
   const fitW = Math.max(240, Math.min(areaSize.w - 96, (areaSize.h - 48 - 72) * spreadRatio(album.page)));
@@ -163,8 +175,10 @@ export function AlbumWorkspace({
   // 단축키 — ← → 펼침면 · ⌘Z/Ctrl+Z 되돌리기 · V R F 도구 · Delete 고른 프레임의 사진 빼기(비었으면 프레임 삭제) ·
   // Esc 고르기 풀기 · 선택 도구로(입력칸 · 창이 열려 있으면 그대로)
   const spreadAskRef = useRef(spreadAsk);
+  const sendOpenRef = useRef(sendOpen);
   useEffect(() => {
     spreadAskRef.current = spreadAsk;
+    sendOpenRef.current = sendOpen;
   });
   const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen });
   useEffect(() => {
@@ -174,7 +188,7 @@ export function AlbumWorkspace({
     function onKeyDown(e: KeyboardEvent) {
       const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop, previewOpen: previewing } = keysRef.current;
       const t = e.target instanceof Element ? e.target : null;
-      if (ed.moveAsk || spreadAskRef.current || previewing || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      if (ed.moveAsk || spreadAskRef.current || previewing || sendOpenRef.current || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
       // 위치 조정 중에는 Esc · Enter(끝)만
       if (cropping) {
         if (e.key === "Escape" || e.key === "Enter") endCrop();
@@ -351,6 +365,16 @@ export function AlbumWorkspace({
         </Snackbar>
       )}
       {previewOpen && <AlbumPreview album={album} photoOf={photoOf} title={title} onClose={() => setPreviewOpen(false)} />}
+      {sendOpen && (
+        <SendAlbumModal
+          summary={`펼침면 ${spreadCount} · 프레임 ${F.list.length} · 배치 ${placed}장`}
+          onClose={() => setSendOpen(false)}
+          onSend={(mode) => {
+            setSendOpen(false);
+            editor.send(mode);
+          }}
+        />
+      )}
       {spreadAsk && (
         <DeleteSpreadModal
           index={spreadAsk.index}
@@ -386,7 +410,9 @@ export function AlbumWorkspace({
                 </ShellCta>
                 {editor.dirty && <i aria-label="저장하지 않은 변경" className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand-accent-default" />}
               </span>
-              <ShellCta disabled>클라이언트에게 보내기</ShellCta>
+              <ShellCta disabled={!canSend} onClick={() => setSendOpen(true)}>
+                {editor.share ? "다시 보내기" : "클라이언트에게 보내기"}
+              </ShellCta>
             </>
           }
         />
