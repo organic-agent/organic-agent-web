@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
+import { Snackbar } from "@/components/app/Snackbar";
 import { blockLeave, useLeaveGuard } from "@/components/app/LeaveGuard";
 import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
 import {
@@ -81,7 +82,7 @@ import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "./_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type SidebarAlbum, type StatusLine } from "./_shell/ShellSidebar";
 import { CreateAlbumModal } from "./album/_album/CreateAlbumModal";
-import { ShellTopbar } from "./_shell/ShellTopbar";
+import { ShellTopbar, type StageChipState } from "./_shell/ShellTopbar";
 import { StudioGalleryCoachMarks, type StudioCoachScene } from "./_shell/StudioGalleryCoachMarks";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
@@ -347,6 +348,34 @@ export default function StudioGalleryShellPage() {
           onOpen: () => (albumExists ? router.push(`/studio/gallery/${galleryId}/album`) : setAlbumCreateOpen(true)),
         }
       : null;
+  // ── 상단 단계 칩(이슈 168 결정 1) — 칩 = 사이드바 행과 같은 곳 · 같은 조건. 서버 단계는 그대로, 보는 화면만 옮긴다.
+  // 작업 완료 칸은 표시만, 지금 칸을 누르면 그 단계 화면으로 돌아온다. 보정 작업부터는 보기를 RetouchStage가 가져서 요청으로 넘긴다
+  const [retouchViewRequest, setRetouchViewRequest] = useState<{ view: ShellView; nonce: number } | null>(null);
+  const [stageNotice, setStageNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!stageNotice) return;
+    const timer = window.setTimeout(() => setStageNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [stageNotice]);
+  const stageStates: StageChipState[] = ["can", stageIndex >= 1 ? "can" : "locked", stageIndex >= 2 ? "can" : "locked", albumNav ? "can" : "locked", "off"];
+  function onStageSelect(to: number) {
+    const show = (next: ShellView) => {
+      if (stageIndex >= 2) setRetouchViewRequest({ view: next, nonce: Date.now() });
+      else changeView(next);
+    };
+    if (to === 0) show("all");
+    else if (to === 1) {
+      if (stageIndex >= 1) show("selected");
+      else setStageNotice("갤러리를 열면 볼 수 있어요");
+    } else if (to === 2) {
+      if (stageIndex >= 2) show("retouch");
+      else setStageNotice("클라이언트가 셀렉을 전달하면 열려요");
+    } else if (to === 3) {
+      if (!ALBUM_EDITOR_ENABLED) showComingSoon();
+      else if (albumNav) albumNav.onOpen();
+      else setStageNotice("클라이언트가 사진을 고르면 만들 수 있어요");
+    }
+  }
   function closeAlbumCreate() {
     setAlbumCreateOpen(false);
     if (albumParam) router.replace(`/studio/gallery/${galleryId}${viewParam ? `?view=${viewParam}` : ""}`);
@@ -1023,6 +1052,9 @@ export default function StudioGalleryShellPage() {
         workspaceId={gallery?.workspaceId ?? null}
         stages={SHELL_STAGES}
         stageIndex={gallery ? stageIndex : null}
+        stageStates={gallery ? stageStates : undefined}
+        onStageSelect={onStageSelect}
+        currentClickable={stageIndex !== 4}
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={studio ? () => setInviteTab("client") : undefined}
         inviteCoachKey="invite"
@@ -1037,6 +1069,7 @@ export default function StudioGalleryShellPage() {
           selection={selection}
           sidebarOpen={!collapsed}
           initialView={initialView ?? undefined}
+          viewRequest={retouchViewRequest}
           album={albumNav}
           onGalleryUpdated={setGallery}
           onWithdrawn={(updated) => {
@@ -1362,6 +1395,11 @@ export default function StudioGalleryShellPage() {
         />
       )}
       {comingSoonToast}
+      {stageNotice && (
+        <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {stageNotice}
+        </Snackbar>
+      )}
       {leaveToast}
       {photoMove.overlay}
       {folderMerge.overlay}

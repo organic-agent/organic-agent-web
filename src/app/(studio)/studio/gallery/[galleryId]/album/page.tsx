@@ -8,11 +8,12 @@
  * 창에서 만든다(PR ②) — 앨범이 없는데 이 주소로 오면 갤러리 화면으로 돌려보내 그 창을 연다(?album=new).
  * 앨범은 서버에 저장한다(PR ④). 운영 서버에 앨범 API가 올라가기 전이라 플래그(NEXT_PUBLIC_ALBUM_EDITOR)가 꺼져 있으면 갤러리 화면으로 돌려보낸다.
  * 들어오면 사이드바를 접어 펼침면 자리를 넓히고, 나가면 들어오기 전 상태로 돌린다(1024 미만은 편집을 막으므로 그대로).
- * 사이드바의 다른 행을 누르면 갤러리 화면의 그 보기로 돌아간다(?view=).
+ * 사이드바의 다른 행 · 상단 단계 칩을 누르면 갤러리 화면의 그 보기로 돌아간다(?view=, 이슈 168 결정 1).
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Snackbar } from "@/components/app/Snackbar";
 import { useSidebar } from "@/components/SidebarProvider";
 import { Button } from "@/components/ui/Button";
 import { ApiError } from "@/lib/api/client";
@@ -24,7 +25,7 @@ import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
 import { loadAlbumDoc, serverAlbumRepository, type AlbumDoc } from "@/lib/album/store";
 import { ShellSidebar } from "../_shell/ShellSidebar";
-import { ShellTopbar } from "../_shell/ShellTopbar";
+import { ShellTopbar, type StageChipState } from "../_shell/ShellTopbar";
 import { SHELL_STAGES, stageIndexOf } from "../_shell/stages";
 import { AlbumWorkspace } from "./_album/AlbumWorkspace";
 import { useAlbumSelection, useAlbumSource } from "./_album/useAlbumSource";
@@ -104,6 +105,25 @@ function StudioAlbumScreen() {
   const baseStage = gallery ? stageIndexOf(gallery) : null;
   const stageIndex = baseStage === 1 && selection?.status === "SUBMITTED" ? 2 : baseStage;
 
+  // 상단 단계 칩 — 갤러리 화면의 그 보기로(앨범 칸은 지금 여기, 작업 완료 칸은 표시만)
+  const [stageNotice, setStageNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!stageNotice) return;
+    const timer = window.setTimeout(() => setStageNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [stageNotice]);
+  const at = stageIndex ?? 0;
+  const stageStates: StageChipState[] = ["can", at >= 1 ? "can" : "locked", at >= 2 ? "can" : "locked", "can", "off"];
+  function onStageSelect(to: number) {
+    const views = ["all", "selected", "retouch"] as const;
+    if (to > 2) return;
+    if (to === 2 && at < 2) {
+      setStageNotice("클라이언트가 셀렉을 전달하면 열려요");
+      return;
+    }
+    router.push(`/studio/gallery/${galleryId}?view=${views[to]}`);
+  }
+
   if (loadError) {
     return (
       <div className="grid min-h-dvh place-items-center bg-background-default-main px-6">
@@ -124,6 +144,9 @@ function StudioAlbumScreen() {
         workspaceId={gallery?.workspaceId ?? null}
         stages={SHELL_STAGES}
         stageIndex={stageIndex}
+        stageStates={gallery ? stageStates : undefined}
+        onStageSelect={onStageSelect}
+        currentClickable={at <= 2}
         deadline={gallery?.selectionDeadline ?? null}
       />
       {gallery && doc && photos ? (
@@ -164,6 +187,11 @@ function StudioAlbumScreen() {
         />
       ) : (
         <div className="flex-1" aria-busy="true" />
+      )}
+      {stageNotice && (
+        <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {stageNotice}
+        </Snackbar>
       )}
     </div>
   );

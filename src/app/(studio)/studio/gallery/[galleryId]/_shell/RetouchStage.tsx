@@ -65,6 +65,7 @@ export function RetouchStage({
   selection,
   sidebarOpen,
   initialView,
+  viewRequest = null,
   album = null,
   onGalleryUpdated,
   onWithdrawn,
@@ -80,6 +81,8 @@ export function RetouchStage({
   sidebarOpen: boolean;
   /** 처음 보기 — 앨범 화면 사이드바에서 돌아올 때(?view=) */
   initialView?: ShellView;
+  /** 상단 단계 칩으로 보기를 바꿀 때(이슈 168) — nonce가 바뀔 때마다 그 보기로 */
+  viewRequest?: { view: ShellView; nonce: number } | null;
   /** 사이드바 "앨범" 행 · 보정 확정 뒤 하단 주 버튼(이슈 168) — 없으면 둘 다 없다 */
   album?: SidebarAlbum | null;
   /** 횟수 · 닫기처럼 갤러리 응답이 바로 오는 변경 */
@@ -99,6 +102,13 @@ export function RetouchStage({
   const [filter, setFilter] = useState<Filter>("none");
   const [sort, setSort] = useState<SortKey>("noResultFirst");
   const [currentId, setCurrentId] = useState<number | null>(null);
+  // 단계 칩이 보낸 보기 — 받은 요청을 기억해 두고 새 요청이 오면 렌더 중에 맞춘다
+  const [appliedRequest, setAppliedRequest] = useState(viewRequest?.nonce ?? 0);
+  if (viewRequest && viewRequest.nonce !== appliedRequest) {
+    setAppliedRequest(viewRequest.nonce);
+    setView(viewRequest.view);
+    setCurrentId(null);
+  }
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("request");
   const [scrollToId, setScrollToId] = useState<number | null>(null);
