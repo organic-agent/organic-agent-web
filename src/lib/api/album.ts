@@ -9,21 +9,10 @@
  */
 
 import { api } from "@/lib/api/client";
-import type { Crop, Deco, FrameDef, Guide, PageSize } from "@/lib/album/model";
+import type { AlbumLayout } from "@/lib/album/model";
 
 /** 없음 · 구성 중 · 보냄(수정 가능) · 돌려받음 · 확정 */
 export type AlbumStatus = "NONE" | "DRAFT" | "SENT_EDIT" | "RETURNED" | "CONFIRMED";
-
-/** 서버에 저장하는 앨범 문서 — 편집 화면의 고른 프레임 · 보는 펼침면은 빠진다 */
-export type AlbumLayout = {
-  page: PageSize;
-  spreads: { id: string; frames: FrameDef[]; deco: Deco | null }[];
-  guides: Guide[];
-  assign: Record<string, number>;
-  crop: Record<string, Crop>;
-  /** 선택에서 빠져 비운 프레임 → 원래 사진. 서버가 다시 계산한다 */
-  gone: Record<string, number>;
-};
 
 export type AlbumResponse = {
   status: AlbumStatus;

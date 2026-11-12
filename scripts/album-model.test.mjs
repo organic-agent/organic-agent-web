@@ -298,3 +298,19 @@ test("클라이언트가 고친 곳 — 사진이 바뀌었거나 위치가 바�
   // 기본 위치를 지운 것과 기본값을 적은 것은 같다
   assert.equal(M.changedFrames(base, M.setCrop(base, "s1f1", { pid: 101, s: 1, px: 0.5, py: 0.5 })).size, 0);
 });
+
+test("서버 문서 — 사진과 맞지 않는 위치 조정은 빼고, 다시 열면 첫 펼침면 · 첫 빈 프레임부터", () => {
+  const { album, F } = fresh();
+  let a = placeAll(album, F, [101, 102]);
+  a = M.setCrop(a, "s1f1", { pid: 101, s: 1.5, px: 0.3, py: 0.5 });
+  // 사진을 바꾼 프레임 · 빈 프레임에 남은 위치 조정
+  a = { ...a, crop: { ...a.crop, s1f2: { pid: 999, s: 2, px: 0.5, py: 0.5 }, s1f3: { pid: 103, s: 1, px: 0.5, py: 0.5 } }, spread: 3 };
+  const layout = M.toLayout(a);
+  assert.deepEqual(Object.keys(layout.crop), ["s1f1"]);
+  assert.deepEqual(Object.keys(layout).sort(), ["assign", "crop", "gone", "guides", "page", "spreads"]);
+  const back = M.fromLayout(JSON.parse(JSON.stringify(layout)));
+  assert.equal(back.spread, 0);
+  assert.equal(back.cursorMode, "auto");
+  assert.equal(back.cursor, M.nextEmptyFrom(back, M.indexFrames(back.spreads), 0));
+  assert.deepEqual(back.assign, a.assign);
+});

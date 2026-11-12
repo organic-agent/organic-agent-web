@@ -58,6 +58,9 @@ export type Album = {
   spread: number;
 };
 
+/** 서버에 저장하는 앨범 문서(서버 이슈 397) — 고른 프레임 · 다음 배치 위치 · 보는 펼침면은 화면 상태라 빠진다 */
+export type AlbumLayout = Pick<Album, "page" | "spreads" | "guides" | "assign" | "crop" | "gone">;
+
 /** 화면 · 정렬용으로 계산한 프레임 */
 export type Frame = FrameDef & {
   spread: number;
@@ -173,6 +176,19 @@ export function normalizeAlbum(raw: Album): Album {
     crop: raw.crop && typeof raw.crop === "object" ? raw.crop : {},
     gone: raw.gone ?? {},
   };
+}
+
+/** 저장할 문서 — 지금 사진과 맞지 않는 위치 조정(사진을 바꾸거나 뺀 프레임에 남은 것)은 버린다(서버가 거절한다) */
+export function toLayout(album: Album): AlbumLayout {
+  const crop: Record<string, Crop> = {};
+  for (const [id, c] of Object.entries(album.crop)) if (album.assign[id] === c.pid) crop[id] = c;
+  return { page: album.page, spreads: album.spreads, guides: album.guides, assign: album.assign, crop, gone: album.gone };
+}
+
+/** 서버 문서 → 편집 화면 앨범 — 첫 펼침면 · 첫 빈 프레임부터 */
+export function fromLayout(layout: AlbumLayout): Album {
+  const album = normalizeAlbum({ ...layout, cursor: null, cursorMode: "auto", spread: 0 });
+  return withAutoCursor(album, indexFrames(album.spreads), 0);
 }
 
 // ── 프레임 순서 ──

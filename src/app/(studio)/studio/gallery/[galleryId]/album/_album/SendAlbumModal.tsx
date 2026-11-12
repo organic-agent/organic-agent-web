@@ -10,7 +10,8 @@
 
 import { useState } from "react";
 import { GalleryModalButtons, GalleryModalShell } from "@/app/(studio)/studio/_components/GalleryModalShell";
-import type { AlbumShareMode } from "@/lib/album/store";
+
+type AlbumShareMode = "view" | "edit";
 
 const MODE_KEY = "sel.album.sendMode";
 

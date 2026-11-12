@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Snackbar } from "@/components/app/Snackbar";
 import { AlbumIcon, LockIcon } from "@/components/icons";
 import { changedFrames, crossesGutter, frameMm, getCrop, goneSpreads, pad2, placedCount, ranks as rankOf, spreadRatio, type Album, type Crop } from "@/lib/album/model";
-import { localAlbumRepository, type AlbumDoc, type AlbumRepository } from "@/lib/album/store";
+import type { AlbumDoc, AlbumRepository, SavedKind } from "@/lib/album/store";
 import { ShellBottomBar, ShellCta } from "../../_shell/ShellBottomBar";
 import { ShellMainHeader } from "../../_shell/ShellMainHeader";
 import { SHELL_BODY_CLASS } from "../../_shell/ShellSidebar";
@@ -61,6 +61,8 @@ function Counter({ label, value, of }: { label: string; value: number; of: numbe
   );
 }
 
+const SAVED_LABEL: Record<SavedKind, string> = { auto: "자동 저장", manual: "임시 저장", server: "저장" };
+
 const hhmm = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -89,7 +91,7 @@ export function AlbumWorkspace({
   retouchBanner,
   renderSidebar,
   role = "studio",
-  repo = localAlbumRepository,
+  repo = null,
   base = null,
 }: {
   galleryId: number;
@@ -102,8 +104,8 @@ export function AlbumWorkspace({
   /** 사이드바(펼쳐져 있을 때만) — 넣은 장수를 상태줄 · 앨범 행에 쓴다 */
   renderSidebar: (placed: number) => ReactNode;
   role?: AlbumRole;
-  /** 저장할 곳 — 스튜디오 앨범 · 클라이언트 사본 · 저장 안 함(보기만) */
-  repo?: AlbumRepository;
+  /** 저장할 곳 — 스튜디오 앨범(서버). 없으면 저장하지 않는다(보기만) */
+  repo?: AlbumRepository | null;
   /** 클라이언트 수정 — 스튜디오가 보낸 앨범(고친 곳 표시) */
   base?: Album | null;
 }) {
@@ -285,9 +287,9 @@ export function AlbumWorkspace({
                             다시 시도
                           </button>
                         </>
-                      ) : (
-                        ` · ${editor.saved.kind === "manual" ? "임시 저장" : "자동 저장"} ${hhmm(editor.saved.at)}`
-                      )}
+                      ) : editor.saved.at ? (
+                        ` · ${SAVED_LABEL[editor.saved.kind]} ${hhmm(editor.saved.at)}`
+                      ) : null}
                     </small>
                   </>
                 }
@@ -409,19 +411,26 @@ export function AlbumWorkspace({
           </div>
         </main>
       </div>
-      {snack && (
-        <Snackbar kind={snack.kind} action={snack.undoable && editor.canUndo ? { label: "되돌리기", onClick: editor.undo } : undefined} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
-          {snack.text}
+      {editor.conflict ? (
+        // 다른 곳에서 먼저 저장 — 누를 때까지 떠 있다(결정 5)
+        <Snackbar kind="warning" action={{ label: "최신 앨범으로 바꾸기", onClick: () => void editor.reloadLatest() }} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          다른 곳에서 먼저 저장했어요
         </Snackbar>
+      ) : (
+        snack && (
+          <Snackbar kind={snack.kind} action={snack.undoable && editor.canUndo ? { label: "되돌리기", onClick: editor.undo } : undefined} className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+            {snack.text}
+          </Snackbar>
+        )
       )}
       {previewOpen && <AlbumPreview album={album} photoOf={photoOf} title={title} onClose={() => setPreviewOpen(false)} />}
       {sendOpen && (
         <SendAlbumModal
           summary={`펼침면 ${spreadCount} · 프레임 ${F.list.length} · 배치 ${placed}장`}
           onClose={() => setSendOpen(false)}
-          onSend={(mode) => {
+          onSend={() => {
             setSendOpen(false);
-            editor.send(mode);
+            void editor.send();
           }}
         />
       )}
@@ -465,14 +474,14 @@ export function AlbumWorkspace({
             ) : (
             <>
               <span className="relative inline-flex">
-                <ShellCta kind="outline" disabled={!editor.dirty && !editor.saveError} onClick={editor.saveNow}>
+                <ShellCta kind="outline" disabled={editor.conflict || (!editor.dirty && !editor.saveError)} onClick={editor.saveNow}>
                   임시 저장
                 </ShellCta>
                 {editor.dirty && <i aria-label="저장하지 않은 변경" className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand-accent-default" />}
               </span>
               {isStudio ? (
                 <ShellCta disabled={!canSend} onClick={() => setSendOpen(true)}>
-                  {editor.share ? "다시 보내기" : "클라이언트에게 보내기"}
+                  클라이언트에게 보내기
                 </ShellCta>
               ) : (
                 // 돌려보내기는 서버 뒤(받는 쪽 · 알림)

@@ -60,7 +60,7 @@ import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
 import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
 import { createAlbum } from "@/lib/album/model";
-import { localAlbumRepository, newAlbumDoc, useAlbumSummary } from "@/lib/album/store";
+import { serverAlbumRepository, useAlbumInfo } from "@/lib/album/store";
 import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
 import { ExtendDeadlineModal } from "./_shell/ExtendDeadlineModal";
@@ -284,7 +284,6 @@ export default function StudioGalleryShellPage() {
 
   // ── 단계 ── 서버 stage가 정본이지만, 선택 앨범이 제출됐으면(SUBMITTED) stage가 아직 셀렉 대기여도 3단계로 본다
   // (전달되는 순간 1차 회차가 생기고 "선택 확인" 전용 API는 없다 — 2026-09-12)
-  const albumSummary = useAlbumSummary(galleryId);
   const baseStageIndex = gallery ? stageIndexOf(gallery) : 0;
   const inSelection = gallery !== null && baseStageIndex >= 1;
 
@@ -335,15 +334,17 @@ export default function StudioGalleryShellPage() {
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
   const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
   const stageIndex = selection?.status === "SUBMITTED" && baseStageIndex === 1 ? 2 : baseStageIndex;
-  // 사이드바 "앨범" 행 — 선택 사진이 1장이라도 생기면(이미 만들었으면 늘)
+  // 사이드바 "앨범" 행 — 선택 사진이 1장이라도 생기면(이미 만들었으면 늘). 있는지는 갤러리 응답, 넣은 장수는 앨범을 읽어서
   const albumSelected = selection?.selectedCount ?? 0;
+  const albumExists = ALBUM_EDITOR_ENABLED && gallery?.hasAlbum === true;
+  const albumInfo = useAlbumInfo(galleryId, albumExists);
   const albumNav: SidebarAlbum | null =
-    ALBUM_EDITOR_ENABLED && gallery !== null && stageIndex >= 1 && (albumSelected > 0 || albumSummary.exists)
+    ALBUM_EDITOR_ENABLED && gallery !== null && stageIndex >= 1 && (albumSelected > 0 || albumExists)
       ? {
-          exists: albumSummary.exists,
-          placed: albumSummary.placed,
+          exists: albumExists,
+          placed: albumInfo?.placed ?? 0,
           selected: albumSelected,
-          onOpen: () => (albumSummary.exists ? router.push(`/studio/gallery/${galleryId}/album`) : setAlbumCreateOpen(true)),
+          onOpen: () => (albumExists ? router.push(`/studio/gallery/${galleryId}/album`) : setAlbumCreateOpen(true)),
         }
       : null;
   function closeAlbumCreate() {
@@ -1345,13 +1346,13 @@ export default function StudioGalleryShellPage() {
           }}
         />
       )}
-      {albumCreateOpen && albumNav && !albumSummary.exists && (
+      {albumCreateOpen && albumNav && !albumExists && (
         <CreateAlbumModal
           selectedCount={albumSelected}
           onClose={closeAlbumCreate}
-          onCreate={(opts) => {
+          onCreate={async (opts) => {
             try {
-              localAlbumRepository.save(galleryId, newAlbumDoc(createAlbum(opts)));
+              await serverAlbumRepository.save(galleryId, createAlbum(opts), 0);
             } catch {
               return false;
             }

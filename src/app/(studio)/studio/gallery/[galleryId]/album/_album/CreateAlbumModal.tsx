@@ -37,8 +37,8 @@ export function CreateAlbumModal({
   /** 클라이언트가 선택한 사진 수 — 프레임 상한 */
   selectedCount: number;
   onClose: () => void;
-  /** 만들고 편집기로 — 저장하지 못하면 false */
-  onCreate: (opts: CreateOptions) => boolean;
+  /** 서버에 만들고 편집기로 — 만들지 못하면 false */
+  onCreate: (opts: CreateOptions) => Promise<boolean>;
 }) {
   const [start, setStart] = useState<Start>("blank");
   const [sizeKey, setSizeKey] = useState<string>(ALBUM_SIZES[2].name ?? "");
@@ -46,6 +46,7 @@ export function CreateAlbumModal({
   const [customH, setCustomH] = useState("300");
   const [pages, setPages] = useState("40");
   const [saveFailed, setSaveFailed] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const custom = sizeKey === "custom";
   const cw = intOf(customW);
@@ -65,10 +66,15 @@ export function CreateAlbumModal({
     if (next === "template") setPages(String(TEMPLATE_PAGES));
   }
 
-  function create() {
-    if (!page || !spreads) return;
-    const ok = onCreate({ start, page, pages: spreads * 2, cap: selectedCount });
-    setSaveFailed(!ok);
+  async function create() {
+    if (!page || !spreads || creating) return;
+    setCreating(true);
+    const ok = await onCreate({ start, page, pages: spreads * 2, cap: selectedCount });
+    // 만들었으면 편집기로 넘어가며 창이 닫힌다
+    if (!ok) {
+      setCreating(false);
+      setSaveFailed(true);
+    }
   }
 
   return (
@@ -185,8 +191,8 @@ export function CreateAlbumModal({
           </div>
         </div>
 
-        {saveFailed && <p className="type-content-s text-function-error-default">이 브라우저에 저장하지 못했어요 · 다시 눌러 주세요</p>}
-        <GalleryModalButtons onClose={onClose} onConfirm={create} confirmLabel="앨범 만들기" disabled={!ready} />
+        {saveFailed && <p className="type-content-s text-function-error-default">앨범을 만들지 못했어요 · 다시 눌러 주세요</p>}
+        <GalleryModalButtons onClose={onClose} onConfirm={() => void create()} confirmLabel="앨범 만들기" disabled={!ready || creating} />
       </div>
     </GalleryModalShell>
   );

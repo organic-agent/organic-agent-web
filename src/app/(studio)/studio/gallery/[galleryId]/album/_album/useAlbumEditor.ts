@@ -6,18 +6,22 @@
  *
  * 클라이언트 선택과는 렌더할 때마다 맞춘다(syncSelection) — 선택에서 빠진 사진은 저절로 비고 "선택에서 빠짐"이 된다.
  * 되돌리기로 옛 앨범이 돌아와도 다시 맞춰지므로 빠진 사진이 되살아나지 않는다. 맞춘 결과는 바꾼 것으로 보고 저장된다.
- * 저장(안 A) — 같은 곳에 저장한다. 자동 저장은 30초마다 · 화면을 나가거나 가릴 때(바꾼 게 있을 때만), 임시 저장은 누르는 순간.
+ * 저장(안 A) — 서버에 저장한다. 자동 저장은 30초마다 · 화면을 나가거나 가릴 때(바꾼 게 있을 때만), 임시 저장은 누르는 순간.
+ * 저장은 한 번에 하나씩, 앞 저장이 받은 버전으로 다음 저장을 보낸다. 다른 곳(다른 탭 · 다른 멤버)에서 먼저 저장해 거절되면
+ * 저장을 멈추고 "최신 앨범으로 바꾸기"를 기다린다(이슈 168 결정 5 — 누르면 서버 앨범으로 바뀌고 이 화면의 저장 안 된 변경은 버린다).
  * 저장 시각 · 종류는 머리줄이, 저장할 게 남았는지는 "임시 저장" 버튼의 점이 보여 준다.
  *
  * 사진을 누르면: 아직 안 넣은 사진은 다음 배치 위치(또는 고른 프레임)에 넣는다 — 고른 프레임에 사진이 있으면 확인 없이 바꾸고
  * 되돌리기 스낵바. 이미 다른 프레임에 넣은 사진이면 옮길지 묻는다(원래 자리는 비고, 맞바꾸지 않는다).
  * 넣기 · 바꾸기 · 옮기기 · 빼기는 되돌리기 대상(최근 50번, 저장하지 않음). 프레임 고르기 · 펼침면 이동은 대상이 아니다.
  * PR ② — 프레임 그리기 · 옮기기 · 크기 · 지우기도 되돌리기 대상. 프레임은 클라이언트가 선택한 사진 수(cap)까지만 그린다.
- * PR ③ — 클라이언트에게 보내기(보기만 · 수정 가능): 그때의 앨범을 share에 담아 바로 저장한다. 클라이언트 사본도 이 훅으로 고친다.
+ * 보내고 확정(PR ④) — 남은 변경을 먼저 저장한 뒤 보낸다. 서버가 그 자리에서 확정해, 그 뒤로는 스튜디오도 보기만 한다(status CONFIRMED).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SnackbarKind } from "@/components/app/Snackbar";
+import { ALBUM_REVISION_MISMATCH, getAlbum, sendAlbum } from "@/lib/api/album";
+import { ApiError } from "@/lib/api/client";
 import {
   addFrame,
   addGuide,
@@ -46,7 +50,7 @@ import {
   type Guide,
   type Rect,
 } from "@/lib/album/model";
-import type { AlbumDoc, AlbumRepository, AlbumShare, AlbumShareMode, SavedKind } from "@/lib/album/store";
+import { docOf, loadBanner, saveBanner, type AlbumDoc, type AlbumRepository, type BannerState, type SavedKind } from "@/lib/album/store";
 
 const UNDO_MAX = 50;
 const AUTOSAVE_MS = 30_000;
@@ -54,7 +58,8 @@ const AUTOSAVE_MS = 30_000;
 export type AlbumSnack = { id: number; text: string; undoable: boolean; kind: SnackbarKind };
 export type MoveAsk = { photoId: number; from: string; to: string };
 
-export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selectedIds: ReadonlySet<number>, repo: AlbumRepository) {
+/** repo가 없으면 저장하지 않는다(보기만) */
+export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selectedIds: ReadonlySet<number>, repo: AlbumRepository | null) {
   const [stored, setAlbum] = useState(initialDoc.album);
   const [undoStack, setUndoStack] = useState<Album[]>([]);
   const [snack, setSnack] = useState<AlbumSnack | null>(null);
@@ -63,71 +68,127 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
   /** 화면 · 편집 · 저장이 쓰는 앨범 — 클라이언트 선택과 맞춘 것 */
   const album = useMemo(() => syncSelection(stored, F, selectedIds).album, [stored, F, selectedIds]);
 
-  // ── 저장 ──
-  const [saved, setSaved] = useState<{ album: Album; at: string; kind: SavedKind }>({ album: initialDoc.album, at: initialDoc.savedAt, kind: initialDoc.savedKind });
-  const [banner, setBanner] = useState(initialDoc.banner);
+  // ── 저장(서버) ──
+  const [saved, setSaved] = useState<{ album: Album; at: string | null; kind: SavedKind }>({ album: initialDoc.album, at: initialDoc.savedAt, kind: "server" });
+  const savedRef = useRef(saved);
+  const revisionRef = useRef(initialDoc.revision);
+  const [status, setStatus] = useState(initialDoc.status);
+  const [banner, setBanner] = useState<BannerState>(() => loadBanner(galleryId));
   /** 닫은 배너의 최신 값 — 두 배너를 연달아 닫아도 앞의 것을 덮지 않게 */
-  const bannerRef = useRef(initialDoc.banner);
-  /** 클라이언트에게 보낸 것 — 저장할 때마다 함께 둔다 */
-  const [share, setShare] = useState<AlbumShare | null>(initialDoc.share ?? null);
-  const shareRef = useRef<AlbumShare | null>(initialDoc.share ?? null);
+  const bannerRef = useRef(banner);
   const [saveError, setSaveError] = useState(false);
+  /** 다른 곳에서 먼저 저장해 거절됨 — 최신 앨범으로 바꿀 때까지 저장을 멈춘다 */
+  const [conflict, setConflict] = useState(false);
+  const conflictRef = useRef(false);
   const dirty = !sameContent(album, saved.album);
+  const albumRef = useRef(album);
+  useEffect(() => {
+    albumRef.current = album;
+  });
+  /** 저장은 한 번에 하나씩 — 앞 저장이 받은 버전으로 다음 저장을 보낸다 */
+  const queue = useRef<Promise<boolean>>(Promise.resolve(true));
 
-  function persist(kind: SavedKind, nextBanner = bannerRef.current): boolean {
-    const at = new Date().toISOString();
+  function markConflict() {
+    conflictRef.current = true;
+    setConflict(true);
+  }
+  /** 지금 앨범을 저장 — 바꾼 게 없으면 저장한 것으로 본다 */
+  function persist(kind: Exclude<SavedKind, "server">, opts?: { keepalive?: boolean }): Promise<boolean> {
+    const run = async () => {
+      const snapshot = albumRef.current;
+      if (!repo || conflictRef.current) return false;
+      if (sameContent(snapshot, savedRef.current.album)) return true;
+      try {
+        const r = await repo.save(galleryId, snapshot, revisionRef.current, opts);
+        revisionRef.current = r.revision;
+        savedRef.current = { album: snapshot, at: r.savedAt ?? new Date().toISOString(), kind };
+        setSaved(savedRef.current);
+        setSaveError(false);
+        return true;
+      } catch (err) {
+        if (err instanceof ApiError && err.code === ALBUM_REVISION_MISMATCH) markConflict();
+        else setSaveError(true);
+        return false;
+      }
+    };
+    const next = queue.current.then(run, run);
+    queue.current = next;
+    return next;
+  }
+  function saveNow() {
+    void persist("manual").then((ok) => {
+      if (ok) toast("임시 저장했어요", false);
+      else if (!conflictRef.current) toast("저장하지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");
+    });
+  }
+  /** 최신 앨범으로 바꾸기 — 서버에 마지막으로 저장된 앨범으로(이 화면에서 저장 안 된 변경은 버린다) */
+  async function reloadLatest() {
     try {
-      repo.save(galleryId, { ...initialDoc, album, savedAt: at, savedKind: kind, banner: nextBanner, share: shareRef.current });
-      setSaved({ album, at, kind });
+      const doc = docOf(await getAlbum(galleryId));
+      const next = goSpread(doc.album, indexFrames(doc.album.spreads), Math.min(albumRef.current.spread, doc.album.spreads.length - 1));
+      revisionRef.current = doc.revision;
+      savedRef.current = { album: next, at: doc.savedAt, kind: "server" };
+      setSaved(savedRef.current);
+      setStatus(doc.status);
+      setAlbum(next);
+      setUndoStack([]);
+      conflictRef.current = false;
+      setConflict(false);
       setSaveError(false);
-      return true;
+      toast("최신 앨범으로 바꿨어요", false);
     } catch {
-      setSaveError(true);
+      toast("앨범을 불러오지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");
+    }
+  }
+  /** 보내고 확정 — 남은 변경을 먼저 저장하고 보낸다. 보낸 뒤에는 고칠 수 없다 */
+  async function send(): Promise<boolean> {
+    if (!(await persist("manual"))) {
+      if (!conflictRef.current) toast("보내지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");
+      return false;
+    }
+    try {
+      const res = await sendAlbum(galleryId, revisionRef.current);
+      revisionRef.current = res.revision;
+      setStatus(res.status);
+      toast("앨범을 보내고 확정했어요", false, "success");
+      return true;
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : "";
+      if (code === ALBUM_REVISION_MISMATCH) markConflict();
+      else if (code === "ALBUM_409_2") toast("클라이언트가 보정을 확정하면 보낼 수 있어요", false, "warning");
+      else if (code === "ALBUM_409_3") toast("선택한 사진을 모두 넣어야 보낼 수 있어요", false, "warning");
+      else toast("보내지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");
       return false;
     }
   }
-  function saveNow() {
-    toast(persist("manual") ? "임시 저장했어요" : "저장하지 못했어요 · 잠시 뒤 다시 눌러 주세요", false);
-  }
-  /** 클라이언트에게 보내기 — 지금 앨범을 담아 바로 저장(서버 전에는 이 브라우저에만) */
-  function send(mode: AlbumShareMode) {
-    const prev = shareRef.current;
-    shareRef.current = { mode, sentAt: new Date().toISOString(), album };
-    if (!persist("manual")) {
-      shareRef.current = prev;
-      toast("보내지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");
-      return;
-    }
-    setShare(shareRef.current);
-    toast(`클라이언트에게 보냈어요 · ${mode === "view" ? "보기만" : "수정 가능"}`, false, "success");
-  }
-  /** 배너 닫기 — 그 상태 키를 기억(상태가 바뀌면 다시 뜬다) */
+  /** 배너 닫기 — 그 상태 키를 이 브라우저에 기억(상태가 바뀌면 다시 뜬다) */
   function dismissBanner(kind: "retouch" | "gone", key: string) {
     const next = { ...bannerRef.current, [kind]: key };
     bannerRef.current = next;
     setBanner(next);
-    persist(saved.kind, next);
+    saveBanner(galleryId, next);
   }
 
-  // 자동 저장 — 30초마다 · 화면을 가리거나 나갈 때(바꾼 게 있을 때만)
+  // 자동 저장 — 30초마다 · 화면을 가리거나 나갈 때(바꾼 게 있을 때만). 가리거나 닫을 때는 탭이 닫혀도 끝까지 보낸다
   const latest = useRef({ dirty, persist });
   useEffect(() => {
     latest.current = { dirty, persist };
   });
   useEffect(() => {
-    const flush = () => {
-      if (latest.current.dirty) latest.current.persist("auto");
+    const flush = (keepalive = false) => {
+      if (latest.current.dirty) void latest.current.persist("auto", { keepalive });
     };
-    const timer = window.setInterval(flush, AUTOSAVE_MS);
+    const timer = window.setInterval(() => flush(), AUTOSAVE_MS);
     const onHidden = () => {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") flush(true);
     };
+    const onPageHide = () => flush(true);
     document.addEventListener("visibilitychange", onHidden);
-    window.addEventListener("pagehide", flush);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onHidden);
-      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("pagehide", onPageHide);
       flush();
     };
   }, []);
@@ -313,11 +374,13 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     confirmMove,
     cancelMove: () => setMoveAsk(null),
     dirty,
-    share,
+    status,
     send,
     saved,
     saveError,
     saveNow,
+    conflict,
+    reloadLatest,
     banner,
     dismissBanner,
   };
