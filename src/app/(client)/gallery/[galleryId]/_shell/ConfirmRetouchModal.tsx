@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * 보정 확정 확인 — 더 요청하지 않고 끝내기 → retouch/confirm → 갤러리 보관(ARCHIVED)
+ * 보정 확정 확인 — 더 요청하지 않고 끝내기 → retouch/confirm → 갤러리 보관(ARCHIVED).
+ * 스튜디오가 앨범을 만든 갤러리는 보관 대신 앨범 단계로 넘어간다(이슈 168).
  * 위치: src/app/(client)/gallery/[galleryId]/_shell/ConfirmRetouchModal.tsx
  *
  * 최신 회차를 작가가 보낸 뒤에만 할 수 있다. 남은 횟수는 쓰지 않는다. 보정본은 확정 뒤에도 내려받을 수 있다.
@@ -18,6 +19,7 @@ export function ConfirmRetouchModal({
   photoCount,
   roundCount,
   remaining,
+  album = false,
   onClose,
   onConfirmed,
 }: {
@@ -25,6 +27,8 @@ export function ConfirmRetouchModal({
   photoCount: number;
   roundCount: number;
   remaining: number | null;
+  /** 스튜디오가 앨범을 만든 갤러리 — 확정하면 앨범 단계로 */
+  album?: boolean;
   onClose: () => void;
   onConfirmed: () => void;
 }) {
@@ -48,7 +52,7 @@ export function ConfirmRetouchModal({
       title="보정을 확정할까요?"
       desc={
         <>
-          확정하면 <b className="text-contents-light-bgd-default">더 요청할 수 없고</b> 갤러리가 보관돼요.
+          확정하면 <b className="text-contents-light-bgd-default">더 요청할 수 없고</b> {album ? "스튜디오가 앨범을 구성해요." : "갤러리가 보관돼요."}
           {remaining !== null && remaining > 0 && ` 남은 횟수 ${remaining}회는 쓰지 않아요.`} 보정본은 확정 뒤에도 언제든 내려받을 수 있어요.
         </>
       }

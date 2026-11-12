@@ -50,7 +50,7 @@ import { PersonalReviewCoachMarks } from "./PersonalReviewCoachMarks";
 import { ClientSidebar, type ClientSidebarAlbum, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
-import type { ClientPhase } from "./clientStages";
+import { hasAlbum, type ClientPhase } from "./clientStages";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
@@ -792,6 +792,7 @@ export function ReviewStage({
           photoCount={items.length}
           roundCount={rounds.length}
           remaining={remaining}
+          album={hasAlbum(gallery)}
           onClose={() => setConfirmOpen(false)}
           onConfirmed={() => {
             setConfirmOpen(false);
