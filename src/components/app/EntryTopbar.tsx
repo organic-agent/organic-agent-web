@@ -24,7 +24,8 @@ export function EntryTopbar() {
     if (n.scopeId === null) return null;
     if (n.scope === "STUDIO") return `/studio/${n.scopeId}`;
     if (n.scope !== "GALLERY") return null;
-    return workspaces.some((w) => w.kind === "GALLERY" && w.galleryId === n.scopeId) ? `/gallery/${n.scopeId}` : `/studio/gallery/${n.scopeId}`;
+    const album = n.type.startsWith("ALBUM_") ? "/album" : "";
+    return workspaces.some((w) => w.kind === "GALLERY" && w.galleryId === n.scopeId) ? `/gallery/${n.scopeId}${album}` : `/studio/gallery/${n.scopeId}${album}`;
   }
   return (
     <header className="border-b border-divider-default bg-background-default-main">

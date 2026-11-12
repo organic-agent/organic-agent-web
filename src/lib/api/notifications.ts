@@ -26,7 +26,10 @@ export type NotificationType =
   | "SELECTION_REOPENED"
   | "SELECTION_SUBMITTED"
   | "RETOUCH_REQUESTED"
-  | "RETOUCH_COMPLETED";
+  | "RETOUCH_COMPLETED"
+  | "ALBUM_SENT"
+  | "ALBUM_RETURNED"
+  | "ALBUM_CONFIRMED";
 
 export type NotificationScope = "GLOBAL" | "STUDIO" | "GALLERY";
 

@@ -515,7 +515,8 @@ export function SelectStage({
   const requests = useMemo(() => toRequestItems(drafts, pickedIds), [drafts, pickedIds]);
   const unpickedDraftCount = draftCount.photos - requests.length;
   const canSubmit = editable && selectedCount > 0 && (maxSelectable === null || selectedCount === maxSelectable);
-  /** 상단 단계 칩 "보정 확인"(이슈 147) — 요청이 살아 있는 동안 장수를 다 채웠으면 내보내기 창, 아니면 몇 장 더 골라야 하는지 안내 창. 닫으면 요청을 끝낸다 */
+  /** 상단 단계 칩 "보정 확인"(이슈 147) · 초대 "보정 검토"(이슈 168) — 요청이 살아 있는 동안 장수를 다 채웠으면 내보내기 · 전달하기 창,
+   * 아니면 몇 장 더 골라야 하는지 안내 창. 닫으면 요청을 끝낸다 */
   const exportRequested = stageRequest?.kind === "export";
   const fillNoticeOpen = exportRequested && !canSubmit;
   function closeExport() {
@@ -1266,8 +1267,8 @@ export function SelectStage({
             maxSelectable === null
               ? "사진을 한 장 이상 골라 주세요"
               : selectedCount > maxSelectable
-                ? `${maxSelectable}장까지만 마칠 수 있어요`
-                : `${maxSelectable}장을 채워야 마칠 수 있어요`
+                ? `${maxSelectable}장까지만 ${personal ? "마칠" : "전달할"} 수 있어요`
+                : `${maxSelectable}장을 채워야 ${personal ? "마칠" : "전달할"} 수 있어요`
           }
           desc={
             maxSelectable === null
@@ -1284,7 +1285,7 @@ export function SelectStage({
           </Button>
         </GalleryModalShell>
       )}
-      {(exportOpen || (exportRequested && canSubmit)) && (
+      {(exportOpen || (personal && exportRequested && canSubmit)) && (
         <ExportSelectionModal
           galleryId={galleryId}
           selectedCount={selectedCount}
@@ -1305,7 +1306,7 @@ export function SelectStage({
           }}
         />
       )}
-      {submitOpen && (
+      {(submitOpen || (!personal && exportRequested && canSubmit)) && (
         <SubmitSelectionModal
           galleryId={galleryId}
           galleryCreatedAt={gallery.createdAt}
@@ -1314,9 +1315,13 @@ export function SelectStage({
           requests={requests}
           unpickedDraftCount={unpickedDraftCount}
           ratedCount={ratedCount}
-          onClose={() => setSubmitOpen(false)}
+          onClose={() => {
+            setSubmitOpen(false);
+            onStageRequestHandled?.();
+          }}
           onSubmitted={() => {
             setSubmitOpen(false);
+            onStageRequestHandled?.();
             // 전달된 초안은 서버가 가졌으니 지운다(안 고른 사진의 초안은 남긴다)
             for (const id of pickedIds) writeDraft(galleryId, id, null);
             setLocalNotice("작가에게 전달했어요");

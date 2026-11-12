@@ -13,8 +13,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
+import { Snackbar } from "@/components/app/Snackbar";
 import { blockLeave, useLeaveGuard } from "@/components/app/LeaveGuard";
 import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
 import {
@@ -58,6 +59,9 @@ import { deletePhotos, listAllPhotos, type PhotoResponse } from "@/lib/api/photo
 import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { fetchStudio, type StudioResponse } from "@/lib/api/studios";
+import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
+import { createAlbum } from "@/lib/album/model";
+import { serverAlbumRepository, useAlbumInfo } from "@/lib/album/store";
 import { ChangeQuotaModal } from "./_shell/ChangeQuotaModal";
 import { EmptyUploadGuide } from "./_shell/EmptyUploadGuide";
 import { ExtendDeadlineModal } from "./_shell/ExtendDeadlineModal";
@@ -76,8 +80,9 @@ import { PhotoGrid } from "./_shell/PhotoGrid";
 import { RecoveryBanner } from "./_shell/RecoveryBanner";
 import { ShellBottomBar, ShellCta } from "./_shell/ShellBottomBar";
 import { ShellMainHeader, type FilterKey, type SortKey, sortPhotos } from "./_shell/ShellMainHeader";
-import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type StatusLine } from "./_shell/ShellSidebar";
-import { ShellTopbar } from "./_shell/ShellTopbar";
+import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type SidebarAlbum, type StatusLine } from "./_shell/ShellSidebar";
+import { CreateAlbumModal } from "./album/_album/CreateAlbumModal";
+import { ShellTopbar, type StageChipState } from "./_shell/ShellTopbar";
 import { StudioGalleryCoachMarks, type StudioCoachScene } from "./_shell/StudioGalleryCoachMarks";
 import { SidebarFolderTree } from "./_shell/SidebarFolderTree";
 import { StageConfirmModal } from "./_shell/StageConfirmModal";
@@ -130,7 +135,13 @@ export default function StudioGalleryShellPage() {
   const [members, setMembers] = useState<GalleryMemberResponse[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [view, setView] = useState<ShellView>("all");
+  // 앨범 화면 사이드바에서 돌아올 때 ?view=selected 처럼 보기를 실어 온다(이슈 168). 앨범 없이 앨범 주소로 가면 ?album=new로 돌아와 만들기 창을 연다
+  const searchParams = useSearchParams();
+  const viewParam = searchParams.get("view");
+  const albumParam = searchParams.get("album");
+  const [albumCreateOpen, setAlbumCreateOpen] = useState(albumParam === "new");
+  const initialView: ShellView | null = viewParam === "all" || viewParam === "selected" || viewParam === "retouch" ? viewParam : null;
+  const [view, setView] = useState<ShellView>(initialView === "retouch" ? "all" : (initialView ?? "all"));
   const [folderSel, setFolderSel] = useState<FolderSelection>({ kind: "all" });
   // 사진 크기(줌)는 브라우저에 기억 — 새로 고쳐도 맞춰 둔 크기 그대로(서버 렌더는 기본 40)
   const zoom = parseZoom(useSyncExternalStore(subscribeZoom, readZoomRaw, () => ""));
@@ -324,6 +335,51 @@ export default function StudioGalleryShellPage() {
   // 2단계부터: 선택 앨범(자동 갱신) · 멤버
   const { selection, quotaRequest, reload: reloadSelection } = useSelectionWatch(galleryId, inSelection);
   const stageIndex = selection?.status === "SUBMITTED" && baseStageIndex === 1 ? 2 : baseStageIndex;
+  // 사이드바 "앨범" 행 — 선택 사진이 1장이라도 생기면(이미 만들었으면 늘). 있는지는 갤러리 응답, 넣은 장수는 앨범을 읽어서
+  const albumSelected = selection?.selectedCount ?? 0;
+  const albumExists = ALBUM_EDITOR_ENABLED && gallery?.hasAlbum === true;
+  const albumInfo = useAlbumInfo(galleryId, albumExists);
+  const albumNav: SidebarAlbum | null =
+    ALBUM_EDITOR_ENABLED && gallery !== null && stageIndex >= 1 && (albumSelected > 0 || albumExists)
+      ? {
+          exists: albumExists,
+          placed: albumInfo?.placed ?? 0,
+          selected: albumSelected,
+          onOpen: () => (albumExists ? router.push(`/studio/gallery/${galleryId}/album`) : setAlbumCreateOpen(true)),
+        }
+      : null;
+  // ── 상단 단계 칩(이슈 168 결정 1) — 칩 = 사이드바 행과 같은 곳 · 같은 조건. 서버 단계는 그대로, 보는 화면만 옮긴다.
+  // 작업 완료 칸은 표시만, 지금 칸을 누르면 그 단계 화면으로 돌아온다. 보정 작업부터는 보기를 RetouchStage가 가져서 요청으로 넘긴다
+  const [retouchViewRequest, setRetouchViewRequest] = useState<{ view: ShellView; nonce: number } | null>(null);
+  const [stageNotice, setStageNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!stageNotice) return;
+    const timer = window.setTimeout(() => setStageNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [stageNotice]);
+  const stageStates: StageChipState[] = ["can", stageIndex >= 1 ? "can" : "locked", stageIndex >= 2 ? "can" : "locked", albumNav ? "can" : "locked", "off"];
+  function onStageSelect(to: number) {
+    const show = (next: ShellView) => {
+      if (stageIndex >= 2) setRetouchViewRequest({ view: next, nonce: Date.now() });
+      else changeView(next);
+    };
+    if (to === 0) show("all");
+    else if (to === 1) {
+      if (stageIndex >= 1) show("selected");
+      else setStageNotice("갤러리를 열면 볼 수 있어요");
+    } else if (to === 2) {
+      if (stageIndex >= 2) show("retouch");
+      else setStageNotice("클라이언트가 셀렉을 전달하면 열려요");
+    } else if (to === 3) {
+      if (!ALBUM_EDITOR_ENABLED) showComingSoon();
+      else if (albumNav) albumNav.onOpen();
+      else setStageNotice("클라이언트가 사진을 고르면 만들 수 있어요");
+    }
+  }
+  function closeAlbumCreate() {
+    setAlbumCreateOpen(false);
+    if (albumParam) router.replace(`/studio/gallery/${galleryId}${viewParam ? `?view=${viewParam}` : ""}`);
+  }
   // 사이드바 기본값: 사진 업로드 단계는 닫힘 · 셀렉 대기부터 열림. 직접 여닫은 기록(쿠키)이 있으면 그 값을 따른다.
   // 640 미만에서는 사이드바가 사진을 가리므로 저절로 열지 않는다(클라이언트 화면과 같은 규칙)
   useEffect(() => {
@@ -996,6 +1052,9 @@ export default function StudioGalleryShellPage() {
         workspaceId={gallery?.workspaceId ?? null}
         stages={SHELL_STAGES}
         stageIndex={gallery ? stageIndex : null}
+        stageStates={gallery ? stageStates : undefined}
+        onStageSelect={onStageSelect}
+        currentClickable={stageIndex !== 4}
         deadline={gallery?.selectionDeadline ?? null}
         onInviteClick={studio ? () => setInviteTab("client") : undefined}
         inviteCoachKey="invite"
@@ -1009,6 +1068,9 @@ export default function StudioGalleryShellPage() {
           folders={folders}
           selection={selection}
           sidebarOpen={!collapsed}
+          initialView={initialView ?? undefined}
+          viewRequest={retouchViewRequest}
+          album={albumNav}
           onGalleryUpdated={setGallery}
           onWithdrawn={(updated) => {
             setGallery(updated);
@@ -1048,6 +1110,7 @@ export default function StudioGalleryShellPage() {
                 changeView(next);
                 setFolderSel({ kind: "all" });
               }}
+              album={albumNav}
             />
           )}
 
@@ -1316,7 +1379,27 @@ export default function StudioGalleryShellPage() {
           }}
         />
       )}
+      {albumCreateOpen && albumNav && !albumExists && (
+        <CreateAlbumModal
+          selectedCount={albumSelected}
+          onClose={closeAlbumCreate}
+          onCreate={async (opts) => {
+            try {
+              await serverAlbumRepository.save(galleryId, createAlbum(opts), 0);
+            } catch {
+              return false;
+            }
+            router.push(`/studio/gallery/${galleryId}/album`);
+            return true;
+          }}
+        />
+      )}
       {comingSoonToast}
+      {stageNotice && (
+        <Snackbar kind="info" className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2">
+          {stageNotice}
+        </Snackbar>
+      )}
       {leaveToast}
       {photoMove.overlay}
       {folderMerge.overlay}

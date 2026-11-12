@@ -40,6 +40,7 @@ const GROUPS: Group[] = ["오늘", "이번 주", "이전"];
 /** 작가 기본 주소 — 갤러리 알림은 작가 갤러리로, 스튜디오 알림은 스튜디오 홈으로 */
 function studioHref(n: UserNotificationResponse): string | null {
   if (n.scopeId === null) return null;
+  if (n.scope === "GALLERY" && n.type.startsWith("ALBUM_")) return `/studio/gallery/${n.scopeId}/album`;
   if (n.scope === "GALLERY") return `/studio/gallery/${n.scopeId}`;
   if (n.scope === "STUDIO") return `/studio/${n.scopeId}`;
   return null;

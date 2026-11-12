@@ -47,10 +47,10 @@ import { CancelExportModal } from "./CancelExportModal";
 import { ALL_FILTER, ClientFolderTree, type FolderKey, isAllFilter, type PhotoFilter } from "./ClientFolderTree";
 import { ClientReviewCoachMarks } from "./ClientReviewCoachMarks";
 import { PersonalReviewCoachMarks } from "./PersonalReviewCoachMarks";
-import { ClientSidebar, type ClientView, type StatusLine } from "./ClientSidebar";
+import { ClientSidebar, type ClientSidebarAlbum, type ClientView, type StatusLine } from "./ClientSidebar";
 import { ConfirmRetouchModal } from "./ConfirmRetouchModal";
 import { ResultsDownloadModal } from "./ResultsDownloadModal";
-import type { ClientPhase } from "./clientStages";
+import { hasAlbum, type ClientPhase } from "./clientStages";
 import { PhotoInfoPanel } from "./PhotoInfoPanel";
 import { draftOf, newPointId, retouchDraftStore, toRequestItems, writeDraft } from "./retouchDraft";
 import { RetouchPanel, RetouchPins } from "./RetouchPanel";
@@ -95,6 +95,7 @@ export function ReviewStage({
   stageRequest = null,
   onStageRequestHandled,
   onCapabilities,
+  album = null,
 }: {
   galleryId: number;
   gallery: GalleryResponse;
@@ -115,10 +116,13 @@ export function ReviewStage({
   autoOpenDownload?: boolean;
   onAutoOpenDownloadHandled?: () => void;
   /** 상단 단계 칩(이슈 147)이 창을 열어 달라는 요청 — 셀렉 칩은 "선택 다시 하기"(보정본 0장일 때), 완료 칩은 "갤러리 마무리"(소유자) */
-  stageRequest?: { kind: "cancelExport" | "close"; nonce: number } | null;
+  stageRequest?: { kind: "cancelExport" | "close" | "confirm"; nonce: number } | null;
   onStageRequestHandled?: () => void;
   /** 페이지가 칩 상태를 정하는 데 쓰는 것 — 선택 다시 하기가 되는지 · 보관됐는지 */
-  onCapabilities?: (caps: { canCancelExport: boolean; archived: boolean }) => void;
+  /** 단계 칩이 쓸 수 있는 일 — canConfirm: 초대 클라이언트가 지금 보정을 확정할 수 있음(이슈 168) */
+  onCapabilities?: (caps: { canCancelExport: boolean; archived: boolean; canConfirm: boolean }) => void;
+  /** 스튜디오가 보낸 앨범 — 사이드바 "앨범" 행(이슈 168) */
+  album?: ClientSidebarAlbum | null;
 }) {
   const { overview, error: overviewError, reload: reloadOverview } = useRetouchOverview(galleryId, true);
   const [detailNonce, setDetailNonce] = useState(0);
@@ -182,7 +186,9 @@ export function ReviewStage({
   // ── 하위 상태 ──
   // 개인: 플랜 기간이 지나면 서버가 자동 보관한다 — 스케줄러가 돌기 전 몇 분도 화면은 보관으로 본다
   const planExpired = personal && gallery.planExpiresAt !== null && new Date(gallery.planExpiresAt).getTime() <= now;
-  const archived = phase === "done" || gallery.stage === "ARCHIVED" || planExpired;
+  /** 앨범 단계(이슈 168) — 보정을 확정했고 스튜디오가 앨범을 만드는 중. 보정 화면은 보관된 것처럼 열람 · 내려받기만 */
+  const albumWait = phase === "album";
+  const archived = phase === "done" || albumWait || gallery.stage === "ARCHIVED" || planExpired;
   /** 결과 사진을 보여 줄 조건 — 개인은 올리는 즉시(회차 보내기가 없다), 초대 클라이언트는 회차가 보내진 뒤 */
   const resultArrived = personal ? resultCount > 0 : activeSummary?.status === "COMPLETED";
   const allDone = items.length > 0 && resultCount === items.length;
@@ -193,15 +199,18 @@ export function ReviewStage({
   const maxRounds = overview?.maxRetouchRoundCount ?? gallery.maxRetouchRoundCount;
   const roundLabel = activeRoundNo !== null ? `${activeRoundNo}차` : "";
   const canReRequest = resultArrived && isLatest && !archived && (remaining === null || remaining > 0);
+  /** 이대로 확정할 수 있음 — 초대 클라이언트, 최신 회차 결과가 도착했을 때(하단 "이대로 확정"과 같은 조건) */
+  const canConfirm = !personal && resultArrived && isLatest && !archived;
   /** 개인 — 1차 요청서를 내보냈고 보정본이 아직 0장이면 셀렉 단계로 되돌릴 수 있다(서버 SELECTION_409_8과 같은 조건) */
   const canCancelExport =
     personal && !archived && rounds.length === 1 && latest?.status === "REQUESTED" && resultCount === 0 && !upload.state.running;
   useEffect(() => {
-    onCapabilities?.({ canCancelExport, archived });
-  }, [onCapabilities, canCancelExport, archived]);
+    onCapabilities?.({ canCancelExport, archived, canConfirm });
+  }, [onCapabilities, canCancelExport, archived, canConfirm]);
   /** 상단 단계 칩의 요청이 살아 있는 동안 그 창을 연다 — 닫으면 요청을 끝낸다(이슈 147) */
   const cancelExportRequested = stageRequest?.kind === "cancelExport" && canCancelExport;
   const closeRequested = stageRequest?.kind === "close" && personal && owner && !archived;
+  const confirmRequested = stageRequest?.kind === "confirm" && canConfirm;
   const nextRoundNo = (latest?.roundNo ?? 0) + 1;
 
   // ── 다시 요청(이슈 125): 보정 요청 탭에 글이나 점을 적은 사진이 곧 다음 회차에 들어가는 사진 — 담기 상태가 따로 없다 ──
@@ -290,6 +299,8 @@ export function ReviewStage({
       if (resultCount === 0) return { text: activeRoundNo !== null && activeRoundNo > 1 ? `${roundLabel} 요청서 · 보정본 기다리는 중` : "선택 완료 · 보정본 기다리는 중", tone: "muted" };
       return { text: `보정본 ${resultCount} / ${items.length}장 · 원본과 비교할 수 있어요`, tone: "accent" };
     }
+    if (albumWait) return { text: "앨범 구성 · 스튜디오가 만드는 중", tone: "accent" };
+    if (archived && album) return { text: "완료 · 앨범 확정", tone: "accent" };
     if (archived) return { text: `보정 확정 · ${rounds.length}회 · 보관됨`, tone: "muted" };
     if (waiting) return { text: `${roundLabel} 보정 중${remaining !== null ? ` · 남은 횟수 ${remaining}` : ""}`, tone: "muted" };
     if (resultArrived) return { text: `${roundLabel} 결과 도착 · ${items.length}장 · 확인해 주세요`, tone: "accent" };
@@ -303,6 +314,7 @@ export function ReviewStage({
       if (resultCount === 0) return { tone: "lock" as const, icon: <LockIcon size={18} />, text: <><b className="font-semibold">{activeRoundNo !== null && activeRoundNo > 1 ? `${roundLabel} 요청서를 만들었어요` : "선택을 마쳤어요"} · {items.length}장</b> · 받은 보정본을 올리면 원본과 비교할 수 있어요</> };
       return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정본 {resultCount} / {items.length}장</b> · 사진을 누르면 원본과 보정본을 비교해요</> };
     }
+    if (albumWait) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정이 확정됐어요</b> · 보정본은 언제든 내려받을 수 있어요</> };
     if (archived) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">보정이 확정됐어요</b> · 갤러리는 보관됐고 보정본은 언제든 내려받을 수 있어요</> };
     if (waiting) return { tone: "info" as const, icon: <HourglassIcon size={18} />, text: <><b className="font-semibold">작가가 {roundLabel} 보정을 하고 있어요</b>{memoCount > 0 ? ` · 요청 ${memoCount}장` : ""} · 결과가 오면 알림으로 알려 드려요</> };
     if (resultArrived && isLatest) return { tone: "ok" as const, icon: <BrushIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 보정 결과 {items.length}장이 도착했어요</b> · {shortDate(activeSummary?.completedAt ?? null)} · 전/후로 확인하고 더 고칠 곳이 있으면 다시 요청하세요{remaining !== null ? `(남은 ${remaining}회)` : ""}</> };
@@ -313,6 +325,8 @@ export function ReviewStage({
     ? archived || resultCount === 0
       ? null
       : `보정본 ${resultCount} / ${items.length}장${allDone ? "" : ` · ${items.length - resultCount}장은 아직`}`
+    : albumWait
+    ? "보정이 끝났어요 · 열람 · 내려받기만 할 수 있어요"
     : archived
     ? "보정이 끝났어요 · 갤러리는 보관 상태라 열람만 할 수 있어요"
     : waiting
@@ -408,7 +422,9 @@ export function ReviewStage({
   const requestLocked: string | null = !currentItem
     ? "이 회차의 사진이 아니에요"
     : archived
-      ? "마무리된 갤러리예요"
+      ? albumWait
+        ? "보정을 확정했어요"
+        : "마무리된 갤러리예요"
       : !isLatest
         ? "지난 회차는 다시 요청할 수 없어요"
         : !resultArrived
@@ -440,6 +456,7 @@ export function ReviewStage({
             selectedCount={items.length}
             maxSelectable={gallery.maxSelectablePhotoCount}
             retouchCount={items.length}
+            album={album}
             view={view}
             onViewChange={(next) => {
               setView(next);
@@ -577,7 +594,7 @@ export function ReviewStage({
       {trashOpen ? (
         <TrashBottomBar
           editable={false}
-          lockNote={archived ? "마무리된 갤러리 · 조회만 할 수 있어요" : personal ? "요청서를 내보낸 뒤라 조회만 할 수 있어요" : "작가에게 전달한 뒤라 조회만 할 수 있어요"}
+          lockNote={albumWait ? "보정을 확정한 뒤라 조회만 할 수 있어요" : archived ? "마무리된 갤러리 · 조회만 할 수 있어요" : personal ? "요청서를 내보낸 뒤라 조회만 할 수 있어요" : "작가에게 전달한 뒤라 조회만 할 수 있어요"}
           lockAction={canCancelExport ? { label: "선택 다시 하기", onClick: () => setCancelExportOpen(true) } : undefined}
           selectedCount={0}
           total={trashPhotos.length}
@@ -696,7 +713,7 @@ export function ReviewStage({
       )}
 
       {sharing.modals()}
-      <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !lightboxOpen && !confirmOpen && !downloadOpen} />
+      <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !lightboxOpen && !confirmOpen && !confirmRequested && !downloadOpen} />
       {/* 개인 — 요청서 창(내보낸 직후 저절로 열림)이 닫힌 뒤, 올릴 보정본이 남아 있는 동안 */}
       <PersonalReviewCoachMarks
         ready={
@@ -773,15 +790,20 @@ export function ReviewStage({
       {downloadOpen && activeRoundNo !== null && (
         <ResultsDownloadModal galleryId={galleryId} galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}
-      {confirmOpen && (
+      {(confirmOpen || confirmRequested) && (
         <ConfirmRetouchModal
           galleryId={galleryId}
           photoCount={items.length}
           roundCount={rounds.length}
           remaining={remaining}
-          onClose={() => setConfirmOpen(false)}
+          album={hasAlbum(gallery)}
+          onClose={() => {
+            setConfirmOpen(false);
+            onStageRequestHandled?.();
+          }}
           onConfirmed={() => {
             setConfirmOpen(false);
+            onStageRequestHandled?.();
             reloadOverview();
             reloadGallery();
           }}
