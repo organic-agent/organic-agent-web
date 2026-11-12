@@ -48,6 +48,8 @@ type ApiOptions = {
   headers?: Record<string, string>;
   /** "include"면 다른 출처(API)의 Set-Cookie를 받는다 — 미리보기 접근 쿠키(image-access)만 쓴다 */
   credentials?: RequestCredentials;
+  /** 탭을 닫아도 끝까지 보낸다 — 앨범의 마지막 자동 저장만 쓴다(본문 64KB까지) */
+  keepalive?: boolean;
 };
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -86,6 +88,7 @@ async function request(path: string, options: ApiOptions): Promise<Response> {
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     credentials: options.credentials,
+    keepalive: options.keepalive,
   });
 
   if (!res.ok) throw await toApiError(res);

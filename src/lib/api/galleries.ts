@@ -3,16 +3,21 @@
  * 위치: src/lib/api/galleries.ts
  */
 
+import type { AlbumStatus } from "@/lib/api/album";
 import type { UserColorKey } from "@/lib/api/auth";
 import { api } from "@/lib/api/client";
 
-/** 갤러리 화면의 6단계 진행 상태 — 홈 카드 칩·필터가 이 값으로 갈린다 */
+/**
+ * 갤러리 화면의 진행 상태 — 홈 카드 칩·필터가 이 값으로 갈린다.
+ * ALBUM(이슈 168) — 앨범을 만든 갤러리는 클라이언트가 보정을 확정하면 바로 보관(ARCHIVED)이 아니라 앨범 단계를 거친다.
+ */
 export type GalleryStage =
   | "UPLOAD"
   | "SELECTION_IN_PROGRESS"
   | "SELECTION_COMPLETED"
   | "RETOUCH"
   | "DELIVERY"
+  | "ALBUM"
   | "ARCHIVED";
 
 /** 촬영 종류. AI 폴더의 큰 분류 목록이 이 값으로 갈린다 */
@@ -47,6 +52,9 @@ export type GalleryResponse = {
   planMaxPhotoCount: number | null;
   /** "free" 또는 "pro". 요금제가 없거나 옛 테스트 이용권으로 만든 갤러리는 null */
   planId: string | null;
+  /** 스튜디오가 앨범을 만들었는지(이슈 168). 앨범 API가 없는 서버면 오지 않는다 */
+  hasAlbum?: boolean;
+  albumStatus?: AlbumStatus;
 };
 
 export type CreateGalleryRequest = {

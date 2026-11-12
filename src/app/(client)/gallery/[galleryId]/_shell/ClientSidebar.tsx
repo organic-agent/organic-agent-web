@@ -7,11 +7,12 @@
  * 작가 셸 사이드바와 같은 문법. 1단계(컨셉 분류)에서는 폴더가 폴더 열(3열)에 있으니 트리를 두지 않고,
  * "선택한 사진"은 폴더 확정 뒤, "보정 사진"은 셀렉 뒤에 열린다. 단계 진행은 상단바 가운데 세그먼트가 맡는다
  * (2026-09-15 — 여기 있던 2px 줄 삭제).
+ * 앨범(이슈 168) — 스튜디오가 앨범을 보내면 "보정 사진" 아래 "앨범" 행. 앨범 화면에서는 그 행이 지금 자리(view null).
  * 640 미만에서는 화면 폭을 다 쓰고 본문은 숨는다 — 볼 것을 고르는 행(data-sidebar-item)을 누르면 닫힌다(작가 사이드바와 같음).
  */
 
 import type { ReactNode } from "react";
-import { BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon, ScheduleIcon } from "@/components/icons";
+import { AlbumIcon, BrushIcon, CheckCircleIcon, LockIcon, PhotoIcon, ScheduleIcon } from "@/components/icons";
 import { useSidebar } from "@/components/SidebarProvider";
 import type { ClientPhase } from "./clientStages";
 
@@ -68,6 +69,10 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
 
 export type ClientView = "all" | "selected" | "retouch";
 
+/** 사이드바 "앨범" 행 — trailing은 펼침면 수 등 */
+/** 앨범 행 — locked면 흐리게 두되 눌린다(스튜디오가 만드는 중, 누르면 쓰는 쪽이 스낵바) */
+export type ClientSidebarAlbum = { trailing: string; current?: boolean; locked?: boolean; onOpen: () => void };
+
 export type StatusLine = { text: string; tone: "muted" | "accent" | "warning" | "error" };
 
 const TONE_CLASS: Record<StatusLine["tone"], string> = {
@@ -83,6 +88,7 @@ function NavRow({
   trailing,
   selected,
   disabled = false,
+  dimmed = false,
   onClick,
 }: {
   icon: ReactNode;
@@ -90,6 +96,8 @@ function NavRow({
   trailing: ReactNode;
   selected: boolean;
   disabled?: boolean;
+  /** 흐린 모양이지만 눌린다 */
+  dimmed?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -102,7 +110,9 @@ function NavRow({
       className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-weakness disabled:hover:bg-transparent ${
         selected
           ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
-          : "text-contents-light-bgd-default"
+          : dimmed
+            ? "text-contents-light-bgd-weakness"
+            : "text-contents-light-bgd-default"
       }`}
     >
       <span className="flex shrink-0 text-contents-light-bgd-sub">{icon}</span>
@@ -138,6 +148,7 @@ export function ClientSidebar({
   selectedLockNote = "폴더 확정 뒤",
   selectionClickable = true,
   retouchLockNote = "셀렉 뒤",
+  album,
 }: {
   title: string;
   status: StatusLine;
@@ -145,7 +156,8 @@ export function ClientSidebar({
   photoCount: number | null;
   selectedCount: number;
   maxSelectable: number | null;
-  view: ClientView;
+  /** null — 사진 보기가 아닌 화면(앨범) */
+  view: ClientView | null;
   onViewChange: (view: ClientView) => void;
   /** 내비 아래 폴더 트리(탭 없이) */
   folderTree?: ReactNode;
@@ -162,6 +174,8 @@ export function ClientSidebar({
   /** false면 "선택한 사진"을 누르지 못한다 — 장수는 보인다(셀렉 중 폴더 다시 정리) */
   selectionClickable?: boolean;
   retouchLockNote?: string;
+  /** 스튜디오가 보낸 앨범 행 */
+  album?: ClientSidebarAlbum | null;
 }) {
   const waiting = phase === "wait";
   const selectionOpen = phase !== "wait" && phase !== "sort";
@@ -224,6 +238,7 @@ export function ClientSidebar({
             disabled={retouchCount === undefined || retouchCount === null}
             onClick={() => onViewChange("retouch")}
           />
+          {album && <NavRow icon={<AlbumIcon size={18} />} label="앨범" trailing={album.trailing} selected={album.current === true} dimmed={album.locked} onClick={album.onOpen} />}
         </nav>
         {extra}
 

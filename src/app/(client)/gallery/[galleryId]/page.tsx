@@ -64,6 +64,9 @@ import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { getPhotoSelection } from "@/lib/api/selection";
 import { useAuth } from "@/lib/auth/authStore";
+import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
+import { useAlbumInfo } from "@/lib/album/store";
+import { clientNotificationHref } from "../_lib/notificationHref";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
@@ -124,6 +127,9 @@ export default function ClientGalleryPage() {
   const [photoUrlsExpire, setPhotoUrlsExpire] = useState(true);
   // 개인은 올라온(UPLOADED) 사진 수와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다.
   // 첫 장이 올라오기 전(PENDING만)엔 작가 1단계처럼 안내 카드가 남는다
+  // 앨범(이슈 168) — 스튜디오가 보내고 확정했으면 볼 수 있다(플래그 뒤, 개인 갤러리엔 앨범 없음). 행의 펼침면 수는 앨범을 읽어서
+  const albumConfirmed = ALBUM_EDITOR_ENABLED && !isPersonal && gallery?.albumStatus === "CONFIRMED";
+  const albumInfo = useAlbumInfo(galleryId, albumConfirmed);
   const phase = gallery
     ? isPersonal
       ? personalPhaseOf(gallery, photos === null ? null : photos.filter((p) => p.status === "UPLOADED").length)
@@ -827,7 +833,7 @@ export default function ClientGalleryPage() {
         onInviteClick={personalOwner || selecting ? () => { if (!blockInDemo("게스트 초대")) setInviteOpen(true); } : undefined}
         inviteLabel={personalOwner ? "초대" : "게스트 초대"}
         inviteCoachKey="invite"
-        notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
+        notificationHrefFor={clientNotificationHref}
       />
 
       {reviewing && viewing === null && gallery && phase ? (
@@ -848,6 +854,13 @@ export default function ClientGalleryPage() {
           stageRequest={stageRequest && stageRequest.kind !== "export" ? stageRequest : null}
           onStageRequestHandled={onStageRequestHandled}
           onCapabilities={setReviewCaps}
+          album={
+            albumConfirmed
+              ? { trailing: albumInfo ? `${albumInfo.spreads}면` : "", onOpen: () => router.push(`/gallery/${galleryId}/album`) }
+              : phase === "album"
+                ? { trailing: "준비 중", locked: true, onOpen: () => setStageNotice("스튜디오가 앨범을 만들고 있어요") }
+                : null
+          }
         />
       ) : !viewingSort && selecting && !organizing && gallery && phase ? (
         <SelectStage
