@@ -23,6 +23,7 @@ import { loadAlbumDoc, type AlbumDoc } from "@/lib/album/store";
 import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
 import { AlbumWorkspace } from "@/app/(studio)/studio/gallery/[galleryId]/album/_album/AlbumWorkspace";
 import { useAlbumSelection, useAlbumSource } from "@/app/(studio)/studio/gallery/[galleryId]/album/_album/useAlbumSource";
+import { clientNotificationHref } from "../../_lib/notificationHref";
 import { useInvitedGallery } from "../../_lib/useInvitedGallery";
 import { ClientSidebar } from "../_shell/ClientSidebar";
 import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf } from "../_shell/clientStages";
@@ -118,7 +119,7 @@ function ClientAlbumScreen() {
         stageIndex={gallery && phase ? clientStageIndexOf(phase, gallery) : null}
         deadlineStage={1}
         deadline={null}
-        notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
+        notificationHrefFor={clientNotificationHref}
       />
       {gallery && phase && doc && photos ? (
         <AlbumWorkspace

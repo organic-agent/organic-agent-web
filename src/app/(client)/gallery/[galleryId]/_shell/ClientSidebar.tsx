@@ -70,7 +70,8 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
 export type ClientView = "all" | "selected" | "retouch";
 
 /** 사이드바 "앨범" 행 — trailing은 펼침면 수 등 */
-export type ClientSidebarAlbum = { trailing: string; current?: boolean; onOpen: () => void };
+/** 앨범 행 — locked면 흐리게 두되 눌린다(스튜디오가 만드는 중, 누르면 쓰는 쪽이 스낵바) */
+export type ClientSidebarAlbum = { trailing: string; current?: boolean; locked?: boolean; onOpen: () => void };
 
 export type StatusLine = { text: string; tone: "muted" | "accent" | "warning" | "error" };
 
@@ -87,6 +88,7 @@ function NavRow({
   trailing,
   selected,
   disabled = false,
+  dimmed = false,
   onClick,
 }: {
   icon: ReactNode;
@@ -94,6 +96,8 @@ function NavRow({
   trailing: ReactNode;
   selected: boolean;
   disabled?: boolean;
+  /** 흐린 모양이지만 눌린다 */
+  dimmed?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -106,7 +110,9 @@ function NavRow({
       className={`relative flex w-full cursor-pointer items-center gap-2 rounded-(--radius-8) px-2.5 py-2 text-left type-content-m transition-colors duration-fast hover:bg-surface-default-lightness disabled:cursor-default disabled:text-contents-light-bgd-weakness disabled:hover:bg-transparent ${
         selected
           ? "bg-surface-default-light font-semibold text-contents-light-bgd-default before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-(--pill) before:bg-brand-secondary-light before:content-['']"
-          : "text-contents-light-bgd-default"
+          : dimmed
+            ? "text-contents-light-bgd-weakness"
+            : "text-contents-light-bgd-default"
       }`}
     >
       <span className="flex shrink-0 text-contents-light-bgd-sub">{icon}</span>
@@ -232,7 +238,7 @@ export function ClientSidebar({
             disabled={retouchCount === undefined || retouchCount === null}
             onClick={() => onViewChange("retouch")}
           />
-          {album && <NavRow icon={<AlbumIcon size={18} />} label="앨범" trailing={album.trailing} selected={album.current === true} onClick={album.onOpen} />}
+          {album && <NavRow icon={<AlbumIcon size={18} />} label="앨범" trailing={album.trailing} selected={album.current === true} dimmed={album.locked} onClick={album.onOpen} />}
         </nav>
         {extra}
 
