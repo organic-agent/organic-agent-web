@@ -69,6 +69,8 @@ export function personalPhaseOf(gallery: GalleryResponse, photoCount: number | n
 export function clientPhaseOf(gallery: GalleryResponse, albumShared = false): ClientPhase {
   if (gallery.status === "DRAFT") return "wait";
   switch (gallery.stage) {
+    case "ALBUM":
+      return "album";
     case "ARCHIVED":
       // 보정을 확정한 뒤 스튜디오가 앨범을 보냈으면 앨범 구성
       return albumShared ? "album" : "done";

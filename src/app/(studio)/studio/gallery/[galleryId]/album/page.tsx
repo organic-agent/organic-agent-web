@@ -100,7 +100,7 @@ function StudioAlbumScreen() {
   usePreviewAccess(galleryId, gallery !== null, reloadSelection);
   const { photos, banner, retouchCount } = useAlbumSource(galleryId, gallery, selection);
 
-  const baseStage = gallery ? stageIndexOf(gallery, { albumInProgress: true }) : null;
+  const baseStage = gallery ? stageIndexOf(gallery) : null;
   const stageIndex = baseStage === 1 && selection?.status === "SUBMITTED" ? 2 : baseStage;
 
   if (loadError) {

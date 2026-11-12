@@ -7,8 +7,8 @@
  * (2026-09-12 — "선택 확인" 전용 API 없음, 결과 업로드 URL 발급 때 서버 stage가 RETOUCH로 바뀐다).
  * 단계 안의 하위 상태는 사이드바 상태줄이 맡는다.
  * DELIVERY는 "보정본을 보내고 클라이언트가 확인 중"이라 보정 작업 칸이다(이슈 168 — 전에는 앨범 구성 칸에 켜졌다).
- * 앨범 구성 칸은 앨범 편집기로 앨범을 만든 갤러리가 보정을 마친(ARCHIVED) 뒤에만 켠다. 앨범 작업 여부 필드가
- * 서버에 생기면(이슈 168 PR ④) 그 값으로 바꾸고, 앨범 없는 갤러리는 4칸으로 줄인다.
+ * 앨범 구성 칸은 서버 ALBUM 단계 — 앨범을 만든 갤러리는 클라이언트가 보정을 확정하면 여기를 거쳐, 앨범을 보내고 확정하면 완료다.
+ * 앨범이 없는 갤러리도 5칸이다(이슈 168 결정 1-3 — "앨범 구성" 칸이 만들기 입구).
  */
 
 import type { GalleryResponse, GalleryStage } from "@/lib/api/galleries";
@@ -27,15 +27,12 @@ const INDEX_OF: Record<GalleryStage, number> = {
   SELECTION_COMPLETED: 2,
   RETOUCH: 2,
   DELIVERY: 2,
+  ALBUM: 3,
   ARCHIVED: 4,
 };
 
-/**
- * 서버 stage → 0부터 시작하는 단계 번호.
- * albumInProgress — 앨범 편집기(이슈 168)로 만든 앨범이 아직 확정 전이면 보관(ARCHIVED) 뒤에도 "앨범 구성" 칸
- */
-export function stageIndexOf(gallery: Pick<GalleryResponse, "stage">, opts?: { albumInProgress?: boolean }): number {
-  if (gallery.stage === "ARCHIVED" && opts?.albumInProgress) return 3;
+/** 서버 stage → 0부터 시작하는 단계 번호 */
+export function stageIndexOf(gallery: Pick<GalleryResponse, "stage">): number {
   return INDEX_OF[gallery.stage] ?? 0;
 }
 

@@ -284,9 +284,8 @@ export default function StudioGalleryShellPage() {
 
   // ── 단계 ── 서버 stage가 정본이지만, 선택 앨범이 제출됐으면(SUBMITTED) stage가 아직 셀렉 대기여도 3단계로 본다
   // (전달되는 순간 1차 회차가 생기고 "선택 확인" 전용 API는 없다 — 2026-09-12)
-  // 앨범(이슈 168) — 이 브라우저에 만든 앨범이 있으면 보정을 마친 뒤에도 "앨범 구성" 칸
   const albumSummary = useAlbumSummary(galleryId);
-  const baseStageIndex = gallery ? stageIndexOf(gallery, { albumInProgress: ALBUM_EDITOR_ENABLED && albumSummary.exists }) : 0;
+  const baseStageIndex = gallery ? stageIndexOf(gallery) : 0;
   const inSelection = gallery !== null && baseStageIndex >= 1;
 
   // ── AI 분석 진행 감시(1단계) — 카운트(요약) + 잡 폴링, 완료 시 폴더 · 사진 재조회 ──
