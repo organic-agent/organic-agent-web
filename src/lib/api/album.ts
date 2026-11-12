@@ -34,6 +34,8 @@ export type AlbumPhotosResponse = {
 
 /** 다른 곳에서 먼저 저장해 거절됨 */
 export const ALBUM_REVISION_MISMATCH = "ALBUM_409_1";
+/** 프레임이 선택 장수보다 많음 — 클라이언트가 선택에서 사진을 뺐을 때 */
+export const ALBUM_TOO_MANY_FRAMES = "ALBUM_400_3";
 /** 앨범이 없음 · 클라이언트에게 아직 안 보냄 */
 export const ALBUM_NOT_FOUND = "ALBUM_404_1";
 

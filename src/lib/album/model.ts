@@ -405,7 +405,8 @@ export const rectOf = (f: Pick<FrameDef, "p" | "x" | "y" | "w" | "h">): Rect => 
 /** 펼침면 좌표 → 저장 모양(오른쪽 쪽 안이면 p 1, 아니면 p 0 — 걸친 프레임 포함) */
 export function frameOfRect(r: Rect): Omit<FrameDef, "id"> {
   const p: Page = r.x >= 0.9999 ? 1 : 0;
-  return { p, x: r4(r.x - p), y: r4(r.y), w: r4(r.w), h: r4(r.h) };
+  // 접힘선 바로 앞(0.9999~1)에서 시작하면 오른쪽 쪽의 -0.0001이 된다 — 서버는 0 미만을 받지 않는다
+  return { p, x: r4(Math.max(0, r.x - p)), y: r4(r.y), w: r4(r.w), h: r4(r.h) };
 }
 
 /** 가장 작은 프레임(mm) */

@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SnackbarKind } from "@/components/app/Snackbar";
-import { ALBUM_REVISION_MISMATCH, getAlbum, sendAlbum } from "@/lib/api/album";
+import { ALBUM_REVISION_MISMATCH, ALBUM_TOO_MANY_FRAMES, getAlbum, sendAlbum } from "@/lib/api/album";
 import { ApiError } from "@/lib/api/client";
 import {
   addFrame,
@@ -81,7 +81,8 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
   const [banner, setBanner] = useState<BannerState>(() => loadBanner(galleryId));
   /** 닫은 배너의 최신 값 — 두 배너를 연달아 닫아도 앞의 것을 덮지 않게 */
   const bannerRef = useRef(banner);
-  const [saveError, setSaveError] = useState(false);
+  /** 저장 실패 — frames: 클라이언트가 선택에서 빼서 프레임이 선택 장수보다 많음(서버가 받지 않는다) */
+  const [saveError, setSaveError] = useState<"generic" | "frames" | null>(null);
   /** 다른 곳에서 먼저 저장해 거절됨 — 최신 앨범으로 바꿀 때까지 저장을 멈춘다 */
   const [conflict, setConflict] = useState(false);
   const conflictRef = useRef(false);
@@ -108,11 +109,11 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
         revisionRef.current = r.revision;
         savedRef.current = { album: snapshot, at: r.savedAt ?? new Date().toISOString(), kind };
         setSaved(savedRef.current);
-        setSaveError(false);
+        setSaveError(null);
         return true;
       } catch (err) {
         if (err instanceof ApiError && err.code === ALBUM_REVISION_MISMATCH) markConflict();
-        else setSaveError(true);
+        else setSaveError(err instanceof ApiError && err.code === ALBUM_TOO_MANY_FRAMES ? "frames" : "generic");
         return false;
       }
     };
@@ -139,7 +140,7 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
       setUndoStack([]);
       conflictRef.current = false;
       setConflict(false);
-      setSaveError(false);
+      setSaveError(null);
       toast("최신 앨범으로 바꿨어요", false);
     } catch {
       toast("앨범을 불러오지 못했어요 · 잠시 뒤 다시 눌러 주세요", false, "error");

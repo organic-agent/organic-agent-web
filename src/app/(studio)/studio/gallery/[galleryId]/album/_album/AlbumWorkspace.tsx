@@ -293,7 +293,9 @@ export function AlbumWorkspace({
                       {viewOnly ? null : editor.saveError ? (
                         <>
                           {" · "}
-                          <span className="text-function-error-default">저장하지 못했어요</span>{" "}
+                          <span className="text-function-error-default">
+                            {editor.saveError === "frames" ? "프레임이 선택한 사진보다 많아 저장하지 못했어요" : "저장하지 못했어요"}
+                          </span>{" "}
                           <button type="button" onClick={editor.saveNow} className="cursor-pointer text-contents-light-bgd-default underline underline-offset-2">
                             다시 시도
                           </button>

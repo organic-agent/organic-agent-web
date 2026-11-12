@@ -314,3 +314,8 @@ test("서버 문서 — 사진과 맞지 않는 위치 조정은 빼고, 다시 
   assert.equal(back.cursor, M.nextEmptyFrom(back, M.indexFrames(back.spreads), 0));
   assert.deepEqual(back.assign, a.assign);
 });
+
+test("접힘선 바로 앞에서 시작한 프레임 — 오른쪽 쪽 0에서 시작(서버는 0 미만을 받지 않는다)", () => {
+  assert.deepEqual(M.frameOfRect({ x: 0.9999, y: 0.1, w: 0.5, h: 0.5 }), { p: 1, x: 0, y: 0.1, w: 0.5, h: 0.5 });
+  assert.equal(M.frameOfRect({ x: 0.5, y: 0, w: 0.4, h: 1 }).p, 0);
+});
