@@ -5,7 +5,8 @@
  * 위치: src/app/(client)/gallery/[galleryId]/album/page.tsx
  *
  * 스튜디오가 보내고 확정한 앨범을 보기만 한다 — 넘겨 보기 · 미리보기(시안 2판 4번). 앨범은 서버에서 읽는다(PR ④).
- * 들어오는 길은 갤러리 사이드바 "앨범" 행 · 알림. 보내기 전이면 서버가 열어 주지 않아 갤러리로 돌려보낸다.
+ * 들어오는 길은 갤러리 사이드바 "앨범" 행 · 상단 "앨범 구성" 칩 · 알림. 보내기 전이면 서버가 열어 주지 않아 갤러리로 돌려보낸다.
+ * 상단 단계 칩의 다른 칸은 갤러리 화면으로 — 컨셉 분류 · 셀렉은 보기만(?view=sort|select), 보정 검토 · 완료는 갤러리 첫 화면.
  * 클라이언트 수정(사진 교체 · 위치 조정 · 돌려보내기)은 잠가 두었다(결정 4) — AlbumWorkspace의 clientEdit 역할은 그대로 남아 있다.
  * 운영 서버에 앨범 API가 올라가기 전이라 플래그(NEXT_PUBLIC_ALBUM_EDITOR)가 꺼져 있으면 갤러리로 돌려보낸다.
  * 들어오면 사이드바를 접고 나가면 들어오기 전 상태로(작가 앨범 화면과 같음).
@@ -20,7 +21,7 @@ import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
 import { loadAlbumDoc, type AlbumDoc } from "@/lib/album/store";
-import { ShellTopbar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
+import { ShellTopbar, type StageChipState } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellTopbar";
 import { AlbumWorkspace } from "@/app/(studio)/studio/gallery/[galleryId]/album/_album/AlbumWorkspace";
 import { useAlbumSelection, useAlbumSource } from "@/app/(studio)/studio/gallery/[galleryId]/album/_album/useAlbumSource";
 import { clientNotificationHref } from "../../_lib/notificationHref";
@@ -112,11 +113,21 @@ function ClientAlbumScreen() {
   }
 
   const phase = gallery ? clientPhaseOf(gallery) : null;
+  const stageIndex = gallery && phase ? clientStageIndexOf(phase, gallery) : null;
+  const stageStates: StageChipState[] | undefined = gallery && stageIndex !== null ? clientStagesOf(gallery).map(() => "can") : undefined;
+  function onStageSelect(to: number) {
+    if (to === 0) router.push(`/gallery/${galleryId}?view=sort`);
+    else if (to === 1) router.push(`/gallery/${galleryId}?view=select`);
+    else if (to !== 3) router.push(`/gallery/${galleryId}`);
+  }
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
         stages={clientStagesOf(gallery)}
-        stageIndex={gallery && phase ? clientStageIndexOf(phase, gallery) : null}
+        stageIndex={stageIndex}
+        stageStates={stageStates}
+        onStageSelect={onStageSelect}
+        currentClickable
         deadlineStage={1}
         deadline={null}
         notificationHrefFor={clientNotificationHref}

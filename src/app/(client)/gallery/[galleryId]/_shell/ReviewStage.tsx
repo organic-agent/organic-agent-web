@@ -116,10 +116,11 @@ export function ReviewStage({
   autoOpenDownload?: boolean;
   onAutoOpenDownloadHandled?: () => void;
   /** 상단 단계 칩(이슈 147)이 창을 열어 달라는 요청 — 셀렉 칩은 "선택 다시 하기"(보정본 0장일 때), 완료 칩은 "갤러리 마무리"(소유자) */
-  stageRequest?: { kind: "cancelExport" | "close"; nonce: number } | null;
+  stageRequest?: { kind: "cancelExport" | "close" | "confirm"; nonce: number } | null;
   onStageRequestHandled?: () => void;
   /** 페이지가 칩 상태를 정하는 데 쓰는 것 — 선택 다시 하기가 되는지 · 보관됐는지 */
-  onCapabilities?: (caps: { canCancelExport: boolean; archived: boolean }) => void;
+  /** 단계 칩이 쓸 수 있는 일 — canConfirm: 초대 클라이언트가 지금 보정을 확정할 수 있음(이슈 168) */
+  onCapabilities?: (caps: { canCancelExport: boolean; archived: boolean; canConfirm: boolean }) => void;
   /** 스튜디오가 보낸 앨범 — 사이드바 "앨범" 행(이슈 168) */
   album?: ClientSidebarAlbum | null;
 }) {
@@ -198,15 +199,18 @@ export function ReviewStage({
   const maxRounds = overview?.maxRetouchRoundCount ?? gallery.maxRetouchRoundCount;
   const roundLabel = activeRoundNo !== null ? `${activeRoundNo}차` : "";
   const canReRequest = resultArrived && isLatest && !archived && (remaining === null || remaining > 0);
+  /** 이대로 확정할 수 있음 — 초대 클라이언트, 최신 회차 결과가 도착했을 때(하단 "이대로 확정"과 같은 조건) */
+  const canConfirm = !personal && resultArrived && isLatest && !archived;
   /** 개인 — 1차 요청서를 내보냈고 보정본이 아직 0장이면 셀렉 단계로 되돌릴 수 있다(서버 SELECTION_409_8과 같은 조건) */
   const canCancelExport =
     personal && !archived && rounds.length === 1 && latest?.status === "REQUESTED" && resultCount === 0 && !upload.state.running;
   useEffect(() => {
-    onCapabilities?.({ canCancelExport, archived });
-  }, [onCapabilities, canCancelExport, archived]);
+    onCapabilities?.({ canCancelExport, archived, canConfirm });
+  }, [onCapabilities, canCancelExport, archived, canConfirm]);
   /** 상단 단계 칩의 요청이 살아 있는 동안 그 창을 연다 — 닫으면 요청을 끝낸다(이슈 147) */
   const cancelExportRequested = stageRequest?.kind === "cancelExport" && canCancelExport;
   const closeRequested = stageRequest?.kind === "close" && personal && owner && !archived;
+  const confirmRequested = stageRequest?.kind === "confirm" && canConfirm;
   const nextRoundNo = (latest?.roundNo ?? 0) + 1;
 
   // ── 다시 요청(이슈 125): 보정 요청 탭에 글이나 점을 적은 사진이 곧 다음 회차에 들어가는 사진 — 담기 상태가 따로 없다 ──
@@ -709,7 +713,7 @@ export function ReviewStage({
       )}
 
       {sharing.modals()}
-      <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !lightboxOpen && !confirmOpen && !downloadOpen} />
+      <ClientReviewCoachMarks ready={!personal && overview !== null && resultArrived && isLatest && !archived && !lightboxOpen && !confirmOpen && !confirmRequested && !downloadOpen} />
       {/* 개인 — 요청서 창(내보낸 직후 저절로 열림)이 닫힌 뒤, 올릴 보정본이 남아 있는 동안 */}
       <PersonalReviewCoachMarks
         ready={
@@ -786,16 +790,20 @@ export function ReviewStage({
       {downloadOpen && activeRoundNo !== null && (
         <ResultsDownloadModal galleryId={galleryId} galleryTitle={gallery.title} roundNo={activeRoundNo} items={items} onClose={() => setDownloadOpen(false)} />
       )}
-      {confirmOpen && (
+      {(confirmOpen || confirmRequested) && (
         <ConfirmRetouchModal
           galleryId={galleryId}
           photoCount={items.length}
           roundCount={rounds.length}
           remaining={remaining}
           album={hasAlbum(gallery)}
-          onClose={() => setConfirmOpen(false)}
+          onClose={() => {
+            setConfirmOpen(false);
+            onStageRequestHandled?.();
+          }}
           onConfirmed={() => {
             setConfirmOpen(false);
+            onStageRequestHandled?.();
             reloadOverview();
             reloadGallery();
           }}

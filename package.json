@@ -11,6 +11,7 @@
     "test:split-zip": "node --test scripts/split-zip.test.mjs",
     "test:analytics": "node --test scripts/analytics.test.mjs",
     "test:album": "node --test scripts/album-model.test.mjs",
+    "test:invited-chips": "node --test scripts/invited-chips.test.mjs",
     "tokens:build": "node scripts/build-tokens.mjs",
     "icons:build": "node scripts/build-icons.mjs"
   },
