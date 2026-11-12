@@ -134,11 +134,14 @@ export function RetouchStage({
 
   // ── 하위 상태 ──
   const archived = gallery.stage === "ARCHIVED";
+  /** 앨범 단계(이슈 168) — 클라이언트가 보정을 확정했고 스튜디오가 앨범을 보내기 전 */
+  const albumStage = gallery.stage === "ALBUM";
+  const retouchDone = archived || albumStage;
   const requested = activeSummary?.status === "REQUESTED";
-  const sentWaiting = !archived && activeSummary?.status === "COMPLETED" && activeSummary.roundNo === latestRound?.roundNo;
+  const sentWaiting = !retouchDone && activeSummary?.status === "COMPLETED" && activeSummary.roundNo === latestRound?.roundNo;
   // 되돌리기는 결과 업로드를 시작하기 전(stage가 RETOUCH · DELIVERY로 넘어가기 전) 1차에만
   const canWithdraw = requested && resultCount === 0 && activeRoundNo === 1 && gallery.stage !== "RETOUCH" && gallery.stage !== "DELIVERY";
-  const canUpload = requested && !archived && !upload.state.running;
+  const canUpload = requested && !retouchDone && !upload.state.running;
   const usedRounds = rounds.filter((r) => r.status !== "DRAFTING").length;
 
   // ── 폴더 이름 · 그리드 목록 ──
@@ -189,6 +192,7 @@ export function RetouchStage({
   const maxRounds = overview?.maxRetouchRoundCount ?? gallery.maxRetouchRoundCount;
   const status: StatusLine = (() => {
     if (!overview) return { text: overviewError ?? "불러오는 중…", tone: overviewError ? "error" : "muted" };
+    if (albumStage) return { text: `보정 확정 · ${rounds.length}회 완료 · 앨범 구성`, tone: "accent" };
     if (archived) return { text: `보정 확정 · ${rounds.length}회 완료 · 보관됨`, tone: "muted" };
     if (sentWaiting) return { text: `${roundLabel} 보냄 · 클라이언트 확인 중${remaining !== null ? ` · 남은 횟수 ${remaining}` : ""}`, tone: "muted" };
     if (requested) {
@@ -200,6 +204,14 @@ export function RetouchStage({
   })();
   const banner = (() => {
     if (!overview) return null;
+    if (albumStage)
+      return {
+        tone: "ok" as const,
+        icon: <CheckCircleIcon size={18} />,
+        text: <><b className="font-semibold">클라이언트가 보정을 확정했어요</b> · {rounds.length}회 · 이제 앨범을 보낼 수 있어요</>,
+      };
+    if (archived && gallery.albumStatus === "CONFIRMED")
+      return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">앨범을 보내고 확정했어요</b> · 갤러리는 보관 상태예요</> };
     if (archived)
       return {
         tone: "ok" as const,
@@ -217,17 +229,19 @@ export function RetouchStage({
         : { tone: "warn" as const, icon: <BrushIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 보정 요청 {items.length}장이 도착했어요</b> · {shortDate(activeSummary?.requestedAt ?? null)} · 지난 결과를 보고 다시 요청했어요</> };
     return null;
   })();
-  const bottomHint = archived
-    ? "보정이 끝나 갤러리가 보관됐어요"
-    : sentWaiting
-      ? "클라이언트가 확인 중이에요 · 재요청 또는 확정이 오면 알림으로 알려 드려요"
-      : requested
-        ? resultCount === 0
-          ? "요청을 확인하고 보정한 결과를 올려 주세요 · 메모 없는 사진도 기본 보정 대상이라 결과가 필요해요"
-          : allDone
-            ? "모든 사진에 결과가 있어요 · 보내면 클라이언트가 확인하고 재요청하거나 확정해요"
-            : `결과 ${resultCount} / ${items.length} · 파일명이 같으면 자동으로 맞춰져요`
-        : "";
+  const bottomHint = albumStage
+    ? "보정이 끝났어요 · 앨범을 보내면 작업이 끝나요"
+    : archived
+      ? "보정이 끝나 갤러리가 보관됐어요"
+      : sentWaiting
+        ? "클라이언트가 확인 중이에요 · 재요청 또는 확정이 오면 알림으로 알려 드려요"
+        : requested
+          ? resultCount === 0
+            ? "요청을 확인하고 보정한 결과를 올려 주세요 · 메모 없는 사진도 기본 보정 대상이라 결과가 필요해요"
+            : allDone
+              ? "모든 사진에 결과가 있어요 · 보내면 클라이언트가 확인하고 재요청하거나 확정해요"
+              : `결과 ${resultCount} / ${items.length} · 파일명이 같으면 자동으로 맞춰져요`
+          : "";
 
   const title =
     view === "retouch" ? (
@@ -335,7 +349,7 @@ export function RetouchStage({
                     setView("retouch");
                     setCurrentId(null);
                   }}
-                  onChangeRounds={archived ? undefined : () => setModal("rounds")}
+                  onChangeRounds={retouchDone ? undefined : () => setModal("rounds")}
                 />
               ) : undefined
             }
@@ -458,7 +472,7 @@ export function RetouchStage({
           ) : undefined
         }
         actions={
-          archived && album ? (
+          retouchDone && album ? (
             <ShellCta onClick={album.onOpen}>
               <AlbumIcon size={18} />
               {album.exists ? "앨범 열기" : "앨범 만들기"}

@@ -134,11 +134,22 @@ function StudioAlbumScreen() {
           photos={photos}
           retouchBanner={banner}
           repo={serverAlbumRepository}
+          sendReady={gallery.stage === "ALBUM"}
+          onSent={() => {
+            // 확정 뒤 갤러리는 작업 완료 — 단계 칩 · 상태줄을 다시 맞춘다
+            void getGallery(galleryId)
+              .then(setGallery)
+              .catch(() => {});
+          }}
           renderSidebar={(placed) =>
             !collapsed && (
               <ShellSidebar
                 title={gallery.title}
-                status={{ text: `앨범 구성 중 · 배치 ${placed} / ${photos.length}`, tone: "accent" }}
+                status={
+                  gallery.albumStatus === "CONFIRMED"
+                    ? { text: "작업 완료 · 앨범 보냄", tone: "muted" }
+                    : { text: `앨범 구성 중 · 배치 ${placed} / ${photos.length}`, tone: "accent" }
+                }
                 photoCount={null}
                 selectedLocked={false}
                 selectedCount={selection?.selectedCount ?? photos.length}

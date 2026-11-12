@@ -73,6 +73,11 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
   const savedRef = useRef(saved);
   const revisionRef = useRef(initialDoc.revision);
   const [status, setStatus] = useState(initialDoc.status);
+  /** 보내고 확정한 뒤에는 저장하지 않는다(서버도 받지 않는다) */
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  });
   const [banner, setBanner] = useState<BannerState>(() => loadBanner(galleryId));
   /** 닫은 배너의 최신 값 — 두 배너를 연달아 닫아도 앞의 것을 덮지 않게 */
   const bannerRef = useRef(banner);
@@ -96,7 +101,7 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
   function persist(kind: Exclude<SavedKind, "server">, opts?: { keepalive?: boolean }): Promise<boolean> {
     const run = async () => {
       const snapshot = albumRef.current;
-      if (!repo || conflictRef.current) return false;
+      if (!repo || conflictRef.current || statusRef.current === "CONFIRMED") return false;
       if (sameContent(snapshot, savedRef.current.album)) return true;
       try {
         const r = await repo.save(galleryId, snapshot, revisionRef.current, opts);
@@ -149,6 +154,7 @@ export function useAlbumEditor(galleryId: number, initialDoc: AlbumDoc, selected
     try {
       const res = await sendAlbum(galleryId, revisionRef.current);
       revisionRef.current = res.revision;
+      statusRef.current = res.status;
       setStatus(res.status);
       toast("앨범을 보내고 확정했어요", false, "success");
       return true;

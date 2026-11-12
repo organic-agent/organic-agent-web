@@ -10,9 +10,11 @@
  * 도구(PR ②) — 선택 · 안내선 · 프레임. 프레임을 그리면 선택 도구로 돌아와 새 프레임을 고른 상태가 된다.
  * 위치 조정은 바꾸는 동안 여기 상태로만 두고, 끝낼 때 한 번 저장한다(되돌리기 한 번).
  * 앨범 미리보기(PR ③) — 머리줄 오른쪽 버튼 · 좁은 화면 안내 카드에서 연다. 편집 화면의 지금 모습을 그대로 보여 준다.
- * 클라이언트에게 보내기(PR ③) — 프레임 수와 넣은 사진 수가 선택 장수와 같을 때만(디자이너 규칙 "프레임 수 = 사진 수"). 한 번 보낸 뒤에는 "다시 보내기".
- * 역할(PR ③) — studio 전부 / clientEdit 사진 교체 · 위치 조정 · 비우기만(도구 · 프레임 · 펼침면 관리 없음, 고친 곳 표시) /
- * clientView 넘겨 보기 · 미리보기만(패널 · 도구 없음, 폰에서도 미리보기). 스튜디오에 보내기는 서버 뒤라 막아 둔다.
+ * 클라이언트에게 보내기 — 프레임 수와 넣은 사진 수가 선택 장수와 같을 때만(디자이너 규칙 "프레임 수 = 사진 수").
+ * 보내면 그 자리에서 확정된다(PR ④ 결정 3-2). 갤러리가 앨범 단계(클라이언트가 보정을 확정한 뒤)가 아니면 버튼은 막힌 모양이고,
+ * 누르면 이유를 스낵바로 알린다(결정 3-1). 확정한 뒤에는 스튜디오도 보기만 한다.
+ * 역할(PR ③) — studio 전부 / clientEdit 사진 교체 · 위치 조정 · 비우기만(도구 · 프레임 · 펼침면 관리 없음, 고친 곳 표시 — 지금은 잠금, 결정 4) /
+ * clientView 넘겨 보기 · 미리보기만(패널 · 도구 없음, 폰에서도 미리보기).
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -93,6 +95,8 @@ export function AlbumWorkspace({
   role = "studio",
   repo = null,
   base = null,
+  sendReady = true,
+  onSent,
 }: {
   galleryId: number;
   /** 갤러리 제목 — 미리보기 머리줄 */
@@ -108,12 +112,19 @@ export function AlbumWorkspace({
   repo?: AlbumRepository | null;
   /** 클라이언트 수정 — 스튜디오가 보낸 앨범(고친 곳 표시) */
   base?: Album | null;
+  /** 보낼 수 있는 단계인지 — 갤러리가 앨범 단계(클라이언트가 보정을 확정한 뒤) */
+  sendReady?: boolean;
+  /** 보내고 확정한 뒤 — 갤러리 단계가 바뀌었으니 페이지가 다시 읽는다 */
+  onSent?: () => void;
 }) {
   const isStudio = role === "studio";
-  const viewOnly = role === "clientView";
-  const canvasMode: CanvasMode = isStudio ? "studio" : viewOnly ? "view" : "photo";
   const selectedIds = useMemo(() => new Set(photos.map((p) => p.photoId)), [photos]);
   const editor = useAlbumEditor(galleryId, initialDoc, selectedIds, repo);
+  /** 보기만 — 클라이언트, 또는 보내고 확정한 스튜디오 */
+  const viewOnly = role === "clientView" || editor.status === "CONFIRMED";
+  /** 프레임 · 안내선 · 펼침면을 고칠 수 있음 */
+  const editable = isStudio && !viewOnly;
+  const canvasMode: CanvasMode = viewOnly ? "view" : isStudio ? "studio" : "photo";
   const { album, F, go } = editor;
   const [zoom, setZoom] = useState(50);
   const [tool, setTool] = useState<AlbumTool>("select");
@@ -123,6 +134,7 @@ export function AlbumWorkspace({
   const [cropEdit, setCropEdit] = useState<CropEdit | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   /** 사진이 든 펼침면을 지울지 묻는 중 */
   const [spreadAsk, setSpreadAsk] = useState<{ index: number; photos: number } | null>(null);
   const [cols, setCols] = useState<PanelCols>(() => readPanelCols());
@@ -184,7 +196,7 @@ export function AlbumWorkspace({
       <span className="flex text-contents-light-bgd-weakness">
         <LockIcon size={16} />
       </span>
-      스튜디오가 구성한 앨범이에요 · 보기만 할 수 있어요
+      {isStudio ? "클라이언트에게 보낸 앨범이에요 · 고칠 수 없어요" : "스튜디오가 구성한 앨범이에요 · 보기만 할 수 있어요"}
     </span>
   ) : !isStudio ? (
     "사진 교체 · 위치 조정이 가능해요"
@@ -209,13 +221,13 @@ export function AlbumWorkspace({
     spreadAskRef.current = spreadAsk;
     sendOpenRef.current = sendOpen;
   });
-  const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen, role });
+  const keysRef = useRef({ editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen, editable, viewOnly });
   useEffect(() => {
-    keysRef.current = { editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen, role };
+    keysRef.current = { editor, tool, changeTool, cropping: activeCrop !== null, finishCrop, previewOpen, editable, viewOnly };
   });
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop, previewOpen: previewing, role: who } = keysRef.current;
+      const { editor: ed, tool: cur, changeTool: toTool, cropping, finishCrop: endCrop, previewOpen: previewing, editable: studio, viewOnly: viewing } = keysRef.current;
       const t = e.target instanceof Element ? e.target : null;
       if (ed.moveAsk || spreadAskRef.current || previewing || sendOpenRef.current || t?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
       // 위치 조정 중에는 Esc · Enter(끝)만
@@ -224,12 +236,11 @@ export function AlbumWorkspace({
         return;
       }
       // 보기만 — 펼침면 넘기기만
-      if (who === "clientView") {
+      if (viewing) {
         if (e.key === "ArrowLeft") ed.go(ed.album.spread - 1);
         else if (e.key === "ArrowRight") ed.go(ed.album.spread + 1);
         return;
       }
-      const studio = who === "studio";
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
         ed.undo();
@@ -354,11 +365,11 @@ export function AlbumWorkspace({
                   <AlbumToolbar
                     tool={tool}
                     onTool={changeTool}
-                    showTools={isStudio}
-                    frameSize={isStudio}
-                    allowDelete={isStudio}
+                    showTools={editable}
+                    frameSize={editable}
+                    allowDelete={editable}
                     removeLabel={isStudio ? "빼기" : "비우기"}
-                    pagerAlways={!isStudio}
+                    pagerAlways={!editable}
                     frame={toolbarFrame}
                     ratioLock={ratioLock}
                     onRatioLock={setRatioLock}
@@ -367,7 +378,7 @@ export function AlbumWorkspace({
                     onDeleteFrame={() => pickedFrame && editor.removeFrame(pickedFrame.id)}
                     cropping={activeCrop !== null}
                     onCrop={() => (activeCrop ? finishCrop() : pickedFrame && startCrop(pickedFrame.id))}
-                    extra={isStudio && tool === "guide" ? <GuideSettings dir={guideDir} onDir={setGuideDir} all={guideAll} onAll={setGuideAll} /> : undefined}
+                    extra={editable && tool === "guide" ? <GuideSettings dir={guideDir} onDir={setGuideDir} all={guideAll} onAll={setGuideAll} /> : undefined}
                     spread={album.spread}
                     spreadCount={spreadCount}
                     onGo={go}
@@ -386,7 +397,7 @@ export function AlbumWorkspace({
                     else editor.removeSpread(index);
                   }}
                   onMove={editor.reorderSpread}
-                  manage={isStudio}
+                  manage={editable}
                   accentDots={changedSpreads}
                 />
               </div>
@@ -398,7 +409,7 @@ export function AlbumWorkspace({
               <AlbumIcon size={40} />
             </span>
             {viewOnly ? (
-              <b className="type-title-s text-contents-light-bgd-default">스튜디오가 구성한 앨범이에요</b>
+              <b className="type-title-s text-contents-light-bgd-default">{isStudio ? "보내고 확정한 앨범이에요" : "스튜디오가 구성한 앨범이에요"}</b>
             ) : (
               <>
                 <b className="type-title-s text-contents-light-bgd-default">앨범 편집은 넓은 화면에서 할 수 있어요</b>
@@ -426,11 +437,15 @@ export function AlbumWorkspace({
       {previewOpen && <AlbumPreview album={album} photoOf={photoOf} title={title} onClose={() => setPreviewOpen(false)} />}
       {sendOpen && (
         <SendAlbumModal
-          summary={`펼침면 ${spreadCount} · 프레임 ${F.list.length} · 배치 ${placed}장`}
-          onClose={() => setSendOpen(false)}
-          onSend={() => {
+          summary={`펼침면 ${spreadCount} · 사진 ${placed}장`}
+          sending={sending}
+          onClose={() => !sending && setSendOpen(false)}
+          onSend={async () => {
+            setSending(true);
+            const ok = await editor.send();
+            setSending(false);
             setSendOpen(false);
-            void editor.send();
+            if (ok) onSent?.();
           }}
         />
       )}
@@ -480,7 +495,11 @@ export function AlbumWorkspace({
                 {editor.dirty && <i aria-label="저장하지 않은 변경" className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand-accent-default" />}
               </span>
               {isStudio ? (
-                <ShellCta disabled={!canSend} onClick={() => setSendOpen(true)}>
+                <ShellCta
+                  disabled={!canSend}
+                  softDisabled={!sendReady}
+                  onClick={() => (sendReady ? setSendOpen(true) : editor.toast("클라이언트가 보정을 확정하면 보낼 수 있어요", false))}
+                >
                   클라이언트에게 보내기
                 </ShellCta>
               ) : (

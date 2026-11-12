@@ -32,12 +32,15 @@ export function ShellCta({
   children,
   kind = "primary",
   disabled = false,
+  softDisabled = false,
   onClick,
   short,
 }: {
   children: ReactNode;
   kind?: "primary" | "secondary" | "outline" | "ghost";
   disabled?: boolean;
+  /** 막힌 모양이지만 눌린다 — 왜 못 하는지 쓰는 쪽이 스낵바로 알린다(주 버튼만) */
+  softDisabled?: boolean;
   onClick?: () => void;
   /** 480 미만에서 대신 쓸 짧은 이름("작가에게 전달하기" → "전달하기") — 내용이 글자뿐인 버튼에 준다 */
   short?: string;
@@ -48,6 +51,7 @@ export function ShellCta({
     <button
       type="button"
       disabled={disabled}
+      aria-disabled={softDisabled || undefined}
       onClick={onClick}
       aria-label={iconLabel?.label}
       title={iconLabel?.label}
@@ -55,7 +59,7 @@ export function ShellCta({
         iconLabel ? "max-sm:px-2.75" : "max-[480px]:px-4"
       } ${
         kind === "primary"
-          ? "bg-brand-primary-default text-brand-on-fill hover:bg-brand-primary-light disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled"
+          ? "bg-brand-primary-default text-brand-on-fill hover:bg-brand-primary-light disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled aria-disabled:cursor-not-allowed aria-disabled:bg-surface-default-light aria-disabled:text-contents-light-bgd-disabled"
           : kind === "secondary"
             ? "bg-brand-chip-background text-brand-accent-default hover:bg-brand-secondary-surface2 dark:bg-transparent dark:text-brand-on-fill dark:ring-1 dark:ring-inset dark:ring-brand-accent-default dark:hover:bg-brand-accent-surface disabled:bg-surface-default-light disabled:text-contents-light-bgd-disabled dark:disabled:ring-0"
             : kind === "outline"
