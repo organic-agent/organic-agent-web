@@ -4,14 +4,15 @@
  * 앨범에 넣을 사진 — 클라이언트가 고른 사진 + 보낸 회차의 보정본(이슈 168)
  * 위치: src/app/(studio)/studio/gallery/[galleryId]/album/_album/useAlbumSource.ts
  *
- * 사진은 선택 앨범 순서 그대로. 보정본이 있으면 보정본을 쓴다 — 보낸(COMPLETED) 회차의 결과만 보고, 뒤 회차가 앞 회차를 덮는다.
+ * 사진은 선택 앨범 순서 그대로. 보정본이 있으면 보정본을 쓴다 — 서버가 사진별로 마지막으로 보낸 회차의 결과를 한 번에 준다(PR ④).
  * 선택 앨범은 10초마다 · 창으로 돌아올 때 다시 읽고, 못 읽으면 마지막 값을 그대로 둔다(편집 중인 화면이 사라지지 않게).
- * 보정 배너(보정 전 · 회차 반영 · 확정)도 회차 목록에서 정해서 함께 돌려준다. 결과 주소는 서명 URL이라 수명 전에 다시 읽는다.
+ * 보정 배너(보정 전 · 회차 반영 · 확정)는 회차 목록에서 정한다. 회차를 새로 보내면 결과 주소를 다시 읽고, 서명 URL이라 수명 전에도 다시 읽는다.
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { getAlbumPhotos } from "@/lib/api/album";
 import type { GalleryResponse } from "@/lib/api/galleries";
-import { getRetouchRound, type RetouchOverviewResponse } from "@/lib/api/retouch";
+import type { RetouchOverviewResponse } from "@/lib/api/retouch";
 import { getPhotoSelection, type PhotoSelectionResponse } from "@/lib/api/selection";
 import { useRetouchOverview } from "../../_shell/useRetouchOverview";
 
@@ -62,11 +63,13 @@ export function useAlbumSelection(galleryId: number, enabled: boolean) {
   return { selection, reload: () => setNonce((n) => n + 1) };
 }
 
-/** 보낸 회차의 결과 주소 — photoId → 마지막 회차 결과 */
+/** 보정본 주소 — photoId → 마지막으로 보낸 회차의 결과. 보낸 회차가 바뀌면 다시 읽고, 다시 읽는 동안은 앞의 주소를 그대로 쓴다 */
 function useRoundResults(galleryId: number, overview: RetouchOverviewResponse | null) {
-  const completed = useMemo(() => (overview?.rounds ?? []).filter((r) => r.status === "COMPLETED"), [overview]);
-  const key = completed.map((r) => `${r.roundNo}:${r.completedAt ?? ""}`).join(",");
-  const [state, setState] = useState<{ key: string; nonce: number; map: Map<number, string> }>({ key: "", nonce: 0, map: EMPTY_RESULTS });
+  const key = (overview?.rounds ?? [])
+    .filter((r) => r.status === "COMPLETED")
+    .map((r) => `${r.roundNo}:${r.completedAt ?? ""}`)
+    .join(",");
+  const [map, setMap] = useState<Map<number, string>>(EMPTY_RESULTS);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
@@ -74,34 +77,30 @@ function useRoundResults(galleryId: number, overview: RetouchOverviewResponse | 
     let cancelled = false;
     let timer = 0;
     (async () => {
-      const details = await Promise.allSettled(completed.map((r) => getRetouchRound(galleryId, r.roundNo)));
-      if (cancelled) return;
-      const map = new Map<number, string>();
-      let ttl = Infinity;
-      details
-        .flatMap((d) => (d.status === "fulfilled" ? [d.value] : []))
-        .sort((a, b) => a.roundNo - b.roundNo)
-        .forEach((round) => {
-          ttl = Math.min(ttl, round.viewUrlTtlSeconds);
-          for (const p of round.photos) if (p.resultUrl) map.set(p.photo.photoId, p.resultUrl);
-        });
-      setState({ key, nonce, map });
-      // 서명 URL 수명 1분 전에 다시 읽는다
-      if (Number.isFinite(ttl)) timer = window.setTimeout(() => setNonce((n) => n + 1), Math.max(60, ttl - 60) * 1000);
+      try {
+        const res = await getAlbumPhotos(galleryId);
+        if (cancelled) return;
+        const next = new Map<number, string>();
+        for (const p of res.photos) if (p.resultUrl) next.set(p.photoId, p.resultUrl);
+        setMap(next);
+        // 서명 URL 수명 1분 전에 다시 읽는다
+        timer = window.setTimeout(() => setNonce((n) => n + 1), Math.max(60, res.viewUrlTtlSeconds - 60) * 1000);
+      } catch {
+        // 못 읽으면 앞의 주소(없으면 원본)로 그린다
+      }
     })();
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-    // completed는 key와 함께 바뀐다
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galleryId, key, nonce]);
 
-  return key && state.key === key ? state.map : EMPTY_RESULTS;
+  return key ? map : EMPTY_RESULTS;
 }
 
 function retouchBannerOf(gallery: GalleryResponse, overview: RetouchOverviewResponse | null, retouchOn: boolean): RetouchBanner | null {
-  if (gallery.stage === "ARCHIVED") {
+  // 앨범 단계 = 클라이언트가 보정을 확정한 뒤
+  if (gallery.stage === "ALBUM" || gallery.stage === "ARCHIVED") {
     return gallery.retouchConfirmedAt
       ? { key: "confirmed", tone: "ok", title: "보정이 확정됐어요", body: "앨범의 모든 사진이 최종 보정본이에요" }
       : { key: "closed", tone: "ok", title: "보정이 끝났어요", body: "앨범의 사진이 마지막 보정본이에요" };
