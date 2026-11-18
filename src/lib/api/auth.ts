@@ -86,6 +86,14 @@ export function login(
   });
 }
 
+/**
+ * 심사용 링크 로그인 — 링크(/review#code=…)의 코드로 미리 정해 둔 심사용 개인 계정의 토큰을 받는다(서버 #407).
+ * 응답은 소셜 로그인과 같은 모양이다. 꺼짐 · 만료 · 틀린 코드는 모두 404 AUTH_404_1로 가리지 않고 온다.
+ */
+export function reviewLogin(code: string): Promise<LoginResponse> {
+  return api("/api/v1/auth/review-login", { method: "POST", body: { code }, auth: false });
+}
+
 // 토큰 재발급은 여기 없다 — 관문을 거치면 안 되는 특수 요청이라
 // src/lib/auth/refreshTokens.ts 가 전담한다.
 
