@@ -28,7 +28,7 @@ export type LoginIntent = "couple" | "studio" | "personal";
 export type LoginContext = {
   intent: LoginIntent;
   inviteToken: string | null;
-  /** 프로 쿠폰 선물 링크로 왔는데 로그인 전이었을 때의 코드 — 로그인 뒤 쿠폰 등록 화면으로 돌아간다(이슈 81) */
+  /** 쿠폰 화면에서 "등록하고 계속하기"를 누른 로그인 전 사용자의 코드 — 로그인 뒤 쿠폰 화면으로 돌아가 바로 등록한다(이슈 81 · 176) */
   couponCode?: string | null;
 };
 
@@ -58,6 +58,41 @@ export function readLoginContext(): LoginContext | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * 쿠폰 화면의 "등록하고 계속하기"로 시작한 로그인이 방금 끝났다는 한 번짜리 표시(이슈 176).
+ * 콜백이 쿠폰 화면으로 돌려보낼 때만 남기고, 쿠폰 화면이 꺼내 쓰는 즉시 지운다 — 버튼을 누른 사람만 돌아와서 다시
+ * 누르지 않아도 등록된다. 이미 로그인한 채 링크를 연 사람 · 새로 고침에는 표시가 없다(확인 없이 계정에 쿠폰을 묶지 않는다).
+ */
+const COUPON_AUTO_REGISTER_KEY = "sel.couponAutoRegister";
+
+export function markCouponAutoRegister(code: string): void {
+  try {
+    sessionStorage.setItem(COUPON_AUTO_REGISTER_KEY, code);
+  } catch {
+    // 저장이 막히면 쿠폰 화면에서 버튼을 한 번 더 누르면 된다.
+  }
+}
+
+/** 표시를 지우지 않고 본다 — 쿠폰 화면이 처음 그릴 때부터 "등록하는 중"임을 알기 위해 */
+export function peekCouponAutoRegister(): string | null {
+  try {
+    return sessionStorage.getItem(COUPON_AUTO_REGISTER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** 표시를 꺼내고 지운다 */
+export function takeCouponAutoRegister(): string | null {
+  const code = peekCouponAutoRegister();
+  try {
+    sessionStorage.removeItem(COUPON_AUTO_REGISTER_KEY);
+  } catch {
+    // 지울 수 없는 환경이면 애초에 저장도 안 됐다.
+  }
+  return code;
 }
 
 /**

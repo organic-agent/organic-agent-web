@@ -17,9 +17,9 @@ import { getMe, login, type OAuthProvider } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { track } from "@/lib/analytics";
 import { setAuthenticated } from "@/lib/auth/authStore";
-import { readLoginContext, resolveDestination } from "@/lib/auth/loginFlow";
+import { markCouponAutoRegister, readLoginContext, resolveDestination } from "@/lib/auth/loginFlow";
 import { setTokens } from "@/lib/auth/tokenStore";
-import { COUPON_PATH } from "@/lib/couponLink";
+import { COUPON_PATH, couponRedemptionPath } from "@/lib/couponLink";
 
 // 인가 코드는 일회용이다. StrictMode(개발)가 effect를 두 번 돌려 같은 코드로
 // 두 번 교환하면 두 번째가 반드시 실패해 "성공했는데 에러"가 되므로,
@@ -76,14 +76,17 @@ export function OAuthCallback({
         // 가입인지 재로그인인지 — 서버 플래그가 없어 가입 시각이 1분 안이면 신규로 본다(#133)
         const isNew = user.createdAt !== null && Date.now() - Date.parse(user.createdAt) < 60_000;
         track(isNew ? "signup_completed" : "login_completed", { provider: user.provider });
-        router.replace(
-          resolveDestination({
-            inviteToken: result.inviteToken,
-            user,
-            intent: ctx?.intent ?? "couple",
-            couponCode: ctx?.couponCode ?? null,
-          }),
-        );
+        const destination = resolveDestination({
+          inviteToken: result.inviteToken,
+          user,
+          intent: ctx?.intent ?? "couple",
+          couponCode: ctx?.couponCode ?? null,
+        });
+        // 쿠폰 화면의 "등록하고 계속하기"로 시작한 로그인이 그 화면으로 돌아갈 때 — 가서 다시 누르지 않아도 등록한다(이슈 176)
+        if (ctx?.couponCode && destination === couponRedemptionPath(ctx.couponCode)) {
+          markCouponAutoRegister(ctx.couponCode);
+        }
+        router.replace(destination);
       } catch (err) {
         backToLogin(err instanceof ApiError ? err.code : "network");
       }

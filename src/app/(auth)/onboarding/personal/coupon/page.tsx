@@ -8,18 +8,20 @@
  * 플랜 선택은 보지 않는다(2026-10-03 수민). 이 화면은 OnboardingGate의 인증 가드를 거치지 않고 로그인 전에도 그대로
  * 그린다(이슈 176) — 쿠폰 입력 → 로그인 → 갤러리 생성 순서라, 무엇을 받으러 왔는지 먼저 보고 로그인은 "등록하고
  * 계속하기"를 눌렀을 때 창(LoginModal)으로 띄운다. 입력한 코드는 로그인 왕복 컨텍스트에 실려 로그인 뒤 같은 주소로
- * 돌아온다. 로그인을 취소 · 실패해도 이 화면으로 돌아오고(?error=) 코드는 그대로다 — 이유는 입력란 아래에 알린다.
+ * 돌아오고, 돌아오면 다시 누르지 않아도 등록한다(콜백이 남긴 한 번짜리 표시 — loginFlow). 쓸 수 없는 코드면 이 화면에
+ * 남아 이유를 알린다. 로그인을 취소 · 실패해도 이 화면으로 돌아오고(?error=) 코드는 그대로다 — 이유는 입력란 아래에 알린다.
  * 로그인 전에는 플랜 · 쿠폰 조회가 막혀 있어(401) 안내 문구에 기간 · 장수가 없고, 쓸 수 있는 코드인지는 로그인 뒤에 안다.
  * 등록(POST /coupons/register)은 코드를 보관만 하고 이용 기간은 갤러리를 만들 때 시작한다. 등록되면 쿠폰 id를 실어
  * 갤러리 정보로 간다. 코드 없이 직접 들어오면 빈 입력란이다.
- * 링크 조회(POST /coupons/resolve)는 등록 · 소비하지 않는다. 이미 사용한 쿠폰이고 해당 갤러리에 접근 권한이
+ * 이미 로그인한 채 링크를 연 사람은 버튼을 눌러야 등록한다(확인 없이 계정에 쿠폰을 묶지 않는다). 그때의 링크
+ * 조회(POST /coupons/resolve)는 등록 · 소비하지 않는다. 이미 사용한 쿠폰이고 해당 갤러리에 접근 권한이
  * 있을 때만 사용자 갤러리로 이동한다. 미사용 · 권한 없음은 등록 화면에 남고, 등록 버튼을 누른 뒤 결과를 안내한다.
  * useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다.
  * 분석(#138): 새로 등록된 쓸 수 있는 쿠폰만 pro_coupon_registered로 센다. 공유 코드(인플루언서 배포)는 코드를
  * 이벤트와 사용자 속성 acquisition_coupon에 싣고, 1회용 비밀 코드는 쿠폰 ID만 보낸다.
  */
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { setUserProps, track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
@@ -43,7 +45,7 @@ import {
   type ProCouponStatus,
 } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/authStore";
-import { loginErrorMessage } from "@/lib/auth/loginFlow";
+import { loginErrorMessage, peekCouponAutoRegister, takeCouponAutoRegister } from "@/lib/auth/loginFlow";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "../_components/PersonalSteps";
 
@@ -74,6 +76,27 @@ function usedCouponDestination(coupon: ProCouponLinkResponse): string | null {
   return null;
 }
 
+/** 등록하고 갈 곳을 정한다 — 갈 곳이 없으면(지금 쓸 수 없는 쿠폰 · 오류) 이 화면에 띄울 안내를 돌려준다 */
+async function registerAndRoute(code: string): Promise<{ destination: string } | { message: string }> {
+  try {
+    const coupon = await registerProCoupon(code);
+    trackCouponRegistered(coupon, code);
+    const destination = coupon.status === "AVAILABLE"
+      ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`
+      : coupon.status === "USED"
+        ? usedCouponDestination(await resolveProCouponLink(code))
+        : null;
+    return destination ? { destination } : { message: unusableCouponMessage(coupon.status) };
+  } catch (err) {
+    // 사용 마감(410 BILLING_410_2)만 우리 말투로, 나머지 서버 문구는 그대로
+    return {
+      message: err instanceof ApiError
+        ? err.code === COUPON_EXPIRED_CODE ? COUPON_EXPIRED_MESSAGE : err.message
+        : "쿠폰을 등록하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+    };
+  }
+}
+
 export default function PersonalCouponPage() {
   return (
     <Suspense fallback={null}>
@@ -99,10 +122,36 @@ function PersonalCoupon() {
   const [checkedLink, setCheckedLink] = useState<{ code: string; userId: number } | null>(null);
   const linkCode = hash.code;
   const userId = auth.user?.id;
+  // 로그인 전에 "등록하고 계속하기"를 누르고 돌아온 사람인가 — 콜백이 남긴 표시의 코드가 이 링크의 코드와 같을 때
+  const [autoCode] = useState(peekCouponAutoRegister);
+  const autoArrival = autoCode !== null && autoCode === linkCode;
+  const autoStarted = useRef(false);
 
-  // 미사용 코드를 자동 등록하지 않고, 사용한 갤러리에 접근 권한이 있을 때만 바로 연결한다.
+  // 표시는 이 화면이 한 번 읽으면 지운다 — 새로 고침 · 다음 방문에는 남지 않는다(읽은 값은 위 autoCode가 들고 있다)
   useEffect(() => {
-    if (auth.status !== "authenticated" || userId === undefined || linkCode === null) return;
+    takeCouponAutoRegister();
+  }, []);
+
+  // 버튼을 누르고 돌아온 사람은 다시 누르지 않아도 등록한다. 콜백에서 넘어온 직후에는 주소의 # 조각이 한 박자 늦게 읽히므로
+  // 링크의 코드가 표시와 맞은 뒤에 시작하고, 한 번만 한다 — 개발 StrictMode가 effect를 두 번 돌려도 등록 · 이벤트가 두 번
+  // 나가지 않게. 갈 곳이 없으면(쓸 수 없는 코드 · 오류) 이 화면에 남아 이유를 알린다.
+  useEffect(() => {
+    if (auth.status !== "authenticated" || userId === undefined || linkCode === null || !autoArrival || autoStarted.current) return;
+    autoStarted.current = true;
+    (async () => {
+      const result = await registerAndRoute(linkCode);
+      if ("destination" in result) {
+        router.replace(result.destination);
+        return;
+      }
+      setBanner(result.message);
+      setCheckedLink({ code: linkCode, userId });
+    })();
+  }, [auth.status, userId, linkCode, autoArrival, router]);
+
+  // 이미 로그인한 채 링크를 연 사람 — 미사용 코드를 자동 등록하지 않고, 사용한 갤러리에 접근 권한이 있을 때만 바로 연결한다.
+  useEffect(() => {
+    if (auth.status !== "authenticated" || userId === undefined || linkCode === null || autoArrival) return;
     let cancelled = false;
     (async () => {
       try {
@@ -120,7 +169,7 @@ function PersonalCoupon() {
     return () => {
       cancelled = true;
     };
-  }, [auth.status, userId, linkCode, router]);
+  }, [auth.status, userId, linkCode, autoArrival, router]);
 
   // 안내 문구의 기간 · 장수는 서버 플랜 값으로 — 못 읽어도 화면은 그대로
   useEffect(() => {
@@ -140,7 +189,9 @@ function PersonalCoupon() {
     (checkedLink?.code !== linkCode || checkedLink?.userId !== userId))) {
     return (
       <main className="grid min-h-dvh place-items-center bg-background-default-main">
-        <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">쿠폰을 확인하고 있어요…</p>
+        <p className="type-content-xs text-contents-light-bgd-sub animate-pulse">
+          {autoArrival ? "쿠폰을 등록하고 있어요…" : "쿠폰을 확인하고 있어요…"}
+        </p>
       </main>
     );
   }
@@ -159,29 +210,13 @@ function PersonalCoupon() {
     }
     setSubmitting(true);
     setBanner(null);
-    try {
-      const coupon = await registerProCoupon(trimmed);
-      trackCouponRegistered(coupon, trimmed);
-      const destination = coupon.status === "AVAILABLE"
-        ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`
-        : coupon.status === "USED"
-          ? usedCouponDestination(await resolveProCouponLink(trimmed))
-          : null;
-      if (destination) {
-        router.replace(destination);
-        return;
-      }
-      setSubmitting(false);
-      setBanner(unusableCouponMessage(coupon.status));
-    } catch (err) {
-      setSubmitting(false);
-      // 사용 마감(410 BILLING_410_2)만 우리 말투로, 나머지 서버 문구는 그대로
-      setBanner(
-        err instanceof ApiError
-          ? err.code === COUPON_EXPIRED_CODE ? COUPON_EXPIRED_MESSAGE : err.message
-          : "쿠폰을 등록하지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-      );
+    const result = await registerAndRoute(trimmed);
+    if ("destination" in result) {
+      router.replace(result.destination);
+      return;
     }
+    setSubmitting(false);
+    setBanner(result.message);
   }
 
   return (
