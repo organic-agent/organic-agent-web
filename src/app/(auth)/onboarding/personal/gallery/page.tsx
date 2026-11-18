@@ -8,7 +8,9 @@
  * freePlanAvailable, 프로는 그 쿠폰이 내 것이고 미사용인지 확인하고, 아니면 플랜 선택으로 돌려보낸다(마감으로
  * 막힌 쿠폰은 거기서 "쿠폰 사용 기간 종료"를 본다, #138). 만드는 사이 마감이 지나면 서버 410을 우리 말투로 바꾼다.
  * 배지는 플랜 응답 값으로 "프로 · 1년 · 10,000장" / "무료 · 1개월 · 500장". 단계 표시와 뒤로 가기만
- * 들어온 길에 따라 다르다(쿠폰 등록 · 플랜 선택). 이름·목표일·선택 장수를 받아 planId · couponId로 개설한다.
+ * 들어온 길에 따라 다르다 — 쿠폰 선물 링크로 온 프로는 쿠폰 등록 쪽, 플랜 선택에서 온 길(무료, 그리고 ?from=plan이
+ * 붙은 프로: 등록해 둔 쿠폰을 골랐거나 "쿠폰 코드 입력하기"로 등록한 사람)은 플랜 선택 쪽이다(이슈 178).
+ * 이름·목표일·선택 장수를 받아 planId · couponId로 개설한다.
  * 목표일(서버 필드 selectionDeadline)은 갤러리가 닫히는 날이 아니라 D-day를 세는 기준이다 — 갤러리는 이용 기간 동안
  * 열려 있어서 "선택 마감"이라는 이름을 쓰지 않는다(QA BUG-1, 2026-10-04). 비우면 서버가 이용 기간 마지막 날을 넣는다.
  * 촬영 종류는 화면에서 받지 않고 본식으로 보낸다 — 갤러리 설정에서 바꿀 수 있다. 이슈 81.
@@ -46,7 +48,7 @@ import {
   planExpiryFromNow,
 } from "@/lib/goalDateRange";
 import { clampSelectableCountInput } from "@/lib/selectableCount";
-import { PersonalSteps } from "../_components/PersonalSteps";
+import { PersonalSteps, cameFromPlan } from "../_components/PersonalSteps";
 
 export default function PersonalGalleryPage() {
   return (
@@ -114,6 +116,8 @@ function PersonalGalleryForm() {
   }, [planParam, couponParam, router]);
 
   const pro = ticket !== null && !isFreePlan(ticket.plan);
+  /** 쿠폰 선물 링크로 온 길인가 — 플랜 선택을 거친 프로는 주소에 그 표시가 있다 */
+  const viaCouponLink = pro && !cameFromPlan(search);
   // 목표일은 오늘부터 이용 기간 안에서만 — 달력은 범위만 고르게 막고, 손으로 적은 범위 밖 날짜는 이유를 보여 준다
   const goalRange = goalDateRange(ticket ? planExpiryFromNow(ticket.plan, now) : null, now);
   const deadlineProblem = goalDateProblem(deadline, goalRange, deadlineUnreadable);
@@ -165,13 +169,13 @@ function PersonalGalleryForm() {
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-130">
           <Link
-            href={pro ? COUPON_PATH : "/onboarding/personal"}
+            href={viaCouponLink ? COUPON_PATH : "/onboarding/personal"}
             className="mb-5 inline-flex items-center gap-1 type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
           >
             <BackIcon size={16} />
-            {pro ? "쿠폰 등록으로" : "플랜 선택으로"}
+            {viaCouponLink ? "쿠폰 등록으로" : "플랜 선택으로"}
           </Link>
-          <PersonalSteps variant={pro ? "coupon" : "plan"} current="gallery" />
+          <PersonalSteps variant={viaCouponLink ? "coupon" : "plan"} current="gallery" />
 
           {badge && (
             <span

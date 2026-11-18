@@ -10,6 +10,8 @@
  * 꼬리표로 알린다("쿠폰 사용 기간 종료", #138). 무료를 고르면 결제 없이 바로 갤러리 정보로, 프로는
  * 쿠폰 id를 실어 갤러리 정보로 간다. 쿠폰 선물 링크(#code=)로 왔으면 이 화면을 그리지 않고 쿠폰 등록 화면으로
  * 바꾼다(OnboardingGate가 먼저 받지만 직접 진입도 대비). 2026-10-03 수민 결정 · 이슈 81.
+ * 카드 아래 "쿠폰 코드 입력하기"는 링크 없이 코드만 가진 사람의 입구다 — 랜딩에서 로그인해 들어와도 쿠폰 화면에
+ * 닿는다(이슈 178). 여기서 떠나는 길에는 ?from=plan을 실어, 다음 화면이 단계 표시와 뒤로 가기를 이 화면에 맞춘다.
  */
 
 import { useEffect, useState } from "react";
@@ -28,9 +30,9 @@ import {
   type MyBenefitsResponse,
   type Plan,
 } from "@/lib/api/payments";
-import { couponRedemptionPath } from "@/lib/couponLink";
+import { COUPON_PATH, couponRedemptionPath } from "@/lib/couponLink";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
-import { PersonalSteps } from "./_components/PersonalSteps";
+import { FROM_PLAN, PersonalSteps } from "./_components/PersonalSteps";
 import { PlanCard } from "./_components/PlanCard";
 
 type Loaded = { plans: Plan[]; benefits: MyBenefitsResponse };
@@ -95,7 +97,7 @@ export default function PersonalPlanPage() {
     }
     if (coupon) {
       track("plan_selected", { plan: "pro" });
-      router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`);
+      router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}&${FROM_PLAN}`);
     }
   }
 
@@ -174,6 +176,14 @@ export default function PersonalPlanPage() {
               </div>
             )}
           </div>
+
+          <Link
+            href={`${COUPON_PATH}?${FROM_PLAN}`}
+            className="mt-4 flex w-fit items-center gap-1 type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
+          >
+            쿠폰 코드 입력하기
+            <ArrowRightIcon size={16} />
+          </Link>
 
           <Button
             size="lg"
