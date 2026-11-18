@@ -5,10 +5,13 @@
  * 위치: src/app/(auth)/onboarding/personal/coupon/page.tsx
  *
  * 백오피스 선물 링크(/onboarding/personal#code=토큰)로 들어온 사람이 보는 첫 화면 — 코드가 채워져 있고 버튼 하나.
- * 플랜 선택은 보지 않는다(2026-10-03 수민). 이 화면은 OnboardingGate의 인증 가드를 거치지 않는다: 비로그인이면
- * LoginModal(asPage)을 띄우고 코드를 로그인 왕복 컨텍스트에 실어 로그인 뒤 같은 주소로 돌아온다.
+ * 플랜 선택은 보지 않는다(2026-10-03 수민). 이 화면은 OnboardingGate의 인증 가드를 거치지 않고 로그인 전에도 그대로
+ * 그린다(이슈 176) — 쿠폰 입력 → 로그인 → 갤러리 생성 순서라, 무엇을 받으러 왔는지 먼저 보고 로그인은 "등록하고
+ * 계속하기"를 눌렀을 때 창(LoginModal)으로 띄운다. 입력한 코드는 로그인 왕복 컨텍스트에 실려 로그인 뒤 같은 주소로
+ * 돌아온다. 로그인을 취소 · 실패해도 이 화면으로 돌아오고(?error=) 코드는 그대로다 — 이유는 입력란 아래에 알린다.
+ * 로그인 전에는 플랜 · 쿠폰 조회가 막혀 있어(401) 안내 문구에 기간 · 장수가 없고, 쓸 수 있는 코드인지는 로그인 뒤에 안다.
  * 등록(POST /coupons/register)은 코드를 보관만 하고 이용 기간은 갤러리를 만들 때 시작한다. 등록되면 쿠폰 id를 실어
- * 갤러리 정보로 간다. 코드 없이 직접 들어오면 빈 입력란이다. ?error=는 OAuth 콜백이 실패를 되돌려보낼 때.
+ * 갤러리 정보로 간다. 코드 없이 직접 들어오면 빈 입력란이다.
  * 링크 조회(POST /coupons/resolve)는 등록 · 소비하지 않는다. 이미 사용한 쿠폰이고 해당 갤러리에 접근 권한이
  * 있을 때만 사용자 갤러리로 이동한다. 미사용 · 권한 없음은 등록 화면에 남고, 등록 버튼을 누른 뒤 결과를 안내한다.
  * useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다.
@@ -40,6 +43,7 @@ import {
   type ProCouponStatus,
 } from "@/lib/api/payments";
 import { useAuth } from "@/lib/auth/authStore";
+import { loginErrorMessage } from "@/lib/auth/loginFlow";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
 import { PersonalSteps } from "../_components/PersonalSteps";
 
@@ -91,6 +95,7 @@ function PersonalCoupon() {
   const [pro, setPro] = useState<Plan | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [checkedLink, setCheckedLink] = useState<{ code: string; userId: number } | null>(null);
   const linkCode = hash.code;
   const userId = auth.user?.id;
@@ -139,15 +144,19 @@ function PersonalCoupon() {
       </main>
     );
   }
-  if (auth.status === "guest") {
-    return <LoginModal asPage intent="personal" couponCode={code.trim() || null} errorCode={errorCode} />;
-  }
 
   const trimmed = code.trim();
   const canSubmit = trimmed.length > 0 && !submitting;
+  // 로그인을 취소 · 실패하고 돌아온 사람에게는 그 이유를 — 등록 결과 안내가 있으면 그쪽이 더 최신이다
+  const notice = banner ?? (auth.status === "guest" && errorCode ? loginErrorMessage(errorCode) : null);
 
   async function submit() {
     if (!canSubmit) return;
+    // 로그인 전이면 등록은 로그인 뒤로 미룬다 — 입력한 코드는 로그인 창이 왕복 컨텍스트에 싣는다
+    if (auth.status === "guest") {
+      setLoginOpen(true);
+      return;
+    }
     setSubmitting(true);
     setBanner(null);
     try {
@@ -208,9 +217,9 @@ function PersonalCoupon() {
             />
           </div>
 
-          {banner && (
+          {notice && (
             <p role="alert" className="mt-6 text-center type-content-xs text-function-error-default">
-              {banner}
+              {notice}
             </p>
           )}
 
@@ -225,6 +234,13 @@ function PersonalCoupon() {
           </Button>
         </div>
       </div>
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        mode="signup"
+        intent="personal"
+        couponCode={trimmed || null}
+      />
     </main>
   );
 }
