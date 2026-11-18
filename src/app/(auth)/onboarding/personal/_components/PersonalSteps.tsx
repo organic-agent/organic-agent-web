@@ -2,13 +2,22 @@
  * 개인 갤러리 온보딩 단계 표시 — 들어온 길에 따라 칸이 다르다
  * 위치: src/app/(auth)/onboarding/personal/_components/PersonalSteps.tsx
  *
- * plan: "플랜 선택 · 갤러리 정보" (일반 진입 — 무료, 또는 등록해 둔 쿠폰으로 프로)
+ * plan: "플랜 선택 · 갤러리 정보" (일반 진입 — 무료, 또는 등록해 둔 쿠폰으로 프로, 또는 플랜 선택에서 쿠폰 코드를 입력해 프로)
  * coupon: "쿠폰 등록 · 갤러리 정보" (선물 링크 진입)
  * 어느 길이든 두 칸이고 번호는 1부터 이어진다. 결제 칸은 카드 결제가 열릴 때 돌아온다(이슈 81).
+ * 플랜 선택의 "쿠폰 코드 입력하기"로 들어간 쿠폰 화면은 플랜 선택 단계 안의 화면이라 칸을 늘리지 않는다(이슈 178).
  */
 
 export type PersonalStep = "plan" | "coupon" | "gallery";
 export type PersonalStepsVariant = "plan" | "coupon";
+
+/**
+ * 플랜 선택에서 온 길의 표시(?from=plan) — 쿠폰 등록 · 갤러리 정보는 선물 링크 진입과 함께 쓰는 화면이라, 이 표시가
+ * 있으면 단계 표시와 뒤로 가기를 플랜 선택 쪽으로 맞춘다(이슈 178). 선물 링크 진입에는 표시가 없다.
+ */
+export const FROM_PLAN = "from=plan";
+
+export const cameFromPlan = (search: { get(name: string): string | null }): boolean => search.get("from") === "plan";
 
 export function PersonalSteps({
   variant,

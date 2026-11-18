@@ -17,16 +17,20 @@
  * 조회(POST /coupons/resolve)는 등록 · 소비하지 않는다. 이미 사용한 쿠폰이고 해당 갤러리에 접근 권한이
  * 있을 때만 사용자 갤러리로 이동한다. 미사용 · 권한 없음은 등록 화면에 남고, 등록 버튼을 누른 뒤 결과를 안내한다.
  * useSearchParams는 정적 페이지에서 Suspense 경계가 필요하다.
+ * 플랜 선택의 "쿠폰 코드 입력하기"로 들어오면(?from=plan, 이슈 178) 빈 입력란에 "플랜 선택으로"가 붙고 단계 표시는
+ * 플랜 선택의 것을 그대로 쓴다. 등록하면 그 표시를 실어 갤러리 정보로 간다. 로그인 전에는 플랜 선택이 열리지 않으므로
+ * 이 표시를 따르지 않는다.
  * 분석(#138): 새로 등록된 쓸 수 있는 쿠폰만 pro_coupon_registered로 센다. 공유 코드(인플루언서 배포)는 코드를
  * 이벤트와 사용자 속성 acquisition_coupon에 싣고, 1회용 비밀 코드는 쿠폰 ID만 보낸다.
  */
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { setUserProps, track } from "@/lib/analytics";
 import { EntryTopbar } from "@/components/app/EntryTopbar";
 import { LoginModal } from "@/components/LoginModal";
-import { ArrowRightIcon } from "@/components/icons";
+import { ArrowRightIcon, BackIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
@@ -47,7 +51,7 @@ import {
 import { useAuth } from "@/lib/auth/authStore";
 import { loginErrorMessage, peekCouponAutoRegister, takeCouponAutoRegister } from "@/lib/auth/loginFlow";
 import { useCouponCodeFromHash } from "@/lib/useCouponCodeFromHash";
-import { PersonalSteps } from "../_components/PersonalSteps";
+import { FROM_PLAN, PersonalSteps, cameFromPlan } from "../_components/PersonalSteps";
 
 /** 같은 계정의 재등록은 서버가 기존 등록을 돌려주므로, 등록 시각이 방금이면 새 등록으로 본다(신규 가입 판별과 같은 규칙) */
 const registeredJustNow = (registeredAt: string): boolean =>
@@ -76,13 +80,16 @@ function usedCouponDestination(coupon: ProCouponLinkResponse): string | null {
   return null;
 }
 
-/** 등록하고 갈 곳을 정한다 — 갈 곳이 없으면(지금 쓸 수 없는 쿠폰 · 오류) 이 화면에 띄울 안내를 돌려준다 */
-async function registerAndRoute(code: string): Promise<{ destination: string } | { message: string }> {
+/**
+ * 등록하고 갈 곳을 정한다 — 갈 곳이 없으면(지금 쓸 수 없는 쿠폰 · 오류) 이 화면에 띄울 안내를 돌려준다.
+ * fromPlan이면 갤러리 정보에도 플랜 선택에서 온 길임을 실어 보낸다
+ */
+async function registerAndRoute(code: string, fromPlan: boolean): Promise<{ destination: string } | { message: string }> {
   try {
     const coupon = await registerProCoupon(code);
     trackCouponRegistered(coupon, code);
     const destination = coupon.status === "AVAILABLE"
-      ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`
+      ? `/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}${fromPlan ? `&${FROM_PLAN}` : ""}`
       : coupon.status === "USED"
         ? usedCouponDestination(await resolveProCouponLink(code))
         : null;
@@ -108,7 +115,10 @@ export default function PersonalCouponPage() {
 function PersonalCoupon() {
   const router = useRouter();
   const auth = useAuth();
-  const errorCode = useSearchParams().get("error");
+  const search = useSearchParams();
+  const errorCode = search.get("error");
+  // 플랜 선택의 "쿠폰 코드 입력하기"로 들어온 길 — 로그인 전에는 플랜 선택이 열리지 않아 해당하지 않는다
+  const viaPlan = cameFromPlan(search) && auth.status === "authenticated";
   // # 조각의 코드가 입력란의 시작값 — 사용자가 고치기 전까지는 링크의 코드를 그대로 쓴다
   const hash = useCouponCodeFromHash();
   const hashRead = hash.ready;
@@ -139,7 +149,7 @@ function PersonalCoupon() {
     if (auth.status !== "authenticated" || userId === undefined || linkCode === null || !autoArrival || autoStarted.current) return;
     autoStarted.current = true;
     (async () => {
-      const result = await registerAndRoute(linkCode);
+      const result = await registerAndRoute(linkCode, false);
       if ("destination" in result) {
         router.replace(result.destination);
         return;
@@ -210,7 +220,7 @@ function PersonalCoupon() {
     }
     setSubmitting(true);
     setBanner(null);
-    const result = await registerAndRoute(trimmed);
+    const result = await registerAndRoute(trimmed, viaPlan);
     if ("destination" in result) {
       router.replace(result.destination);
       return;
@@ -224,7 +234,16 @@ function PersonalCoupon() {
       <EntryTopbar />
       <div className="grid flex-1 place-items-start justify-items-center px-6 py-10">
         <div className="w-full max-w-130">
-          <PersonalSteps variant="coupon" current="coupon" />
+          {viaPlan && (
+            <Link
+              href="/onboarding/personal"
+              className="mb-5 inline-flex items-center gap-1 type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
+            >
+              <BackIcon size={16} />
+              플랜 선택으로
+            </Link>
+          )}
+          <PersonalSteps variant={viaPlan ? "plan" : "coupon"} current={viaPlan ? "plan" : "coupon"} />
           <p className="type-label-eyebrow text-brand-accent-default">For Individuals</p>
           <h1 className="mt-2 mb-1.5 type-title-xl text-balance text-contents-light-bgd-default">
             {fromLink ? "프로 쿠폰이 도착했어요" : "프로 쿠폰을 등록해 주세요"}
