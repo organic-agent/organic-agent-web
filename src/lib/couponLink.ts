@@ -5,8 +5,8 @@
  * 백오피스(organic-agent-backoffice, admin-coupons.ts)는 `https://easyselect.kr/onboarding/personal#code=토큰`을
  * 만든다. 토큰은 쿼리가 아니라 # 조각에 있어 서버 · 로그에 남지 않고 브라우저만 읽는다.
  * 웹은 그 주소에서 #code를 읽는 즉시 쿠폰 등록 화면(COUPON_PATH)으로 주소를 바꾼다 — 선물 링크로 온 사람의
- * 첫 화면은 플랜 선택이 아니라 쿠폰 등록이다(2026-10-03 수민). 로그인 전이면 로그인 왕복 컨텍스트(loginFlow)에
- * 코드를 실어 두었다가 로그인 뒤 같은 화면으로 돌아온다.
+ * 첫 화면은 플랜 선택이 아니라 쿠폰 등록이다(2026-10-03 수민). 로그인 전에도 그 화면을 먼저 보여 주고(이슈 176),
+ * 버튼을 누르면 로그인 왕복 컨텍스트(loginFlow)에 코드를 실어 두었다가 로그인 뒤 같은 화면으로 돌아와 바로 등록한다.
  */
 
 export const COUPON_PATH = "/onboarding/personal/coupon";

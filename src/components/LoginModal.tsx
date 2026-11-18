@@ -120,7 +120,7 @@ export function LoginModal({
   mode?: LoginMode;
   intent?: LoginIntent;
   inviteToken?: string | null;
-  /** 프로 쿠폰 선물 링크로 왔는데 로그인 전일 때 — 로그인 뒤 쿠폰 등록 화면으로 돌아간다(이슈 81) */
+  /** 쿠폰 화면에서 "등록하고 계속하기"를 누른 로그인 전 사용자의 코드 — 로그인 뒤 쿠폰 화면으로 돌아가 바로 등록한다(이슈 81 · 176) */
   couponCode?: string | null;
   /** OAuth 콜백이 실패를 되돌려보낼 때의 에러 코드 (/login?error=...) */
   errorCode?: string | null;
