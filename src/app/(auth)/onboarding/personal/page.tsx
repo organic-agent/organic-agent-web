@@ -97,7 +97,7 @@ export default function PersonalPlanPage() {
     }
     if (coupon) {
       track("plan_selected", { plan: "pro" });
-      router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}`);
+      router.push(`/onboarding/personal/gallery?plan=pro&coupon=${coupon.couponId}&${FROM_PLAN}`);
     }
   }
 
