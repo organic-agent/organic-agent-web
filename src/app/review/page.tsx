@@ -7,13 +7,14 @@
  * 링크는 /review#code=… 이다. 코드를 # 조각에 두는 것은 쿠폰 링크와 같은 이유다 — 서버 · 분석 도구 로그에 남지 않는다.
  * 코드로 받은 토큰은 소셜 로그인 콜백과 같은 방식으로 저장하고, 같은 규칙(resolveDestination)으로 목적지를 정한다.
  * 이미 다른 계정으로 로그인한 브라우저여도 심사용 계정으로 바꿔 들어간다 — 링크를 연 것 자체가 그 의도다.
+ * 다만 부팅 때의 세션 복구(AuthBootstrap)가 끝난 뒤에 로그인한다 — 동시에 돌면 나중에 끝난 쪽 토큰이 남아 계정이 섞인다.
  * 서버는 꺼짐 · 만료 · 틀린 코드를 가리지 않고 같은 404로 답하므로 화면도 한 문구로 알린다.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getMe, reviewLogin } from "@/lib/api/auth";
-import { setAuthenticated } from "@/lib/auth/authStore";
+import { setAuthenticated, useAuth } from "@/lib/auth/authStore";
 import { resolveDestination } from "@/lib/auth/loginFlow";
 import { markReviewMode } from "@/lib/auth/reviewMode";
 import { setTokens } from "@/lib/auth/tokenStore";
@@ -23,13 +24,15 @@ export default function ReviewLoginPage() {
   const router = useRouter();
   // # 조각의 code를 읽는 규칙이 쿠폰 링크와 같아 그 훅을 그대로 쓴다
   const { ready, code } = useCouponCodeFromHash();
+  // 저장된 로그인을 되살리는 중이면 기다린다 — 로그인한 적 없는 브라우저는 곧바로 guest라 기다림이 없다
+  const authSettled = useAuth().status !== "loading";
   const [loginFailed, setLoginFailed] = useState(false);
   // StrictMode(개발)가 effect를 두 번 돌려도 한 번만 로그인한다
   const started = useRef(false);
   const failed = loginFailed || (ready && !code);
 
   useEffect(() => {
-    if (!code || started.current) return;
+    if (!code || !authSettled || started.current) return;
     started.current = true;
     (async () => {
       try {
@@ -43,7 +46,7 @@ export default function ReviewLoginPage() {
         setLoginFailed(true);
       }
     })();
-  }, [code, router]);
+  }, [code, authSettled, router]);
 
   return (
     <main className="grid min-h-dvh place-items-center bg-background-default-main px-4">
