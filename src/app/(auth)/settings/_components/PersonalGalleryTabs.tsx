@@ -8,6 +8,7 @@
  * 저장은 PATCH galleries/{id}/personal — 서버가 소유자만 허용해 파트너는 읽기 전용(파트너도 수정 = 백엔드 전달 사항),
  * 목표일(서버 필드 selectionDeadline — 개인 갤러리에서는 "선택 마감" 대신 이 이름, QA BUG-1)은 플랜 만료 전까지, 보관(ARCHIVED)된 갤러리는 읽기만. 플랜(사진 상한 · 이용 기간)은 바꿀 수 없어 따로 읽기 탭.
  * 삭제는 휴지통 이동(DELETE galleries/{id}) — 복원 UI 없음, 보관 기간 뒤 자동 삭제(작가와 같음). 나가기는 DELETE members/me.
+ * 심사용 링크로 들어온 브라우저에서는 삭제 위에 "작업 초기화"가 붙는다(POST galleries/{id}/personal/reset, 서버 #407).
  */
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -17,9 +18,10 @@ import { PartnerInviteBody } from "@/app/(client)/gallery/[galleryId]/_shell/Par
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError } from "@/lib/api/client";
-import { getGallery, leaveGallery, listGalleryMembers, moveGalleryToTrash, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
+import { getGallery, leaveGallery, listGalleryMembers, moveGalleryToTrash, resetReviewGallery, toSelectionDeadline, updatePersonalGallery, type GalleryResponse } from "@/lib/api/galleries";
 import { useAuth } from "@/lib/auth/authStore";
 import { destinationAfterLeaving } from "@/lib/auth/refreshMe";
+import { useReviewMode } from "@/lib/auth/reviewMode";
 import {
   GOAL_DATE_PROBLEM_MESSAGE,
   goalDateProblem,
@@ -262,6 +264,7 @@ export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
   const auth = useAuth();
   const myUserId = auth.status === "authenticated" ? auth.user.id : null;
   const [open, setOpen] = useState(false);
+  const reviewMode = useReviewMode();
   // 파트너가 들어와 있을 때만 "알림이 가요"를 붙인다 — 멤버 목록에 나 말고 수락한 사람이 있는지
   const [hasPartner, setHasPartner] = useState(false);
   useEffect(() => {
@@ -285,23 +288,62 @@ export function PersonalDangerTab({ gallery }: { gallery: GalleryResponse }) {
   }
 
   return (
-    <Section title="갤러리 삭제">
+    <>
+      {reviewMode && <ReviewResetCard gallery={gallery} />}
+      <Section title="갤러리 삭제">
+        <DangerCard
+          title={`${gallery.title} 삭제`}
+          desc={`사진 · 폴더 · 선택한 사진 · 보정본이 모두 사라지고 되돌릴 수 없어요.${hasPartner ? " 파트너에게 알림이 가요." : ""}`}
+          action={<DangerButton onClick={() => setOpen(true)}>갤러리 삭제</DangerButton>}
+        />
+        {open && (
+          <DangerConfirmModal
+            title="갤러리를 삭제할까요?"
+            confirmLabel="삭제"
+            busyLabel="삭제하는 중…"
+            requireText={gallery.title}
+            onConfirm={remove}
+            onClose={() => setOpen(false)}
+          >
+            <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의 사진 · 폴더 · 선택한 사진 · 보정본이 모두 사라지고 되돌릴 수 없어요.
+            확인을 위해 갤러리 이름을 입력해 주세요.
+          </DangerConfirmModal>
+        )}
+      </Section>
+    </>
+  );
+}
+
+/**
+ * 심사용 갤러리 작업 초기화 — 다음 심사위원이 앞 사람의 셀렉 · 별점 없이 처음부터 써 보게 한다.
+ * 사진과 AI 분석은 남아 업로드 · 분석을 기다리지 않는다. 끝나면 갤러리로 돌아가 처음 화면부터 다시 본다.
+ */
+function ReviewResetCard({ gallery }: { gallery: GalleryResponse }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  async function reset() {
+    await resetReviewGallery(gallery.id);
+    router.replace(`/gallery/${gallery.id}`);
+  }
+
+  return (
+    <Section title="작업 초기화">
       <DangerCard
-        title={`${gallery.title} 삭제`}
-        desc={`사진 · 폴더 · 선택한 사진 · 보정본이 모두 사라지고 되돌릴 수 없어요.${hasPartner ? " 파트너에게 알림이 가요." : ""}`}
-        action={<DangerButton onClick={() => setOpen(true)}>갤러리 삭제</DangerButton>}
+        title="사진만 남기고 처음 상태로"
+        desc="올린 사진과 AI 분석은 그대로 두고, 선택한 사진 · 별점 · 메모 · 댓글 · 보정 요청 · 공유 링크 · 폴더 수정을 지워요. 되돌릴 수 없어요."
+        action={<DangerButton onClick={() => setOpen(true)}>작업 초기화</DangerButton>}
       />
       {open && (
         <DangerConfirmModal
-          title="갤러리를 삭제할까요?"
-          confirmLabel="삭제"
-          busyLabel="삭제하는 중…"
-          requireText={gallery.title}
-          onConfirm={remove}
+          title="작업을 초기화할까요?"
+          confirmLabel="초기화"
+          busyLabel="초기화하는 중…"
+          onConfirm={reset}
           onClose={() => setOpen(false)}
         >
-          <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>의 사진 · 폴더 · 선택한 사진 · 보정본이 모두 사라지고 되돌릴 수 없어요.
-          확인을 위해 갤러리 이름을 입력해 주세요.
+          <span className="font-medium text-contents-light-bgd-default">{gallery.title}</span>에서 사진과 AI 분석만 남기고 나머지 작업을 모두 지워요.
+          폴더는 AI가 처음 나눈 대로 돌아가요.
         </DangerConfirmModal>
       )}
     </Section>

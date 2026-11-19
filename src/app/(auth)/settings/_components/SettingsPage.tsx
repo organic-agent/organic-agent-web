@@ -18,6 +18,7 @@ import type { User } from "@/lib/api/auth";
 import { listMyStudios, type StudioResponse } from "@/lib/api/studios";
 import { useAuth } from "@/lib/auth/authStore";
 import { sortByRecentActivity, workspacePath } from "@/lib/auth/loginFlow";
+import { useReviewMode } from "@/lib/auth/reviewMode";
 import {
   AccountDeleteTab,
   AccountDisplayTab,
@@ -268,13 +269,15 @@ export function SettingsPage() {
 /** 설정 › 개인 갤러리 본문 — 갤러리를 읽어 정보 · 파트너 · 삭제 탭에 준다 */
 function PersonalGalleryContent({ galleryId, name, owner, tab, onTab }: { galleryId: number; name: string; owner: boolean; tab: GalleryTab; onTab: (tab: GalleryTab) => void }) {
   const { gallery, failed, setGallery, retry } = usePersonalGallery(galleryId);
+  // 심사용 링크로 들어왔으면 삭제 탭에 작업 초기화가 함께 있어 이름에 드러낸다(서버 #407)
+  const reviewMode = useReviewMode();
   const tabs = (
     owner
       ? [
           ["info", "정보"],
           ["plan", "플랜"],
           ["partner", "파트너"],
-          ["danger", "갤러리 삭제"],
+          ["danger", reviewMode ? "초기화 · 삭제" : "갤러리 삭제"],
         ]
       : [
           ["info", "정보"],

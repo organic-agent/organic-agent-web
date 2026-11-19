@@ -240,6 +240,15 @@ export function removeGalleryMember(galleryId: number, memberId: number): Promis
 }
 
 /**
+ * 심사용 갤러리 작업 초기화 — 심사용 계정만(그 밖은 403 GALLERY_403_7, 서버 #407). 올린 사진과 AI 분석은 남기고
+ * 셀렉 · 별점 · 메모 · 댓글 · 거르기 · 추천 · 보정 요청 · 앨범 · 협업 링크 · 폴더 수정을 지운 뒤 AI 폴더를 처음 상태로 다시 만든다.
+ * 갤러리 단계는 사진 올리기 직후로 돌아간다. 되돌릴 수 없다.
+ */
+export function resetReviewGallery(galleryId: number): Promise<GalleryResponse> {
+  return api(`/api/v1/galleries/${galleryId}/personal/reset`, { method: "POST" });
+}
+
+/**
  * 개인 갤러리 설정 저장 — 소유자만, 보관 뒤엔 불가. 선택 마감은 플랜 만료(planExpiresAt) 전까지만.
  * 고를 장수 null = 몇 장이든(내보내기 때 정확히 채울 필요 없음).
  */
