@@ -7,8 +7,9 @@
  * 좌: 사이드바 토글(≡) · 로고(랜딩) | 스튜디오명(홈) / 중앙: [D-day 칩][단계 세그먼트] /
  * 우: 클라이언트 초대(소유자만) · 알림 · 프로필.
  * 세그먼트(디자이너 mainflow의 알약 세그먼트): 회색 트랙 안에 현재 칸만 흰 알약 · 굵게, 지난 칸은 회색,
- * 앞 칸은 더 흐리게. 작가 셸에서는 표시만 한다. 개인 갤러리(클라이언트 셸)는 stageStates · onStageSelect를 주면 칸을 눌러
- * 단계를 오간다(이슈 147) — 갈 수 있는 칸은 hover에만 배경(다크는 보라 틴트), 잠긴 칸은 흐리고 누르면 쓰는 쪽이 스낵바를 띄운다.
+ * 앞 칸은 더 흐리게. stageStates · onStageSelect를 주면 칸을 눌러 오간다 — 개인 갤러리(이슈 147) · 작가 · 초대 클라이언트(이슈 168).
+ * 갈 수 있는 칸은 hover에만 배경(다크는 보라 틴트), 잠긴 칸은 흐리고 누르면 쓰는 쪽이 스낵바를 띄운다. 표시만 하는 칸(off)은 눌리지 않는다.
+ * currentClickable이면 지금 칸도 눌린다(다른 보기에서 그 단계 화면으로 돌아오기 · 왜 아직인지 스낵바).
  * 640 미만은 로고 옆 단계 이름(▾)을, 640~1023은 "···"를 눌러 같은 5칸 메뉴를 연다.
  * 폭에 따른 모양(디자이너 시안 "GNB 반응형" · QA 이슈 84): 1024 이상은 단계 전부, 640~1023은 지금 단계와 양옆 +
  * 가려진 쪽 "···"(중간형), 640 미만은 가운데에 D-day만 두고 지금 단계 이름을 로고 옆에 쓴다(좁은형).
@@ -33,9 +34,9 @@ import { useSidebar } from "@/components/SidebarProvider";
 import { IconButton } from "@/components/ui/IconButton";
 
 type DdayTone = "olive" | "red" | "gray";
-/** 칸을 눌러 이동할 때(이슈 147) 지금 칸이 아닌 칸의 상태 — can: 갈 수 있음 · locked: 흐리게(누르면 쓰는 쪽이 스낵바) */
-export type StageChipState = "can" | "locked";
-type PillState = "done" | "current" | "next" | StageChipState;
+/** 칸을 눌러 이동할 때(이슈 147) 지금 칸이 아닌 칸의 상태 — can: 갈 수 있음 · locked: 흐리게(누르면 쓰는 쪽이 스낵바) · off: 표시만(누르지 않음) */
+export type StageChipState = "can" | "locked" | "off";
+type PillState = "done" | "current" | "next" | Exclude<StageChipState, "off">;
 
 /** 칩 문구 · 색 — 마감이 지났어도 셀렉 단계를 넘었으면 따질 일이 아니라 회색 */
 function ddayChip(
@@ -76,10 +77,10 @@ const PILL_STATE_CLASS: Record<PillState, string> = {
 };
 
 function StagePill({ name, state, onClick }: { name: string; state: PillState; onClick?: () => void }) {
-  if (onClick && state !== "current") {
+  if (onClick) {
     return (
       <li>
-        <button type="button" onClick={onClick} className={`${PILL} ${PILL_STATE_CLASS[state]}`}>
+        <button type="button" aria-current={state === "current" ? "step" : undefined} onClick={onClick} className={`${PILL} ${PILL_STATE_CLASS[state]} ${state === "current" ? "cursor-pointer" : ""}`}>
           {name}
         </button>
       </li>
@@ -115,6 +116,7 @@ function StageSegments({
   stages,
   stageIndex,
   chipStates,
+  currentClickable,
   onSelect,
   onMore,
 }: {
@@ -122,12 +124,21 @@ function StageSegments({
   stageIndex: number | null;
   /** 칸을 누를 수 있을 때 지금 칸이 아닌 칸의 상태 */
   chipStates?: readonly StageChipState[];
+  currentClickable?: boolean;
   onSelect?: (index: number) => void;
   onMore?: () => void;
 }) {
-  const stateOf = (i: number): PillState =>
-    stageIndex === null ? "next" : i === stageIndex ? "current" : chipStates ? (chipStates[i] ?? "locked") : i < stageIndex ? "done" : "next";
-  const clickOf = (i: number) => (onSelect && chipStates ? () => onSelect(i) : undefined);
+  const stateOf = (i: number): PillState => {
+    if (stageIndex === null) return "next";
+    if (i === stageIndex) return "current";
+    const chip = chipStates?.[i] ?? (chipStates ? "locked" : "off");
+    return chip !== "off" ? chip : i < stageIndex ? "done" : "next";
+  };
+  const clickOf = (i: number) => {
+    if (!onSelect || !chipStates) return undefined;
+    const pressable = i === stageIndex ? currentClickable === true : chipStates[i] !== "off";
+    return pressable ? () => onSelect(i) : undefined;
+  };
   // 중간형이 보여 줄 창 — 지금 단계(아직 모르면 첫 칸)의 앞뒤 한 칸씩
   const center = stageIndex ?? 0;
   const from = Math.max(0, center - 1);
@@ -165,7 +176,10 @@ export function ShellTopbar({
   noDeadlineText,
   stageStates,
   onStageSelect,
+  currentClickable = false,
 }: {
+  /** 지금 칸도 눌린다(다른 보기에서 돌아오기 · 이유 스낵바) — stageStates와 함께 */
+  currentClickable?: boolean;
   /** 마감이 비었을 때 칩에 적는 말 — 개인 갤러리는 "목표일 없음" */
   noDeadlineText?: string;
   /** 칸을 눌러 단계를 오가는 셸(개인 갤러리, 이슈 147) — 지금 칸이 아닌 칸의 상태. onStageSelect와 함께 줘야 칸이 눌린다 */
@@ -292,6 +306,7 @@ export function ShellTopbar({
           stages={stages}
           stageIndex={stageIndex}
           chipStates={clickable ? stageStates : undefined}
+          currentClickable={currentClickable}
           onSelect={clickable ? onStageSelect : undefined}
           onMore={clickable ? () => setStageMenu((v) => !v) : undefined}
         />
@@ -322,16 +337,18 @@ export function ShellTopbar({
           className="absolute top-full left-2 z-30 mt-1 flex w-52 flex-col rounded-(--radius-8) border border-divider-default bg-background-default-main p-1 shadow-(--shadow-hover) sm:left-1/2 sm:-translate-x-1/2"
         >
           {stages.map((name, i) => {
-            const state: PillState = i === stageIndex ? "current" : (stageStates[i] ?? "locked");
+            const state = i === stageIndex ? "current" : (stageStates[i] ?? "locked");
+            const pressable = state === "current" ? currentClickable : state !== "off";
             return (
               <button
                 key={name}
                 type="button"
                 role="menuitem"
                 aria-current={state === "current" ? "step" : undefined}
+                aria-disabled={!pressable || undefined}
                 onClick={() => {
                   setStageMenu(false);
-                  if (state !== "current") onStageSelect(i);
+                  if (pressable) onStageSelect(i);
                 }}
                 className={`flex w-full cursor-pointer items-center rounded-(--radius-4) px-3 py-2 text-left type-content-s transition-colors duration-fast ${
                   state === "current"

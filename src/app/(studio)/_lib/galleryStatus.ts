@@ -28,6 +28,7 @@ export const STAGE_LABEL: Record<GalleryStage, string> = {
   SELECTION_COMPLETED: "셀렉 완료",
   RETOUCH: "보정",
   DELIVERY: "전달",
+  ALBUM: "앨범 구성",
   ARCHIVED: "보관됨",
 };
 
@@ -38,6 +39,7 @@ export const ACTIVE_STAGES: GalleryStage[] = [
   "SELECTION_COMPLETED",
   "RETOUCH",
   "DELIVERY",
+  "ALBUM",
 ];
 
 export const SHOOT_TYPE_LABEL: Record<ShootType, string> = {
