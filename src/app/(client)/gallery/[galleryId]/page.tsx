@@ -64,6 +64,8 @@ import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { getPhotoSelection } from "@/lib/api/selection";
 import { useAuth } from "@/lib/auth/authStore";
+import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
+import { useAlbumSummary } from "@/lib/album/store";
 import { useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
@@ -124,10 +126,13 @@ export default function ClientGalleryPage() {
   const [photoUrlsExpire, setPhotoUrlsExpire] = useState(true);
   // 개인은 올라온(UPLOADED) 사진 수와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다.
   // 첫 장이 올라오기 전(PENDING만)엔 작가 1단계처럼 안내 카드가 남는다
+  // 앨범(이슈 168) — 스튜디오가 이 브라우저에서 앨범을 보냈는지(서버 전 화면만 · 플래그 뒤, 개인 갤러리엔 앨범 없음)
+  const albumSummary = useAlbumSummary(galleryId);
+  const albumShared = ALBUM_EDITOR_ENABLED && !isPersonal && albumSummary.shared !== null;
   const phase = gallery
     ? isPersonal
       ? personalPhaseOf(gallery, photos === null ? null : photos.filter((p) => p.status === "UPLOADED").length)
-      : clientPhaseOf(gallery)
+      : clientPhaseOf(gallery, albumShared)
     : null;
   /** 폴더 확정 뒤 — 셀렉은 SelectStage, 전달한 뒤(보정 중 · 검토 · 앨범 · 완료)는 ReviewStage가 그린다 */
   const selecting = phase !== null && phase !== "wait" && phase !== "sort" && phase !== "upload";
@@ -606,7 +611,7 @@ export default function ClientGalleryPage() {
     }
     if (organizing) return { text: "폴더 다시 정리 중", tone: "accent" };
     if (phase === "select") return { text: `선택하는 중 · ${ddayLabel(gallery.selectionDeadline, isPersonal ? "목표일 없음" : undefined)}`, tone: "accent" };
-    return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal), tone: "accent" };
+    return { text: clientStageLabelOf(phase ?? "done", gallery, isPersonal, albumShared), tone: "accent" };
   })();
   const bottomHint = (() => {
     if (notice) return notice;
@@ -679,7 +684,7 @@ export default function ClientGalleryPage() {
   }
 
   // ── 상단 단계 칩(개인 갤러리, 이슈 147) — 지금 칸 말고는 can(갈 수 있음) · locked(흐림, 누르면 스낵바). 읽기 전용으로 보는 중에도 지금 칸은 실제 단계 ──
-  const stageIndex = phase && phase !== "wait" ? clientStageIndexOf(organizing ? "sort" : phase, gallery, isPersonal) : null;
+  const stageIndex = phase && phase !== "wait" ? clientStageIndexOf(organizing ? "sort" : phase, gallery, isPersonal, albumShared) : null;
   /** 올리기 · AI 분류가 도는 동안은 전부 잠근다 */
   const stageBusy = isPersonal && (upload.uploading || upload.aiActive);
   const stageStates: StageChipState[] | undefined = (() => {
@@ -816,7 +821,7 @@ export default function ClientGalleryPage() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-default-main">
       <ShellTopbar
-        stages={clientStagesOf(gallery, isPersonal)}
+        stages={clientStagesOf(gallery, isPersonal, albumShared)}
         stageIndex={stageIndex}
         stageStates={stageStates}
         onStageSelect={stageStates ? onStageSelect : undefined}
@@ -848,6 +853,7 @@ export default function ClientGalleryPage() {
           stageRequest={stageRequest && stageRequest.kind !== "export" ? stageRequest : null}
           onStageRequestHandled={onStageRequestHandled}
           onCapabilities={setReviewCaps}
+          album={albumShared ? { trailing: `${albumSummary.sharedSpreads}면`, onOpen: () => router.push(`/gallery/${galleryId}/album`) } : null}
         />
       ) : !viewingSort && selecting && !organizing && gallery && phase ? (
         <SelectStage
