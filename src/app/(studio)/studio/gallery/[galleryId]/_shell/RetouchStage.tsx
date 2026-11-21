@@ -13,7 +13,7 @@
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Lightbox, type LightboxTabDef } from "@/components/app/Lightbox";
-import { ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
+import { AlbumIcon, ArchiveIcon, BrushIcon, CheckCircleIcon, CompareIcon, DownloadIcon, EditNoteIcon, HourglassIcon, InfoIcon, PhotoIcon, ScheduleIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import type { GalleryResponse } from "@/lib/api/galleries";
 import type { PhotoResponse } from "@/lib/api/photos";
@@ -31,7 +31,7 @@ import { RetouchDownloadModal } from "./RetouchDownloadModal";
 import { SendRoundModal } from "./SendRoundModal";
 import { ShellBottomBar, ShellCta } from "./ShellBottomBar";
 import { ShellMainHeader, sortPhotos } from "./ShellMainHeader";
-import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type StatusLine } from "./ShellSidebar";
+import { SHELL_BODY_CLASS, ShellSidebar, type ShellView, type SidebarAlbum, type StatusLine } from "./ShellSidebar";
 import { StudioGalleryCoachMarks } from "./StudioGalleryCoachMarks";
 import { ProgressBar } from "./UploadProgress";
 import { type ResultAssignment, useResultUpload } from "./useResultUpload";
@@ -64,6 +64,8 @@ export function RetouchStage({
   folders,
   selection,
   sidebarOpen,
+  initialView,
+  album = null,
   onGalleryUpdated,
   onWithdrawn,
   refreshGallery,
@@ -76,6 +78,10 @@ export function RetouchStage({
   selection: PhotoSelectionResponse | null;
   /** 페이지가 정한 단계 번호(제출됐으면 stage가 셀렉 대기여도 2) */
   sidebarOpen: boolean;
+  /** 처음 보기 — 앨범 화면 사이드바에서 돌아올 때(?view=) */
+  initialView?: ShellView;
+  /** 사이드바 "앨범" 행 · 보정 확정 뒤 하단 주 버튼(이슈 168) — 없으면 둘 다 없다 */
+  album?: SidebarAlbum | null;
   /** 횟수 · 닫기처럼 갤러리 응답이 바로 오는 변경 */
   onGalleryUpdated: (gallery: GalleryResponse) => void;
   /** 다시 고르게 하기 뒤 — 갤러리는 셀렉 대기로 돌아가고 선택 앨범도 다시 읽어야 한다 */
@@ -89,7 +95,7 @@ export function RetouchStage({
   const [uploadOpen, setUploadOpen] = useState<{ presetPhotoId: number | null } | null>(null);
   const [modal, setModal] = useState<"send" | "withdraw" | "rounds" | "close" | "download" | null>(null);
   const [compareMode, setCompareMode] = useState<"slider" | "side">("slider");
-  const [view, setView] = useState<ShellView>("retouch");
+  const [view, setView] = useState<ShellView>(initialView ?? "retouch");
   const [filter, setFilter] = useState<Filter>("none");
   const [sort, setSort] = useState<SortKey>("noResultFirst");
   const [currentId, setCurrentId] = useState<number | null>(null);
@@ -194,7 +200,16 @@ export function RetouchStage({
   })();
   const banner = (() => {
     if (!overview) return null;
-    if (archived) return { tone: "ok" as const, icon: <CheckCircleIcon size={18} />, text: <><b className="font-semibold">클라이언트가 보정을 확정했어요</b> · {rounds.length}회 · 갤러리는 보관 상태예요</> };
+    if (archived)
+      return {
+        tone: "ok" as const,
+        icon: <CheckCircleIcon size={18} />,
+        text: album ? (
+          <><b className="font-semibold">클라이언트가 보정을 확정했어요</b> · {rounds.length}회 · 이제 앨범을 구성할 수 있어요</>
+        ) : (
+          <><b className="font-semibold">클라이언트가 보정을 확정했어요</b> · {rounds.length}회 · 갤러리는 보관 상태예요</>
+        ),
+      };
     if (sentWaiting) return { tone: "info" as const, icon: <HourglassIcon size={18} />, text: <><b className="font-semibold">{roundLabel} 결과를 보냈어요</b> · {shortDate(activeSummary?.completedAt ?? null)} · 클라이언트가 확인하고 있어요. 재요청이 오면 알림으로 알려 드려요</> };
     if (requested && resultCount === 0)
       return activeRoundNo === 1
@@ -302,6 +317,7 @@ export function RetouchStage({
             selectedCount={selection?.selectedCount ?? pickedPhotos.length}
             maxSelectable={gallery.maxSelectablePhotoCount}
             retouchCount={items.length}
+            album={album}
             view={view}
             onViewChange={(next) => {
               setView(next);
@@ -442,7 +458,12 @@ export function RetouchStage({
           ) : undefined
         }
         actions={
-          archived ? (
+          archived && album ? (
+            <ShellCta onClick={album.onOpen}>
+              <AlbumIcon size={18} />
+              {album.exists ? "앨범 열기" : "앨범 만들기"}
+            </ShellCta>
+          ) : archived ? (
             <span className="inline-flex items-center gap-1.5 rounded-(--pill) bg-brand-chip-background px-3 py-1.5 type-label-semibold-s text-brand-chip-text">
               <CheckCircleIcon size={16} />
               작업 완료 · 보관됨
