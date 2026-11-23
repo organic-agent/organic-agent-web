@@ -96,6 +96,11 @@ const ICONS = [
   ['PlaylistAddCheckIcon', 'playlist_add_check'],
   ['DownloadIcon', 'download'],
   ['HourglassIcon', 'hourglass_top'],
+  ['AlbumIcon', 'book_2'], // 앨범 구성(이슈 168)
+  ['SelectToolIcon', 'arrow_selector_tool'], // 앨범 도구 — 선택
+  ['GuideToolIcon', 'straighten'], // 앨범 도구 — 안내선
+  ['FrameToolIcon', 'crop_free'], // 앨범 도구 — 프레임
+  ['CropIcon', 'crop'], // 앨범 — 사진 위치 조정
 ];
 
 const paths = (symbol) => {
