@@ -13,6 +13,9 @@
  *  - lines     제목 — lines로 준 줄이 차례로 떠오른다(0.09초 간격 · 흐림→선명). children 대신 lines를 쓴다
  * seq: 보이게 된 뒤 안쪽 [data-seq="ms"] 요소마다 그 시간 뒤 seq-go 클래스를 붙인다 — 화면 안 동작(체크 · 핀 · 막대)이
  *      한 번 일어난다. 시작 모양은 globals.css의 .seq-pop · .seq-slide · .seq-slide-left · .seq-slide-up.
+ * threshold: 얼마나 보여야 시작할지(기본 0.12). 흐름 화면의 초점 프레임은 화면 타임라인과 같은 0.35로 맞춘다(이슈 182).
+ * replay: seq를 화면에 들어올 때마다 다시 — 완전히 빠지면 seq-go를 떼어 되감는다(흐름 01 업로드의 초점 프레임이 화면과 함께
+ *   다시 나오게, 2026-11-23 수민). 떠오르는 첫 등장(reveal-visible)은 그대로 한 번.
  * 움직임 줄이기(prefers-reduced-motion)나 IntersectionObserver가 없으면 처음부터 끝 상태로 그린다.
  */
 
@@ -33,6 +36,10 @@ type RevealProps = {
   as?: RevealTag;
   /** true면 보이게 된 뒤 안쪽 [data-seq] 요소를 시간순으로 켠다 */
   seq?: boolean;
+  /** 보이게 되는 기준 비율 — 기본 0.12 */
+  threshold?: number;
+  /** seq를 들어올 때마다 다시(빠지면 되감기) */
+  replay?: boolean;
 };
 
 const delayClass: Record<number, string> = {
@@ -73,6 +80,8 @@ export function Reveal({
   lines,
   as: Tag = "div",
   seq = false,
+  threshold = 0.12,
+  replay = false,
 }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(getInitialVisibility);
@@ -92,15 +101,15 @@ export function Reveal({
           }
         });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+      { threshold, rootMargin: "0px 0px -6% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [visible]);
+  }, [visible, threshold]);
 
   // 보이게 된 뒤 화면 안 동작 — 각 [data-seq]를 제 시간에 켠다. 움직임 줄이기면 바로 끝 상태
   useEffect(() => {
-    if (!visible || !seq) return;
+    if (!visible || !seq || replay) return;
     const el = ref.current;
     if (!el) return;
     const reduce = prefersReducedMotion();
@@ -112,7 +121,41 @@ export function Reveal({
       else timers.push(window.setTimeout(go, ms));
     });
     return () => timers.forEach(clearTimeout);
-  }, [visible, seq]);
+  }, [visible, seq, replay]);
+
+  // replay — 들어올 때마다 [data-seq]를 제 시간에 켜고, 완전히 빠지면 꺼서 되감는다
+  useEffect(() => {
+    if (!seq || !replay) return;
+    const el = ref.current;
+    if (!el) return;
+    const nodes = () => el.querySelectorAll<HTMLElement>("[data-seq]");
+    if (prefersReducedMotion() || !("IntersectionObserver" in window)) {
+      nodes().forEach((node) => node.classList.add("seq-go"));
+      return;
+    }
+    let timers: number[] = [];
+    let on = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[entries.length - 1];
+        if (!on && e.isIntersecting && e.intersectionRatio >= threshold) {
+          on = true;
+          nodes().forEach((node) => timers.push(window.setTimeout(() => node.classList.add("seq-go"), Number(node.dataset.seq) || 0)));
+        } else if (on && !e.isIntersecting) {
+          on = false;
+          timers.forEach(clearTimeout);
+          timers = [];
+          nodes().forEach((node) => node.classList.remove("seq-go"));
+        }
+      },
+      { threshold: [0, threshold], rootMargin: "0px 0px -6% 0px" },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      timers.forEach(clearTimeout);
+    };
+  }, [seq, replay, threshold]);
 
   const classes = [
     "reveal-base",

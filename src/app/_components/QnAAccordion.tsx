@@ -30,11 +30,12 @@ const QNA_DATA = [
   },
 ];
 
-export function QnAAccordion() {
+/** wide: 2단 배치의 오른쪽 칸처럼 폭을 칸에 맡길 때(이슈 182) — 아니면 가운데 680 */
+export function QnAAccordion({ wide = false }: { wide?: boolean }) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
-    <div className="w-full max-w-170 mx-auto border-t border-divider-default">
+    <div className={`w-full border-t border-divider-default ${wide ? "" : "max-w-170 mx-auto"}`}>
       {QNA_DATA.map((item, i) => {
         const isOpen = openIdx === i;
         return (

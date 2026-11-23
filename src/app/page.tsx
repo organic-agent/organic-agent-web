@@ -1,31 +1,38 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { SUPPORT_CHAT_URL } from "@/lib/support";
+import { PersonalArt, StudioArt } from "./_components/AudienceArt";
 import { Band } from "./_components/Band";
+import { ClosingCta } from "./_components/ClosingCta";
+import { DemoBand } from "./_components/DemoBand";
 import { FlowSection } from "./_components/FlowSection";
+import { HeroPhoto } from "./_components/HeroPhoto";
 import { LandingNav } from "./_components/LandingNav";
+import { PainSection } from "./_components/PainSection";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
+import { TogetherSection } from "./_components/TogetherSection";
+import { ViewfinderText } from "./_components/Viewfinder";
 import { ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LoginModal, type LoginRequest } from "@/components/LoginModal";
 import { useAuth } from "@/lib/auth/authStore";
-import type { LoginIntent } from "@/lib/auth/loginFlow";
+import { spaceChip, type LoginIntent } from "@/lib/auth/loginFlow";
 
 /* ─── 대상별 카드 데이터 (v2: 왼쪽 스튜디오 첫 개설 작가 · 오른쪽 개인 클라이언트)
-   초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. */
+   초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. 카드 위 그림은 AudienceArt(이슈 182). */
 const AUDIENCES: {
   eyebrow: string;
   title: ReactNode;
   desc: string;
   items: string[];
   cta: { label: string; intent: LoginIntent };
+  art: ReactNode;
 }[] = [
   {
     eyebrow: "For Studios",
@@ -43,6 +50,7 @@ const AUDIENCES: {
       "팀원과 함께 쓰는 작업 공간",
     ],
     cta: { label: "무료로 스튜디오 만들기", intent: "studio" },
+    art: <StudioArt />,
   },
   {
     eyebrow: "For Individuals",
@@ -50,7 +58,7 @@ const AUDIENCES: {
       <>
         받은 사진을,
         <br />
-        직접 올려 고릅니다.
+        직접 올려 고릅니다
       </>
     ),
     desc: "작가에게 받은 원본을 그대로 올려 보세요. 비슷한 컷은 자동으로 묶이고, 파트너와 함께 고를 수 있습니다.",
@@ -60,6 +68,7 @@ const AUDIENCES: {
       "고른 사진 목록 정리",
     ],
     cta: { label: "무료로 내 갤러리 만들기", intent: "personal" },
+    art: <PersonalArt />,
   },
 ];
 
@@ -108,6 +117,15 @@ export default function LandingPage() {
     }
     setLogin({ mode: "signup", intent });
   }
+  // 히어로 · 마무리의 "무료로 시작하기" — 역할을 모르니 상단 바 회원가입과 같은 문(couple → 로그인 뒤 역할 선택).
+  // 이미 로그인돼 있으면 상단 바 소속 칩과 같은 곳(최근 공간, 소속이 없으면 역할 선택)으로.
+  function startFree() {
+    if (auth.status === "authenticated") {
+      router.push(spaceChip(auth.user).href);
+      return;
+    }
+    setLogin({ mode: "signup", intent: "couple" });
+  }
 
   return (
     <>
@@ -122,96 +140,98 @@ export default function LandingPage() {
       <LandingNav onOpenLogin={setLogin} />
 
       <main id="main">
-        {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
+        {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 + 제품 표시(이슈 182 시안 D 2-1) ═══ */}
         <Band
           labelledBy="hero-h"
-          className="pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start"
+          className="pt-36 pb-24 max-[820px]:pt-28 max-[820px]:pb-16 flex items-center justify-between gap-16 max-[900px]:flex-col max-[900px]:items-stretch max-[900px]:gap-12"
         >
-            {/* 좌: 텍스트 + CTA */}
-            <div className="flex flex-col items-start gap-5 max-w-107.5">
+            {/* 좌: 텍스트 + CTA. "함께"만 로고의 뷰파인더 모서리로 감싼다 */}
+            <div className="flex flex-col items-start gap-5 max-w-125">
               <p className="type-label-eyebrow text-brand-accent-default">
                 Easy Select
               </p>
-              <h1 id="hero-h" className="type-maintext-l text-contents-light-bgd-default">
+              <h1 id="hero-h" className="type-maintext-xl text-contents-light-bgd-default max-[820px]:text-[40px]!">
                 우리의 순간을,
                 <br />
-                함께 고르다.
+                <ViewfinderText size="lg">함께</ViewfinderText> 고르다.
               </h1>
-              <p className="type-content-l text-contents-light-bgd-sub">
-                막막했던 셀렉은 함께 고르는 설렘으로,
-                <br />
-                번거로웠던 전달은 클릭 한 번으로.
-                <br />
+              <p className="type-content-xl text-contents-light-bgd-sub max-[820px]:text-base!">
+                막막했던 셀렉은 함께 고르는 설렘으로,{" "}
+                <br className="max-[820px]:hidden" />
+                번거로웠던 전달은 클릭 한 번으로.{" "}
+                <br className="max-[820px]:hidden" />
                 업로드부터 보정 작성, 마무리까지 사진의 여정이 한 곳에서
                 완성됩니다.
               </p>
 
-              {/* 역할별 가입은 Who it's for 카드의 버튼에서 — 히어로는 로그인 없이 체험 페이지로(이슈 144) */}
-              <Button href="/demo" icon={<ArrowRightIcon />} onClick={() => track("demo_cta_clicked", { from: "hero" })}>
-                로그인 없이 체험하기
-              </Button>
+              {/* 체험이 주 버튼(이슈 144), 가입은 옆 글자 버튼 — 역할은 로그인 뒤 고른다 */}
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <Button href="/demo" size="lg" icon={<ArrowRightIcon />} onClick={() => track("demo_cta_clicked", { from: "hero" })}>
+                  로그인 없이 체험하기
+                </Button>
+                <Button kind="ghost" size="lg" onClick={startFree}>
+                  무료로 시작하기
+                </Button>
+              </div>
             </div>
 
-            {/* 우: 웨딩 사진 (시안 400×500). 세로 사진(2:3)이라 가로로 넓어지는 900 미만에서는 얼굴 쪽이 보이게 위쪽에 맞춘다.
-                 첫 화면에 바로 보이는 사진이라 미루지 않고 먼저 받는다(loading eager · fetchPriority high) */}
-            <div className="relative w-100 h-125 shrink-0 overflow-hidden rounded-(--radius-24) bg-brand-accent-surface max-[900px]:w-full max-[900px]:h-80">
-              <Image
-                src="/images/hero-wedding.jpg"
-                alt="웨딩드레스와 정장을 입고 손을 잡은 채 웃고 있는 신랑 신부"
-                fill
-                sizes="(max-width: 900px) 100vw, 400px"
-                loading="eager"
-                fetchPriority="high"
-                className="object-cover max-[900px]:object-[50%_22%]"
-              />
-            </div>
+            <HeroPhoto />
         </Band>
 
-        {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) ═══ */}
+        {/* ═══ 문제 제기 — 단톡방 한 창 ↔ 사진 한 장(이슈 182) ═══ */}
+        <PainSection />
+
+        {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) → 이슈 182 좌우 2단 ═══ */}
         <FlowSection />
 
-        {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
-        <Band id="audiences" labelledBy="aud-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
+        {/* ═══ 함께 고르기 — 가족 의견은 사진마다(이슈 182) ═══ */}
+        <TogetherSection />
+
+        {/* ═══ AUDIENCES — 카드 위 그림 + 글(이슈 182) ═══ */}
+        <Band id="audiences" labelledBy="aud-h" className="py-28 max-[640px]:py-18 flex flex-col items-center gap-12 max-[640px]:gap-8">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
               <p className="type-label-eyebrow text-brand-accent-default">
                 Who it&apos;s for
               </p>
-              <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default">
+              <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default max-[640px]:text-[26px]!">
                 찍는 사람에게도, 고르는 사람에게도.
               </h2>
             </Reveal>
 
             <div className="grid grid-cols-2 gap-6 w-full max-[720px]:grid-cols-1">
-              {AUDIENCES.map(({ eyebrow, title, desc, items, cta }, i) => (
+              {AUDIENCES.map(({ eyebrow, title, desc, items, cta, art }, i) => (
                 <Reveal key={eyebrow} delay={(i + 1) as RevealDelay}>
-                  <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
-                    <p className="type-label-eyebrow text-brand-accent-default">
-                      {eyebrow}
-                    </p>
-                    <h3 className="type-title-xl text-contents-light-bgd-default">
-                      {title}
-                    </h3>
-                    <p className="type-content-m text-contents-light-bgd-sub">
-                      {desc}
-                    </p>
-                    <ul className="flex flex-col gap-3">
-                      {items.map((text) => (
-                        <li
-                          key={text}
-                          className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
+                  <div className="h-full overflow-hidden bg-background-default-main border border-divider-default rounded-(--radius-24) flex flex-col transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
+                    <div className="h-59 shrink-0 overflow-hidden">{art}</div>
+                    <div className="flex flex-1 flex-col gap-4 px-9 pt-8 pb-9 max-[640px]:px-6 max-[640px]:pt-6 max-[640px]:pb-7">
+                      <p className="type-label-eyebrow text-brand-accent-default">
+                        {eyebrow}
+                      </p>
+                      <h3 className="type-title-xl text-contents-light-bgd-default">
+                        {title}
+                      </h3>
+                      <p className="type-content-m text-contents-light-bgd-sub">
+                        {desc}
+                      </p>
+                      <ul className="flex flex-col gap-3">
+                        {items.map((text) => (
+                          <li
+                            key={text}
+                            className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
+                          >
+                            <span className="size-1 rounded-full bg-brand-secondary-default shrink-0" />
+                            {text}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-auto pt-4">
+                        <Button
+                          icon={<ArrowRightIcon />}
+                          onClick={() => startAs(cta.intent)}
                         >
-                          <span className="size-1 rounded-full bg-brand-secondary-default shrink-0" />
-                          {text}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-auto pt-4">
-                      <Button
-                        icon={<ArrowRightIcon />}
-                        onClick={() => startAs(cta.intent)}
-                      >
-                        {cta.label}
-                      </Button>
+                          {cta.label}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Reveal>
@@ -219,21 +239,37 @@ export default function LandingPage() {
             </div>
         </Band>
 
-        {/* ═══ Q&A (피그마 Landing/QnA) ═══ */}
-        <Band id="qna" labelledBy="qna-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
+        {/* ═══ 체험 띠 — 가입 전에 샘플 갤러리로(이슈 182) ═══ */}
+        <DemoBand />
+
+        {/* ═══ Q&A — 2단: 제목 · 문의하기 | 목록(이슈 182) ═══ */}
+        <Band id="qna" labelledBy="qna-h" className="grid grid-cols-[320px_1fr] items-start gap-14 py-28 max-[820px]:grid-cols-1 max-[820px]:gap-6 max-[640px]:py-18">
+            <Reveal className="flex flex-col items-start gap-3.5">
               <p className="type-label-eyebrow text-brand-accent-default">FAQ</p>
               <h2 id="qna-h" className="type-maintext-s text-contents-light-bgd-default">
                 자주 묻는 질문
               </h2>
+              <a
+                href={SUPPORT_CHAT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track("support_chat_clicked", { from: "landing" })}
+                className="inline-flex items-center gap-1 type-label-medium-m text-brand-accent-text transition-colors duration-fast hover:text-brand-accent-default"
+              >
+                더 궁금한 점은 문의하기
+                <ArrowRightIcon size={16} />
+              </a>
             </Reveal>
-            <QnAAccordion />
+            <QnAAccordion wide />
         </Band>
+
+        {/* ═══ 마무리 — 보라 상자 2단(이슈 182) ═══ */}
+        <ClosingCta onStart={startFree} />
 
       </main>
 
-      {/* ═══ FOOTER (피그마 Landing/Footer) ═══ */}
-      <footer className="bg-background-inverse-main pt-16 pb-10">
+      {/* ═══ FOOTER — 연보라(이슈 182, 마무리 상자와 이어짐) ═══ */}
+      <footer className="bg-brand-secondary-background/55 pt-16 pb-10">
         <div className="max-w-wrap mx-auto px-6 flex flex-col gap-12">
           <div className="flex items-start justify-between gap-10 max-[720px]:flex-col">
             {/* 브랜드 */}
@@ -241,13 +277,13 @@ export default function LandingPage() {
               <div className="flex items-center gap-2">
                 <BrandLogo
                   size={32}
-                  className="text-contents-dark-bgd-default shrink-0"
+                  className="text-contents-light-bgd-default shrink-0"
                 />
-                <b className="type-brand-wordmark text-contents-dark-bgd-default">
+                <b className="type-brand-wordmark text-contents-light-bgd-default">
                   Easy Select
                 </b>
               </div>
-              <p className="type-content-m text-contents-dark-bgd-weakness">
+              <p className="type-content-m text-contents-light-bgd-sub">
                 업로드부터 전달까지, 사진 셀렉의 모든 과정을 한 곳에서.
               </p>
             </div>
@@ -256,7 +292,7 @@ export default function LandingPage() {
             <div className="flex gap-12 max-[480px]:flex-col">
               {FOOTER_COLUMNS.map((col) => (
                 <div key={col.title} className="flex flex-col gap-6 w-20">
-                  <h4 className="type-label-eyebrow text-contents-dark-bgd-weakness">
+                  <h4 className="type-label-eyebrow text-contents-light-bgd-weakness">
                     {col.title}
                   </h4>
                   <div className="flex flex-col gap-3">
@@ -268,7 +304,7 @@ export default function LandingPage() {
                           onClick={link.href === SUPPORT_CHAT_URL ? () => track("support_chat_clicked", { from: "landing" }) : undefined}
                           // 바깥 주소(카카오톡 채널)는 새 탭으로 — 페이지 안 앵커(#…)는 그대로
                           {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                          className="type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                          className="type-label-medium-m text-contents-light-bgd-sub whitespace-nowrap transition-colors duration-fast hover:text-contents-light-bgd-default"
                         >
                           {link.label}
                         </a>
@@ -277,7 +313,7 @@ export default function LandingPage() {
                           key={link.label}
                           type="button"
                           onClick={showComingSoon}
-                          className="cursor-pointer text-left type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                          className="cursor-pointer text-left type-label-medium-m text-contents-light-bgd-sub whitespace-nowrap transition-colors duration-fast hover:text-contents-light-bgd-default"
                         >
                           {link.label}
                         </button>
@@ -290,20 +326,20 @@ export default function LandingPage() {
           </div>
 
           {comingSoonToast}
-          <div className="border-t border-surface-inverse-medium pt-6 flex items-center justify-between flex-wrap gap-3">
-            <span className="type-content-xs text-contents-dark-bgd-weakness uppercase">
+          <div className="border-t border-divider-default pt-6 flex items-center justify-between flex-wrap gap-3">
+            <span className="type-content-xs text-contents-light-bgd-weakness uppercase">
               © 2026 Easy Select
             </span>
             <div className="flex gap-5">
               <a
                 href="/terms"
-                className="type-label-medium-m text-contents-dark-bgd-weakness transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                className="type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
               >
                 이용약관
               </a>
               <a
                 href="/privacy"
-                className="type-label-medium-m text-contents-dark-bgd-weakness transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                className="type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
               >
                 개인정보처리방침
               </a>

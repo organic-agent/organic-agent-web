@@ -9,13 +9,17 @@
  * 0.8초 커서가 사진으로 → 1.5초 클릭 · 점 2 → 1.9초부터 한 글자씩 "볼 그림자 조금 밝게" → 3.0초 커서가 "AI 내용 다듬기"로 →
  * 3.6초 클릭 · 다듬는 중 → 4.8초 AI 제안(패널을 아래로 내림) → 5.3초 커서가 "적용"으로 → 5.9초 클릭 · 적용.
  * 커서 목표는 그려진 요소의 자리를 재서 잡는다(틀 zoom을 나눠 1000×560 좌표로). 움직임 줄이기면 끝 상태.
+ * tour(흐름 확대 투어, 이슈 182 시안 4-5): 주면 타임라인 대신 스크롤 단계가 상태를 정한다 — 0 핀 1만, 1 커서가 둘째 점을 찍고
+ * 한 줄 적음, 2 "AI 내용 다듬기" → 다듬는 중 → 제안 → 적용. 위로 되돌아가도, 구역에 다시 들어와도(replay가 바뀜) 그 단계의
+ * 움직임을 다시 한다(2026-11-23 수민). 투어가 아니면 화면에서 빠질 때 되감았다가 다시 들어오면 처음부터.
+ * 카메라가 확대해도 커서 자리는 맞다 — 틀과 요소가 같이 커지니 비율이 그대로.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { RetouchPins } from "@/app/(client)/gallery/[galleryId]/_shell/RetouchPanel";
 import { CheckCircleIcon, SparkleIcon, TrashIcon } from "@/components/icons";
 import { ShotCursor, ShotTopbar } from "./ShotChrome";
-import { SHOT_W, ShotFrame } from "./ShotFrame";
+import { SHOT_W, ShotFrame, type ShotCamera, type ShotCrop } from "./ShotFrame";
 import { ShotLightbox, ShotSelectionControls } from "./ShotLightbox";
 import { useShotTimeline } from "./useShotTimeline";
 
@@ -30,7 +34,7 @@ const TYPE_MS = 55;
 
 type Refine = "none" | "loading" | "suggested" | "applied";
 
-export function RetouchShot() {
+export function RetouchShot({ crop, tour, replay, camera }: { crop?: ShotCrop; tour?: number; replay?: number; camera?: ShotCamera }) {
   const [pinned, setPinned] = useState(false);
   const [typed, setTyped] = useState("");
   const [refine, setRefine] = useState<Refine>("none");
@@ -40,7 +44,7 @@ export function RetouchShot() {
   const panelRef = useRef<HTMLDivElement>(null);
   const refineRef = useRef<HTMLSpanElement>(null);
   const applyRef = useRef<HTMLSpanElement>(null);
-  const run = useShotTimeline();
+  const { run, stop } = useShotTimeline();
 
   // 핀 2의 카드가 길어질 때마다 패널을 끝까지 내린다 — "적용"이 보이게(실제 패널도 스크롤)
   useEffect(() => {
@@ -65,6 +69,73 @@ export function RetouchShot() {
   };
   const click = () => setCursor((c) => ({ ...c, click: c.click + 1 }));
 
+  // 확대 투어 — 단계가 상태를 정한다. 타이머 안에서만 상태를 바꾼다
+  useEffect(() => {
+    if (tour === undefined) return;
+    const still = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const timers: number[] = [];
+    const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    const hide = () => setCursor((c) => ({ ...c, visible: false }));
+    if (tour === 0) {
+      at(0, () => {
+        setPinned(false);
+        setTyped("");
+        setRefine("none");
+        hide();
+      });
+    } else if (tour === 1) {
+      if (still) {
+        at(0, () => {
+          setPinned(true);
+          setTyped(TYPED);
+          setRefine("none");
+          hide();
+        });
+      } else {
+        at(0, () => {
+          setPinned(false);
+          setTyped("");
+          setRefine("none");
+        });
+        at(250, () => setCursor((c) => ({ ...c, visible: true })));
+        at(400, () => moveTo(photoRef.current, PIN2));
+        at(1200, () => {
+          click();
+          setPinned(true);
+        });
+        for (let i = 1; i <= TYPED.length; i++) at(1500 + i * TYPE_MS, () => setTyped(TYPED.slice(0, i)));
+      }
+    } else if (still) {
+      at(0, () => {
+        setPinned(true);
+        setTyped(TYPED);
+        setRefine("applied");
+        hide();
+      });
+    } else {
+      at(0, () => {
+        setPinned(true);
+        setTyped(TYPED);
+        setRefine("none");
+      });
+      at(300, () => moveTo(refineRef.current));
+      at(1000, () => {
+        click();
+        setRefine("loading");
+      });
+      at(2200, () => setRefine("suggested"));
+      at(2700, () => moveTo(applyRef.current));
+      at(3300, () => {
+        click();
+        setRefine("applied");
+      });
+      at(3900, hide);
+    }
+    return () => timers.forEach(clearTimeout);
+    // moveTo · click은 매번 새로 만들어지지만 ref만 읽는다 — 단계가 바뀌거나 다시 들어올 때(replay)만 다시 돈다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tour, replay]);
+
   const start = () => {
     const steps: [number, () => void][] = [
       [600, () => setCursor((c) => ({ ...c, visible: true }))],
@@ -81,6 +152,14 @@ export function RetouchShot() {
       [6500, () => setCursor((c) => ({ ...c, visible: false }))],
     );
     run(steps, () => { setPinned(true); setTyped(TYPED); setRefine("applied"); });
+  };
+  /** 화면에서 빠지면 핀 1만 있는 처음으로 되감는다 — 다시 들어오면 처음부터 */
+  const rewind = () => {
+    stop();
+    setPinned(false);
+    setTyped("");
+    setRefine("none");
+    setCursor((c) => ({ ...c, visible: false }));
   };
 
   const points = [
@@ -182,7 +261,13 @@ export function RetouchShot() {
   );
 
   return (
-    <ShotFrame label="보정 작성 화면 — 크게 보기에서 사진 위에 점을 찍고 한 줄 적으면 AI가 문장을 다듬어 준다" onVisible={start}>
+    <ShotFrame
+      label="보정 작성 화면 — 크게 보기에서 사진 위에 점을 찍고 한 줄 적으면 AI가 문장을 다듬어 준다"
+      onVisible={tour === undefined ? start : undefined}
+      onHidden={tour === undefined ? rewind : undefined}
+      crop={crop}
+      camera={camera}
+    >
       <ShotTopbar stageIndex={2} />
       <div className="flex min-h-0 flex-1 bg-background-default-sub" />
       <ShotLightbox
