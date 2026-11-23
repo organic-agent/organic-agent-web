@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { RetouchPins } from "@/app/(client)/gallery/[galleryId]/_shell/RetouchPanel";
 import { CheckCircleIcon, SparkleIcon, TrashIcon } from "@/components/icons";
 import { ShotCursor, ShotTopbar } from "./ShotChrome";
-import { SHOT_W, ShotFrame } from "./ShotFrame";
+import { SHOT_W, ShotFrame, type ShotCrop } from "./ShotFrame";
 import { ShotLightbox, ShotSelectionControls } from "./ShotLightbox";
 import { useShotTimeline } from "./useShotTimeline";
 
@@ -30,7 +30,7 @@ const TYPE_MS = 55;
 
 type Refine = "none" | "loading" | "suggested" | "applied";
 
-export function RetouchShot() {
+export function RetouchShot({ crop }: { crop?: ShotCrop }) {
   const [pinned, setPinned] = useState(false);
   const [typed, setTyped] = useState("");
   const [refine, setRefine] = useState<Refine>("none");
@@ -182,7 +182,7 @@ export function RetouchShot() {
   );
 
   return (
-    <ShotFrame label="보정 작성 화면 — 크게 보기에서 사진 위에 점을 찍고 한 줄 적으면 AI가 문장을 다듬어 준다" onVisible={start}>
+    <ShotFrame label="보정 작성 화면 — 크게 보기에서 사진 위에 점을 찍고 한 줄 적으면 AI가 문장을 다듬어 준다" onVisible={start} crop={crop}>
       <ShotTopbar stageIndex={2} />
       <div className="flex min-h-0 flex-1 bg-background-default-sub" />
       <ShotLightbox

@@ -18,7 +18,7 @@ import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[gallery
 import { AddPhotoIcon, CloseIcon, PhotoIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { sampleThumbUrl } from "./samplePhotos";
-import { ShotFrame } from "./ShotFrame";
+import { ShotFrame, type ShotCrop } from "./ShotFrame";
 import { ShotTopbar } from "./ShotChrome";
 import { useShotTimeline } from "./useShotTimeline";
 
@@ -56,7 +56,7 @@ const COUNT_MS = 4200;
 
 const noop = () => {};
 
-export function UploadShot() {
+export function UploadShot({ crop }: { crop?: ShotCrop }) {
   const [phase, setPhase] = useState<Phase>("empty");
   const [uploaded, setUploaded] = useState(0);
   const run = useShotTimeline();
@@ -89,7 +89,7 @@ export function UploadShot() {
   const done = uploaded >= TOTAL;
 
   return (
-    <ShotFrame label="사진 업로드 화면 — 폴더에서 사진 500장을 끌어다 놓으면 한 장씩 올라간다" onVisible={start}>
+    <ShotFrame label="사진 업로드 화면 — 폴더에서 사진 500장을 끌어다 놓으면 한 장씩 올라간다" onVisible={start} crop={crop}>
       <ShotTopbar stageIndex={0} />
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

@@ -19,7 +19,7 @@ import { ProgressBar } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/Up
 import { PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import type { ConceptFolderResponse } from "@/lib/api/conceptFolders";
 import { SAMPLE_FOLDERS, landingPhotos, sampleIdsOf } from "./samplePhotos";
-import { ShotFrame } from "./ShotFrame";
+import { ShotFrame, type ShotCrop } from "./ShotFrame";
 import { ShotTopbar } from "./ShotChrome";
 import { useShotTimeline } from "./useShotTimeline";
 
@@ -57,7 +57,7 @@ const ALL: FolderSelection = { kind: "all" };
 const FIRST: FolderSelection = { kind: "detail", conceptId: CONCEPT.id, detailId: CONCEPT.details[0].id };
 const noop = () => {};
 
-export function FoldersShot() {
+export function FoldersShot({ crop }: { crop?: ShotCrop }) {
   const [analyzing, setAnalyzing] = useState(true);
   /** 보이는 세부 폴더 수 */
   const [shown, setShown] = useState(0);
@@ -102,7 +102,7 @@ export function FoldersShot() {
   );
 
   return (
-    <ShotFrame label="컨셉 분류 화면 — AI가 사진을 컨셉 폴더로 나누고, 폴더로 들어가 정리된 사진을 본다" onVisible={start}>
+    <ShotFrame label="컨셉 분류 화면 — AI가 사진을 컨셉 폴더로 나누고, 폴더로 들어가 정리된 사진을 본다" onVisible={start} crop={crop}>
       <ShotTopbar stageIndex={1} />
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0">

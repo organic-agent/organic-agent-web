@@ -18,7 +18,7 @@ import { DownloadIcon, FilterIcon, FolderIcon, PhotoIcon, SparkleIcon } from "@/
 import { ScoreStars } from "@/app/(client)/gallery/[galleryId]/_shell/SelectFilter";
 import type { PhotoResponse } from "@/lib/api/photos";
 import { landingPhotos } from "./samplePhotos";
-import { ShotFrame } from "./ShotFrame";
+import { ShotFrame, type ShotCrop } from "./ShotFrame";
 import { ShotTopbar } from "./ShotChrome";
 import { ShotLightbox, ShotSelectionControls } from "./ShotLightbox";
 import { useShotTimeline } from "./useShotTimeline";
@@ -57,7 +57,7 @@ const PICKED = new Set(PHOTOS.filter((p) => p.score === 5).slice(0, 5).map((p) =
 const PICKED_LAST3 = PHOTOS.filter((p) => PICKED.has(p.photoId)).slice(-3);
 const noop = () => {};
 
-export function SelectShot() {
+export function SelectShot({ crop }: { crop?: ShotCrop }) {
   const [phase, setPhase] = useState<"lightbox" | "grid">("lightbox");
   const [cur, setCur] = useState(0);
   const [score, setScore] = useState(0);
@@ -82,7 +82,7 @@ export function SelectShot() {
   const shot = LB[cur];
 
   return (
-    <ShotFrame label="사진 셀렉 화면 — 크게 보기에서 별점을 매기며 넘기고, 마지막 장 뒤 점수 묶음으로 정리된 그리드를 본다" onVisible={start}>
+    <ShotFrame label="사진 셀렉 화면 — 크게 보기에서 별점을 매기며 넘기고, 마지막 장 뒤 점수 묶음으로 정리된 그리드를 본다" onVisible={start} crop={crop}>
       <ShotTopbar stageIndex={2} />
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col">
