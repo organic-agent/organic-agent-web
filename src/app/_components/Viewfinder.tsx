@@ -7,6 +7,7 @@
  *   여러 곳에 쓰면 인용 부호처럼 읽힌다(시안 검수). 크기는 글자 크기에 맞춰 sm(본문) · md(48) · lg(64).
  * - FocusFrame: 감싼 상자(position: relative) 기준 %로 한 곳을 잡는다. 이름표는 위(기본) · 아래 · 옆(start · end).
  *   seq를 주면 Reveal seq가 그 시간(ms) 뒤 .seq-go를 붙여 초점이 맞듯 나타난다 — 흐름 화면의 움직임이 끝난 뒤.
+ *   on을 주면 부른 쪽이 직접 켜고 끈다(히어로 사진 넘기기 — 꺼진 동안 자리를 옮기고 다시 켠다).
  *   그림일 뿐이라 aria-hidden(화면 설명은 감싼 그림의 라벨이 맡는다).
  */
 
@@ -25,6 +26,7 @@ export function FocusFrame({
   labelAt = "top",
   align = "start",
   seq,
+  on,
   mobileLabel = true,
 }: {
   rect: FrameRect;
@@ -35,13 +37,16 @@ export function FocusFrame({
   align?: "start" | "end";
   /** 나타날 시각(ms) — Reveal seq 안에서만 */
   seq?: number;
+  /** 직접 켜고 끄기 — 주면 seq 대신 이 값으로 나타나고 사라진다 */
+  on?: boolean;
   /** false면 좁은 화면에서 이름표를 숨긴다(화면 글자를 가릴 때) */
   mobileLabel?: boolean;
 }) {
+  const className = on !== undefined ? `ff ff-wait${on ? " seq-go" : ""}` : seq === undefined ? "ff" : "ff ff-wait";
   return (
     <span
       aria-hidden
-      className={seq === undefined ? "ff" : "ff ff-wait"}
+      className={className}
       data-seq={seq}
       data-label={labelAt}
       data-align={align}

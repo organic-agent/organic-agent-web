@@ -59,8 +59,18 @@ export function PinMark({ n, className = "" }: { n: number; className?: string }
   );
 }
 
-/** 크게 보기의 별점 줄 — 매긴 별은 연보라, 오른쪽에 선택 칩 */
-export function RatingBar({ score, label = "선택됨", className = "" }: { score: number; label?: string; className?: string }) {
+/** 크게 보기의 별점 줄 — 매긴 별은 연보라, 오른쪽에 선택 칩(picked가 false면 고르기 전 모양 · 체크 없음) */
+export function RatingBar({
+  score,
+  label = "선택됨",
+  picked = true,
+  className = "",
+}: {
+  score: number;
+  label?: string;
+  picked?: boolean;
+  className?: string;
+}) {
   return (
     <span className={`inline-flex items-center gap-0.5 rounded-(--pill) bg-surface-default-darkness py-1.5 pr-1.5 pl-3 whitespace-nowrap ${className}`}>
       {[1, 2, 3, 4, 5].map((k) =>
@@ -70,8 +80,12 @@ export function RatingBar({ score, label = "선택됨", className = "" }: { scor
           <StarIcon key={k} size={18} className="text-contents-dark-bgd-weakness" />
         ),
       )}
-      <span className="ml-2 inline-flex h-7 items-center gap-1 rounded-(--pill) bg-brand-accent-default px-3 type-label-semibold-s text-brand-on-fill">
-        <CheckPath className="size-3.5" />
+      <span
+        className={`ml-2 inline-flex h-7 items-center gap-1 rounded-(--pill) px-3 type-label-semibold-s motion-safe:transition-colors motion-safe:duration-300 ${
+          picked ? "bg-brand-accent-default text-brand-on-fill" : "bg-surface-inverse-light text-contents-dark-bgd-default"
+        }`}
+      >
+        {picked && <CheckPath className="size-3.5" />}
         {label}
       </span>
     </span>
