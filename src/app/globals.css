@@ -269,6 +269,143 @@
   }
 }
 
+/* ─── 랜딩 뷰파인더(이슈 182) — 로고의 뷰파인더 네 모서리로 강조한다(Viewfinder.tsx) ───
+   .vf  강조 글자: 글자에 꼭 맞는 상자(줄 높이 1)의 네 모서리에 ㄱ자. 위아래 여백을 같게 두고 바깥 margin을 음수로 줘
+        줄 간격은 그대로. 선 굵기 --th · 모서리 길이 --len은 정수 px — 소수점이면 모서리가 흐려져 어긋나 보인다(시안 보드)
+   .ff  초점 프레임: 화면 · 사진의 한 곳을 네 모서리로 잡는다. 위치는 감싼 상자 기준 %. 이름표는 안쪽 b(위 · 아래 · 옆)
+   .ff-wait  Reveal seq로 늦게 나오는 프레임 — .seq-go가 붙으면 초점이 맞듯 제자리로(흐름 화면의 움직임이 끝난 뒤)
+   [data-tone] 어두운 띠(dark) · 보라 상자(brand) 위에서는 모서리 색을 밝게 */
+@layer utilities {
+  .vf,
+  .ff {
+    background:
+      linear-gradient(var(--mk), var(--mk)) left top / var(--len) var(--th) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) left top / var(--th) var(--len) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) right top / var(--len) var(--th) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) right top / var(--th) var(--len) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) left bottom / var(--len) var(--th) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) left bottom / var(--th) var(--len) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) right bottom / var(--len) var(--th) no-repeat,
+      linear-gradient(var(--mk), var(--mk)) right bottom / var(--th) var(--len) no-repeat;
+  }
+  .vf {
+    --mk: var(--brand-accent-default);
+    --th: 2px;
+    --len: 8px;
+    display: inline-block;
+    padding: 0.11em 0.2em;
+    margin: -0.03em 0.03em;
+    line-height: 1;
+    color: var(--mk);
+  }
+  .vf-md {
+    --th: 3px;
+    --len: 15px;
+  }
+  .vf-lg {
+    --th: 4px;
+    --len: 20px;
+  }
+  .ff {
+    --mk: var(--brand-accent-default);
+    --th: 3px;
+    --len: 18px;
+    position: absolute;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .ff > b {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 7px);
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--radius-8);
+    background: var(--mk);
+    color: var(--brand-on-fill);
+    font: 600 12.5px/1 var(--font-sans);
+    white-space: nowrap;
+  }
+  .ff[data-label="bottom"] > b {
+    top: calc(100% + 7px);
+    bottom: auto;
+  }
+  .ff[data-align="end"] > b {
+    left: auto;
+    right: 0;
+  }
+  .ff[data-label="start"] > b {
+    top: -1px;
+    right: calc(100% + 8px);
+    bottom: auto;
+    left: auto;
+  }
+  .ff[data-label="end"] > b {
+    top: -1px;
+    bottom: auto;
+    left: calc(100% + 8px);
+  }
+  [data-tone="dark"] .vf,
+  [data-tone="dark"] .ff {
+    --mk: var(--brand-secondary-lightness);
+  }
+  [data-tone="dark"] .ff > b {
+    color: var(--brand-primary-default);
+  }
+  [data-tone="brand"] .vf {
+    --mk: var(--brand-secondary-background);
+  }
+  .ff-wait {
+    opacity: 0;
+    transform: scale(1.14);
+    transition:
+      opacity 0.5s var(--ease-expo),
+      transform 0.7s var(--ease-expo);
+  }
+  .ff-wait.seq-go {
+    opacity: 1;
+    transform: none;
+  }
+  @media (max-width: 640px) {
+    .vf-md {
+      --th: 2px;
+      --len: 10px;
+    }
+    .vf-lg {
+      --th: 3px;
+      --len: 13px;
+    }
+    .ff {
+      --th: 2px;
+      --len: 12px;
+    }
+    .ff > b {
+      height: 22px;
+      padding: 0 8px;
+      font-size: 11px;
+    }
+    /* 옆 이름표는 좁은 화면에서 위로 — 화면 밖으로 나가지 않게 */
+    .ff:is([data-label="start"], [data-label="end"]) > b {
+      top: auto;
+      right: auto;
+      bottom: calc(100% + 5px);
+      left: 0;
+    }
+    .ff[data-mobile-label="off"] > b {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ff-wait {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+}
+
 /* ─── 슬림 스크롤바 (업로드 파일 목록 등 — 시안 v5) ─── */
 @layer utilities {
   .scrollbar-slim {
