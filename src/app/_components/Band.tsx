@@ -3,7 +3,8 @@
  * 위치: src/app/_components/Band.tsx
  *
  * 바깥 section은 바탕만, 가운데 상자가 폭을 잡고, 안쪽 상자가 위아래 여백 · 내용 배치를 맡는다(className은 안쪽 상자에 들어간다).
- * 2026-11-23(이슈 182) 구역 경계를 선 대신 바탕색으로 나눈다 — 흰 · 연보라(tint) · 어두운(dark, 셀렉 구역 = 크게 보기 화면의 결).
+ * 2026-11-23(이슈 182) 구역 경계를 선 대신 바탕색으로 나눈다 — 흰 · 연보라(tint) · 진한 연보라(lavender, 체험 띠) ·
+ * 어두운(dark, 셀렉 구역 = 크게 보기 화면의 결).
  * dark는 data-tone을 달아 뷰파인더 모서리 · 프레임 색이 밝아진다(globals.css .vf · .ff).
  */
 
@@ -12,6 +13,7 @@ import type { ReactNode } from "react";
 const TONE_BG = {
   white: "bg-background-default-main",
   tint: "bg-brand-secondary-background/55",
+  lavender: "bg-brand-secondary-background",
   dark: "bg-background-inverse-main",
 } as const;
 

@@ -92,8 +92,8 @@ export type EventMap = {
   guest_comment_written: { session_id: number | null };
 
   // ── 체험 페이지(/demo, 이슈 144) — 체험 중에는 이것만 보낸다 ──
-  /** 랜딩에서 체험으로 가는 버튼 */
-  demo_cta_clicked: { from: "hero" };
+  /** 랜딩에서 체험으로 가는 버튼 — 히어로 · 체험 띠 · 마무리 상자(이슈 182) */
+  demo_cta_clicked: { from: "hero" | "band" | "cta" };
   /** 체험 페이지에 들어옴 — 이 브라우저에 남은 진행 단계 */
   demo_opened: { phase: "sort" | "select" | "review" };
   /** 체험 안에서 단계가 넘어감(폴더 확정 · 요청서 내보내기) */

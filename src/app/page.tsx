@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { SUPPORT_CHAT_URL } from "@/lib/support";
+import { PersonalArt, StudioArt } from "./_components/AudienceArt";
 import { Band } from "./_components/Band";
+import { ClosingCta } from "./_components/ClosingCta";
+import { DemoBand } from "./_components/DemoBand";
 import { FlowSection } from "./_components/FlowSection";
 import { HeroPhoto } from "./_components/HeroPhoto";
 import { LandingNav } from "./_components/LandingNav";
 import { PainSection } from "./_components/PainSection";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
+import { TogetherSection } from "./_components/TogetherSection";
 import { ViewfinderText } from "./_components/Viewfinder";
 import { ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -21,13 +25,14 @@ import { useAuth } from "@/lib/auth/authStore";
 import { spaceChip, type LoginIntent } from "@/lib/auth/loginFlow";
 
 /* ─── 대상별 카드 데이터 (v2: 왼쪽 스튜디오 첫 개설 작가 · 오른쪽 개인 클라이언트)
-   초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. */
+   초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. 카드 위 그림은 AudienceArt(이슈 182). */
 const AUDIENCES: {
   eyebrow: string;
   title: ReactNode;
   desc: string;
   items: string[];
   cta: { label: string; intent: LoginIntent };
+  art: ReactNode;
 }[] = [
   {
     eyebrow: "For Studios",
@@ -45,6 +50,7 @@ const AUDIENCES: {
       "팀원과 함께 쓰는 작업 공간",
     ],
     cta: { label: "무료로 스튜디오 만들기", intent: "studio" },
+    art: <StudioArt />,
   },
   {
     eyebrow: "For Individuals",
@@ -52,7 +58,7 @@ const AUDIENCES: {
       <>
         받은 사진을,
         <br />
-        직접 올려 고릅니다.
+        직접 올려 고릅니다
       </>
     ),
     desc: "작가에게 받은 원본을 그대로 올려 보세요. 비슷한 컷은 자동으로 묶이고, 파트너와 함께 고를 수 있습니다.",
@@ -62,6 +68,7 @@ const AUDIENCES: {
       "고른 사진 목록 정리",
     ],
     cta: { label: "무료로 내 갤러리 만들기", intent: "personal" },
+    art: <PersonalArt />,
   },
 ];
 
@@ -174,51 +181,57 @@ export default function LandingPage() {
         {/* ═══ 문제 제기 — 단톡방 한 창 ↔ 사진 한 장(이슈 182) ═══ */}
         <PainSection />
 
-        {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) ═══ */}
+        {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) → 이슈 182 좌우 2단 ═══ */}
         <FlowSection />
 
-        {/* ═══ AUDIENCES (피그마 Landing/Audiences) ═══ */}
-        <Band id="audiences" labelledBy="aud-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
+        {/* ═══ 함께 고르기 — 가족 의견은 사진마다(이슈 182) ═══ */}
+        <TogetherSection />
+
+        {/* ═══ AUDIENCES — 카드 위 그림 + 글(이슈 182) ═══ */}
+        <Band id="audiences" labelledBy="aud-h" className="py-28 max-[640px]:py-18 flex flex-col items-center gap-12 max-[640px]:gap-8">
             <Reveal className="flex flex-col items-center gap-4 text-center max-w-140">
               <p className="type-label-eyebrow text-brand-accent-default">
                 Who it&apos;s for
               </p>
-              <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default">
+              <h2 id="aud-h" className="type-maintext-s text-contents-light-bgd-default max-[640px]:text-[26px]!">
                 찍는 사람에게도, 고르는 사람에게도.
               </h2>
             </Reveal>
 
             <div className="grid grid-cols-2 gap-6 w-full max-[720px]:grid-cols-1">
-              {AUDIENCES.map(({ eyebrow, title, desc, items, cta }, i) => (
+              {AUDIENCES.map(({ eyebrow, title, desc, items, cta, art }, i) => (
                 <Reveal key={eyebrow} delay={(i + 1) as RevealDelay}>
-                  <div className="h-full bg-background-default-main border border-divider-default rounded-(--radius-16) p-10 flex flex-col gap-4 transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
-                    <p className="type-label-eyebrow text-brand-accent-default">
-                      {eyebrow}
-                    </p>
-                    <h3 className="type-title-xl text-contents-light-bgd-default">
-                      {title}
-                    </h3>
-                    <p className="type-content-m text-contents-light-bgd-sub">
-                      {desc}
-                    </p>
-                    <ul className="flex flex-col gap-3">
-                      {items.map((text) => (
-                        <li
-                          key={text}
-                          className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
+                  <div className="h-full overflow-hidden bg-background-default-main border border-divider-default rounded-(--radius-24) flex flex-col transition-[border-color,translate,box-shadow] duration-base ease-out hover:border-brand-secondary-light hover:-translate-y-0.75 hover:shadow-(--shadow-hover)">
+                    <div className="h-59 shrink-0 overflow-hidden">{art}</div>
+                    <div className="flex flex-1 flex-col gap-4 px-9 pt-8 pb-9 max-[640px]:px-6 max-[640px]:pt-6 max-[640px]:pb-7">
+                      <p className="type-label-eyebrow text-brand-accent-default">
+                        {eyebrow}
+                      </p>
+                      <h3 className="type-title-xl text-contents-light-bgd-default">
+                        {title}
+                      </h3>
+                      <p className="type-content-m text-contents-light-bgd-sub">
+                        {desc}
+                      </p>
+                      <ul className="flex flex-col gap-3">
+                        {items.map((text) => (
+                          <li
+                            key={text}
+                            className="flex items-center gap-2 type-content-m text-contents-light-bgd-sub"
+                          >
+                            <span className="size-1 rounded-full bg-brand-secondary-default shrink-0" />
+                            {text}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-auto pt-4">
+                        <Button
+                          icon={<ArrowRightIcon />}
+                          onClick={() => startAs(cta.intent)}
                         >
-                          <span className="size-1 rounded-full bg-brand-secondary-default shrink-0" />
-                          {text}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-auto pt-4">
-                      <Button
-                        icon={<ArrowRightIcon />}
-                        onClick={() => startAs(cta.intent)}
-                      >
-                        {cta.label}
-                      </Button>
+                          {cta.label}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Reveal>
@@ -226,21 +239,37 @@ export default function LandingPage() {
             </div>
         </Band>
 
-        {/* ═══ Q&A (피그마 Landing/QnA) ═══ */}
-        <Band id="qna" labelledBy="qna-h" className="py-20 max-[640px]:py-14 flex flex-col items-center gap-12">
-            <Reveal className="flex flex-col items-center gap-4 text-center">
+        {/* ═══ 체험 띠 — 가입 전에 샘플 갤러리로(이슈 182) ═══ */}
+        <DemoBand />
+
+        {/* ═══ Q&A — 2단: 제목 · 문의하기 | 목록(이슈 182) ═══ */}
+        <Band id="qna" labelledBy="qna-h" className="grid grid-cols-[320px_1fr] items-start gap-14 py-28 max-[820px]:grid-cols-1 max-[820px]:gap-6 max-[640px]:py-18">
+            <Reveal className="flex flex-col items-start gap-3.5">
               <p className="type-label-eyebrow text-brand-accent-default">FAQ</p>
               <h2 id="qna-h" className="type-maintext-s text-contents-light-bgd-default">
                 자주 묻는 질문
               </h2>
+              <a
+                href={SUPPORT_CHAT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track("support_chat_clicked", { from: "landing" })}
+                className="inline-flex items-center gap-1 type-label-medium-m text-brand-accent-text transition-colors duration-fast hover:text-brand-accent-default"
+              >
+                더 궁금한 점은 문의하기
+                <ArrowRightIcon size={16} />
+              </a>
             </Reveal>
-            <QnAAccordion />
+            <QnAAccordion wide />
         </Band>
+
+        {/* ═══ 마무리 — 보라 상자 2단(이슈 182) ═══ */}
+        <ClosingCta onStart={startFree} />
 
       </main>
 
-      {/* ═══ FOOTER (피그마 Landing/Footer) ═══ */}
-      <footer className="bg-background-inverse-main pt-16 pb-10">
+      {/* ═══ FOOTER — 연보라(이슈 182, 마무리 상자와 이어짐) ═══ */}
+      <footer className="bg-brand-secondary-background/55 pt-16 pb-10">
         <div className="max-w-wrap mx-auto px-6 flex flex-col gap-12">
           <div className="flex items-start justify-between gap-10 max-[720px]:flex-col">
             {/* 브랜드 */}
@@ -248,13 +277,13 @@ export default function LandingPage() {
               <div className="flex items-center gap-2">
                 <BrandLogo
                   size={32}
-                  className="text-contents-dark-bgd-default shrink-0"
+                  className="text-contents-light-bgd-default shrink-0"
                 />
-                <b className="type-brand-wordmark text-contents-dark-bgd-default">
+                <b className="type-brand-wordmark text-contents-light-bgd-default">
                   Easy Select
                 </b>
               </div>
-              <p className="type-content-m text-contents-dark-bgd-weakness">
+              <p className="type-content-m text-contents-light-bgd-sub">
                 업로드부터 전달까지, 사진 셀렉의 모든 과정을 한 곳에서.
               </p>
             </div>
@@ -263,7 +292,7 @@ export default function LandingPage() {
             <div className="flex gap-12 max-[480px]:flex-col">
               {FOOTER_COLUMNS.map((col) => (
                 <div key={col.title} className="flex flex-col gap-6 w-20">
-                  <h4 className="type-label-eyebrow text-contents-dark-bgd-weakness">
+                  <h4 className="type-label-eyebrow text-contents-light-bgd-weakness">
                     {col.title}
                   </h4>
                   <div className="flex flex-col gap-3">
@@ -275,7 +304,7 @@ export default function LandingPage() {
                           onClick={link.href === SUPPORT_CHAT_URL ? () => track("support_chat_clicked", { from: "landing" }) : undefined}
                           // 바깥 주소(카카오톡 채널)는 새 탭으로 — 페이지 안 앵커(#…)는 그대로
                           {...(link.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                          className="type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                          className="type-label-medium-m text-contents-light-bgd-sub whitespace-nowrap transition-colors duration-fast hover:text-contents-light-bgd-default"
                         >
                           {link.label}
                         </a>
@@ -284,7 +313,7 @@ export default function LandingPage() {
                           key={link.label}
                           type="button"
                           onClick={showComingSoon}
-                          className="cursor-pointer text-left type-label-medium-m text-contents-dark-bgd-weakness whitespace-nowrap transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                          className="cursor-pointer text-left type-label-medium-m text-contents-light-bgd-sub whitespace-nowrap transition-colors duration-fast hover:text-contents-light-bgd-default"
                         >
                           {link.label}
                         </button>
@@ -297,20 +326,20 @@ export default function LandingPage() {
           </div>
 
           {comingSoonToast}
-          <div className="border-t border-surface-inverse-medium pt-6 flex items-center justify-between flex-wrap gap-3">
-            <span className="type-content-xs text-contents-dark-bgd-weakness uppercase">
+          <div className="border-t border-divider-default pt-6 flex items-center justify-between flex-wrap gap-3">
+            <span className="type-content-xs text-contents-light-bgd-weakness uppercase">
               © 2026 Easy Select
             </span>
             <div className="flex gap-5">
               <a
                 href="/terms"
-                className="type-label-medium-m text-contents-dark-bgd-weakness transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                className="type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
               >
                 이용약관
               </a>
               <a
                 href="/privacy"
-                className="type-label-medium-m text-contents-dark-bgd-weakness transition-colors duration-fast hover:text-contents-dark-bgd-default"
+                className="type-label-medium-m text-contents-light-bgd-sub transition-colors duration-fast hover:text-contents-light-bgd-default"
               >
                 개인정보처리방침
               </a>
