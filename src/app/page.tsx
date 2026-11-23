@@ -9,6 +9,7 @@ import { Band } from "./_components/Band";
 import { FlowSection } from "./_components/FlowSection";
 import { HeroPhoto } from "./_components/HeroPhoto";
 import { LandingNav } from "./_components/LandingNav";
+import { PainSection } from "./_components/PainSection";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
 import { ViewfinderText } from "./_components/Viewfinder";
@@ -169,6 +170,9 @@ export default function LandingPage() {
 
             <HeroPhoto />
         </Band>
+
+        {/* ═══ 문제 제기 — 단톡방 한 창 ↔ 사진 한 장(이슈 182) ═══ */}
+        <PainSection />
 
         {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) ═══ */}
         <FlowSection />
