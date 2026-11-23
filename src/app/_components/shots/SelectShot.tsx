@@ -10,10 +10,11 @@
  * 2026-10-26 수민 — 한 칸씩 차는 건 실제와 다름. 별점 4 · 5 · 3 · 5), 마지막 장(500)에서만 "선택"이 눌리고, 1.5초마다 다음 장. 500 / 500에서 "마지막 사진이에요" 스낵바 → 1.3초 뒤 닫히고 점수 묶음 그리드. 움직임 줄이기면 그리드부터.
  * tour(흐름 확대 투어, 이슈 182 시안 4-5 · 2026-11-23 수민): 주면 타임라인 대신 스크롤 단계가 장면을 정한다 —
  *   0 크게 보기(별점 전) · 1 내가 별점 5 · 선택(사람 색 하늘) · 2 정보 탭 — 신랑이 4로 바꾼 별(코랄)과 별점 기록(실제 PhotoInfoPanel) ·
- *   3 그리드 + 조건 칩(실제 SelectFilterButton · SelectFilterChips — ★5 ★4 · 게스트 좋아요). 앞으로 갈 때만 별이 차고, 되돌아오면 끝 모양.
+ *   3 그리드 + 조건 칩(실제 SelectFilterButton · SelectFilterChips — ★5 ★4 · 게스트 좋아요). 위로 되돌아가도, 구역에 다시 들어와도
+ *   (replay가 바뀜) 그 단계의 움직임을 다시 한다(2026-11-23 수민). 투어가 아니면 화면에서 빠질 때 되감았다가 다시 들어오면 처음부터.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { PhotoGrid } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/PhotoGrid";
 import { ShellBottomBar, ShellCta } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellBottomBar";
 import { ShellMainHeader } from "@/app/(studio)/studio/gallery/[galleryId]/_shell/ShellMainHeader";
@@ -84,7 +85,7 @@ const FILTER_CTX: ConditionContext = {
 const FILTERED = PHOTOS.filter((p) => matchesConditions(p, FILTER, FILTER_CTX));
 const FILTERED_GROUPS = [5, 4].map((score) => ({ score, photos: FILTERED.filter((p) => p.score === score) })).filter((g) => g.photos.length > 0);
 
-export function SelectShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: number; camera?: ShotCamera }) {
+export function SelectShot({ crop, tour, replay, camera }: { crop?: ShotCrop; tour?: number; replay?: number; camera?: ShotCamera }) {
   const [phase, setPhase] = useState<"lightbox" | "grid">("lightbox");
   const [cur, setCur] = useState(0);
   const [score, setScore] = useState(0);
@@ -93,15 +94,12 @@ export function SelectShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: num
   /** 투어 — 정보 탭(신랑이 바꾼 별점 · 기록, 시각은 그 장면에 들어올 때) · 그리드 조건 칩 */
   const [info, setInfo] = useState<{ at: string; rows: RatingHistoryRow[] } | null>(null);
   const [filtered, setFiltered] = useState(false);
-  const prevTour = useRef(tour);
-  const run = useShotTimeline();
+  const { run, stop } = useShotTimeline();
 
   // 확대 투어 — 단계가 장면을 정한다. 타이머 안에서만 상태를 바꾼다
   useEffect(() => {
     if (tour === undefined) return;
-    const back = prevTour.current !== undefined && tour < prevTour.current;
-    prevTour.current = tour;
-    const still = back || !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const still = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
     at(0, () => {
@@ -145,7 +143,7 @@ export function SelectShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: num
       });
     }
     return () => timers.forEach(clearTimeout);
-  }, [tour]);
+  }, [tour, replay]);
 
   const start = () => {
     const steps: [number, () => void][] = [];
@@ -160,6 +158,15 @@ export function SelectShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: num
     steps.push([end + SNACK_MS, () => { setSnack(false); setPhase("grid"); }]);
     run(steps, () => setPhase("grid"));
   };
+  /** 화면에서 빠지면 첫 장 크게 보기로 되감는다 — 다시 들어오면 처음부터 */
+  const rewind = () => {
+    stop();
+    setPhase("lightbox");
+    setCur(0);
+    setScore(0);
+    setPicked(false);
+    setSnack(false);
+  };
 
   const shot = LB[cur];
 
@@ -167,6 +174,7 @@ export function SelectShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: num
     <ShotFrame
       label="사진 셀렉 화면 — 크게 보기에서 별점을 매기며 넘기고, 마지막 장 뒤 점수 묶음으로 정리된 그리드를 본다"
       onVisible={tour === undefined ? start : undefined}
+      onHidden={tour === undefined ? rewind : undefined}
       crop={crop}
       camera={camera}
     >

@@ -14,6 +14,9 @@
  *   카메라 셈은 덱과 같다: 보일 곳이 창의 약 70%가 되게 1.6~2.6배(k로 정할 수 있음), 그림이 창을 늘 덮게 이동을 묶는다.
  *   보일 곳(view) · 뷰파인더 자리(ring)는 화면 1000×560 기준 비율 [x, y, w, h] — 그려진 화면 요소의 자리를 재서 정했다.
  *   뷰파인더는 카메라가 도착한 뒤(ringAt, 화면 안 움직임이 있으면 그 뒤) 나온다. 설명 문단 대신 글머리표가 그 단계를 말한다.
+ * 다시 보기(2026-11-23 수민): 화면 움직임은 그 자리로 다시 스크롤되면 다시 움직인다 — 01은 화면이 빠지면 되감았다가 다시 들어오면
+ *   처음부터(초점 프레임도 Reveal replay로 함께), 투어는 위로 되돌아가도 그 단계 움직임을 다시 하고, 구역을 벗어났다 다시 들어오면
+ *   지금 단계를 다시 한다(replay를 올려 화면에 알린다).
  */
 
 import { useEffect, useRef, useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
@@ -36,7 +39,7 @@ type Step = {
   stage: number;
   tone: "white" | "tint" | "dark";
   title: ReactNode;
-  Shot: ComponentType<{ crop?: ShotCrop; tour?: number; camera?: ShotCamera }>;
+  Shot: ComponentType<{ crop?: ShotCrop; tour?: number; replay?: number; camera?: ShotCamera }>;
 } & (
   | { desc: string; crop: ShotCrop; frames: ComponentProps<typeof FocusFrame>[]; tour?: undefined }
   | { tour: Stop[]; desc?: undefined; crop?: undefined; frames?: undefined }
@@ -161,6 +164,8 @@ function StepText({ step, dark, children }: { step: Step; dark: boolean; childre
 function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: boolean }) {
   const ref = useRef<HTMLElement>(null);
   const [cur, setCur] = useState(0);
+  /** 구역에 다시 들어올 때마다 올린다 — 같은 단계라도 화면이 그 움직임을 다시 한다 */
+  const [replay, setReplay] = useState(0);
   const [ringOn, setRingOn] = useState(false);
   const n = stops.length;
   const dark = step.tone === "dark";
@@ -172,16 +177,26 @@ function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: bool
     let last = -1;
     let raf = 0;
     let timer = 0;
+    /** 구역이 화면 밖에 나가 있었나 — 다시 들어오면 지금 단계를 다시 한다 */
+    let away = true;
     const update = () => {
       raf = 0;
       const r = el.getBoundingClientRect();
+      if (r.bottom <= 0 || r.top >= window.innerHeight) {
+        away = true;
+        return;
+      }
       const span = r.height - window.innerHeight;
       // 붙지 않는 낮은 화면(구역이 화면보다 짧음)은 화면 전체만
       const p = span > 1 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
       const j = Math.min(n, Math.floor(p * (n + 1)));
-      if (j === last) return;
-      last = j;
-      setCur(j);
+      const back = away;
+      away = false;
+      if (j === last && !back) return;
+      if (j !== last) {
+        last = j;
+        setCur(j);
+      } else setReplay((v) => v + 1);
       setRingOn(false);
       clearTimeout(timer);
       if (j > 0) timer = window.setTimeout(() => setRingOn(true), reduce ? 0 : (stops[j - 1].ringAt ?? 850));
@@ -259,7 +274,7 @@ function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: bool
       </div>
       <Reveal variant="rise" className={`py-9 max-[900px]:py-1 ${flip ? "order-1 max-[900px]:order-none" : ""}`}>
         <div className="relative">
-          <step.Shot tour={cur} camera={camera} />
+          <step.Shot tour={cur} replay={replay} camera={camera} />
           {stop && <FocusFrame rect={ringOf(stop, camera)} on={ringOn} />}
         </div>
       </Reveal>
@@ -293,7 +308,7 @@ export function FlowSection() {
                 </Reveal>
               </StepText>
             </div>
-            <Reveal variant="rise" seq threshold={0.35} className={`py-9 max-[900px]:py-8 ${flip ? "order-1 max-[900px]:order-none" : ""}`}>
+            <Reveal variant="rise" seq replay threshold={0.35} className={`py-9 max-[900px]:py-8 ${flip ? "order-1 max-[900px]:order-none" : ""}`}>
               <div className="relative">
                 <step.Shot crop={step.crop} />
                 {step.frames.map((f) => (

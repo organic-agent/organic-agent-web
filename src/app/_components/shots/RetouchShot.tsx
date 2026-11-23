@@ -10,7 +10,8 @@
  * 3.6초 클릭 · 다듬는 중 → 4.8초 AI 제안(패널을 아래로 내림) → 5.3초 커서가 "적용"으로 → 5.9초 클릭 · 적용.
  * 커서 목표는 그려진 요소의 자리를 재서 잡는다(틀 zoom을 나눠 1000×560 좌표로). 움직임 줄이기면 끝 상태.
  * tour(흐름 확대 투어, 이슈 182 시안 4-5): 주면 타임라인 대신 스크롤 단계가 상태를 정한다 — 0 핀 1만, 1 커서가 둘째 점을 찍고
- * 한 줄 적음, 2 "AI 내용 다듬기" → 다듬는 중 → 제안 → 적용. 앞으로 갈 때만 움직이고, 되돌아오면 그 단계 끝 모양으로 바로.
+ * 한 줄 적음, 2 "AI 내용 다듬기" → 다듬는 중 → 제안 → 적용. 위로 되돌아가도, 구역에 다시 들어와도(replay가 바뀜) 그 단계의
+ * 움직임을 다시 한다(2026-11-23 수민). 투어가 아니면 화면에서 빠질 때 되감았다가 다시 들어오면 처음부터.
  * 카메라가 확대해도 커서 자리는 맞다 — 틀과 요소가 같이 커지니 비율이 그대로.
  */
 
@@ -33,7 +34,7 @@ const TYPE_MS = 55;
 
 type Refine = "none" | "loading" | "suggested" | "applied";
 
-export function RetouchShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: number; camera?: ShotCamera }) {
+export function RetouchShot({ crop, tour, replay, camera }: { crop?: ShotCrop; tour?: number; replay?: number; camera?: ShotCamera }) {
   const [pinned, setPinned] = useState(false);
   const [typed, setTyped] = useState("");
   const [refine, setRefine] = useState<Refine>("none");
@@ -43,9 +44,7 @@ export function RetouchShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
   const panelRef = useRef<HTMLDivElement>(null);
   const refineRef = useRef<HTMLSpanElement>(null);
   const applyRef = useRef<HTMLSpanElement>(null);
-  /** 투어 — 앞 단계(되돌아가는지 보려고) */
-  const prevTour = useRef(tour);
-  const run = useShotTimeline();
+  const { run, stop } = useShotTimeline();
 
   // 핀 2의 카드가 길어질 때마다 패널을 끝까지 내린다 — "적용"이 보이게(실제 패널도 스크롤)
   useEffect(() => {
@@ -73,9 +72,7 @@ export function RetouchShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
   // 확대 투어 — 단계가 상태를 정한다. 타이머 안에서만 상태를 바꾼다
   useEffect(() => {
     if (tour === undefined) return;
-    const back = prevTour.current !== undefined && tour < prevTour.current;
-    prevTour.current = tour;
-    const still = back || !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const still = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
     const hide = () => setCursor((c) => ({ ...c, visible: false }));
@@ -135,9 +132,9 @@ export function RetouchShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
       at(3900, hide);
     }
     return () => timers.forEach(clearTimeout);
-    // moveTo · click은 매번 새로 만들어지지만 ref만 읽는다 — 단계가 바뀔 때만 다시 돈다
+    // moveTo · click은 매번 새로 만들어지지만 ref만 읽는다 — 단계가 바뀌거나 다시 들어올 때(replay)만 다시 돈다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tour]);
+  }, [tour, replay]);
 
   const start = () => {
     const steps: [number, () => void][] = [
@@ -155,6 +152,14 @@ export function RetouchShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
       [6500, () => setCursor((c) => ({ ...c, visible: false }))],
     );
     run(steps, () => { setPinned(true); setTyped(TYPED); setRefine("applied"); });
+  };
+  /** 화면에서 빠지면 핀 1만 있는 처음으로 되감는다 — 다시 들어오면 처음부터 */
+  const rewind = () => {
+    stop();
+    setPinned(false);
+    setTyped("");
+    setRefine("none");
+    setCursor((c) => ({ ...c, visible: false }));
   };
 
   const points = [
@@ -259,6 +264,7 @@ export function RetouchShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
     <ShotFrame
       label="보정 작성 화면 — 크게 보기에서 사진 위에 점을 찍고 한 줄 적으면 AI가 문장을 다듬어 준다"
       onVisible={tour === undefined ? start : undefined}
+      onHidden={tour === undefined ? rewind : undefined}
       crop={crop}
       camera={camera}
     >

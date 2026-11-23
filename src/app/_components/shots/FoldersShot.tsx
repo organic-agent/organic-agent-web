@@ -9,7 +9,8 @@
  * 타임라인(ShotFrame.onVisible이 켬): analyzing(폴더 열 "만드는 중…" 안내 · 제목 옆 "폴더 만드는 중…" 칩 · 하단 막대) →
  * 2.2초부터 세부 폴더가 0.4초마다 하나씩(전신 → 상반신 → 클로즈업 → 풍경) → 4.2초에 전신 폴더로 들어가 그 사진만 보인다.
  * tour(흐름 확대 투어, 이슈 182 시안 4-5): 주면 타임라인 대신 스크롤 단계가 상태를 정한다 — 0 · 1 분류 중, 2 세부 폴더가 0.3초마다
- * 하나씩, 3 첫 폴더로 들어감. 되돌아갈 때는 그 단계의 끝 모양으로 바로. camera는 ShotFrame이 받아 확대 · 이동한다.
+ * 하나씩, 3 첫 폴더로 들어감. 위로 되돌아가도, 구역에 다시 들어와도(replay가 바뀜) 그 단계의 움직임을 다시 한다(2026-11-23 수민).
+ * camera는 ShotFrame이 받아 확대 · 이동한다. 투어가 아니면 화면에서 빠질 때 처음 상태로 되감았다가 다시 들어오면 처음부터.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -59,14 +60,14 @@ const ALL: FolderSelection = { kind: "all" };
 const FIRST: FolderSelection = { kind: "detail", conceptId: CONCEPT.id, detailId: CONCEPT.details[0].id };
 const noop = () => {};
 
-export function FoldersShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: number; camera?: ShotCamera }) {
+export function FoldersShot({ crop, tour, replay, camera }: { crop?: ShotCrop; tour?: number; replay?: number; camera?: ShotCamera }) {
   const [analyzing, setAnalyzing] = useState(true);
   /** 보이는 세부 폴더 수 */
   const [shown, setShown] = useState(0);
   const [selection, setSelection] = useState<FolderSelection>(ALL);
-  const run = useShotTimeline();
+  const { run, stop } = useShotTimeline();
 
-  // 확대 투어 — 단계가 상태를 정한다(앞으로 갈 때만 폴더가 차례로 생기고, 되돌아오면 이미 다 있음)
+  // 확대 투어 — 단계가 상태를 정한다. 세부 폴더 단계에 들어올 때마다 폴더가 다시 차례로 생긴다
   useEffect(() => {
     if (tour === undefined) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -82,9 +83,9 @@ export function FoldersShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
       at(0, () => {
         setAnalyzing(false);
         setSelection(ALL);
-        setShown((n) => (reduce ? 4 : Math.max(n, 1)));
+        setShown(reduce ? 4 : 1);
       });
-      if (!reduce) [2, 3, 4].forEach((n, i) => at(300 + i * 300, () => setShown((cur) => Math.max(cur, n))));
+      if (!reduce) [2, 3, 4].forEach((n, i) => at(300 + i * 300, () => setShown(n)));
     } else {
       at(0, () => {
         setAnalyzing(false);
@@ -93,7 +94,7 @@ export function FoldersShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
       });
     }
     return () => timers.forEach(clearTimeout);
-  }, [tour]);
+  }, [tour, replay]);
 
   const start = () =>
     run(
@@ -106,6 +107,13 @@ export function FoldersShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
       ],
       () => { setAnalyzing(false); setShown(4); setSelection(FIRST); },
     );
+  /** 화면에서 빠지면 분류 중으로 되감는다 — 다시 들어오면 처음부터 */
+  const rewind = () => {
+    stop();
+    setAnalyzing(true);
+    setShown(0);
+    setSelection(ALL);
+  };
 
   const folders = analyzing ? [] : [{ ...CONCEPT, details: CONCEPT.details.slice(0, shown) }];
   const detail = selection.kind === "detail" ? CONCEPT.details.find((d) => d.id === selection.detailId) : undefined;
@@ -136,6 +144,7 @@ export function FoldersShot({ crop, tour, camera }: { crop?: ShotCrop; tour?: nu
     <ShotFrame
       label="컨셉 분류 화면 — AI가 사진을 컨셉 폴더로 나누고, 폴더로 들어가 정리된 사진을 본다"
       onVisible={tour === undefined ? start : undefined}
+      onHidden={tour === undefined ? rewind : undefined}
       crop={crop}
       camera={camera}
     >

@@ -6,8 +6,10 @@
  *
  * 화면 4장은 앱 셸과 같은 클래스로 1000×560 고정 크기에 그리고, 이 틀이 상자 폭을 재서 zoom으로 줄인다(최대 1000).
  * 그림일 뿐이라 안은 inert — 초점도 읽기도 안 된다. 이름은 role="img"의 라벨로만. 흐름 섹션이 가운데 정렬이라 안은 text-left로 되돌린다.
- * onVisible: 상자가 화면에 35% 들어오면 한 번 — 화면이 제 타임라인(끌어오기 · 막대)을 시작하는 신호. 움직임 줄이기나
- * IntersectionObserver가 없으면 바로 부른다.
+ * onVisible: 상자가 화면에 35% 들어오면 — 화면이 제 타임라인(끌어오기 · 막대)을 시작하는 신호. 움직임 줄이기나
+ * IntersectionObserver가 없으면 바로 한 번 부른다.
+ * onHidden: 상자가 화면에서 완전히 빠지면 — 화면이 처음 상태로 되감는 신호. 다시 35% 들어오면 onVisible이 또 불려 처음부터 다시
+ * 움직인다(2026-11-23 수민). 되감기는 안 보일 때 하니 튀어 보이지 않는다.
  * crop(이슈 182): 1000×560 중 보여 줄 부분(비율). 상자 비율이 그 부분에 맞춰지고 안은 상자 폭에 맞게 커진다 — 흐름 구역이
  * 2단이 되며 화면이 좁아져, 단계마다 핵심 부분만 크게 보인다. 없으면 지금처럼 전체(최대 1000).
  * camera(이슈 182 시안 4-5 확대 투어): 전체 화면을 k배로 키우고 상자 비율 tx · ty만큼 옮긴다 — 발표 덱 제품 소개처럼 글머리표마다
@@ -27,12 +29,14 @@ export type ShotCamera = { k: number; tx: number; ty: number };
 export function ShotFrame({
   label,
   onVisible,
+  onHidden,
   crop,
   camera,
   children,
 }: {
   label: string;
   onVisible?: () => void;
+  onHidden?: () => void;
   crop?: ShotCrop;
   camera?: ShotCamera;
   children: ReactNode;
@@ -41,8 +45,10 @@ export function ShotFrame({
   const [zoom, setZoom] = useState(1);
   const cropW = crop?.w ?? 1;
   const onVisibleRef = useRef(onVisible);
+  const onHiddenRef = useRef(onHidden);
   useEffect(() => {
     onVisibleRef.current = onVisible;
+    onHiddenRef.current = onHidden;
   });
 
   useEffect(() => {
@@ -53,14 +59,20 @@ export function ShotFrame({
       onVisibleRef.current();
       return;
     }
+    // 35% 들어오면 재생, 완전히 빠지면 되감기 — 들어올 때마다 다시
+    let playing = false;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
+        const e = entries[entries.length - 1];
+        if (!playing && e.isIntersecting && e.intersectionRatio >= 0.35) {
+          playing = true;
           onVisibleRef.current?.();
-          io.disconnect();
+        } else if (playing && !e.isIntersecting) {
+          playing = false;
+          onHiddenRef.current?.();
         }
       },
-      { threshold: 0.35 },
+      { threshold: [0, 0.35] },
     );
     io.observe(el);
     return () => io.disconnect();

@@ -59,12 +59,18 @@ const noop = () => {};
 export function UploadShot({ crop }: { crop?: ShotCrop }) {
   const [phase, setPhase] = useState<Phase>("empty");
   const [uploaded, setUploaded] = useState(0);
-  const run = useShotTimeline();
+  const { run, stop } = useShotTimeline();
   const start = () =>
     run(
       TIMELINE.map(([next, at]) => [at, () => setPhase(next)]),
       () => { setPhase("list"); setUploaded(TOTAL); },
     );
+  /** 화면에서 빠지면 빈 업로드 창으로 되감는다 — 다시 들어오면 처음부터(2026-11-23 수민) */
+  const rewind = () => {
+    stop();
+    setPhase("empty");
+    setUploaded(0);
+  };
 
   // 목록 단계 — 숫자가 0 → 500으로 오른다(끝에서 천천히). 줄의 막대는 이 숫자에서 나온다
   useEffect(() => {
@@ -89,7 +95,7 @@ export function UploadShot({ crop }: { crop?: ShotCrop }) {
   const done = uploaded >= TOTAL;
 
   return (
-    <ShotFrame label="사진 업로드 화면 — 폴더에서 사진 500장을 끌어다 놓으면 한 장씩 올라간다" onVisible={start} crop={crop}>
+    <ShotFrame label="사진 업로드 화면 — 폴더에서 사진 500장을 끌어다 놓으면 한 장씩 올라간다" onVisible={start} onHidden={rewind} crop={crop}>
       <ShotTopbar stageIndex={0} />
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
