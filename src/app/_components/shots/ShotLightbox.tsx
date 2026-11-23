@@ -10,6 +10,7 @@ import type { ReactNode, Ref } from "react";
 import { CtlButton, Sep } from "@/components/app/Lightbox";
 import { Snackbar } from "@/components/app/Snackbar";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, EditNoteIcon, InfoIcon, StarFillIcon, StarIcon, ZoomInIcon, ZoomOutIcon } from "@/components/icons";
+import { MEMBER_INK } from "@/app/(client)/gallery/[galleryId]/_shell/members";
 import { sampleFile, samplePhotoUrl } from "./samplePhotos";
 
 export type ShotLightboxTab = "none" | "info" | "memo";
@@ -129,22 +130,42 @@ export function ShotLightbox({
   );
 }
 
-/** 별점 다섯 칸 + 선택 — 실제 SelectionControls 모양(채워진 별은 브랜드 색, 2026-10-26 수민) */
-export function ShotSelectionControls({ score, picked }: { score: number; picked: boolean }) {
+/**
+ * 별점 다섯 칸 + 선택 — 실제 SelectionControls 모양(채워진 별은 브랜드 색, 2026-10-26 수민)
+ * 함께 고르기(이슈 148)처럼 사람 색을 주면 별은 매긴 사람, "선택됨"은 담은 사람 색 — 그 위 글자는 늘 검정(MEMBER_INK)
+ */
+export function ShotSelectionControls({
+  score,
+  picked,
+  starColor,
+  pickColor,
+}: {
+  score: number;
+  picked: boolean;
+  starColor?: string;
+  pickColor?: string;
+}) {
   return (
     <>
       <div className="flex items-center gap-0.5 px-1">
         {[1, 2, 3, 4, 5].map((n) => {
           const on = n <= score;
           return (
-            <span key={n} className={`grid size-7 place-items-center rounded-full ${on ? "text-brand-secondary-default" : "text-contents-dark-bgd-weakness"}`}>
+            <span
+              key={n}
+              className={`grid size-7 place-items-center rounded-full ${on ? "text-brand-secondary-default" : "text-contents-dark-bgd-weakness"}`}
+              style={on && starColor ? { color: starColor } : undefined}
+            >
               {on ? <StarFillIcon size={20} /> : <StarIcon size={20} />}
             </span>
           );
         })}
       </div>
       <Sep />
-      <span className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${picked ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default"}`}>
+      <span
+        className={`inline-flex h-7 items-center gap-1 rounded-(--pill) px-2.5 type-label-semibold-s ${picked ? "bg-brand-secondary-default text-contents-dark-bgd-default" : "bg-surface-inverse-light text-contents-dark-bgd-default"}`}
+        style={picked && pickColor ? { background: pickColor, color: MEMBER_INK } : undefined}
+      >
         {picked && (
           <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3.5 8.5 6.5 11.5 12.5 5" />

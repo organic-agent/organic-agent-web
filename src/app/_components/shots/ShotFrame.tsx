@@ -10,6 +10,8 @@
  * IntersectionObserver가 없으면 바로 부른다.
  * crop(이슈 182): 1000×560 중 보여 줄 부분(비율). 상자 비율이 그 부분에 맞춰지고 안은 상자 폭에 맞게 커진다 — 흐름 구역이
  * 2단이 되며 화면이 좁아져, 단계마다 핵심 부분만 크게 보인다. 없으면 지금처럼 전체(최대 1000).
+ * camera(이슈 182 시안 4-5 확대 투어): 전체 화면을 k배로 키우고 상자 비율 tx · ty만큼 옮긴다 — 발표 덱 제품 소개처럼 글머리표마다
+ * 그 자리로 0.8초에 확대 · 이동. 실제 부품이 그려진 화면이라 멈추면 글자가 선명하다(그래서 will-change를 두지 않는다).
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -19,16 +21,20 @@ export const SHOT_H = 560;
 
 /** 부분 확대 — 1000×560에서 보여 줄 부분. x · y는 왼쪽 위, w · h는 폭 · 높이(모두 0~1) */
 export type ShotCrop = { x: number; y: number; w: number; h: number };
+/** 확대 투어의 카메라 — k배, 옮김은 상자 폭 · 높이에 대한 비율(0 이하). 1 · 0 · 0이면 전체 */
+export type ShotCamera = { k: number; tx: number; ty: number };
 
 export function ShotFrame({
   label,
   onVisible,
   crop,
+  camera,
   children,
 }: {
   label: string;
   onVisible?: () => void;
   crop?: ShotCrop;
+  camera?: ShotCamera;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -82,11 +88,11 @@ export function ShotFrame({
     >
       {/* 부분 확대면 화면을 상자 기준 %로 당겨 보여 줄 부분을 상자에 맞춘다(전체면 0 · 100%) */}
       <div
-        className="absolute"
+        className={camera ? "absolute origin-top-left motion-safe:transition-transform motion-safe:duration-800 motion-safe:ease-[cubic-bezier(.65,0,.35,1)]" : "absolute"}
         style={
           crop
             ? { left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`, width: `${100 / crop.w}%`, height: `${100 / crop.h}%` }
-            : { inset: 0 }
+            : { inset: 0, transform: camera ? `translate(${camera.tx * 100}%, ${camera.ty * 100}%) scale(${camera.k})` : undefined }
         }
       >
         <div inert className="absolute top-0 left-0 flex flex-col text-left" style={{ width: SHOT_W, height: SHOT_H, zoom }}>
