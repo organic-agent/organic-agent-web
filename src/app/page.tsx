@@ -1,22 +1,23 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { useComingSoonToast } from "@/components/app/ComingSoonToast";
 import { SUPPORT_CHAT_URL } from "@/lib/support";
 import { Band } from "./_components/Band";
 import { FlowSection } from "./_components/FlowSection";
+import { HeroPhoto } from "./_components/HeroPhoto";
 import { LandingNav } from "./_components/LandingNav";
 import { QnAAccordion } from "./_components/QnAAccordion";
 import { Reveal, type RevealDelay } from "./_components/Reveal";
+import { ViewfinderText } from "./_components/Viewfinder";
 import { ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LoginModal, type LoginRequest } from "@/components/LoginModal";
 import { useAuth } from "@/lib/auth/authStore";
-import type { LoginIntent } from "@/lib/auth/loginFlow";
+import { spaceChip, type LoginIntent } from "@/lib/auth/loginFlow";
 
 /* ─── 대상별 카드 데이터 (v2: 왼쪽 스튜디오 첫 개설 작가 · 오른쪽 개인 클라이언트)
    초대받은 클라이언트는 작가의 링크로 들어오므로 랜딩의 대상이 아니다. */
@@ -108,6 +109,15 @@ export default function LandingPage() {
     }
     setLogin({ mode: "signup", intent });
   }
+  // 히어로 · 마무리의 "무료로 시작하기" — 역할을 모르니 상단 바 회원가입과 같은 문(couple → 로그인 뒤 역할 선택).
+  // 이미 로그인돼 있으면 상단 바 소속 칩과 같은 곳(최근 공간, 소속이 없으면 역할 선택)으로.
+  function startFree() {
+    if (auth.status === "authenticated") {
+      router.push(spaceChip(auth.user).href);
+      return;
+    }
+    setLogin({ mode: "signup", intent: "couple" });
+  }
 
   return (
     <>
@@ -122,49 +132,42 @@ export default function LandingPage() {
       <LandingNav onOpenLogin={setLogin} />
 
       <main id="main">
-        {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 (피그마 Landing/Hero) ═══ */}
+        {/* ═══ HERO — 좌: 카피·CTA, 우: 웨딩 사진 + 제품 표시(이슈 182 시안 D 2-1) ═══ */}
         <Band
           labelledBy="hero-h"
-          className="pt-36 pb-20 max-[820px]:pt-28 max-[820px]:pb-14 flex items-center justify-between gap-10 max-[900px]:flex-col max-[900px]:items-start"
+          className="pt-36 pb-24 max-[820px]:pt-28 max-[820px]:pb-16 flex items-center justify-between gap-16 max-[900px]:flex-col max-[900px]:items-stretch max-[900px]:gap-12"
         >
-            {/* 좌: 텍스트 + CTA */}
-            <div className="flex flex-col items-start gap-5 max-w-107.5">
+            {/* 좌: 텍스트 + CTA. "함께"만 로고의 뷰파인더 모서리로 감싼다 */}
+            <div className="flex flex-col items-start gap-5 max-w-125">
               <p className="type-label-eyebrow text-brand-accent-default">
                 Easy Select
               </p>
-              <h1 id="hero-h" className="type-maintext-l text-contents-light-bgd-default">
+              <h1 id="hero-h" className="type-maintext-xl text-contents-light-bgd-default max-[820px]:text-[40px]!">
                 우리의 순간을,
                 <br />
-                함께 고르다.
+                <ViewfinderText size="lg">함께</ViewfinderText> 고르다.
               </h1>
-              <p className="type-content-l text-contents-light-bgd-sub">
-                막막했던 셀렉은 함께 고르는 설렘으로,
-                <br />
-                번거로웠던 전달은 클릭 한 번으로.
-                <br />
+              <p className="type-content-xl text-contents-light-bgd-sub max-[820px]:text-base!">
+                막막했던 셀렉은 함께 고르는 설렘으로,{" "}
+                <br className="max-[820px]:hidden" />
+                번거로웠던 전달은 클릭 한 번으로.{" "}
+                <br className="max-[820px]:hidden" />
                 업로드부터 보정 작성, 마무리까지 사진의 여정이 한 곳에서
                 완성됩니다.
               </p>
 
-              {/* 역할별 가입은 Who it's for 카드의 버튼에서 — 히어로는 로그인 없이 체험 페이지로(이슈 144) */}
-              <Button href="/demo" icon={<ArrowRightIcon />} onClick={() => track("demo_cta_clicked", { from: "hero" })}>
-                로그인 없이 체험하기
-              </Button>
+              {/* 체험이 주 버튼(이슈 144), 가입은 옆 글자 버튼 — 역할은 로그인 뒤 고른다 */}
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <Button href="/demo" size="lg" icon={<ArrowRightIcon />} onClick={() => track("demo_cta_clicked", { from: "hero" })}>
+                  로그인 없이 체험하기
+                </Button>
+                <Button kind="ghost" size="lg" onClick={startFree}>
+                  무료로 시작하기
+                </Button>
+              </div>
             </div>
 
-            {/* 우: 웨딩 사진 (시안 400×500). 세로 사진(2:3)이라 가로로 넓어지는 900 미만에서는 얼굴 쪽이 보이게 위쪽에 맞춘다.
-                 첫 화면에 바로 보이는 사진이라 미루지 않고 먼저 받는다(loading eager · fetchPriority high) */}
-            <div className="relative w-100 h-125 shrink-0 overflow-hidden rounded-(--radius-24) bg-brand-accent-surface max-[900px]:w-full max-[900px]:h-80">
-              <Image
-                src="/images/hero-wedding.jpg"
-                alt="웨딩드레스와 정장을 입고 손을 잡은 채 웃고 있는 신랑 신부"
-                fill
-                sizes="(max-width: 900px) 100vw, 400px"
-                loading="eager"
-                fetchPriority="high"
-                className="object-cover max-[900px]:object-[50%_22%]"
-              />
-            </div>
+            <HeroPhoto />
         </Band>
 
         {/* ═══ 사용 흐름 4단계 — 이슈 144(아이콘 카드 6장 대신) ═══ */}
