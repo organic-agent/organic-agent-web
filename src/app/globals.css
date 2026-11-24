@@ -272,6 +272,8 @@
 /* ─── 랜딩 뷰파인더(이슈 182) — 로고의 뷰파인더 네 모서리로 강조한다(Viewfinder.tsx) ───
    .vf  강조 글자: 글자에 꼭 맞는 상자(줄 높이 1)의 네 모서리에 ㄱ자. 위아래 여백을 같게 두고 바깥 margin을 음수로 줘
         줄 간격은 그대로. 선 굵기 --th · 모서리 길이 --len은 정수 px — 소수점이면 모서리가 흐려져 어긋나 보인다(시안 보드)
+   .vf-sm  본문 크기 강조(이슈 184): 꼭 맞는 상자면 18px에서 모서리가 글자에 붙고 [ ]로 읽혀서, sm만 상자를 넉넉히 · 모서리를 짧게
+        (세로 팔이 높이의 46% — 히어로 lg와 같은 결) · 굵기 600(400 보라는 둘레 회색 문장보다 옅어 묻혔다). 앞에 띄어쓰기가 있어 왼쪽 바깥만 좁게
    .ff  초점 프레임: 화면 · 사진의 한 곳을 네 모서리로 잡는다. 위치는 감싼 상자 기준 %. 이름표는 안쪽 b(위 · 아래 · 옆)
    .ff-wait  Reveal seq로 늦게 나오는 프레임 — .seq-go가 붙으면 초점이 맞듯 제자리로(흐름 화면의 움직임이 끝난 뒤)
    [data-tone] 어두운 띠(dark) · 보라 상자(brand) 위에서는 모서리 색을 밝게 */
@@ -297,6 +299,12 @@
     margin: -0.03em 0.03em;
     line-height: 1;
     color: var(--mk);
+  }
+  .vf-sm {
+    --len: 7px;
+    padding: 0.34em;
+    margin: -0.26em 0.12em -0.26em 0.03em;
+    font-weight: 600;
   }
   .vf-md {
     --th: 3px;
@@ -368,6 +376,11 @@
     opacity: 1;
     transform: none;
   }
+  /* 흐름 투어 글머리표 막대(이슈 184) — 지금 단계에 머무는 시간(--step)만큼 차오른다. 움직임 줄이기면 바로 꽉 */
+  .tour-fill {
+    height: 100%;
+    animation: tour-fill var(--step, 2.6s) linear both;
+  }
   @media (max-width: 640px) {
     .vf-md {
       --th: 2px;
@@ -403,6 +416,17 @@
       transform: none;
       transition: none;
     }
+    .tour-fill {
+      animation: none;
+    }
+  }
+}
+@keyframes tour-fill {
+  from {
+    height: 0;
+  }
+  to {
+    height: 100%;
   }
 }
 
