@@ -36,9 +36,9 @@ export function LandingNav({
 
   return (
     <header className="fixed top-0 left-0 right-0 z-100 bg-background-default-main">
-      {/* 아래 선은 화면 전체가 아니라 로고부터 회원가입 버튼까지만(2026-10-26 수민) — 안쪽 상자에 긋는다 */}
+      {/* 아래 선 없음(이슈 184) — 구역을 바탕색으로 나눈 뒤(이슈 182) 로고~회원가입 폭 선은 색 구역 위에서 중간에 끊겨 보였다 */}
       <div className="max-w-wrap mx-auto px-6">
-        <div className="h-16 flex items-center justify-between border-b border-divider-default">
+        <div className="h-16 flex items-center justify-between">
           {/* Brand */}
           <Link
             href="/"
