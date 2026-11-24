@@ -9,17 +9,18 @@
  * 01 업로드: 움직이는 화면을 부분 확대(crop)로 크게 보이고, 움직임이 끝날 즈음 초점 프레임(로고의 뷰파인더)이 핵심 자리를 잡는다.
  *   프레임 좌표는 부분 확대한 상자 기준 %, 시각은 타임라인이 끝나는 때 + 여유(Reveal seq — ShotFrame과 같은 35% 보일 때부터).
  * 02 ~ 04: 확대 투어(시안 4-5, 2026-11-23 수민) — 발표 덱 제품 소개처럼 화면 전체로 시작해 글머리표 차례로 그 자리로 확대 · 이동하고
- *   뷰파인더가 잡는다. 구역은 (1 + 글머리표 × 0.5)화면 길이로 늘고 안쪽이 화면에 붙어(Band pin), 내리는 만큼 단계가 넘어간다.
- *   글머리표를 누르면 그 단계 자리로 스크롤. 화면 상태(폴더가 생김 · 별점 · AI 다듬기)는 단계가 정한다 — 빨리 내려도 맞는 장면.
+ *   뷰파인더가 잡는다. 이슈 184에서 화면 고정(스크롤로 단계 넘기기)을 뺐다 — 붙은 뒤 첫 구간이 멈춘 것처럼 보여 끝으로 읽혔다.
+ *   지금은 다른 구역처럼 그냥 스크롤되고, 화면이 35% 보이면 화면 전체로 잠깐 있다가 단계가 저절로 넘어간다(마지막 단계에서 멈춤).
+ *   글머리표를 누르면 그 단계부터 다시, 막대는 그 단계에 머무는 시간만큼 찬다. 움직임 줄이기면 저절로 넘기지 않는다(첫 단계 + 글머리표).
+ *   화면 상태(폴더가 생김 · 별점 · AI 다듬기)는 단계가 정한다.
  *   카메라 셈은 덱과 같다: 보일 곳이 창의 약 70%가 되게 1.6~2.6배(k로 정할 수 있음), 그림이 창을 늘 덮게 이동을 묶는다.
  *   보일 곳(view) · 뷰파인더 자리(ring)는 화면 1000×560 기준 비율 [x, y, w, h] — 그려진 화면 요소의 자리를 재서 정했다.
  *   뷰파인더는 카메라가 도착한 뒤(ringAt, 화면 안 움직임이 있으면 그 뒤) 나온다. 설명 문단 대신 글머리표가 그 단계를 말한다.
  * 다시 보기(2026-11-23 수민): 화면 움직임은 그 자리로 다시 스크롤되면 다시 움직인다 — 01은 화면이 빠지면 되감았다가 다시 들어오면
- *   처음부터(초점 프레임도 Reveal replay로 함께), 투어는 위로 되돌아가도 그 단계 움직임을 다시 하고, 구역을 벗어났다 다시 들어오면
- *   지금 단계를 다시 한다(replay를 올려 화면에 알린다).
+ *   처음부터(초점 프레임도 Reveal replay로 함께), 투어도 화면이 완전히 빠지면 되감았다가 다시 보이면 처음부터 다시 돈다.
  */
 
-import { useEffect, useRef, useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { Band } from "./Band";
 import { Reveal } from "./Reveal";
 import { StageSteps } from "./StageSteps";
@@ -160,71 +161,76 @@ function StepText({ step, dark, children }: { step: Step; dark: boolean; childre
   );
 }
 
-/** 확대 투어 구역 — 화면에 붙어 있는 동안 스크롤 진행으로 멈춤을 넘긴다(0 = 화면 전체) */
+/** 한 단계에 머무는 시간(ms) — 카메라 0.8초 + 뷰파인더가 나온 뒤(ringAt) 1.6초는 보이게, 최소 2.6초 */
+const stepMs = (s: Stop) => Math.max(2600, (s.ringAt ?? 850) + 1600);
+/** 화면이 보인 뒤 화면 전체로 머무는 시간 — 떠오르는 움직임(Reveal rise)이 끝난 뒤 첫 확대 */
+const INTRO_MS = 1200;
+
+/** 확대 투어 구역 — 화면이 보이면 단계가 저절로 넘어간다(0 = 화면 전체, n에서 멈춤) */
 function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: boolean }) {
-  const ref = useRef<HTMLElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const [cur, setCur] = useState(0);
-  /** 구역에 다시 들어올 때마다 올린다 — 같은 단계라도 화면이 그 움직임을 다시 한다 */
+  /** 단계에 들어갈 때마다 올린다 — 같은 단계를 다시 눌러도 화면 움직임 · 막대가 다시 돈다 */
   const [replay, setReplay] = useState(0);
   const [ringOn, setRingOn] = useState(false);
+  /** 글머리표 → 그 단계부터(효과 안의 go를 부른다) */
+  const goRef = useRef<(j: number) => void>(() => {});
   const n = stops.length;
   const dark = step.tone === "dark";
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    const box = boxRef.current;
+    if (!box) return;
     const reduce = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    let last = -1;
-    let raf = 0;
-    let timer = 0;
-    /** 구역이 화면 밖에 나가 있었나 — 다시 들어오면 지금 단계를 다시 한다 */
-    let away = true;
-    const update = () => {
-      raf = 0;
-      const r = el.getBoundingClientRect();
-      if (r.bottom <= 0 || r.top >= window.innerHeight) {
-        away = true;
-        return;
-      }
-      const span = r.height - window.innerHeight;
-      // 붙지 않는 낮은 화면(구역이 화면보다 짧음)은 화면 전체만
-      const p = span > 1 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
-      const j = Math.min(n, Math.floor(p * (n + 1)));
-      const back = away;
-      away = false;
-      if (j === last && !back) return;
-      if (j !== last) {
-        last = j;
-        setCur(j);
-      } else setReplay((v) => v + 1);
+    const timers = new Set<number>();
+    const clear = () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+    const at = (ms: number, fn: () => void) => {
+      const id = window.setTimeout(() => {
+        timers.delete(id);
+        fn();
+      }, ms);
+      timers.add(id);
+    };
+    /** j 단계로 — 뷰파인더는 카메라가 도착한 뒤, 머문 뒤 다음 단계로(움직임 줄이기면 저절로 넘기지 않음) */
+    const go = (j: number) => {
+      clear();
+      setCur(j);
+      setReplay((v) => v + 1);
       setRingOn(false);
-      clearTimeout(timer);
-      if (j > 0) timer = window.setTimeout(() => setRingOn(true), reduce ? 0 : (stops[j - 1].ringAt ?? 850));
+      if (j === 0) return;
+      at(reduce ? 0 : (stops[j - 1].ringAt ?? 850), () => setRingOn(true));
+      if (!reduce && j < n) at(stepMs(stops[j - 1]), () => go(j + 1));
     };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(update);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    onScroll();
+    goRef.current = go;
+    let shown = false;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!shown && e.intersectionRatio >= 0.35) {
+          shown = true;
+          if (reduce) go(1);
+          else {
+            clear();
+            at(INTRO_MS, () => go(1));
+          }
+        } else if (shown && !e.isIntersecting) {
+          // 완전히 빠지면 되감기 — 다시 보이면 화면 전체부터 다시
+          shown = false;
+          clear();
+          setCur(0);
+          setRingOn(false);
+        }
+      },
+      { threshold: [0, 0.35] },
+    );
+    io.observe(box);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      cancelAnimationFrame(raf);
-      clearTimeout(timer);
+      io.disconnect();
+      clear();
     };
   }, [n, stops]);
-
-  /** 글머리표 → 그 멈춤이 되는 자리(구간 가운데)로 스크롤 */
-  const jump = (j: number) => {
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const span = r.height - window.innerHeight;
-    if (span <= 1) return;
-    const reduce = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: window.scrollY + r.top + span * ((j + 0.5) / (n + 1)), behavior: reduce ? "auto" : "smooth" });
-  };
 
   const stop = cur ? stops[cur - 1] : null;
   const camera = cameraOf(stop);
@@ -232,9 +238,7 @@ function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: bool
   return (
     <Band
       tone={step.tone}
-      pin={1 + n * 0.5}
-      sectionRef={ref}
-      className={`grid items-center gap-18 max-[900px]:grid-cols-1 max-[900px]:gap-5 ${flip ? "grid-cols-[6.4fr_5fr]" : "grid-cols-[5fr_6.4fr]"}`}
+      className={`grid items-center gap-18 py-28 max-[900px]:grid-cols-1 max-[900px]:gap-5 max-[640px]:py-18 ${flip ? "grid-cols-[6.4fr_5fr]" : "grid-cols-[5fr_6.4fr]"}`}
     >
       <div className={`flex flex-col items-start gap-5 max-[640px]:gap-3.5 ${flip ? "order-2 max-[900px]:order-none" : ""}`}>
         <StepText step={step} dark={dark}>
@@ -246,7 +250,7 @@ function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: bool
                   <li key={s.text}>
                     <button
                       type="button"
-                      onClick={() => jump(j + 1)}
+                      onClick={() => goRef.current(j + 1)}
                       aria-current={on ? "step" : undefined}
                       className={`relative flex w-full cursor-pointer py-2.75 pl-5 text-left type-label-semibold-xl motion-safe:transition-colors motion-safe:duration-300 max-[640px]:py-2 max-[640px]:pl-4 max-[640px]:text-base! ${
                         dark
@@ -259,8 +263,11 @@ function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: bool
                       }`}
                     >
                       <span aria-hidden className={`absolute top-2.25 bottom-2.25 left-0 w-0.75 overflow-hidden rounded-(--pill) ${dark ? "bg-surface-inverse-light" : "bg-border-default"}`}>
+                        {/* 지난 단계는 꽉, 지금 단계는 머무는 시간만큼 차오름(마지막은 차고 멈춤 · 움직임 줄이기면 꽉), 다음은 빈 */}
                         <i
-                          className={`block w-full rounded-(--pill) motion-safe:transition-[height] motion-safe:duration-300 ${dark ? "bg-brand-secondary-lightness" : "bg-brand-accent-default"} ${on ? "h-full" : "h-0"}`}
+                          key={on ? replay : "idle"}
+                          className={`block w-full rounded-(--pill) ${dark ? "bg-brand-secondary-lightness" : "bg-brand-accent-default"} ${on ? "tour-fill" : cur > j + 1 ? "h-full" : "h-0"}`}
+                          style={on ? ({ "--step": `${stepMs(s)}ms` } as CSSProperties) : undefined}
                         />
                       </span>
                       {s.text}
@@ -273,7 +280,7 @@ function TourBand({ step, stops, flip }: { step: Step; stops: Stop[]; flip: bool
         </StepText>
       </div>
       <Reveal variant="rise" className={`py-9 max-[900px]:py-1 ${flip ? "order-1 max-[900px]:order-none" : ""}`}>
-        <div className="relative">
+        <div ref={boxRef} className="relative">
           <step.Shot tour={cur} replay={replay} camera={camera} />
           {stop && <FocusFrame rect={ringOf(stop, camera)} on={ringOn} />}
         </div>

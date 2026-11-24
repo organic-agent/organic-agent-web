@@ -6,11 +6,10 @@
  * 2026-11-23(이슈 182) 구역 경계를 선 대신 바탕색으로 나눈다 — 흰 · 연보라(tint) · 진한 연보라(lavender, 체험 띠) ·
  * 어두운(dark, 셀렉 구역 = 크게 보기 화면의 결).
  * dark는 data-tone을 달아 뷰파인더 모서리 · 프레임 색이 밝아진다(globals.css .vf · .ff).
- * pin(흐름 확대 투어, 시안 4-5): 구역을 화면 높이의 pin배로 늘이고 안쪽을 화면 맨 위에 붙여 둔다 — 내리는 동안 화면이 멈춰 있고
- * 부른 쪽이 스크롤 진행으로 단계를 넘긴다. 화면이 낮으면(560 미만) 붙이지 않는다(내용이 넘치니).
+ * 화면에 붙여 두는 고정(pin)은 이슈 184에서 뺐다 — 흐름 투어는 고정 없이 저절로 넘어간다(FlowSection).
  */
 
-import type { CSSProperties, ReactNode, Ref } from "react";
+import type { ReactNode } from "react";
 
 const TONE_BG = {
   white: "bg-background-default-main",
@@ -24,8 +23,6 @@ export function Band({
   labelledBy,
   tone = "white",
   className = "",
-  pin,
-  sectionRef,
   children,
 }: {
   id?: string;
@@ -34,26 +31,13 @@ export function Band({
   tone?: keyof typeof TONE_BG;
   /** 안쪽 상자 — 위아래 여백과 배치 */
   className?: string;
-  /** 화면에 붙여 둘 길이 — 화면 높이의 배수(2.5면 구역이 2.5화면) */
-  pin?: number;
-  sectionRef?: Ref<HTMLElement>;
   children: ReactNode;
 }) {
-  const inner = (
-    <div className="max-w-wrap mx-auto px-6">
-      <div className={className}>{children}</div>
-    </div>
-  );
   return (
-    <section
-      ref={sectionRef}
-      id={id}
-      aria-labelledby={labelledBy}
-      data-tone={tone === "dark" ? "dark" : undefined}
-      className={`${TONE_BG[tone]} ${pin ? "h-[calc(var(--pin)*100svh)] [@media(max-height:559px)]:h-auto" : ""}`}
-      style={pin ? ({ "--pin": pin } as CSSProperties) : undefined}
-    >
-      {pin ? <div className="sticky top-0 flex h-svh items-center *:w-full [@media(max-height:559px)]:static [@media(max-height:559px)]:h-auto">{inner}</div> : inner}
+    <section id={id} aria-labelledby={labelledBy} data-tone={tone === "dark" ? "dark" : undefined} className={TONE_BG[tone]}>
+      <div className="max-w-wrap mx-auto px-6">
+        <div className={className}>{children}</div>
+      </div>
     </section>
   );
 }

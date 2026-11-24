@@ -376,6 +376,11 @@
     opacity: 1;
     transform: none;
   }
+  /* 흐름 투어 글머리표 막대(이슈 184) — 지금 단계에 머무는 시간(--step)만큼 차오른다. 움직임 줄이기면 바로 꽉 */
+  .tour-fill {
+    height: 100%;
+    animation: tour-fill var(--step, 2.6s) linear both;
+  }
   @media (max-width: 640px) {
     .vf-md {
       --th: 2px;
@@ -411,6 +416,17 @@
       transform: none;
       transition: none;
     }
+    .tour-fill {
+      animation: none;
+    }
+  }
+}
+@keyframes tour-fill {
+  from {
+    height: 0;
+  }
+  to {
+    height: 100%;
   }
 }
 
