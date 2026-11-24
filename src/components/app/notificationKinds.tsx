@@ -5,6 +5,7 @@
 
 import type { ReactNode } from "react";
 import {
+  AlbumIcon,
   BrushIcon,
   CheckCircleIcon,
   GroupIcon,
@@ -14,7 +15,7 @@ import {
 } from "@/components/icons";
 import type { NotificationType } from "@/lib/api/notifications";
 
-type Kind = "selection" | "retouch" | "member" | "deadline" | "ai" | "gallery";
+type Kind = "selection" | "retouch" | "album" | "member" | "deadline" | "ai" | "gallery";
 
 const KIND_OF: Record<NotificationType, Kind> = {
   SELECTION_SUBMITTED: "selection",
@@ -24,6 +25,9 @@ const KIND_OF: Record<NotificationType, Kind> = {
   RETOUCH_REQUESTED: "retouch",
   RETOUCH_COMPLETED: "retouch",
   RETOUCH_CONFIRMED: "retouch",
+  ALBUM_SENT: "album",
+  ALBUM_RETURNED: "album",
+  ALBUM_CONFIRMED: "album",
   INVITE_ACCEPTED: "member",
   WORKSPACE_MEMBER_LEFT: "member",
   GALLERY_MEMBER_LEFT: "member",
@@ -45,6 +49,10 @@ const KIND_STYLE: Record<Kind, { icon: ReactNode; className: string }> = {
   retouch: {
     icon: <BrushIcon size={18} />,
     className: "bg-function-info-background text-function-info-default",
+  },
+  album: {
+    icon: <AlbumIcon size={18} />,
+    className: "bg-brand-accent-surface text-brand-accent-text",
   },
   member: {
     icon: <GroupIcon size={18} />,
