@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { isSidebarOnlyViewport, useSidebar } from "@/components/SidebarProvider";
 import { PhotoIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
@@ -64,7 +64,10 @@ import { issuePreviewAccess } from "@/lib/api/previewAccess";
 import { usePreviewAccess } from "@/lib/usePreviewAccess";
 import { getPhotoSelection } from "@/lib/api/selection";
 import { useAuth } from "@/lib/auth/authStore";
-import { useInvitedGallery } from "../_lib/useInvitedGallery";
+import { ALBUM_EDITOR_ENABLED } from "@/lib/album/flag";
+import { useAlbumInfo } from "@/lib/album/store";
+import { clientNotificationHref } from "../_lib/notificationHref";
+import { isDeadlinePassed, useInvitedGallery } from "../_lib/useInvitedGallery";
 import { ClientCoachMarks } from "./_shell/ClientCoachMarks";
 import { ClientSidebar, type ClientView, type StatusLine } from "./_shell/ClientSidebar";
 import { ConfirmFoldersModal } from "./_shell/ConfirmFoldersModal";
@@ -81,13 +84,14 @@ import { useExcludedPhotos } from "./_shell/useExcludedPhotos";
 import { WaitCard } from "./_shell/WaitCard";
 import { usePersonalUpload } from "./_shell/usePersonalUpload";
 import { usePhotoUrlRefresh } from "./_shell/usePhotoUrlRefresh";
-import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf, personalPhaseOf } from "./_shell/clientStages";
+import { clientPhaseOf, clientStageIndexOf, clientStageLabelOf, clientStagesOf, hasAlbum, personalPhaseOf } from "./_shell/clientStages";
+import { invitedChipAction, invitedChipStates, type InvitedChipContext } from "./_shell/invitedChips";
 
 /** 컨셉 분류의 별점 필터는 별점만 본다 — 선택 · 좋아요 · AI 추천 맥락은 비워 둔다 */
 const NO_CONTEXT = { pickedIds: new Set<number>(), likesByPhoto: new Map<number, number>(), aiIds: new Set<number>() };
 
 /** 상단 단계 칩이 셀렉 · 보정 확인 화면 안의 창을 열어 달라는 요청(이슈 147) — nonce가 바뀔 때마다 한 번 */
-type StageRequest = { kind: "export"; nonce: number } | { kind: "cancelExport" | "close"; nonce: number };
+type StageRequest = { kind: "export"; nonce: number } | { kind: "cancelExport" | "close" | "confirm"; nonce: number };
 
 export default function ClientGalleryPage() {
   const params = useParams<{ galleryId: string }>();
@@ -124,6 +128,9 @@ export default function ClientGalleryPage() {
   const [photoUrlsExpire, setPhotoUrlsExpire] = useState(true);
   // 개인은 올라온(UPLOADED) 사진 수와 폴더 확정으로 단계를 가른다 — 서버 stage는 업로드 · 컨셉 분류 · 셀렉을 구분하지 않는다.
   // 첫 장이 올라오기 전(PENDING만)엔 작가 1단계처럼 안내 카드가 남는다
+  // 앨범(이슈 168) — 스튜디오가 보내고 확정했으면 볼 수 있다(플래그 뒤, 개인 갤러리엔 앨범 없음). 행의 펼침면 수는 앨범을 읽어서
+  const albumConfirmed = ALBUM_EDITOR_ENABLED && !isPersonal && gallery?.albumStatus === "CONFIRMED";
+  const albumInfo = useAlbumInfo(galleryId, albumConfirmed);
   const phase = gallery
     ? isPersonal
       ? personalPhaseOf(gallery, photos === null ? null : photos.filter((p) => p.status === "UPLOADED").length)
@@ -176,8 +183,9 @@ export default function ClientGalleryPage() {
   // ── 상단 단계 칩으로 이동(개인 갤러리, 이슈 147) ──
   /** 잠긴 칸을 눌렀을 때의 스낵바 — 2.4초 뒤 사라진다 */
   const [stageNotice, setStageNotice] = useState<string | null>(null);
-  /** 보정이 시작된 뒤 · 마무리 뒤에 지난 단계를 읽기 전용으로 보는 중 — null이면 지금 단계 화면 */
-  const [viewing, setViewing] = useState<"sort" | "select" | null>(null);
+  /** 지난 단계를 읽기 전용으로 보는 중 — null이면 지금 단계 화면. 앨범 화면의 단계 칩에서 오면 ?view=sort|select(이슈 168) */
+  const viewParam = useSearchParams().get("view");
+  const [viewing, setViewing] = useState<"sort" | "select" | null>(viewParam === "sort" || viewParam === "select" ? viewParam : null);
   /** 정리 중 → 셀렉 "이대로 폴더를 확정할까요?" */
   const [finishOrganizeOpen, setFinishOrganizeOpen] = useState(false);
   /** 셀렉에서 업로드 칩 — 정리 모드로 들어간 뒤(업로드 훅이 살아난 뒤) 올리기 모달을 연다 */
@@ -187,7 +195,7 @@ export default function ClientGalleryPage() {
     setStageRequest(null);
   }
   /** 보정 확인 화면이 알려 주는 것 — 선택 다시 하기가 되는지(보정본 0장) · 보관됐는지 */
-  const [reviewCaps, setReviewCaps] = useState({ canCancelExport: false, archived: false });
+  const [reviewCaps, setReviewCaps] = useState({ canCancelExport: false, archived: false, canConfirm: false });
   /** 컨셉 분류(정리 모드 · 읽기 전용 보기)의 별점 필터(이슈 156) — 셀렉 필터와 따로 살고, 새로고침하면 풀린다 */
   const [sortConditions, setSortConditions] = useState<SelectConditions>(EMPTY_CONDITIONS);
   useEffect(() => {
@@ -364,8 +372,8 @@ export default function ClientGalleryPage() {
       ? folders?.find((c) => c.id === folderSel.conceptId) ?? null
       : null;
 
-  /** 보정이 시작된 뒤 · 마무리 뒤에 컨셉 분류 · 셀렉을 읽기 전용으로 보는 중 */
-  const viewingSort = reviewing && viewing === "sort";
+  /** 보정이 시작된 뒤 · 마무리 뒤에 컨셉 분류 · 셀렉을 읽기 전용으로 보는 중. 초대 클라이언트는 셀렉 중에도 폴더를 보기만(이슈 168) */
+  const viewingSort = (reviewing || (!isPersonal && phase === "select")) && viewing === "sort";
   const viewingSelect = reviewing && viewing === "select";
   const sorting = phase === "sort" || organizing;
   /** 별점이 있는 컨셉 분류 — 셀렉에서 돌아온 정리 모드와 읽기 전용 보기. 첫 확정 전은 별점이 없어 배지 · 필터를 두지 않는다 */
@@ -610,7 +618,14 @@ export default function ClientGalleryPage() {
   })();
   const bottomHint = (() => {
     if (notice) return notice;
-    if (viewingSort) return phase === "done" ? "마무리된 갤러리 · 보기만 할 수 있어요" : "보정 확인 중 · 보기만 할 수 있어요";
+    if (viewingSort)
+      return phase === "done"
+        ? "마무리된 갤러리 · 보기만 할 수 있어요"
+        : phase === "select"
+          ? "셀렉 중 · 폴더는 보기만 할 수 있어요"
+          : phase === "album"
+            ? "보정을 확정한 뒤라 보기만 할 수 있어요"
+            : "보정 확인 중 · 보기만 할 수 있어요";
     if (isPersonal && upload.hint) return upload.hint;
     if (phase === "wait") return "준비가 끝나면 알림으로 알려 드려요 · 함께 볼 사람은 작가가 초대해요";
     if (organizing) return null;
@@ -694,6 +709,20 @@ export default function ClientGalleryPage() {
     if (phase === "done") return [lk, ok, ok, ok, ok];
     return [lk, ok, ok, ok, personalOwner ? ok : lk]; // 보정 확인
   })();
+  // ── 상단 단계 칩(초대 클라이언트, 이슈 168 결정 1) — 규칙은 invitedChips.ts ──
+  const invitedCtx: InvitedChipContext | null =
+    !isPersonal && gallery && phase && phase !== "wait" && phase !== "upload"
+      ? { phase, album: hasAlbum(gallery), deadlinePassed: isDeadlinePassed(gallery.selectionDeadline), canConfirm: reviewCaps.canConfirm, albumConfirmed }
+      : null;
+  const invitedStates: StageChipState[] | undefined = invitedCtx && stageIndex !== null ? invitedChipStates(invitedCtx) : undefined;
+  function onInvitedStageSelect(to: number) {
+    if (!invitedCtx) return;
+    const action = invitedChipAction(invitedCtx, to);
+    if (action.kind === "lock") setStageNotice(action.text);
+    else if (action.kind === "view") setViewing(action.view);
+    else if (action.kind === "request") requestStage(action.request);
+    else router.push(`/gallery/${galleryId}/album`);
+  }
   /** 셀렉 → 컨셉 분류: 정리 모드. 사이드바의 고른 장수는 서버에서 읽는다(셀렉 화면이 알던 값을 칩은 모른다) */
   async function enterOrganizing() {
     setOrganizingRequested(true);
@@ -818,8 +847,9 @@ export default function ClientGalleryPage() {
       <ShellTopbar
         stages={clientStagesOf(gallery, isPersonal)}
         stageIndex={stageIndex}
-        stageStates={stageStates}
-        onStageSelect={stageStates ? onStageSelect : undefined}
+        stageStates={stageStates ?? invitedStates}
+        onStageSelect={stageStates ? onStageSelect : invitedStates ? onInvitedStageSelect : undefined}
+        currentClickable={invitedStates !== undefined}
         deadlineStage={isPersonal ? 2 : 1}
         deadline={gallery?.selectionDeadline ?? null}
         noDeadlineText={isPersonal ? "목표일 없음" : undefined}
@@ -827,7 +857,7 @@ export default function ClientGalleryPage() {
         onInviteClick={personalOwner || selecting ? () => { if (!blockInDemo("게스트 초대")) setInviteOpen(true); } : undefined}
         inviteLabel={personalOwner ? "초대" : "게스트 초대"}
         inviteCoachKey="invite"
-        notificationHrefFor={(n) => (n.scope === "GALLERY" && n.scopeId !== null ? `/gallery/${n.scopeId}` : null)}
+        notificationHrefFor={clientNotificationHref}
       />
 
       {reviewing && viewing === null && gallery && phase ? (
@@ -848,6 +878,13 @@ export default function ClientGalleryPage() {
           stageRequest={stageRequest && stageRequest.kind !== "export" ? stageRequest : null}
           onStageRequestHandled={onStageRequestHandled}
           onCapabilities={setReviewCaps}
+          album={
+            albumConfirmed
+              ? { trailing: albumInfo ? `${albumInfo.spreads}면` : "", onOpen: () => router.push(`/gallery/${galleryId}/album`) }
+              : phase === "album"
+                ? { trailing: "준비 중", locked: true, onOpen: () => setStageNotice("스튜디오가 앨범을 만들고 있어요") }
+                : null
+          }
         />
       ) : !viewingSort && selecting && !organizing && gallery && phase ? (
         <SelectStage
